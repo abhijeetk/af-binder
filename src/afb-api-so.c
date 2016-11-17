@@ -262,7 +262,7 @@ int afb_api_so_add_binding(const char *path)
 	rc = 0;
 	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 	if (handle == NULL) {
-		ERROR("binding [%s] not loadable", path);
+		ERROR("binding [%s] not loadable: %s", path, dlerror());
 		goto error;
 	}
 
