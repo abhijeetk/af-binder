@@ -5,30 +5,30 @@ Signaling agents are services that send events to any clients that
 subscribed for receiving it. The sent events carry any data.
 
 To have a good understanding of how to write a signaling agent, the
-actions of subscribing, unsubscribing, producing, sending, receiving
+actions of subscribing, unsubscribing, producing, sending and receiving
 events must be described and explained.
 
 Overview of events
 ------------------
 
-The basis of a signaling agent is shown on the following figure:
+The basis of a signaling agent is shown in the following figure:
 
-![scenario of using events](signaling-basis.svg)
+![scenario of using events](pictures/signaling-basis.svg)
 
-This figure shows the main role of the signaling framework for the
-propagation of events.
+This figure shows the main role of the signaling framework for the events
+propagation.
 
 For people not familiar with the framework, a signaling agent and
 a “binding” are similar.
 
 ### Subscribing and unsubscribing
 
-Subscribing and subscription is the action that makes a client able to
-receive data from a signaling agent. Subscription must create resources
-for generating the data and for delivering the data to the client. These
-two aspects are not handled by the same piece of software: generating
-the data is the responsibility of the developer of the signaling agent
-while delivering the data is handled by the framework.
+Subscribing is the action that makes a client able to receive data from a
+signaling agent. Subscription must create resources for generating the data, and
+for delivering the data to the client. These two aspects are not handled by the
+same piece of software. Generating the data is the responsibility of the
+developer of the signaling agent while delivering the data is handled by the
+framework.
 
 When a client subscribes for data, the agent must:
 
@@ -46,8 +46,8 @@ the business logic of the binding. The request can be any description of
 the requested data and the computing stream can be of any nature, this
 is specific to the binding.
 
-As said before, the framework uses and integrates “libsystemd” and its event
-loop. Within the framework, "libsystemd" is the standard API/library for
+As said before, the framework uses and integrates **libsystemd** and its event
+loop. Within the framework, **libsystemd** is the standard API/library for
 bindings expecting to setup and handle I/O, timer or signal events.
 
 Steps 3 and 4 are bound to the framework.
@@ -81,11 +81,11 @@ the client that emitted the request. The client becomes a subscriber of
 the event until it unsubscribes or disconnects. The
 ***afb\_req\_subscribe*** function will fail if the client
 connection is weak: if the request comes from a HTTP link. To receive
-signals, the client must be connected. The AGL framework allows
-connections using WebSocket.
+signals, the client must be connected. The AGL framework allows connections
+using WebSocket.
 
 The name of the event is either a well known name or an ad hoc name
-forged for the usecase.
+forged for the use case.
 
 Let's see a basic example: client A expects to receive the speed in km/h
 every second while client B expects the speed in mph twice a second. In
@@ -96,11 +96,11 @@ any word about the name of these events. The designer of the signaling
 agent has two options for naming:
 
 1.  names can be the same (“speed” for example) with sent data
-    self-describing itself or having a specific tag (requiring from
+    self describing itself or having a specific tag (requiring from
     clients awareness about requesting both kinds of speed isn't safe).
 2.  names of the event include the variations (by example:
     “speed-km/h-1Hz” and “speed-mph-2Hz”) and, in that case, sent data
-    can self-describe itself or not.
+    can self describe itself or not.
 
 In both cases, the signaling agent might have to send the name of the
 event and/or an associated tag to its client in the reply of the
@@ -145,7 +145,7 @@ will receive an event of name ***api/event***.
 This of the responsibility of the designer of the signaling agent to
 establish the processing chain for generating events. In many cases,
 this can be achieved using I/O or timer or signal events inserted in the
-main loop. For this case, the AGL framework uses “libsystemd” and
+main loop. For this case, the AGL framework uses **libsystemd** and
 provide a way to integrates to the main loop of this library using
 afb\_daemon\_get\_event\_loop. Example:
 
@@ -155,12 +155,12 @@ afb\_daemon\_get\_event\_loop. Example:
 ```
 
 In some other cases, the events are coming from D-Bus. In that case, the
-framework also uses “libsystemd” internally to access D-Bus. It provides
+framework also uses **libsystemd** internally to access D-Bus. It provides
 two methods to get the available D-Bus objects, already existing and
-bound to the main libsystemd event loop. Use either
+bound to the main**libsystemd**event loop. Use either
 ***afb\_daemon\_get\_system\_bus*** or
 ***afb\_daemon\_get\_user\_bus*** to get the required instance. Then
-use functions of “libsystemd” to handle D-Bus.
+use functions of **libsystemd** to handle D-Bus.
 
 In some rare cases, the generation of the data requires to start a new
 thread.
@@ -169,7 +169,7 @@ When a data is generated and ready to be pushed, the signaling agent
 should call the function ***afb\_event\_push***. Example:
 
 ```C
-	rc = afb_event_push(event, json);
+	rc = afb_event_push(event, JSON);
 	if (rc == 0) {
 		stop_generating(event);
 		afb_event_drop(event);
@@ -248,7 +248,7 @@ The daemon is the handler to the application framework binder daemon
 received during initialisation steps of the binding.
 
 Calling the function ***afb\_daemon\_make\_event*** within the initialisation
-function ***afbBindingV1Register*** will _fail_ because the plugin
+function ***afbBindingV1Register*** will _fail_ because the binding
 name is not known at this time.
 
 The correct way to create the event at initialisation is to call the function
@@ -366,10 +366,33 @@ The function ***afb\_daemon\_broadcast\_event*** is defined as below:
 int afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
 ```
 
-The name is given here explicitely. The name is automatically prefixed
+The name is given here explicitly. The name is automatically prefixed
 with the name of the binding. For example, a binding of prefix "xxx"
 would broadcat the event "xxx/name".
 
+### Function afbBindingV1ServiceEvent
+
+Binding can implement function **afbBindingV1ServiceEvent** which will
+be called when an event is broadcasted or if service subscribed to an event.
+That allow a service to react to an event and do what it is to do if this is
+relevant for it (ie: car back camera detects imminent collision and broadcast
+it, then appropriate service enable parking brake.). Here is the
+**afbBindingV1ServiceEvent** definition:
+
+```C
+/*
+ * When a binding have an implementation of the function 'afbBindingV1ServiceEvent',
+ * defined below, the framework calls that function for any broadcasted event or for
+ * events that the service subscribed to in its name.
+ *
+ * It receive the 'event' name and its related data in 'object' (be aware that 'object'
+ * might be NULL).
+ */
+extern void afbBindingV1ServiceEvent(const char *event, struct json_object *object);
+
+The binding *tic-tac-toe* broadcasts events when the board changes.
+This is done in the function **changed**:
+```
 
 Architectural digressions
 -------------------------
@@ -381,7 +404,7 @@ agents.
 Low-level signaling agents are bound to the hardware and focused on
 interfacing and driving.
 
-High-level signaling agent are independent of the hardware and ocused on
+High-level signaling agent are independent of the hardware and focused on
 providing service.
 
 This separation (that may in the corner look artificial) aim to help in
@@ -410,7 +433,7 @@ Drawbacks:
 
 -   Cost of propagation of data (might serialize)
 -   Difficulties to abstract low-level signaling agent or to find a
-    trade-of between abstracting and specializing
+    trade-off between abstracting and specializing
 
 The key is modularity versus cost of propagation. It can be partly
 solved when logical group of signaling agent are launched together in
@@ -436,7 +459,7 @@ Drawbacks:
 
 -   Cannot be used for aggregation of several sources
 -   Difficulties to abstract low-level signaling agent or to find a
-    trade-of between abstracting and specializing
+    trade-off between abstracting and specializing
 -   Source code binding not good for maintenance
 
 [^1]: There are two aspect in using JSON: the first is the flexible data

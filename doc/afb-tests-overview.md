@@ -58,7 +58,7 @@ For installing Qt5 on **Ubuntu 16.04**:
 
     $ apt-get install qmlscene qml-module-qtwebsockets qml-module-qtquick-controls
 
-For installing Qt5 on **Fedora 23** :
+For installing Qt5 on **Fedora >= 22** :
 
     $ dnf install qt5-qtdeclarative-devel qt5-qtwebsockets-devel qt5-qtquickcontrols
 

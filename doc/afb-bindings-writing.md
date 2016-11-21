@@ -1,16 +1,16 @@
 
-HOWTO WRITE a BINDING for AFB-DAEMON
+How to write a binding for AFB-DAEMON
 ===================================
 
 Summary
 -------
 
-Afb-daemon binders serve files through HTTP protocol
-and offers to developers the capability to expose application API methods through
-HTTP or WebSocket protocol.
+The afb-daemon binders serve files through HTTP protocol and offers to
+developers the capability to offer application API methods through HTTP or
+WebSocket protocol.
 
-Binder bindings are used to add API to afb-daemon.
-This part describes how to write a binding for afb-daemon.
+The bindings are used to add API to ***afb-daemon***.
+This part describes how to write a binding for***afb-daemon***.
 
 Excepting this summary, this document target developers.
 
@@ -19,132 +19,148 @@ a short overview of binder bindings fundamentals.
 
 ### Nature of a binding
 
-A binding is an independent piece of software. A binding is self contain and exposes application logic as sharable library.
-A binding is intended to be dynamically loaded by afb-daemon to expose application API.
+A binding is an independent piece of software. A binding is self contain and
+exposes application logic as sharable library. A binding is intended to be
+dynamically loaded by ***afb-daemon*** to expose application API.
 
-Technically, a binder binding does not reference and is not linked with any afb-daemon library.
+Technically, a binder binding does not reference and is not linked with any
+***afb-daemon*** library.
 
 ### Class of bindings
 
-Application binder supports two kinds of bindings: application bindings and service bindings.
-Technically both class of binding are equivalent are use the same coding convention. Only sharing mode and security context diverge.
+Application binder supports two kinds of bindings: application bindings and
+service bindings. Technically both class of binding are equivalent and use the
+same coding convention. Only sharing mode and security context diverge.
 
 #### Application-bindings
 
-Application-bindings implements the glue in between application's UI and services. Every AGL application
-has a corresponding binder that typically activates one or many bindings to interface the application logic with lower platform services.
-When an application is started by the AGL application framework, a dedicate binder is started that loads/activates application binding(s). 
-API expose by application-binding are executed within corresponding application security context.
+Application-bindings implements the glue in between application's UI and
+services. Every AGL application has a corresponding binder that typically
+activates one or many bindings to interface the application logic with lower
+platform services. When an application is started by the AGL application
+framework, a dedicate binder is started that loads/activates application
+binding(s). API expose by application-binding are executed within corresponding
+application security context.
 
-Application bindings generally handle a unique context for a unique client. As the application framework start
-a dedicated instance of afb_daemon for each AGL application, if a given binding is used within multiple application each of those
-application get a new and private instance of eventually "shared" binding.
+Application bindings generally handle a unique context for a unique client. As
+the application framework start a dedicated instance of afb_daemon for each AGL
+application, if a given binding is used within multiple application each of
+those application get a new and private instance of eventually "shared" binding.
 
 #### Service-bindings
 
-Service-bindings enable API activation within corresponding service security context and not within calling application context. 
-Service-bindings are intended to run as a unique instance. Service-bindings can be shared in between multiple clients.
+Service-bindings enable API activation within corresponding service security
+context and not within calling application context. Service-bindings are
+intended to run as a unique instance. Service-bindings can be shared in between
+multiple clients.
 
-Service-bindings can either be stateless or manage client context. When managing context each client get a private context.
+Service-bindings can either be stateless or manage client context. When managing
+context each client get a private context. Sharing may either be global to the
+platform (ie: GPS service) or dedicated to a given user (ie: user preferences)
 
-Sharing may either be global to the platform (ie: GPS service) or dedicated to a given user (ie: user preferences)
- 
-### Live cycle of bindings within afb-daemon
+### Live cycle of bindings within ***afb-daemon***
 
-Application and service bindings are loaded and activated each time a new afb-daemon is started.
+Application and service bindings are loaded and activated each time a new
+***afb-daemon*** is started.
 
-At launch time, every loaded binding initialise itself.
-If a single binding initialisation fail corresponding instance of afb-daemon self aborts.
+At launch time, every loaded binding initialise itself. If a single binding
+initialisation fails the corresponding instance of ***afb-daemon*** aborts.
 
-Conversely, when a binding initialisation succeeds, it should register 
-its unique name as well as the list of verbs attached to the methods it exposes.
+Conversely, when a binding initialisation succeeds, it should register its
+unique name as well as the list of verbs (methods name from binder point of
+view) attached to the methods it exposes.
 
-When initialised, on request from application clients to the right API/verb, binding methods
-are activated by the afb-daemon attached to the application or service.
+When initialised, on request from application clients to the right API/verbs
+binding methods are activated by the ***afb-daemon*** attached to the
+application or service.
 
-At exit time, no special action is enforced by afb-daemon. When a specific actions is required at afb-daemon stop,
-developers should use 'atexit/on_exit' during binding initialisation sequence to register a custom exit function.
+At exit time, no special action is enforced by ***afb-daemon***. When a specific
+actions is required at afb-daemon stop, developers should use 'atexit/on_exit'
+during binding initialisation sequence to register a custom exit function.
 
-### Binding Contend
+### Binding Content
 
-Afb-daemon's binding register two classes of objects: names and functions.
+Afb-daemon's bindings register two classes of objects: names and functions.
 
 Bindings declare categories of names:
- - A unique binding name to access all API expose by this binding,
+ - A unique binding name to access all API exposed by this binding,
  - One name for each methods/verbs provided by this binding.
 
 Bindings declare two categories of functions:
- - function use for the initialisation
- - functions implementing exposed API methods
+ - function used for initialisation
+ - functions implementing the exposed API methods
 
-Afb-daemon parses URI requests to extract the API(binding name) and the VERB(method to activate).
-As an example, URI **foo/bar** translates to binding named **foo** and method named **bar**.
-To serve such a request, afb-daemon looks for an active binding named **foo** and then within this binding for a method named **bar**.
-When find afb-daemon calls corresponding method with attached parameter if any.
+Afb-daemon parses URI requests to extract the API(binding name) and the
+VERB(method to activate). As an example, URI **foo/bar** translates to binding
+named **foo** and method named **bar**. To serve such a request,
+***afb-daemon*** looks for an active binding named **foo** and then within this
+binding for a method named **bar**. When found ***afb-daemon*** calls
+the corresponding method with an attached parameter if any.
 
-Afb-daemon ignores letter case when parsing URI. Thus **TicTacToe/Board** and **tictactoe/board** are equivalent.
+Afb-daemon is case-insensitive when parsing URI. Thus **TicTacToe/Board** and
+**tictactoe/board** are equivalent.
 
 #### The name of the binding
 
 The name of a given binding is also known as the name
 of the API prefix that defines the binding.
 
-The name of a binding SHOULD be unique within a given afb-daemon instance.
+The name of a binding SHOULD be unique within a given ***afb-daemon*** instance.
 
-For example, when a client of afb-daemon calls a URI named **foo/bar**. Afb-daemon
-extracts the prefix **foo** and the suffix **bar**. **foo** must match a binding name and **bar** a VERB attached to some method.
+For example, when a client of ***afb-daemon*** calls a URI named **foo/bar**.
+Afb-daemon extracts the prefix **foo** and the suffix **bar**. **foo** must
+match a binding name and **bar** has to match a VERB attached to some method.
 
 #### Names of methods
 
-Each binding exposes a set of methods that can be called
-by the clients of a given afb-daemon.
+Each binding exposes a set of methods that can be called by the clients of a
+given ***afb-daemon***.
 
 VERB's name attached to a given binding (API) MUST be unique within a binding.
 
-Bindings static declaration link VERBS to corresponding methods. 
-When clients emit requests on a given API/VERB corresponding method is called by afb-daemon.
+Bindings static declaration link VERBS to the corresponding methods.
+When clients emit requests on a given API/VERB corresponding method is called
+by ***afb-daemon***.
 
 #### Initialisation function
 
 Binding's initialisation function serves several purposes.
 
-1. It allows afb-daemon to control binding version depending on initialisation function name.
-As today, the only supported initialisation function is **afbBindingV1Register**. This identifies
-version "one" of bindings.
+1. It allows ***afb-daemon*** to control the binding version depending on
+the initialisation of function name. As today, the only supported initialisation
+function is **afbBindingV1Register**. This identifies version "one" of bindings.
 
 2. It allows bindings to initialise itself.
 
-3. It enables names declarations: descriptions, requirements and implementations of exposed API/VERB.
+3. It enables names declarations: descriptions, requirements and implementations
+of exposed API/VERB.
 
 #### Functions instantiation of API/VERBs
 
-When an API/VERB is called, afb-daemon constructs a request object. Then it 
-passes this request object to the implementation function corresponding to requested method, this
-within attached API binding.
+When an API/VERB is called, ***afb-daemon*** constructs a request object. Then
+it passes this request object to the implementation function corresponding to
+requested method, this within attached API binding.
 
-An implementation function receives a request object that
-is used to: get arguments of the request, send
-answer, store session data.
+An implementation function receives a request object used to: get
+the arguments of the request, send an answer, store session data.
 
 A binding MUST set an answer to every received requests.
 
-Nevertheless it is not mandatory to set the answer
-before returning from API/VERB implementing function.
-This behaviour is important for asynchronous actions.
+Nevertheless, there are two implementations, *synchronous* and *asynchronous*.
+API/VERB implementation that set an answer before returning are called
+*synchronous implementations*. Those that do not systematically set an answer
+before returning are called *asynchronous implementations*.
 
-API/VERB implementation that set an answer before returning are called *synchronous implementations*.
-Those that do not systematically set an answer before returning are called *asynchronous implementations*.
-
-Asynchronous implementations typically launch asynchronous actions. They record some context at
-request time and provide answer to the request only at completion of asynchronous actions.
+Asynchronous implementations typically launch asynchronous actions. They record
+some context at request time and provide an answer to the request only at
+completion of asynchronous actions.
 
 The Tic-Tac-Toe example
 -----------------------
 
-This part explains how to write an afb-binding.
-For the sake of being practical it uses many
-examples based on tic-tac-toe.
-This binding example is in *bindings/samples/tic-tac-toe.c*.
+This part explains how to write an afb-binding. For the sake of being practical
+it uses many examples based on tic-tac-toe. This binding example is in
+*bindings/samples/tic-tac-toe.c*.
 
 This binding is named ***tictactoe***.
 
@@ -159,25 +175,27 @@ Typing the command
 Print flags use for compilation:
 
 	$ pkg-config --cflags afb-daemon
-	-I/opt/local/include -I/usr/include/json-c 
+	-I/opt/local/include -I/usr/include/json-c
 
 For linking, you should use
 
 	$ pkg-config --libs afb-daemon
 	-ljson-c
 
-Afb-daemon automatically includes dependency to json-c.
+Afb-daemon automatically includes the dependency to json-c.
 This is activated through **Requires** keyword in pkg-config.
-While almost every binding replies on **json-c** this is not a must have dependency.
+While almost every binding replies on **json-c** this is not a must have
+dependency.
 
-Internally, afb-daemon relies on **libsystemd** for its event loop, as well 
-as for its binding to D-Bus.
-Bindings developers are encouraged to leverage **libsystemd** when possible.
-Nevertheless there is no hard dependency to **libsystemd** if ever
-you rather not use it, feel free to do so.
+Internally, ***afb-daemon*** relies on **libsystemd** for its event loop, as
+well as for its binding to D-Bus. Bindings developers are encouraged to leverage
+**libsystemd** when possible. Nevertheless there is no hard dependency to
+**libsystemd** if you do not want to use it, feel free to do so.
 
-> Afb-daemon binding are fully self contain. They do not enforce dependency on any libraries from the application framework.
-> Afb-daemon dependencies requirer to run AGL bindings are given at runtime through pointers leveraging read-only
+> Afb-daemon bindings are fully self contained. They do not enforce dependency
+on any libraries from the application framework.
+> Afb-daemon dependencies requirer to run AGL bindings are given at runtime
+through pointers leveraging read-only
 > memory feature.
 
 Header files to include
@@ -266,11 +284,342 @@ Nevertheless this is not the case with javascript dot notation:
 Using the dot notation, the key must be a valid javascript
 identifier and dash(-) as well as few other reserved characters cannot be used.
 
-For this reason, we advise developper to chose name compatible with both javascript and HTML notation.
+For this reason, we advise developers to chose name compatible with both
+javascript and HTML notation.
 
 It is a good practice, even for arguments not to rely on case sensitivity.
-This may reduce headache strength at debug time, especially with interpreted language like
-javascript that may not warn you that a variable was not defined.
+This may reduce headache strength at debug time, especially with interpreted
+language like javascript that may not warn you that a variable was not defined.
+
+Declaration of methods and initialisation of the bindings
+---------------------------------------------------------
+
+### Declaration of methods
+
+To be active, binding's methods should be declared to
+***afb-daemon***. Furthermore, the binding itself must be recorded.
+
+The registration mechanism is very basic: when ***afb-daemon*** starts,
+it loads all bindings listed in: command line or configuration file.
+
+Loading a binding follows the following steps:
+
+1. Afb-daemon loads the binding with *dlopen*.
+
+2. Afb-daemon searches for a symbol named **afbBindingV1Register** using *dlsym*.
+This symbol is assumed to be the exported initialisation function of the binding.
+
+3. Afb-daemon builds an interface object for the binding.
+
+4. Afb-daemon calls the found function **afbBindingV1Register** with interface pointer
+as parameter.
+
+5. Function **afbBindingV1Register** setups the binding and initialises it.
+
+6. Function **afbBindingV1Register** returns the pointer to a structure
+describing the binding: version, name (prefix or API name), and list of methods.
+
+7. Afb-daemon checks that the returned version and name can be managed.
+If so, binding and its methods are register to become usable as soon as
+***afb-daemon*** initialisation is finished.
+
+### Initialisation of bindings
+
+The bindings initialisation is the final step made at the end of declaration of
+methods. This will initialize the binding and make its ***afb-daemon***'s
+interface fully functional.
+
+So, afb-daemon binder call **afbBindingV1ServiceInit** as final step to a
+binding. This will allows the binding to call features in its name and as saw in
+[Binder events guide](afb-events-guide.md) you can create an event only at this
+moment and not before. Before that it will fail because afb-daemon doesn't know
+the binding name.
+
+**afbBindingV1ServiceInit** is defined as below:
+
+```C
+/*
+ * When a binding have an exported implementation of the
+ * function 'afbBindingV1ServiceInit', defined below,
+ * the framework calls it for initialising the service after
+ * registration of all bindings.
+ *
+ * The object 'service' should be recorded. It has functions that
+ * allows the binding to call features with its own personality.
+ *
+ * The function should return 0 in case of success or, else, should return
+ * a negative value.
+ */
+extern int afbBindingV1ServiceInit(struct afb_service service);
+```
+
+### Application binding example: tic-tac-toe
+
+If we continue our tic-tac-toe example, here after the code used for
+**afbBindingV1Register** implementation from binding *tic-tac-toe*:
+
+```C
+/*
+ * activation function for registering the binding called by afb-daemon
+ */
+const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
+{
+   afbitf = itf;         // records the interface for accessing afb-daemon
+   return &binding_description;  // returns the description of the binding
+}
+```
+
+It is a very minimal initialisation function because *tic-tac-toe* binding doesn't
+have any application related initialisation step. It merely record daemon's interface
+and returns its description.
+
+The variable **afbitf** is a binding global variable. It keeps the
+interface to ***afb-daemon*** that should be used for logging and pushing events.
+Here is its declaration:
+
+```C
+/*
+ * the interface to afb-daemon
+ */
+const struct afb_binding_interface *afbitf;
+```
+
+The description of the binding is defined here after.
+
+```C
+/*
+ * array of the methods exported to afb-daemon
+ */
+static const struct afb_verb_desc_v1 binding_methods[] = {
+   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
+   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
+   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
+   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
+   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
+   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
+   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
+   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
+   { .name= NULL } /* marker for end of the array */
+};
+
+/*
+ * description of the binding for afb-daemon
+ */
+static const struct afb_binding binding_description =
+{
+   /* description conforms to VERSION 1 */
+   .type= AFB_BINDING_VERSION_1,
+   .v1= {				/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
+      .prefix= "tictactoe",		/* the API name (or binding name or prefix) */
+      .info= "Sample tac-tac-toe game",	/* short description of of the binding */
+      .methods = binding_methods		/* the array describing the methods of the API */
+   }
+};
+```
+
+The structure **binding_description** describes the binding.
+It declares the type and version of the binding, its name, a short description
+and its methods list.
+
+The list of methods is an array of structures describing the methods and terminated by a NULL marker.
+
+In version one of afb-damon binding, a method description contains 4 fields:
+
+- the name of the method,
+
+- the session management flags,
+
+- the implementation function to be call for the method,
+
+- a short description.
+
+The structure describing methods is defined as follows:
+
+```C
+/*
+ * Description of one method of the API provided by the binding
+ * This enumeration is valid for bindings of type 1
+ */
+struct afb_verb_desc_v1
+{
+       const char *name;                       /* name of the method */
+       enum AFB_session_v1 session;            /* authorisation and session requirements of the method */
+       void (*callback)(struct afb_req req);   /* callback function implementing the method */
+       const char *info;                       /* textual description of the method */
+};
+```
+
+For technical reasons, the enumeration **enum AFB_session_v1** is not exactly an
+enumeration but the wrapper of constant definitions that can be mixed using bitwise or
+(the C operator |).
+
+The constants that can bit mixed are:
+
+Constant name            | Meaning
+-------------------------|-------------------------------------------------------------
+**AFB_SESSION_CREATE**   | Equals to AFB_SESSION_LOA_EQ_0|AFB_SESSION_RENEW
+**AFB_SESSION_CLOSE**    | Closes the session after the reply and set the LOA to 0
+**AFB_SESSION_RENEW**    | Refreshes the token of authentification
+**AFB_SESSION_CHECK**    | Just requires the token authentification
+**AFB_SESSION_LOA_LE_0** | Requires the current LOA to be lesser then or equal to 0
+**AFB_SESSION_LOA_LE_1** | Requires the current LOA to be lesser then or equal to 1
+**AFB_SESSION_LOA_LE_2** | Requires the current LOA to be lesser then or equal to 2
+**AFB_SESSION_LOA_LE_3** | Requires the current LOA to be lesser then or equal to 3
+**AFB_SESSION_LOA_GE_0** | Requires the current LOA to be greater then or equal to 0
+**AFB_SESSION_LOA_GE_1** | Requires the current LOA to be greater then or equal to 1
+**AFB_SESSION_LOA_GE_2** | Requires the current LOA to be greater then or equal to 2
+**AFB_SESSION_LOA_GE_3** | Requires the current LOA to be greater then or equal to 3
+**AFB_SESSION_LOA_EQ_0** | Requires the current LOA to be equal to 0
+**AFB_SESSION_LOA_EQ_1** | Requires the current LOA to be equal to 1
+**AFB_SESSION_LOA_EQ_2** | Requires the current LOA to be equal to 2
+**AFB_SESSION_LOA_EQ_3** | Requires the current LOA to be equal to 3
+
+If any of this flag is set, ***afb-daemon*** requires an authentication token
+as if **AFB_SESSION_CHECK** flag was also set.
+
+The special value **AFB_SESSION_NONE** is zero and can be used to bypass token check.
+
+> Note that **AFB_SESSION_CREATE** and **AFB_SESSION_CLOSE** might be removed in later versions.
+
+Sending messages to the log system
+----------------------------------
+
+Afb-daemon provides 4 levels of verbosity and 5 methods for logging messages.
+
+The verbosity is managed. Options allow the change the verbosity of ***afb-daemon***
+and the verbosity of the bindings can be set binding by binding.
+
+The methods for logging messages are defined as macros that test the
+verbosity level and that call the real logging function only if the
+message must be output. This avoid evaluation of arguments of the
+formatting messages if the message must not be output.
+
+### Verbs for logging messages
+
+The 5 logging methods are:
+
+Macro   | Verbosity | Meaning                           | syslog level
+--------|:---------:|-----------------------------------|:-----------:
+ERROR   |     0     | Error conditions                  |     3
+WARNING |     1     | Warning conditions                |     4
+NOTICE  |     1     | Normal but significant condition  |     5
+INFO    |     2     | Informational                     |     6
+DEBUG   |     3     | Debug-level messages              |     7
+
+You can note that the 2 methods **WARNING** and **NOTICE** have the same level
+of verbosity. But they don't have the same *syslog level*. It means that
+they are output with a different level on the logging system.
+
+All of these methods have the same signature:
+
+```C
+void ERROR(const struct afb_binding_interface *afbitf, const char *message, ...);
+```
+
+The first argument **afbitf** is the interface to afb daemon that the
+binding received at initialisation time when **afbBindingV1Register** is called.
+
+The second argument **message** is a formatting string compatible with printf/sprintf.
+
+The remaining arguments are arguments of the formating message like with printf.
+
+### Managing verbosity
+
+Depending on the level of verbosity, the messages are output or not.
+The following table explains what messages will be output depending
+ont the verbosity level.
+
+Level of verbosity | Outputed macro
+:-----------------:|--------------------------
+0                  | ERROR
+1                  | ERROR + WARNING + NOTICE
+2                  | ERROR + WARNING + NOTICE + INFO
+3                  | ERROR + WARNING + NOTICE + INFO + DEBUG
+
+### Output format and destination
+
+The syslog level is used for forging a prefix to the message.
+The prefixes are:
+
+syslog level | prefix
+:-----------:|---------------
+0            | <0> EMERGENCY
+1            | <1> ALERT
+2            | <2> CRITICAL
+3            | <3> ERROR
+4            | <4> WARNING
+5            | <5> NOTICE
+6            | <6> INFO
+7            | <7> DEBUG
+
+
+The message is pushed to standard error.
+The final destination of the message depends on how systemd service
+was configured through its variable **StandardError**. It can be
+journal, syslog or kmsg. (See man sd-daemon).
+
+Sending events
+--------------
+
+Specific documentation exists about [sending events](afb-events-guide.md).
+
+The binding *tic-tac-toe* broadcasts events when the board changes. This is done
+in the function ***changed***:
+
+```C
+/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+	...
+	struct json_object *description;
+
+	/* get the description */
+	description = describe(board);
+
+	...
+
+	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
+}
+```
+
+The description of the changed board is pushed via the daemon interface.
+
+Within binding *tic-tac-toe*, *reason* indicates the origin of
+the change. In function **afb_daemon_broadcast_event** the second
+parameter is the name of broadcasted event. The third argument is the
+object that is transmitted with the event.
+
+Function **afb_daemon_broadcast_event** is defined here after:
+
+```C
+/*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the binding.
+ *
+ * For convenience, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
+```
+
+> Be aware, as with reply functions **object** is automatically released using
+> **json_object_put** when using this function. Call **json_object_get** before
+> calling **afb_daemon_broadcast_event** to keep **object** available
+> after function returns.
+
+Event name received by listeners is prefixed with binding name.
+So when a change occurs after a move, the reason is **move** and every clients
+receive an event **tictactoe/move**.
+
+> Note that nothing is said about case sensitivity of event names.
+> However, the event is always prefixed with the name that the binding
+> declared, with the same case, followed with a slash /.
+> Thus it is safe to compare event using a case sensitive comparison.
 
 Writing a synchronous method implementation
 -----------------------------------------
@@ -307,7 +656,7 @@ for the binding: the board.
 
 2. The macro **INFO** sends a message of kind *INFO*
 to the logging system. The global variable named **afbitf**
-used represents the interface to afb-daemon.
+used represents the interface to ***afb-daemon***.
 
 3. The function **describe** creates a json_object representing
 the board.
@@ -335,11 +684,11 @@ struct afb_req {
 ```
 
 It contains two pointers: first one *itf*, points to functions used
-to handle internal request. Second one *closure* point onto function closure. 
+to handle internal request. Second one *closure* point onto function closure.
 
 > The structure must never be used directly.
 > Instead developer should use the intended functions provided
-> by afb-daemon as described here after.
+> by ***afb-daemon*** as described here after.
 
 *req* is used to get arguments of the request, to send
 answer, to store session data.
@@ -362,7 +711,8 @@ For a binding, having data associated to a session is common.
 This data is called "binding context" for the session.
 Within *tic-tac-toe* binding the context is the board.
 
-Requests *afb_req* offer four functions for storing and retrieving session associated context.
+Requests *afb_req* offer four functions for storing and retrieving session
+associated context.
 
 These functions are:
 
@@ -394,7 +744,7 @@ static inline struct board *board_of_req(struct afb_req req)
 
 The function **afb_req_context** ensures an existing context
 for the session of the request.
-Its two last arguments are functions to allocate and free context. 
+Its two last arguments are functions to allocate and free context.
 Note function type casts to avoid compilation warnings.
 
 Here is the definition of the function **afb_req_context**
@@ -425,8 +775,8 @@ The boards are checking usage count to free resources when not used.
 
 The third argument is a function that frees context resources.
 For binding *tic-tac-toe* (function **release_board**).
-The function **release_board** decrease usage count of the board passed in argument.
-When usage count falls to zero, data board are freed.
+The function **release_board** decrease usage count of the board passed in
+argument. When usage count falls to zero, data board are freed.
 
 Definition of other functions dealing with contexts:
 
@@ -669,7 +1019,7 @@ The value is the name of the file as it was set by the HTTP client.
 Generally it is the filename on client side.
 
 The path is the effective path of saved file on the temporary local storage
-area of the application. This is a randomly generated and unique filename. 
+area of the application. This is a randomly generated and unique filename.
 It is not linked with the original filename as used on client side.
 
 After success the binding can use the uploaded file directly from local storage path with no restriction:
@@ -692,7 +1042,7 @@ struct json_object *afb_req_json(struct afb_req req);
 
 It returns a json object. This object depends on how the request was built:
 
-- For HTTP requests, this json object uses key names mapped on argument name. 
+- For HTTP requests, this json object uses key names mapped on argument name.
 Values are either string for common arguments or object ie: { "file": "...", "path": "..." }
 
 - For WebSockets requests, returned directly the object as provided by the client.
@@ -700,304 +1050,6 @@ Values are either string for common arguments or object ie: { "file": "...", "pa
 > In fact, for Websockets requests, the function **afb_req_value**
 > can be seen as a shortcut to
 > ***json_object_get_string(json_object_object_get(afb_req_json(req), name))***
-
-Initialisation of the binding and declaration of methods
------------------------------------------------------
-
-To be active, binding's methods should be declared to
-afb-daemon. Furthermore, the binding itself must be recorded.
-
-The registration mechanism is very basic: when afb-need starts,
-it loads all bindings listed in: command line or configuration file.
-
-Loading a binding follows the following steps:
-
-1. Afb-daemon loads the binding with *dlopen*.
-
-2. Afb-daemon searches for a symbol named **afbBindingV1Register** using *dlsym*.
-This symbol is assumed to be the exported initialisation function of the binding.
-
-3. Afb-daemon builds an interface object for the binding.
-
-4. Afb-daemon calls the found function **afbBindingV1Register** with interface pointer
-as parameter.
-
-5. Function **afbBindingV1Register** setups the binding and initialises it.
-
-6. Function **afbBindingV1Register** returns the pointer to a structure
-describing the binding: version, name (prefix or API name), and list of methods.
-
-7. Afb-daemon checks that the returned version and name can be managed.
-If so, binding and its methods are register to become usable as soon as
-afb-daemon initialisation is finished.
-
-Here after the code used for **afbBindingV1Register** from binding *tic-tac-toe*:
-
-```C
-/*
- * activation function for registering the binding called by afb-daemon
- */
-const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
-{
-   afbitf = itf;         // records the interface for accessing afb-daemon
-   return &binding_description;  // returns the description of the binding
-}
-```
-
-It is a very minimal initialisation function because *tic-tac-toe* binding doesn't
-have any application related initialisation step. It merely record daemon's interface
-and returns its description.
-
-The variable **afbitf** is a binding global variable. It keeps the
-interface to afb-daemon that should be used for logging and pushing events.
-Here is its declaration:
-
-```C
-/*
- * the interface to afb-daemon
- */
-const struct afb_binding_interface *afbitf;
-```
-
-The description of the binding is defined here after.
-
-```C
-/*
- * array of the methods exported to afb-daemon
- */
-static const struct afb_verb_desc_v1 binding_methods[] = {
-   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
-   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
-   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
-   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
-   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
-   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
-   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
-   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
-   { .name= NULL } /* marker for end of the array */
-};
-
-/*
- * description of the binding for afb-daemon
- */
-static const struct afb_binding binding_description =
-{
-   /* description conforms to VERSION 1 */
-   .type= AFB_BINDING_VERSION_1,
-   .v1= {				/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
-      .prefix= "tictactoe",		/* the API name (or binding name or prefix) */
-      .info= "Sample tac-tac-toe game",	/* short description of of the binding */
-      .methods = binding_methods		/* the array describing the methods of the API */
-   }
-};
-```
-
-The structure **binding_description** describes the binding.
-It declares the type and version of the binding, its name, a short description
-and its methods list.
-
-The list of methods is an array of structures describing the methods and terminated by a NULL marker.
-
-In version one of afb-damon binding, a method description contains 4 fields:
-
-- the name of the method,
-
-- the session management flags,
-
-- the implementation function to be call for the method,
-
-- a short description.
-
-The structure describing methods is defined as follows:
-
-```C
-/*
- * Description of one method of the API provided by the binding
- * This enumeration is valid for bindings of type 1
- */
-struct afb_verb_desc_v1
-{
-       const char *name;                       /* name of the method */
-       enum AFB_session_v1 session;            /* authorisation and session requirements of the method */
-       void (*callback)(struct afb_req req);   /* callback function implementing the method */
-       const char *info;                       /* textual description of the method */
-};
-```
-
-For technical reasons, the enumeration **enum AFB_session_v1** is not exactly an
-enumeration but the wrapper of constant definitions that can be mixed using bitwise or
-(the C operator |).
-
-The constants that can bit mixed are:
-
-Constant name            | Meaning
--------------------------|-------------------------------------------------------------
-**AFB_SESSION_CREATE**   | Equals to AFB_SESSION_LOA_EQ_0|AFB_SESSION_RENEW
-**AFB_SESSION_CLOSE**    | Closes the session after the reply and set the LOA to 0
-**AFB_SESSION_RENEW**    | Refreshes the token of authentification
-**AFB_SESSION_CHECK**    | Just requires the token authentification
-**AFB_SESSION_LOA_LE_0** | Requires the current LOA to be lesser then or equal to 0
-**AFB_SESSION_LOA_LE_1** | Requires the current LOA to be lesser then or equal to 1
-**AFB_SESSION_LOA_LE_2** | Requires the current LOA to be lesser then or equal to 2
-**AFB_SESSION_LOA_LE_3** | Requires the current LOA to be lesser then or equal to 3
-**AFB_SESSION_LOA_GE_0** | Requires the current LOA to be greater then or equal to 0
-**AFB_SESSION_LOA_GE_1** | Requires the current LOA to be greater then or equal to 1
-**AFB_SESSION_LOA_GE_2** | Requires the current LOA to be greater then or equal to 2
-**AFB_SESSION_LOA_GE_3** | Requires the current LOA to be greater then or equal to 3
-**AFB_SESSION_LOA_EQ_0** | Requires the current LOA to be equal to 0
-**AFB_SESSION_LOA_EQ_1** | Requires the current LOA to be equal to 1
-**AFB_SESSION_LOA_EQ_2** | Requires the current LOA to be equal to 2
-**AFB_SESSION_LOA_EQ_3** | Requires the current LOA to be equal to 3
-
-If any of this flag is set, afb-daemon requires an authentication token
-as if **AFB_SESSION_CHECK** flag was also set.
-
-The special value **AFB_SESSION_NONE** is zero and can be used to bypass token check.
-
-> Note that **AFB_SESSION_CREATE** and **AFB_SESSION_CLOSE** might be removed in later versions.
-
-Sending messages to the log system
-----------------------------------
-
-Afb-daemon provides 4 levels of verbosity and 5 methods for logging messages.
-
-The verbosity is managed. Options allow the change the verbosity of afb-daemon
-and the verbosity of the bindings can be set binding by binding.
-
-The methods for logging messages are defined as macros that test the
-verbosity level and that call the real logging function only if the
-message must be output. This avoid evaluation of arguments of the
-formatting messages if the message must not be output.
-
-### Verbs for logging messages
-
-The 5 logging methods are:
-
-Macro   | Verbosity | Meaning                           | syslog level
---------|:---------:|-----------------------------------|:-----------:
-ERROR   |     0     | Error conditions                  |     3
-WARNING |     1     | Warning conditions                |     4
-NOTICE  |     1     | Normal but significant condition  |     5
-INFO    |     2     | Informational                     |     6
-DEBUG   |     3     | Debug-level messages              |     7
-
-You can note that the 2 methods **WARNING** and **INFO** have the same level
-of verbosity. But they don't have the same *syslog level*. It means that
-they are output with a different level on the logging system.
-
-All of these methods have the same signature:
-
-```C
-void ERROR(const struct afb_binding_interface *afbitf, const char *message, ...);
-```
-
-The first argument **afbitf** is the interface to afb daemon that the
-binding received at initialisation time when **afbBindingV1Register** is called.
-
-The second argument **message** is a formatting string compatible with printf/sprintf.
-
-The remaining arguments are arguments of the formating message like with printf.
-
-### Managing verbosity
-
-Depending on the level of verbosity, the messages are output or not.
-The following table explains what messages will be output depending
-ont the verbosity level.
-
-Level of verbosity | Outputed macro
-:-----------------:|--------------------------
-0                  | ERROR
-1                  | ERROR + WARNING + NOTICE
-2                  | ERROR + WARNING + NOTICE + INFO
-3                  | ERROR + WARNING + NOTICE + INFO + DEBUG
-
-### Output format and destination
-
-The syslog level is used for forging a prefix to the message.
-The prefixes are:
-
-syslog level | prefix
-:-----------:|---------------
-0            | <0> EMERGENCY
-1            | <1> ALERT
-2            | <2> CRITICAL
-3            | <3> ERROR
-4            | <4> WARNING
-5            | <5> NOTICE
-6            | <6> INFO
-7            | <7> DEBUG
-
-
-The message is pushed to standard error.
-The final destination of the message depends on how systemd service
-was configured through its variable **StandardError**. It can be
-journal, syslog or kmsg. (See man sd-daemon).
-
-Sending events
---------------
-
-Since version 0.5, bindings can broadcast events to any potential listener.
-As today only unattended even are supported. Targeted events are expected for next
-coming version.
-
-The binding *tic-tac-toe* broadcasts events when the board changes.
-This is done in the function **changed**:
-
-```C
-/*
- * signals a change of the board
- */
-static void changed(struct board *board, const char *reason)
-{
-	...
-	struct json_object *description;
-
-	/* get the description */
-	description = describe(board);
-
-	...
-
-	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
-}
-```
-
-The description of the changed board is pushed via the daemon interface.
-
-Within binding *tic-tac-toe*, *reason* indicates the origin of
-the change. In function **afb_daemon_broadcast_event** the second
-parameter is the name of broadcasted event. The third argument is the
-object that is transmitted with the event.
-
-Function **afb_daemon_broadcast_event** is defined here after:
-
-```C
-/*
- * Broadcasts widely the event of 'name' with the data 'object'.
- * 'object' can be NULL.
- * 'daemon' MUST be the daemon given in interface when activating the binding.
- *
- * For convenience, the function calls 'json_object_put' for 'object'.
- * Thus, in the case where 'object' should remain available after
- * the function returns, the function 'json_object_get' shall be used.
- */
-void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
-```
-
-> Be aware, as with reply functions **object** is automatically released using
-> **json_object_put** when using this function. Call **json_object_get** before
-> calling **afb_daemon_broadcast_event** to keep **object** available
-> after function returns.
-
-Event name received by listeners is prefixed with binding name.
-So when a change occurs after a move, the reason is **move** and every clients
-receive an event **tictactoe/move**.
-
-> Note that nothing is said about case sensitivity of event names.
-> However, the event is always prefixed with the name that the binding
-> declared, with the same case, followed with a slash /.
-> Thus it is safe to compare event using a case sensitive comparison.
-
 
 
 Writing an asynchronous method implementation
@@ -1009,23 +1061,12 @@ retrieve arguments.
 
 When two or more clients are sharing a same board, one of them can wait
 until the state of the board changes, but this could also be implemented using
-events because an even is generated each time the board changes.
+events because an event is generated each time the board changes.
 
 In this case, the reply to the wait is sent only when the board changes.
 See the diagram below:
 
-	CLIENT A       CLIENT B         TIC-TAC-TOE
-	   |              |                  |
-	   +--------------|----------------->| wait . . . . . . . .
-	   |              |                  |                     .
-	   :              :                  :                      .
-	   :              :                  :                      .
-	   |              |                  |                      .
-	   |              +----------------->| move . . .           .
-	   |              |                  |          V           .
-	   |              |<-----------------+ success of move      .
-	   |              |                  |                    .
-	   |<-------------|------------------+ success of wait  <
+![tic-tac-toe_diagram][tic-tac-toe_diagram]
 
 Here, this is an invocation of the binding by an other client that
 unblock the suspended *wait* call.
@@ -1101,14 +1142,155 @@ is decremented using **afb_req_unref** to allow resources to be freed.
 
 > The reference count **MUST** be decremented using **afb_req_unref** to free
 > resources and avoid memory leaks.
-> This usage count decrement should happen **AFTER** setting reply or 
+> This usage count decrement should happen **AFTER** setting reply or
 > bad things may happen.
+
+Sending messages to the log system
+----------------------------------
+
+Afb-daemon provides 4 levels of verbosity and 5 methods for logging messages.
+
+The verbosity is managed. Options allow the change the verbosity of ***afb-daemon***
+and the verbosity of the bindings can be set binding by binding.
+
+The methods for logging messages are defined as macros that test the
+verbosity level and that call the real logging function only if the
+message must be output. This avoid evaluation of arguments of the
+formatting messages if the message must not be output.
+
+### Verbs for logging messages
+
+The 5 logging methods are:
+
+Macro   | Verbosity | Meaning                           | syslog level
+--------|:---------:|-----------------------------------|:-----------:
+ERROR   |     0     | Error conditions                  |     3
+WARNING |     1     | Warning conditions                |     4
+NOTICE  |     1     | Normal but significant condition  |     5
+INFO    |     2     | Informational                     |     6
+DEBUG   |     3     | Debug-level messages              |     7
+
+You can note that the 2 methods **WARNING** and **NOTICE** have the same level
+of verbosity. But they don't have the same *syslog level*. It means that
+they are output with a different level on the logging system.
+
+All of these methods have the same signature:
+
+```C
+void ERROR(const struct afb_binding_interface *afbitf, const char *message, ...);
+```
+
+The first argument **afbitf** is the interface to afb daemon that the
+binding received at initialisation time when **afbBindingV1Register** is called.
+
+The second argument **message** is a formatting string compatible with printf/sprintf.
+
+The remaining arguments are arguments of the formating message like with printf.
+
+### Managing verbosity
+
+Depending on the level of verbosity, the messages are output or not.
+The following table explains what messages will be output depending
+ont the verbosity level.
+
+Level of verbosity | Outputed macro
+:-----------------:|--------------------------
+0                  | ERROR
+1                  | ERROR + WARNING + NOTICE
+2                  | ERROR + WARNING + NOTICE + INFO
+3                  | ERROR + WARNING + NOTICE + INFO + DEBUG
+
+### Output format and destination
+
+The syslog level is used for forging a prefix to the message.
+The prefixes are:
+
+syslog level | prefix
+:-----------:|---------------
+0            | <0> EMERGENCY
+1            | <1> ALERT
+2            | <2> CRITICAL
+3            | <3> ERROR
+4            | <4> WARNING
+5            | <5> NOTICE
+6            | <6> INFO
+7            | <7> DEBUG
+
+
+The message is pushed to standard error.
+The final destination of the message depends on how systemd service
+was configured through its variable **StandardError**. It can be
+journal, syslog or kmsg. (See man sd-daemon).
+
+Sending events
+--------------
+
+Since version 0.5, bindings can broadcast events to any potential listener.
+As today only unattended events are supported. Targeted events are expected for
+next coming version.
+
+The binding *tic-tac-toe* broadcasts events when the board changes.
+This is done in the function **changed**:
+
+```C
+/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+	...
+	struct json_object *description;
+
+	/* get the description */
+	description = describe(board);
+
+	...
+
+	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
+}
+```
+
+The description of the changed board is pushed via the daemon interface.
+
+Within binding *tic-tac-toe*, *reason* indicates the origin of
+the change. In function **afb_daemon_broadcast_event** the second
+parameter is the name of broadcasted event. The third argument is the
+object that is transmitted with the event.
+
+Function **afb_daemon_broadcast_event** is defined here after:
+
+```C
+/*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the binding.
+ *
+ * For convenience, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
+```
+
+> Be aware, as with reply functions **object** is automatically released using
+> **json_object_put** when using this function. Call **json_object_get** before
+> calling **afb_daemon_broadcast_event** to keep **object** available
+> after function returns.
+
+Event name received by listeners is prefixed with binding name.
+So when a change occurs after a move, the reason is **move** and every clients
+receive an event **tictactoe/move**.
+
+> Note that nothing is said about case sensitivity of event names.
+> However, the event is always prefixed with the name that the binding
+> declared, with the same case, followed with a slash /.
+> Thus it is safe to compare event using a case sensitive comparison.
 
 How to build a binding
 ---------------------
 
 Afb-daemon provides a *pkg-config* configuration file that can be
-queried by providing **afb-daemon** in command line arguments.
+queried by providing ***afb-daemon*** in command line arguments.
 This configuration file provides data that should be used
 for bindings compilation. Examples:
 
@@ -1185,7 +1367,7 @@ The only filename convention used by afb-daemon relates to **.so** termination.
 *.so pattern is used when afb-daemon automatically discovers binding from a directory hierarchy.
 
 2. It applies a version script at link time to only export the reserved name
-**afbBindingV1Register** for registration entry point. By default, when building 
+**afbBindingV1Register** for registration entry point. By default, when building
 a shared library linker exports all the public symbols (C functions that are not **static**).
 
 Next line are:
@@ -1221,3 +1403,5 @@ Adding a dependency to afb-daemon is enough. See below:
 
 	DEPENDS += " afb-daemon "
 
+
+[tic-tac-toe_diagram]: pictures/tic-tac-toe.svg (Tic-Tac-Toe sequences diagram)

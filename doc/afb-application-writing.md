@@ -1,8 +1,7 @@
+How to write an application on top of AGL FRAMEWORK
+====================================================
 
-HOWTO WRITE an APPLICATION above AGL FRAMEWORK
-==============================================
-
-Programmation Languages for Applications
+Programming Languages for Applications
 -----------------------------------------
 
 ### Writing an HTML5 application
@@ -11,11 +10,12 @@ Developers of HTML5 applications (client side) can easily create
 applications for AGL framework using their preferred
 HTML5 framework.
 
-Developers may also take advantage of powerful server side plugins to improve
-application behavior. Server side plugins return an application/json mine-type
+Developers may also take advantage of powerful server side bindings to improve
+application behavior. Server side bindings return an application/json mine-type
 and can be accessed though either HTTP or Websockets.
 
-In a near future, JSON-RPC protocol should be added to complete current x-afb-json1 protocol.
+In a near future, JSON-RPC protocol should be added to complete the current
+x-afb-json1 protocol.
 
 Two examples of HTML5 applications are given:
 
@@ -25,14 +25,16 @@ Two examples of HTML5 applications are given:
 
 ### Writing a Qt application
 
-Writing Qt applications is also supported. Qt offers standard API to send request through HTTP or WebSockets.
+Writing Qt applications is also supported. Qt offers standard API to send
+request through HTTP or WebSockets.
 
-It is also possible to write QML applications. A sample QML application [token-websock] is avaliable..
+It is also possible to write QML applications. A sample QML application
+[token-websock] is available:
 
 - [token-websock](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=test/token-websock.qml)
 a simple "hello world" application in QML
 
-### Writing "C" application
+### Writing a "C" application
 
 C applications can use afb-daemon binder through a websocket connection.
 
@@ -46,18 +48,20 @@ Source code is available here
 
 Current implementation relies on libsystemd and file descriptors.
 This model might be review in the future to support secure sockets
-and free the dependency with libsystemd.
+and get rid of libsystemd dependency.
 
 Handling sessions within applications
 -------------------------------------
 
-Applications should understand sessions and tokens management when interacting with afb-daemon binder.
+Applications should understand sessions and token management when interacting
+with afb-daemon binder.
 
-Applications are communicating with their private binder(afb-daemon) using
-a network connection or potentially any other connection channel. While current version
-does not yet implement unix domain this feature might be added in a near future.
-Developers need to be warn that HTTP protocol is a none connected protocol. This prevents
-from using HTTP socket connection to authenticate clients.
+Applications communicate with their private binder(afb-daemon) using
+a network connection or potentially any other connection channel. While the
+current version does not yet implement Unix socket, this feature might be added
+in the near future. Developers need to be warn that HTTP protocol is a none
+connected protocol and that using HTTP socket connection to authenticate
+clients is not supported.
 
 For this reason, the binder should authenticate the application
 by using a shared secret. The secret is named "token" and the identification
@@ -68,25 +72,25 @@ how authentication and sessions are managed.
 
 ### Handling sessions
 
-Plugins and other binder feature need to keep track of client
-instances. This is especially important for plugins running as services
+Bindings and other binder features need to keep track of client
+instances. This is especially important for bindings running as services
 as they may typically have to keep each client's data separated.
 
 For HTML5 applications, the web runtime handles the cookie of session
 that the binder afb-daemon automatically sets.
 
-Session identifier can be set using the parameter
-**uuid** or **x-afb-uuid** in URI requests. Within current version of the
-framework session UUID is supported by both HTTP requests and websocket negotiation.
+Session identifier can be set using the parameter **uuid** or **x-afb-uuid** in
+URI requests. Within current version of the framework session UUID is supported
+by both HTTP requests and websocket negotiation.
 
 ### Exchanging tokens
 
 At application start, AGL framework communicates a shared secret to both binder
-and client application. This initial secret is called the "initial token".
+and client application. This initial secret is called the "**initial token**".
 
 For each of its client application, the binder manages a current active
 token for session management. This authentication token can be use to restrict
-access to some plugin's methods.
+the access to some binding's methods.
 
 The token must be included in URI request on HTTP or during websockets
 connection using parameter **token** or **x-afb-token**.
@@ -95,11 +99,12 @@ To ensure security, tokens must be refreshed periodically.
 
 ### Example of session management
 
-In following examples, we suppose that **afb-daemon** is launched with something equivalent to:
+In following examples, we suppose that **afb-daemon** is launched with something
+equivalent to:
 
     $ afb-daemon --port=1234 --token=123456 [...]
 
-making the expectation that **AuthLogin** plugin is requested as default.
+making the expectation that **AuthLogin** binding is requested as default.
 
 #### Using curl
 
@@ -197,8 +202,8 @@ Format of replies
 
 Replies use javascript object returned as serialized JSON.
 
-This object contains at least 2 mandatory fields of name **jtype** and **request**
-and one optional field of name **response**.
+This object contains at least 2 mandatory fields of name **jtype** and
+**request** and one optional field of name **response**.
 
 ### Template
 
@@ -250,11 +255,13 @@ or when the token is refreshed.
 
 **reqid** is of type string. It is sent in response to HTTP requests
 that added a parameter of name **reqid** or **x-afb-reqid** at request time.
-Value returns in the reply has the exact same value as the one received in the request.
+Value returns in the reply has the exact same value as the one received in the
+request.
 
 ### Field response
 
-This field response optionally contains an object returned when request succeeded.
+This field response optionally contains an object returned when request
+succeeded.
 
 Format of events
 ----------------

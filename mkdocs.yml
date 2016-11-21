@@ -1,0 +1,11 @@
+site_name: AGL Application Framework Binder
+theme: readthedocs
+docs_dir: doc
+pages:
+  - 'Overview' : 'index.md'
+  - 'Binder daemon vocabulary' : 'afb-daemon-vocabulary.md'
+  - 'Binder events guide' : 'afb-events-guide.md'
+  - 'Binder Application writing guide' : 'afb-application-writing.md'
+  - 'Binding writing guide' : 'afb-bindings-writing.md'
+  - 'Binder tests overview' : 'afb-tests-overview.md'
+  - 'Bindings samples' : 'afb-bindings-overview.md'

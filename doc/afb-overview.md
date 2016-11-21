@@ -17,27 +17,7 @@ of afb-daemon:
 
 <a id="binder-fig-basis"><h4>Figure: binder afb-daemon, basis</h4></a>
 
-	. . . . . . . . . . . . . . . . . . . . . . . . . .
-	.        Isolated security context                .
-	.                                                 .
-	.        +------------------------------+         .
-	.        |                              |         .
-	.        |    A P P L I C A T I O N     |         .
-	.        |                              |         .
-	.        +--------------+---------------+         .
-	.                       |                         .
-	.                       |                         .
-	.   +-------------------+----------------------+  .
-	.   |                            :             |  .
-	.   |        b i n d e r         :             |  .
-	.   |    A F B - D A E M O N     :  BINDINGS   |  .
-	.   |                            :             |  .
-	.   +-------------------+----------------------+  .
-	.                       |                         .
-	. . . . . . . . . . . . | . . . . . . . . . . . . .
-	                        |
-	                        v
-	                   AGL SYSTEM
+![binder-basis][binder-basis]
 
 The application and its companion binder run in secured and isolated
 environment set for them. Applications are intended to access to AGL
@@ -61,53 +41,23 @@ usage through several use cases.
 
 ### Remotely running application
 
-One of the most interresting aspect of using the binder afb-daemon
+One of the most interesting aspect of using the binder afb-daemon
 is the ability to run applications remotely. This feature is
 possible because the binder afb-daemon implements native web
 protocols.
 
-So the [figure binder, basis](#binder-fig-1) would become
+So the [figure binder, basis](#binder-fig-basis) would become
 when the application is run remotely:
 
 <a id="binder-fig-remote"><h4>Figure: binder afb-daemon and remotely running application</h4></a>
 
-	             +------------------------------+
-	             |                              |
-	             |    A P P L I C A T I O N     |
-	             |                              |
-	             +--------------+---------------+
-	                            |
-	                       ~ ~ ~ ~ ~ ~
-	                      :  NETWORK  :
-	                       ~ ~ ~ ~ ~ ~
-	                            |
-	. . . . . . . . . . . . . . | . . . . . . . . . . . . . .
-	. Isolated security         |                           .
-	.   context                 |                           .
-	.                           |                           .
-	.     . . . . . . . . . . . . . . . . . . . . . . . .   .
-	.     .                                             .   .
-	.     .               F I R E W A L L               .   .
-	.     .                                             .   .
-	.     . . . . . . . . . . . . . . . . . . . . . . . .   .
-	.                           |                           .
-	.       +-------------------+----------------------+    .
-	.       |                            :             |    .
-	.       |    A F B - D A E M O N     :   BINDINGS  |    .
-	.       |                            :             |    .
-	.       +-------------------+----------------------+    .
-	.                           |                           .
-	. . . . . . . . . . . . . . | . . . . . . . . . . . . . .
-	                            |
-	                            v
-	                       AGL SYSTEM
 
 ### Adding native features to HTML5/QML applications
 
 Applications can provide with their packaged delivery a binding.
-That binding will be instanciated for each application instance.
+That binding will be instantiated for each application instance.
 The methods of the binding will be accessible by applications and
-will be excuted within the security context.
+will be executed within the security context.
 
 ### Offering services to the system
 
@@ -124,43 +74,7 @@ In that case, the figure showing the whole aspects is
 
 <a id="binder-fig-remote"><h4>Figure: binder afb-daemon for services</h4></a>
 
-	. . . . . . . . . . . . . . . . . . . . . . 
-	.  Isolated security context application  . 
-	.                                         . 
-	.    +------------------------------+     . 
-	.    |                              |     . 
-	.    |    A P P L I C A T I O N     |     . 
-	.    |                              |     . 
-	.    +--------------+---------------+     .     . . . . . . . . . . . . . . . . . . . . . .
-	.                   |                     .     .        Isolated security context A      .
-	.                   |                     .     .                                         .
-	. +-----------------+------------------+  .     . +------------------------------------+  .
-	. |                        :           |  .     . |                        :           |  .
-	. |      b i n d e r       :           |  .     . |      b i n d e r       :  service  |  .
-	. |  A F B - D A E M O N   : BINDINGS  |  .     . |  A F B - D A E M O N   : BINDINGS  |  .
-	. |                        :           |  .     . |                        :     A     |  .
-	. +-----------------+------------------+  .     . +-----------------+------------------+  .
-	.                   |                     .     .                   |                     .
-	. . . . . . . . . . | . . . . . . . . . . .     . . . . . . . . . . | . . . . . . . . . . .
-	                    |                                               |
-	                    v                                               v
-	         ================================================================================
-	                                     D - B U S   &   C Y N A R A
-	         ================================================================================
-	                    ^                                               ^
-	                    |                                               |
-	. . . . . . . . . . | . . . . . . . . . . .     . . . . . . . . . . | . . . . . . . . . . .
-	.                   |                     .     .                   |                     .
-	. +-----------------+------------------+  .     . +-----------------+------------------+  .
-	. |                        :           |  .     . |                        :           |  .
-	. |      b i n d e r       :  service  |  .     . |      b i n d e r       :  service  |  .
-	. |  A F B - D A E M O N   : BINDINGS  |  .     . |  A F B - D A E M O N   : BINDINGS  |  .
-	. |                        :     B     |  .     . |                        :     C     |  .
-	. +------------------------------------+  .     . +------------------------------------+  .
-	.                                         .     .                                         .
-	.        Isolated security context B      .     .        Isolated security context C      .
-	. . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .
-
+![afb-for-services][afb-for-services]
 
 For this case, the binder afb-daemon takes care to attribute one single session
 context to each client instance. It allows bindings to store and retrieve data
@@ -169,7 +83,7 @@ associated to each of its client.
 The bindings of the binder afb-daemon
 ------------------------------------
 
-The binder can instanciate bindings. The primary use of bindings
+The binder can instantiate bindings. The primary use of bindings
 is to add native methods that can be accessed by applications
 written with any language through web technologies ala JSON RPC.
 
@@ -335,10 +249,11 @@ anymore.
 
 - Make the service connection using WebSocket not DBUS.
 
-- Management of targetted events.
+- Management of targeted events.
 
-- Securisation of LOA.
+- Securing LOA.
 
 - Integration of the protocol JSON-RPC for the websockets.
 
-
+[binder-basis]: pictures/AFB_overview.svg (Binder AFB daemon basis)
+[afb-for-services]: pictures/AFB_for_services.svg (Binder AFB daemon for services)
