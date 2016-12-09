@@ -255,5 +255,5 @@ anymore.
 
 - Integration of the protocol JSON-RPC for the websockets.
 
-[binder-basis]: pictures/AFB_overview.svg (Binder AFB daemon basis)
-[afb-for-services]: pictures/AFB_for_services.svg (Binder AFB daemon for services)
+[binder-basis]: pictures/AFB_overview.svg
+[afb-for-services]: pictures/AFB_for_services.svg

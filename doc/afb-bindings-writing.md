@@ -1404,4 +1404,4 @@ Adding a dependency to afb-daemon is enough. See below:
 	DEPENDS += " afb-daemon "
 
 
-[tic-tac-toe_diagram]: pictures/tic-tac-toe.svg (Tic-Tac-Toe sequences diagram)
+[tic-tac-toe_diagram]: pictures/tic-tac-toe.svg
