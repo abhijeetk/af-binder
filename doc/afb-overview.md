@@ -96,7 +96,7 @@ This simple idea is declined to serves multiple purposes:
 3. provide customers services
 
 A specific document explains how to write an afb-daemon binder binding:
-[HOWTO WRITE a BINDING for AFB-DAEMON](afb-binding-writing.html)
+[HOWTO WRITE a BINDING for AFB-DAEMON](afb-bindings-writing.html)
 
 
 Launching the binder afb-daemon
