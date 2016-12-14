@@ -366,7 +366,7 @@ int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, int dirfd, con
 
 	root = locale_root_create_at(dirfd, alias);
 	if (root == NULL) {
-		/* TODO message */
+		ERROR("can't connect to directory %s: %m", alias);
 		rc = 0;
 	} else {
 		rc = afb_hsrv_add_alias_root(hsrv, prefix, root, priority, relax);
