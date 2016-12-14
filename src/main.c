@@ -226,9 +226,6 @@ static void config_set_default (struct afb_config * config)
    }
 
    // if no Angular/HTML5 rootbase let's try '/' as default
-   if  (config->roothttp == NULL)
-       config->roothttp = ".";
-
    if  (config->rootbase == NULL)
        config->rootbase = "/opa";
 
@@ -538,8 +535,10 @@ static int init_http_server(struct afb_hsrv *hsrv, struct afb_config * config)
 		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, dfd, config->aliasdir[idx].path, 0, 0))
 			return 0;
 
-	if (!afb_hsrv_add_alias(hsrv, "", dfd, config->roothttp, -10, 1))
-		return 0;
+	if (config->roothttp != NULL) {
+		if (!afb_hsrv_add_alias(hsrv, "", dfd, config->roothttp, -10, 1))
+			return 0;
+	}
 
 	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))
 		return 0;
