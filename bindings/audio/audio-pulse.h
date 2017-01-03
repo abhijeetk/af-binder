@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 "IoT.bzh"
+ * Copyright (C) 2016, 2017 "IoT.bzh"
  * Author "Manuel Bachmann"
  *
  * Licensed under the Apache License, Version 2.0 (the "License");

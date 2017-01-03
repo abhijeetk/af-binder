@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 "IoT.bzh"
+ * Copyright (C) 2016, 2017 "IoT.bzh"
  * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
