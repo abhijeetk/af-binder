@@ -31,7 +31,7 @@
 #include "afb-ws-json1.h"
 #include "afb-common.h"
 #include "afb-msg-json.h"
-#include "session.h"
+#include "afb-session.h"
 #include "afb-apis.h"
 #include "afb-context.h"
 #include "afb-evt.h"
@@ -66,7 +66,7 @@ struct afb_ws_json1
 	int refcount;
 	void (*cleanup)(void*);
 	void *cleanup_closure;
-	struct AFB_clientCtx *session;
+	struct afb_session *session;
 	struct afb_evt_listener *listener;
 	struct afb_wsj1 *wsj1;
 	int new_session;
@@ -139,7 +139,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 	result->refcount = 1;
 	result->cleanup = cleanup;
 	result->cleanup_closure = cleanup_closure;
-	result->session = ctxClientAddRef(context->session);
+	result->session = afb_session_addref(context->session);
 	result->new_session = context->created != 0;
 	if (result->session == NULL)
 		goto error2;
@@ -157,7 +157,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 error4:
 	afb_wsj1_unref(result->wsj1);
 error3:
-	ctxClientUnref(result->session);
+	afb_session_unref(result->session);
 error2:
 	free(result);
 error:
@@ -178,7 +178,7 @@ static void aws_unref(struct afb_ws_json1 *ws)
 		afb_wsj1_unref(ws->wsj1);
 		if (ws->cleanup != NULL)
 			ws->cleanup(ws->cleanup_closure);
-		ctxClientUnref(ws->session);
+		afb_session_unref(ws->session);
 		free(ws);
 	}
 }

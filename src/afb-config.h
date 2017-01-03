@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LOCAL_DEF_H
-#define LOCAL_DEF_H
 
 #pragma once
 
@@ -66,4 +64,3 @@ struct afb_config
        } aliasdir[MAX_ALIAS];  // alias mapping for icons,apps,...
 };
 
-#endif /* LOCAL_DEF_H */

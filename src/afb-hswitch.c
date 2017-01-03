@@ -27,7 +27,7 @@
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-apis.h"
-#include "session.h"
+#include "afb-session.h"
 #include "afb-websock.h"
 
 int afb_hswitch_apis(struct afb_hreq *hreq, void *data)

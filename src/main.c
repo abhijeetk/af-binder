@@ -40,7 +40,7 @@
 #include "afb-hreq.h"
 #include "afb-sig-handler.h"
 #include "afb-thread.h"
-#include "session.h"
+#include "afb-session.h"
 #include "verbose.h"
 #include "afb-common.h"
 #include "afb-hook.h"
@@ -662,7 +662,7 @@ int main(int argc, char *argv[])  {
   start_items(config->items);
   config->items = NULL;
 
-  ctxStoreInit(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
+  afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
   if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
      ERROR("initialisation of cookies failed");
      exit (1);

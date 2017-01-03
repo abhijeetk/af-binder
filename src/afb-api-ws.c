@@ -37,7 +37,7 @@
 
 #include "afb-common.h"
 
-#include "session.h"
+#include "afb-session.h"
 #include "afb-ws.h"
 #include "afb-msg-json.h"
 #include "afb-apis.h"
@@ -827,7 +827,7 @@ static void api_ws_client_call_cb(void * closure, struct afb_req req, struct afb
 	if (!api_ws_write_uint32(&wb, memo->msgid)
 	 || !api_ws_write_uint32(&wb, (uint32_t)context->flags)
 	 || !api_ws_write_string_nz(&wb, verb, lenverb)
-	 || !api_ws_write_string(&wb, ctxClientGetUuid(context->session))
+	 || !api_ws_write_string(&wb, afb_session_uuid(context->session))
 	 || !api_ws_write_string_length(&wb, raw, szraw))
 		goto overflow;
 

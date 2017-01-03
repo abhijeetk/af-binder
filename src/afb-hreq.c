@@ -38,7 +38,7 @@
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-subcall.h"
-#include "session.h"
+#include "afb-session.h"
 #include "verbose.h"
 #include "locale-root.h"
 

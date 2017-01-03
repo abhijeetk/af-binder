@@ -24,7 +24,7 @@
 #include <afb/afb-req-itf.h>
 #include <afb/afb-service-itf.h>
 
-#include "session.h"
+#include "afb-session.h"
 #include "afb-context.h"
 #include "afb-evt.h"
 #include "afb-subcall.h"
@@ -36,7 +36,7 @@
 struct afb_svc
 {
 	/* session of the service */
-	struct AFB_clientCtx *session;
+	struct afb_session *session;
 
 	/* event listener of the service or NULL */
 	struct afb_evt_listener *listener;
@@ -100,8 +100,8 @@ const struct afb_req_itf afb_svc_req_itf = {
 	.subcall = (void*)svcreq_subcall
 };
 
-/* the common session for services sahring their session */
-static struct AFB_clientCtx *common_session;
+/* the common session for services sharing their session */
+static struct afb_session *common_session;
 
 /*
  * Creates a new service
@@ -120,14 +120,14 @@ struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service
 	if (share_session) {
 		/* session shared with other svcs */
 		if (common_session == NULL) {
-			common_session = ctxClientCreate (NULL, 0);
+			common_session = afb_session_create (NULL, 0);
 			if (common_session == NULL)
 				goto error2;
 		}
-		svc->session = ctxClientAddRef(common_session);
+		svc->session = afb_session_addref(common_session);
 	} else {
 		/* session dedicated to the svc */
-		svc->session = ctxClientCreate (NULL, 0);
+		svc->session = afb_session_create (NULL, 0);
 		if (svc->session == NULL)
 			goto error2;
 	}
@@ -153,7 +153,7 @@ error4:
 	if (svc->listener != NULL)
 		afb_evt_listener_unref(svc->listener);
 error3:
-	ctxClientUnref(svc->session);
+	afb_session_unref(svc->session);
 error2:
 	free(svc);
 error:

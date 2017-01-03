@@ -21,10 +21,10 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "session.h"
+#include "afb-session.h"
 #include "afb-context.h"
 
-static void init_context(struct afb_context *context, struct AFB_clientCtx *session, const char *token)
+static void init_context(struct afb_context *context, struct afb_session *session, const char *token)
 {
 	assert(session != NULL);
 
@@ -32,28 +32,28 @@ static void init_context(struct afb_context *context, struct AFB_clientCtx *sess
 	context->session = session;
 	context->flags = 0;
 	context->api_index = -1;
-	context->loa_in = ctxClientGetLOA(session) & 7;
+	context->loa_in = afb_session_get_LOA(session) & 7;
 
 	/* check the token */
 	if (token != NULL) {
-		if (ctxTokenCheck(session, token))
+		if (afb_session_check_token(session, token))
 			context->validated = 1;
 		else
 			context->invalidated = 1;
 	}
 }
 
-void afb_context_init(struct afb_context *context, struct AFB_clientCtx *session, const char *token)
+void afb_context_init(struct afb_context *context, struct afb_session *session, const char *token)
 {
-	init_context(context, ctxClientAddRef(session), token);
+	init_context(context, afb_session_addref(session), token);
 }
 
 int afb_context_connect(struct afb_context *context, const char *uuid, const char *token)
 {
 	int created;
-	struct AFB_clientCtx *session;
+	struct afb_session *session;
 
-	session = ctxClientGetSession (uuid, &created);
+	session = afb_session_get (uuid, &created);
 	if (session == NULL)
 		return -1;
 	init_context(context, session, token);
@@ -68,18 +68,18 @@ void afb_context_disconnect(struct afb_context *context)
 {
 	if (context->session != NULL) {
 		if (context->refreshing && !context->refreshed) {
-			ctxTokenNew (context->session);
+			afb_session_new_token (context->session);
 			context->refreshed = 1;
 		}
 		if (context->loa_changing && !context->loa_changed) {
-			ctxClientSetLOA (context->session, context->loa_out);
+			afb_session_set_LOA (context->session, context->loa_out);
 			context->loa_changed = 1;
 		}
 		if (context->closing && !context->closed) {
-			ctxClientClose(context->session);
+			afb_session_close(context->session);
 			context->closed = 1;
 		}
-		ctxClientUnref(context->session);
+		afb_session_unref(context->session);
 		context->session = NULL;
 	}
 }
@@ -91,10 +91,10 @@ const char *afb_context_sent_token(struct afb_context *context)
 	if (!context->refreshing)
 		return NULL;
 	if (!context->refreshed) {
-		ctxTokenNew (context->session);
+		afb_session_new_token (context->session);
 		context->refreshed = 1;
 	}
-	return ctxClientGetToken(context->session);
+	return afb_session_token(context->session);
 }
 
 const char *afb_context_sent_uuid(struct afb_context *context)
@@ -103,19 +103,19 @@ const char *afb_context_sent_uuid(struct afb_context *context)
 		return NULL;
 	if (!context->created)
 		return NULL;
-	return ctxClientGetUuid(context->session);
+	return afb_session_uuid(context->session);
 }
 
 void *afb_context_get(struct afb_context *context)
 {
 	assert(context->session != NULL);
-	return ctxClientValueGet(context->session, context->api_index);
+	return afb_session_get_value(context->session, context->api_index);
 }
 
 void afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*))
 {
 	assert(context->session != NULL);
-	return ctxClientValueSet(context->session, context->api_index, value, free_value);
+	return afb_session_set_value(context->session, context->api_index, value, free_value);
 }
 
 void afb_context_close(struct afb_context *context)

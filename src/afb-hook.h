@@ -59,7 +59,7 @@ struct afb_context;
 struct json_object;
 struct afb_arg;
 struct afb_event;
-struct AFB_clientCtx;
+struct afb_session;
 
 struct afb_hook;
 struct afb_hook_req;
@@ -90,7 +90,7 @@ struct afb_hook_req_itf {
 
 extern struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 
-extern struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct AFB_clientCtx *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure);
+extern struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure);
 extern struct afb_hook *afb_hook_addref(struct afb_hook *spec);
 extern void afb_hook_unref(struct afb_hook *spec);
 

@@ -30,7 +30,7 @@
 
 #include "afb-common.h"
 
-#include "session.h"
+#include "afb-session.h"
 #include "afb-msg-json.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
@@ -340,7 +340,7 @@ static void api_dbus_client_call(struct api_dbus *api, struct afb_req req, struc
 
 	rc = sd_bus_message_append(msg, "ssu",
 			afb_req_raw(req, &size),
-			ctxClientGetUuid(context->session),
+			afb_session_uuid(context->session),
 			(uint32_t)context->flags);
 	if (rc < 0)
 		goto error;
@@ -724,7 +724,7 @@ static void afb_api_dbus_server_listener_free(struct listener *listener)
 	free(listener);
 }
 
-static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, const char *sender, struct AFB_clientCtx *session)
+static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, const char *sender, struct afb_session *session)
 {
 	int rc;
 	struct listener *listener;
@@ -736,7 +736,7 @@ static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, 
 		return NULL;
 
 	/* retrieves the stored listener */
-	listener = ctxClientCookieGet(session, destination);
+	listener = afb_session_get_cookie(session, destination);
 	if (listener != NULL) {
 		/* found */
 		afb_api_dbus_server_destination_unref(destination);
@@ -751,7 +751,7 @@ static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, 
 		listener->destination = destination;
 		listener->listener = afb_evt_listener_create(&evt_push_itf, destination);
 		if (listener->listener != NULL) {
-			rc = ctxClientCookieSet(session, destination, listener, (void*)afb_api_dbus_server_listener_free);
+			rc = afb_session_set_cookie(session, destination, listener, (void*)afb_api_dbus_server_listener_free);
 			if (rc == 0)
 				return listener;
 			afb_evt_listener_unref(listener->listener);
@@ -963,7 +963,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	struct api_dbus *api = userdata;
 	struct afb_req areq;
 	uint32_t flags;
-	struct AFB_clientCtx *session;
+	struct afb_session *session;
 	struct listener *listener;
 
 	/* check the interface */

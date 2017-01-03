@@ -28,7 +28,7 @@
 
 #include "afb-context.h"
 #include "afb-hook.h"
-#include "session.h"
+#include "afb-session.h"
 #include "verbose.h"
 
 /*
@@ -39,7 +39,7 @@ struct afb_hook {
 	unsigned refcount; /* reference count */
 	char *api; /* api hooked or NULL for any */
 	char *verb; /* verb hooked or NULL for any */
-	struct AFB_clientCtx *session; /* session hooked or NULL if any */
+	struct afb_session *session; /* session hooked or NULL if any */
 	unsigned flags; /* hook flags */
 	struct afb_hook_req_itf *reqitf; /* interface of hook */
 	void *closure; /* closure for callbacks */
@@ -526,7 +526,7 @@ struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context
 	return req;
 }
 
-struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct AFB_clientCtx *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure)
+struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure)
 {
 	struct afb_hook *hook;
 
@@ -536,13 +536,13 @@ struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct A
 
 	hook->api = api ? strdup(api) : NULL;
 	hook->verb = verb ? strdup(verb) : NULL;
-	hook->session = session ? ctxClientAddRef(session) : NULL;
+	hook->session = session ? afb_session_addref(session) : NULL;
 
 	if ((api && !hook->api) || (verb && !hook->verb)) {
 		free(hook->api);
 		free(hook->verb);
 		if (hook->session)
-			ctxClientUnref(hook->session);
+			afb_session_unref(hook->session);
 		free(hook);
 		return NULL;
 	}
@@ -577,7 +577,7 @@ void afb_hook_unref(struct afb_hook *hook)
 		free(hook->api);
 		free(hook->verb);
 		if (hook->session)
-			ctxClientUnref(hook->session);
+			afb_session_unref(hook->session);
 		free(hook);
 	}
 }

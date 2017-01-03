@@ -17,7 +17,7 @@
 
 #pragma once
 
-struct AFB_clientCtx;
+struct afb_session;
 struct json_object;
 struct hreq_data;
 struct afb_hsrv;

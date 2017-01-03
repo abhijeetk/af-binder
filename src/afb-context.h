@@ -17,11 +17,11 @@
 
 #pragma once
 
-struct AFB_clientCtx;
+struct afb_session;
 
 struct afb_context
 {
-	struct AFB_clientCtx *session;
+	struct afb_session *session;
 	union {
 		unsigned flags;
 		struct {
@@ -41,7 +41,7 @@ struct afb_context
 	int api_index;
 };
 
-extern void afb_context_init(struct afb_context *context, struct AFB_clientCtx *session, const char *token);
+extern void afb_context_init(struct afb_context *context, struct afb_session *session, const char *token);
 extern int afb_context_connect(struct afb_context *context, const char *uuid, const char *token);
 extern void afb_context_disconnect(struct afb_context *context);
 extern const char *afb_context_sent_token(struct afb_context *context);

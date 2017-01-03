@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "session.h"
+#include "afb-session.h"
 #include "verbose.h"
 #include "afb-apis.h"
 #include "afb-context.h"

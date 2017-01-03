@@ -18,7 +18,7 @@
 #pragma once
 
 struct afb_event;
-struct AFB_clientCtx;
+struct afb_session;
 
 struct afb_evt_listener;
 

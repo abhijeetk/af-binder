@@ -33,7 +33,7 @@
 #include <afb/afb-req-itf.h>
 #include <afb/afb-event-itf.h>
 
-#include "session.h"
+#include "afb-session.h"
 #include "afb-common.h"
 #include "afb-context.h"
 #include "afb-apis.h"
