@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <limits.h>
@@ -350,7 +351,7 @@ error:
 static int adddirs(char path[PATH_MAX], size_t end)
 {
 	DIR *dir;
-	struct dirent ent, *result;
+	struct dirent *dent;
 	size_t len;
 
 	/* open the DIR now */
@@ -365,29 +366,34 @@ static int adddirs(char path[PATH_MAX], size_t end)
 	if (end)
 		path[end++] = '/';
 	for (;;) {
-		readdir_r(dir, &ent, &result);
-		if (result == NULL)
+		errno = 0;
+		dent = readdir(dir);
+		if (dent == NULL) {
+			if (errno != 0)
+				ERROR("read error while scanning directory %.*s: %m", (int)(end - 1), path);
 			break;
+		}
 
-		len = strlen(ent.d_name);
+		len = strlen(dent->d_name);
 		if (len + end >= PATH_MAX) {
-			ERROR("path too long while scanning bindings for %s", ent.d_name);
+			ERROR("path too long while scanning bindings for %s", dent->d_name);
 			continue;
 		}
-		memcpy(&path[end], ent.d_name, len+1);
-		if (ent.d_type == DT_DIR) {
+		if (dent->d_type == DT_DIR) {
 			/* case of directories */
-			if (ent.d_name[0] == '.') {
+			if (dent->d_name[0] == '.') {
 				if (len == 1)
 					continue;
-				if (ent.d_name[1] == '.' && len == 2)
+				if (dent->d_name[1] == '.' && len == 2)
 					continue;
 			}
+			memcpy(&path[end], dent->d_name, len+1);
 			adddirs(path, end+len);;
-		} else if (ent.d_type == DT_REG) {
+		} else if (dent->d_type == DT_REG) {
 			/* case of files */
-			if (!strstr(ent.d_name, ".so"))
+			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
+			memcpy(&path[end], dent->d_name, len+1);
 			if (afb_api_so_add_binding(path) < 0)
 				return -1;
 		}

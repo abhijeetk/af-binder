@@ -214,7 +214,7 @@ static int init_container(struct locale_container *container, int dirfd)
 {
 	int rc, sfd;
 	DIR *dir;
-	struct dirent dent, *e;
+	struct dirent *dent;
 	struct stat st;
 	size_t i, j;
 	struct locale_folder *f;
@@ -239,23 +239,21 @@ static int init_container(struct locale_container *container, int dirfd)
 	/* enumerate the entries */
 	for(;;) {
 		/* next entry */
-		rc = readdir_r(dir, &dent, &e);
-		if (rc < 0) {
-			/* error */
-			closedir(dir);
-			return rc;
-		}
-		if (e == NULL) {
+		errno = 0;
+		dent = readdir(dir);
+		if (dent == NULL) {
 			/* end of entries */
 			closedir(dir);
+			if (errno != 0)
+				return -1;
 			break;
 		}
-		if (dent.d_type == DT_DIR || (dent.d_type == DT_UNKNOWN && fstatat(sfd, dent.d_name, &st, 0) == 0 && S_ISDIR(st.st_mode))) {
+		if (dent->d_type == DT_DIR || (dent->d_type == DT_UNKNOWN && fstatat(sfd, dent->d_name, &st, 0) == 0 && S_ISDIR(st.st_mode))) {
 			/* directory aka folder */
-			if (dent.d_name[0] == '.' && (dent.d_name[1] == 0 || (dent.d_name[1] == '.' && dent.d_name[2] == 0))) {
+			if (dent->d_name[0] == '.' && (dent->d_name[1] == 0 || (dent->d_name[1] == '.' && dent->d_name[2] == 0))) {
 				/* nothing to do for special directories, basic detection, improves if needed */
 			} else {
-				rc = add_folder(container, dent.d_name);
+				rc = add_folder(container, dent->d_name);
 				if (rc < 0) {
 					closedir(dir);
 					return rc;
