@@ -247,23 +247,12 @@ int main(int argc, char *argv[])
 			 config->token, afb_apis_count());
 
 	afb_api_so_set_timeout(config->apiTimeout);
-	if (config->ldpaths) {
-		if (afb_api_so_add_pathset(config->ldpaths) < 0) {
-			ERROR("initialisation of bindings within %s failed",
-			      config->ldpaths);
-			exit(1);
-		}
-	}
-
-	start_list(config->dbus_clients, afb_api_dbus_add_client,
-		   "the afb-dbus client");
-	start_list(config->ws_clients, afb_api_ws_add_client,
-		   "the afb-websocket client");
+	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
+	start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
+	start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
 	start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
-	start_list(config->dbus_servers, afb_api_dbus_add_server,
-		   "the afb-dbus service");
-	start_list(config->ws_servers, afb_api_ws_add_server,
-		   "the afb-websocket service");
+	start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
+	start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
 
 	if (!afb_hreq_init_cookie
 	    (config->httpdPort, config->rootapi, config->cntxTimeout)) {

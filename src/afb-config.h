@@ -30,7 +30,6 @@ struct afb_config {
 	char *console;		// console device name (can be a file or a 
 	// tty)
 	int httpdPort;
-	char *ldpaths;		// list of plugins directories
 	char *rootdir;		// base dir for files
 	char *roothttp;		// directory for http files
 	char *rootbase;		// Angular HTML5 base URL
@@ -53,6 +52,7 @@ struct afb_config {
 	struct afb_config_list *ws_clients;
 	struct afb_config_list *ws_servers;
 	struct afb_config_list *so_bindings;
+	struct afb_config_list *ldpaths;
 };
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);

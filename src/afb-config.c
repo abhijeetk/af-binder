@@ -196,74 +196,13 @@ static void printHelp(FILE * file, const char *name)
 		fprintf(file, "  --%-15s %s\n", command, cliOptions[ind].help);
 	}
 	fprintf(file,
-		"Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
+		"Example:\n  %s  --verbose --port=1234 --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
 		name);
 }
 
-// load config from disk and merge with CLI option
-static void config_set_default(struct afb_config *config)
-{
-	// default HTTP port
-	if (config->httpdPort == 0)
-		config->httpdPort = 1234;
-
-	// default binding API timeout
-	if (config->apiTimeout == 0)
-		config->apiTimeout = DEFLT_API_TIMEOUT;
-
-	// default AUTH_TOKEN
-	if (config->token == NULL)
-		config->token = DEFLT_AUTH_TOKEN;
-
-	// cache timeout default one hour
-	if (config->cacheTimeout == 0)
-		config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
-
-	// cache timeout default one hour
-	if (config->cntxTimeout == 0)
-		config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
-
-	// max count of sessions
-	if (config->nbSessionMax == 0)
-		config->nbSessionMax = CTX_NBCLIENTS;
-
-	if (config->rootdir == NULL) {
-		config->rootdir = getenv("AFBDIR");
-		if (config->rootdir == NULL) {
-			config->rootdir = malloc(512);
-			strncpy(config->rootdir, getenv("HOME"), 512);
-			strncat(config->rootdir, "/.AFB", 512);
-		}
-	}
-	// if no Angular/HTML5 rootbase let's try '/' as default
-	if (config->rootbase == NULL)
-		config->rootbase = "/opa";
-
-	if (config->rootapi == NULL)
-		config->rootapi = "/api";
-
-	if (config->ldpaths == NULL)
-		config->ldpaths = BINDING_INSTALL_DIR;
-
-	// if no session dir create a default path from rootdir
-	if (config->sessiondir == NULL) {
-		config->sessiondir = malloc(512);
-		strncpy(config->sessiondir, config->rootdir, 512);
-		strncat(config->sessiondir, "/sessions", 512);
-	}
-	// if no config dir create a default path from sessiondir
-	if (config->console == NULL) {
-		config->console = malloc(512);
-		strncpy(config->console, config->sessiondir, 512);
-		strncat(config->console, "/AFB-console.out", 512);
-	}
-}
-
-/*---------------------------------------------------------
- | main
- |   Parse option and launch action
+/*----------------------------------------------------------
+ |   adds a string to the list
  +--------------------------------------------------------- */
-
 static void list_add(struct afb_config_list **head, char *value)
 {
 	struct afb_config_list *item;
@@ -293,6 +232,10 @@ static void list_add(struct afb_config_list **head, char *value)
 	item->value = value;
 	item->next = NULL;
 }
+
+/*---------------------------------------------------------
+ |   helpers for argument scanning
+ +--------------------------------------------------------- */
 
 static char *argvalstr(int index)
 {
@@ -368,6 +311,10 @@ static void noarg(int index)
 	}
 }
 
+/*---------------------------------------------------------
+ |   Parse option and launch action
+ +--------------------------------------------------------- */
+
 static void parse_arguments(int argc, char **argv, struct afb_config *config)
 {
 	char *programName = argv[0];
@@ -394,9 +341,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	}
 
 	// get all options from command line
-	while ((optc =
-		getopt_long(argc, argv, "vsp?", gnuOptions, &optionIndex))
-	       != EOF) {
+	while ((optc = getopt_long(argc, argv, "", gnuOptions, &optionIndex)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
 			verbosity++;
@@ -443,7 +388,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_LDPATH:
-			config->ldpaths = argvalstr(optionIndex);
+			list_add(&config->ldpaths, argvalstr(optionIndex));
 			break;
 
 		case SET_SESSION_DIR:
@@ -506,14 +451,73 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case DISPLAY_HELP:
-		default:
 			printHelp(stdout, programName);
 			exit(0);
+
+		default:
+			exit(1);
 		}
 	}
 	free(gnuOptions);
+}
 
-	config_set_default(config);
+// load config from disk and merge with CLI option
+static void config_set_default(struct afb_config *config)
+{
+	// default HTTP port
+	if (config->httpdPort == 0)
+		config->httpdPort = 1234;
+
+	// default binding API timeout
+	if (config->apiTimeout == 0)
+		config->apiTimeout = DEFLT_API_TIMEOUT;
+
+	// default AUTH_TOKEN
+	if (config->token == NULL)
+		config->token = DEFLT_AUTH_TOKEN;
+
+	// cache timeout default one hour
+	if (config->cacheTimeout == 0)
+		config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
+
+	// cache timeout default one hour
+	if (config->cntxTimeout == 0)
+		config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
+
+	// max count of sessions
+	if (config->nbSessionMax == 0)
+		config->nbSessionMax = CTX_NBCLIENTS;
+
+	if (config->rootdir == NULL) {
+		config->rootdir = getenv("AFBDIR");
+		if (config->rootdir == NULL) {
+			config->rootdir = malloc(512);
+			strncpy(config->rootdir, getenv("HOME"), 512);
+			strncat(config->rootdir, "/.AFB", 512);
+		}
+	}
+	// if no Angular/HTML5 rootbase let's try '/' as default
+	if (config->rootbase == NULL)
+		config->rootbase = "/opa";
+
+	if (config->rootapi == NULL)
+		config->rootapi = "/api";
+
+	if (config->ldpaths == NULL)
+		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
+
+	// if no session dir create a default path from rootdir
+	if (config->sessiondir == NULL) {
+		config->sessiondir = malloc(512);
+		strncpy(config->sessiondir, config->rootdir, 512);
+		strncat(config->sessiondir, "/sessions", 512);
+	}
+	// if no config dir create a default path from sessiondir
+	if (config->console == NULL) {
+		config->console = malloc(512);
+		strncpy(config->console, config->sessiondir, 512);
+		strncat(config->console, "/AFB-console.out", 512);
+	}
 }
 
 struct afb_config *afb_config_parse_arguments(int argc, char **argv)
@@ -523,5 +527,6 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 	result = calloc(1, sizeof *result);
 
 	parse_arguments(argc, argv, result);
+	config_set_default(result);
 	return result;
 }
