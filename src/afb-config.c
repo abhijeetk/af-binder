@@ -50,9 +50,10 @@
 
 
 // Define command line option
-#define SET_VERBOSE        1
+#define SET_VERBOSE        'v'
 #define SET_BACKGROUND     2
 #define SET_FORGROUND      3
+#define SET_QUIET          'q'
 
 #define SET_TCP_PORT       5
 #define SET_ROOT_DIR       6
@@ -68,8 +69,8 @@
 #define SET_APITIMEOUT     14
 #define SET_CNTXTIMEOUT    15
 
-#define DISPLAY_VERSION    16
-#define DISPLAY_HELP       17
+#define DISPLAY_VERSION    'V'
+#define DISPLAY_HELP       'h'
 
 #define SET_MODE           18
 #define SET_READYFD        19
@@ -87,6 +88,8 @@
 
 #define SET_TRACEREQ       27
 
+#define SHORTOPTS	"vqhV"
+
 // Command line structure hold cli --command + help text
 typedef struct {
 	int val;		// command number within application
@@ -99,6 +102,7 @@ typedef struct {
 static AFB_options cliOptions[] = {
 /* *INDENT-OFF* */
 	{SET_VERBOSE,       0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
+	{SET_QUIET,         0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
 
 	{SET_FORGROUND,     0, "foreground",  "Get all in foreground mode"},
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
@@ -175,7 +179,6 @@ static void printVersion(FILE * file)
 		"  Copyright (C) 2015, 2016, 2017 \"IoT.bzh\" [fulup -at- iot.bzh]\n");
 	fprintf(file, "  AFB comes with ABSOLUTELY NO WARRANTY.\n");
 	fprintf(file, "  Licence Apache 2\n\n");
-	exit(0);
 }
 
 /*----------------------------------------------------------
@@ -325,11 +328,6 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 	// ------------------ Process Command Line -----------------------
 
-	// if no argument print help and return
-	if (argc < 2) {
-		printHelp(stderr, programName);
-		exit(1);
-	}
 	// build GNU getopt info from cliOptions
 	nbcmd = sizeof(cliOptions) / sizeof(AFB_options);
 	gnuOptions = malloc(sizeof(*gnuOptions) * (unsigned)nbcmd);
@@ -341,10 +339,14 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	}
 
 	// get all options from command line
-	while ((optc = getopt_long(argc, argv, "", gnuOptions, &optionIndex)) != EOF) {
+	while ((optc = getopt_long(argc, argv, SHORTOPTS, gnuOptions, &optionIndex)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
 			verbosity++;
+			break;
+
+		case SET_QUIET:
+			verbosity--;
 			break;
 
 		case SET_TCP_PORT:
@@ -448,7 +450,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 		case DISPLAY_VERSION:
 			noarg(optionIndex);
 			printVersion(stdout);
-			break;
+			exit(0);
 
 		case DISPLAY_HELP:
 			printHelp(stdout, programName);
@@ -520,6 +522,60 @@ static void config_set_default(struct afb_config *config)
 	}
 }
 
+void afb_config_dump(struct afb_config *config)
+{
+	struct afb_config_list *l;
+	struct enumdesc *e;
+
+#define NN(x)   (x)?:""
+#define P(...)  fprintf(stderr, __VA_ARGS__)
+#define PF(x)   P("-- %15s: ", #x)
+#define PE      P("\n")
+#define S(x)	PF(x);P("%s",NN(config->x));PE;
+#define D(x)	PF(x);P("%d",config->x);PE;
+#define H(x)	PF(x);P("%x",config->x);PE;
+#define L(x)	PF(x);l=config->x;if(l){P("%s\n",NN(l->value));for(l=l->next;l;l=l->next)P("-- %15s  %s\n","",NN(l->value));}else PE;
+#define E(x,d)	for(e=d;e->name&&e->value!=config->x;e++);PF(x);if(e->name)P("%s",e->name);else P("%d",config->x);PE;
+
+	P("-- BEGIN OF CONFIG --\n");
+	S(console)
+	S(rootdir)
+	S(roothttp)
+	S(rootbase)
+	S(rootapi)
+	S(sessiondir)
+	S(token)
+
+	L(aliases)
+	L(dbus_clients)
+	L(dbus_servers)
+	L(ws_clients)
+	L(ws_servers)
+	L(so_bindings)
+	L(ldpaths)
+
+	D(httpdPort)
+	D(background)
+	D(readyfd)
+	D(cacheTimeout)
+	D(apiTimeout)
+	D(cntxTimeout)
+	D(nbSessionMax)
+	E(mode,mode_desc)
+	E(tracereq,tracereq_desc)
+	P("-- END OF CONFIG --\n");
+
+#undef E
+#undef L
+#undef H
+#undef D
+#undef S
+#undef PE
+#undef PF
+#undef P
+#undef NN
+}
+
 struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 {
 	struct afb_config *result;
@@ -528,5 +584,8 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 
 	parse_arguments(argc, argv, result);
 	config_set_default(result);
+	if (verbosity >= 3)
+		afb_config_dump(result);
 	return result;
 }
+

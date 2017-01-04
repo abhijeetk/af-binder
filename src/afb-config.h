@@ -27,25 +27,13 @@ struct afb_config_list {
 
 // main config structure
 struct afb_config {
-	char *console;		// console device name (can be a file or a 
-	// tty)
-	int httpdPort;
+	char *console;		// console device name (can be a file or a tty)
 	char *rootdir;		// base dir for files
 	char *roothttp;		// directory for http files
 	char *rootbase;		// Angular HTML5 base URL
 	char *rootapi;		// Base URL for REST APIs
 	char *sessiondir;	// where to store mixer session files
-	char *token;		// initial authentication token [default
-	// NULL no session]
-	int background;		// run in backround mode
-	int readyfd;		// a #fd to signal when ready to serve
-	int cacheTimeout;
-	int apiTimeout;
-	int cntxTimeout;	// Client Session Context timeout
-	int nbSessionMax;	// max count of sessions
-	int mode;		// mode of listening
-	int aliascount;
-	int tracereq;
+	char *token;		// initial authentication token [default NULL no session]
 	struct afb_config_list *aliases;
 	struct afb_config_list *dbus_clients;
 	struct afb_config_list *dbus_servers;
@@ -53,6 +41,17 @@ struct afb_config {
 	struct afb_config_list *ws_servers;
 	struct afb_config_list *so_bindings;
 	struct afb_config_list *ldpaths;
+
+	int httpdPort;
+	int background;		// run in backround mode
+	int readyfd;		// a #fd to signal when ready to serve
+	int cacheTimeout;
+	int apiTimeout;
+	int cntxTimeout;	// Client Session Context timeout
+	int nbSessionMax;	// max count of sessions
+	int mode;		// mode of listening
+	int tracereq;
 };
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);
+extern void afb_config_dump(struct afb_config *config);
