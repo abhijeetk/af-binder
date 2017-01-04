@@ -56,6 +56,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-api-ws.c
 	afb-apis.c
 	afb-common.c
+	afb-config.c
 	afb-context.c
 	afb-evt.c
 	afb-hook.c

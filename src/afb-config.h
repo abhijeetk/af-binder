@@ -16,51 +16,43 @@
 
 #pragma once
 
-/* other definitions --------------------------------------------------- */
+/*
+ * other definitions --------------------------------------------------- 
+ */
 
-// Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
-#define MAX_ALIAS 10           // max number of aliases
-
-#define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
-#define DEFLT_API_TIMEOUT   20     // default Plugin API Timeout [0=NoLimit for Debug Only]
-#define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
-#define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
-#define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
-
-#define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
-
-struct afb_config_item
-{
-	struct afb_config_item *previous;
-	int kind;
+struct afb_config_list {
+	struct afb_config_list *next;
 	char *value;
 };
 
 // main config structure
-struct afb_config
-{
-  char *console;           // console device name (can be a file or a tty)
-  int   httpdPort;
-  char *ldpaths;           // list of plugins directories
-  char *rootdir;           // base dir for files
-  char *roothttp;          // directory for http files
-  char *rootbase;          // Angular HTML5 base URL
-  char *rootapi;           // Base URL for REST APIs
-  char *sessiondir;        // where to store mixer session files
-  char *token;             // initial authentication token [default NULL no session]
-  int  background;        // run in backround mode
-  int  readyfd;           // a #fd to signal when ready to serve
-  int  cacheTimeout;
-  int  apiTimeout;
-  int  cntxTimeout;        // Client Session Context timeout
-  int  nbSessionMax;	// max count of sessions
-  int mode;           // mode of listening
-  int aliascount;
-  int tracereq;
-  struct afb_config_item *items;
-  struct {
-         char  *url;
-         char  *path;
-       } aliasdir[MAX_ALIAS];  // alias mapping for icons,apps,...
+struct afb_config {
+	char *console;		// console device name (can be a file or a 
+	// tty)
+	int httpdPort;
+	char *ldpaths;		// list of plugins directories
+	char *rootdir;		// base dir for files
+	char *roothttp;		// directory for http files
+	char *rootbase;		// Angular HTML5 base URL
+	char *rootapi;		// Base URL for REST APIs
+	char *sessiondir;	// where to store mixer session files
+	char *token;		// initial authentication token [default
+	// NULL no session]
+	int background;		// run in backround mode
+	int readyfd;		// a #fd to signal when ready to serve
+	int cacheTimeout;
+	int apiTimeout;
+	int cntxTimeout;	// Client Session Context timeout
+	int nbSessionMax;	// max count of sessions
+	int mode;		// mode of listening
+	int aliascount;
+	int tracereq;
+	struct afb_config_list *aliases;
+	struct afb_config_list *dbus_clients;
+	struct afb_config_list *dbus_servers;
+	struct afb_config_list *ws_clients;
+	struct afb_config_list *ws_servers;
+	struct afb_config_list *so_bindings;
 };
 
+extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);
