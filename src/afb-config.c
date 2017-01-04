@@ -88,7 +88,11 @@
 
 #define SET_TRACEREQ       27
 
-#define SHORTOPTS	"vqhV"
+#define SET_NO_HTTPD       28
+
+#define SET_EXEC           'e'
+
+#define SHORTOPTS	"vqhVe"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -120,7 +124,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_SESSION_DIR,   1, "sessiondir",  "Sessions file path [default rootdir/sessions]"},
 
-	{SET_LDPATH,        1, "ldpaths",     "Load bindingss from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
+	{SET_LDPATH,        1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=no-session, --token= for session without authentication]"},
 
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
@@ -138,6 +142,9 @@ static AFB_options cliOptions[] = {
 	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default 10]"},
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
+
+	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
+	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
@@ -447,6 +454,16 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->tracereq = argvalenum(optionIndex, tracereq_desc);
 			break;
 
+		case SET_NO_HTTPD:
+			noarg(optionIndex);
+			config->noHttpd = 1;
+			break;
+
+		case SET_EXEC:
+			config->exec = &argv[optind];
+			optind = argc;
+			break;
+
 		case DISPLAY_VERSION:
 			noarg(optionIndex);
 			printVersion(stdout);
@@ -526,6 +543,7 @@ void afb_config_dump(struct afb_config *config)
 {
 	struct afb_config_list *l;
 	struct enumdesc *e;
+	char **v;
 
 #define NN(x)   (x)?:""
 #define P(...)  fprintf(stderr, __VA_ARGS__)
@@ -534,10 +552,12 @@ void afb_config_dump(struct afb_config *config)
 #define S(x)	PF(x);P("%s",NN(config->x));PE;
 #define D(x)	PF(x);P("%d",config->x);PE;
 #define H(x)	PF(x);P("%x",config->x);PE;
+#define B(x)	PF(x);P("%s",config->x?"yes":"no");PE;
 #define L(x)	PF(x);l=config->x;if(l){P("%s\n",NN(l->value));for(l=l->next;l;l=l->next)P("-- %15s  %s\n","",NN(l->value));}else PE;
-#define E(x,d)	for(e=d;e->name&&e->value!=config->x;e++);PF(x);if(e->name)P("%s",e->name);else P("%d",config->x);PE;
+#define E(x,d)	for(e=d;e->name&&e->value!=config->x;e++);if(e->name){PF(x);P("%s",e->name);PE;}else{D(x);}
+#define V(x)	P("-- %15s:", #x);for(v=config->x;v&&*v;v++)P(" %s",*v); PE;
 
-	P("-- BEGIN OF CONFIG --\n");
+	P("---BEGIN-OF-CONFIG---\n");
 	S(console)
 	S(rootdir)
 	S(roothttp)
@@ -554,8 +574,10 @@ void afb_config_dump(struct afb_config *config)
 	L(so_bindings)
 	L(ldpaths)
 
+	V(exec)
+
 	D(httpdPort)
-	D(background)
+	B(background)
 	D(readyfd)
 	D(cacheTimeout)
 	D(apiTimeout)
@@ -563,10 +585,13 @@ void afb_config_dump(struct afb_config *config)
 	D(nbSessionMax)
 	E(mode,mode_desc)
 	E(tracereq,tracereq_desc)
-	P("-- END OF CONFIG --\n");
+	B(noHttpd)
+	P("---END-OF-CONFIG---\n");
 
+#undef V
 #undef E
 #undef L
+#undef B
 #undef H
 #undef D
 #undef S

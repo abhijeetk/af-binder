@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <systemd/sd-event.h>
 
@@ -45,6 +46,9 @@
 #include "afb-hook.h"
 
 #include <afb/afb-binding.h>
+
+static struct afb_config *config;
+static pid_t childpid;
 
 /*----------------------------------------------------------
  |   helpers for handling list of arguments
@@ -83,19 +87,21 @@ static void start_list(struct afb_config_list *list,
 }
 
 /*----------------------------------------------------------
- | closeSession
- |   try to close everything before leaving
+ | exit_handler
+ |   Handles on exit specific actions
  +--------------------------------------------------------- */
-static void closeSession(int status, void *data)
+static void exit_handler()
 {
-	/* struct afb_config *config = data; */
+	if (childpid > 0)
+		killpg(childpid, SIGKILL);
+		/* TODO: check whether using SIGHUP isn't better */
 }
 
 /*----------------------------------------------------------
  | daemonize
  |   set the process in background
  +--------------------------------------------------------- */
-static void daemonize(struct afb_config *config)
+static void daemonize()
 {
 	int consoleFD;
 	int pid;
@@ -155,7 +161,7 @@ static int init_alias(void *closure, char *spec)
 				  0, 0);
 }
 
-static int init_http_server(struct afb_hsrv *hsrv, struct afb_config *config)
+static int init_http_server(struct afb_hsrv *hsrv)
 {
 	if (!afb_hsrv_add_handler
 	    (hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
@@ -183,7 +189,7 @@ static int init_http_server(struct afb_hsrv *hsrv, struct afb_config *config)
 	return 1;
 }
 
-static struct afb_hsrv *start_http_server(struct afb_config *config)
+static struct afb_hsrv *start_http_server()
 {
 	int rc;
 	struct afb_hsrv *hsrv;
@@ -200,7 +206,7 @@ static struct afb_hsrv *start_http_server(struct afb_config *config)
 	}
 
 	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
-	    || !init_http_server(hsrv, config)) {
+	    || !init_http_server(hsrv)) {
 		ERROR("initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
@@ -221,6 +227,114 @@ static struct afb_hsrv *start_http_server(struct afb_config *config)
 }
 
 /*---------------------------------------------------------
+ | execute_command
+ |   
+ +--------------------------------------------------------- */
+
+static void on_sigchld(int signum, siginfo_t *info, void *uctx)
+{
+	if (info->si_pid == childpid) {
+		switch (info->si_code) {
+		case CLD_EXITED:
+		case CLD_KILLED:
+		case CLD_DUMPED:
+			childpid = 0;
+			killpg(info->si_pid, SIGKILL);
+			waitpid(info->si_pid, NULL, 0);
+			exit(0);
+		}
+	}
+}
+
+/*
+# @@ @
+# @p port
+# @t token
+*/
+
+#define SUBST_CHAR  '@'
+#define SUBST_STR   "@"
+
+static int instanciate_command_args()
+{
+	char *orig, *repl, *sub, *val, port[20];
+	int i, rc, r;
+	size_t s, l;
+
+	rc = snprintf(port, sizeof port, "%d", config->httpdPort);
+	if (rc < 0 || rc >= (int)(sizeof port))
+		return -1;
+
+	for (i = 0 ; (orig = config->exec[i]) ; i++) {
+		repl = 0;
+		s = 0;
+		for(;;) {
+			sub = strchrnul(orig, SUBST_CHAR);
+			l = sub - orig;
+			if (repl)
+				repl = mempcpy(repl, orig, l);
+			else
+				s += l;
+			if (!*sub) {
+				/* at end */
+				if (repl || orig == config->exec[i])
+					break;
+				repl = malloc(1 + s);
+				if (!repl)
+					return -1;
+				orig = config->exec[i];
+				config->exec[i] = repl;
+				repl[s] = 0;
+			} else {
+				r = 2;
+				switch(sub[1]) {
+				case 'p': val = port;  break;
+				case 't': val = config->token ? : ""; break;
+				default: r = 1;
+				case SUBST_CHAR: val = SUBST_STR; break;
+				}
+				orig = &sub[r];
+				l = strlen(val);
+				if (repl)
+					repl = mempcpy(repl, val, l);
+				else
+					s += l;
+			}
+		}
+	}
+	return 0;
+}
+
+static int execute_command()
+{
+	struct sigaction siga;
+
+	/* check whether a command is to execute or not */
+	if (!config->exec || !config->exec[0])
+		return 0;
+
+	/* install signal handler */
+	memset(&siga, 0, sizeof siga);
+	siga.sa_sigaction = on_sigchld;
+	siga.sa_flags = SA_SIGINFO;
+	sigaction(SIGCHLD, &siga, NULL);
+
+	/* fork now */
+	childpid = fork();
+	if (childpid)
+		return 0;
+
+	/* makes arguments */
+	if (instanciate_command_args() >= 0) {
+		setpgid(0, 0);
+		execv(config->exec[0], config->exec);
+		ERROR("can't launch %s: %m", config->exec[0]);
+	}
+	exit(1);
+	return -1;
+}
+
+/*---------------------------------------------------------
  | main
  |   Parse option and launch action
  +--------------------------------------------------------- */
@@ -228,14 +342,13 @@ static struct afb_hsrv *start_http_server(struct afb_config *config)
 int main(int argc, char *argv[])
 {
 	struct afb_hsrv *hsrv;
-	struct afb_config *config;
 	struct sd_event *eventloop;
 
 	LOGAUTH("afb-daemon");
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
-	on_exit(closeSession, config);
+	atexit(exit_handler);
 
 	// ------------------ sanity check ----------------------------------------
 	if (config->httpdPort <= 0) {
@@ -243,8 +356,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	afb_session_init(config->nbSessionMax, config->cntxTimeout,
-			 config->token, afb_apis_count());
+	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
 
 	afb_api_so_set_timeout(config->apiTimeout);
 	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
@@ -254,8 +366,7 @@ int main(int argc, char *argv[])
 	start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
 	start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
 
-	if (!afb_hreq_init_cookie
-	    (config->httpdPort, config->rootapi, config->cntxTimeout)) {
+	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
 		ERROR("initialisation of cookies failed");
 		exit(1);
 	}
@@ -288,7 +399,7 @@ int main(int argc, char *argv[])
 	if (config->background) {
 		// --------- in background mode -----------
 		INFO("entering background mode");
-		daemonize(config);
+		daemonize();
 	} else {
 		// ---- in foreground mode --------------------
 		INFO("entering foreground mode");
@@ -301,20 +412,28 @@ int main(int argc, char *argv[])
 	if (config->tracereq)
 		afb_hook_req_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
 
-	/* start the HTTP server */
-	hsrv = start_http_server(config);
-	if (hsrv == NULL)
-		exit(1);
-
 	/* start the services */
 	if (afb_apis_start_all_services(1) < 0)
 		exit(1);
 
+	/* start the HTTP server */
+	if (!config->noHttpd) {
+		hsrv = start_http_server();
+		if (hsrv == NULL)
+			exit(1);
+	}
+
+	/* run the command */
+	if (execute_command() < 0)
+		exit(1);
+
+	/* signal that ready */
 	if (config->readyfd != 0) {
 		static const char readystr[] = "READY=1";
 		write(config->readyfd, readystr, sizeof(readystr) - 1);
 		close(config->readyfd);
 	}
+
 	// infinite loop
 	eventloop = afb_common_get_event_loop();
 	for (;;)

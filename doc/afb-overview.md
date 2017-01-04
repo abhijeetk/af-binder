@@ -232,6 +232,17 @@ The launch options for binder **afb-daemon** are:
 
 		Get all in background mode
 
+	  --no-httpd
+
+		Forbids HTTP serve
+
+	  --exec
+
+		Must be the last option for afb-daemon. The remaining
+		arguments define a command that afb-daemon will launch.
+		The sequences @p, @t and @@ of the arguments are replaced
+		with the port, the token and @.
+
 
 Future development of afb-daemon
 --------------------------------
