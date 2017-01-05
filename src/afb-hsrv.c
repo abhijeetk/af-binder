@@ -118,6 +118,7 @@ static int access_handler(
 		method = get_method(methodstr);
 		method &= afb_method_get | afb_method_post;
 		if (method == afb_method_none) {
+			WARNING("Unsupported HTTP operation %s", methodstr);
 			reply_error(connection, MHD_HTTP_BAD_REQUEST);
 			return MHD_YES;
 		}
@@ -125,6 +126,7 @@ static int access_handler(
 		/* create the request */
 		hreq = calloc(1, sizeof *hreq);
 		if (hreq == NULL) {
+			ERROR("Can't allocate 'hreq'");
 			reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
 			return MHD_YES;
 		}
@@ -153,12 +155,15 @@ static int access_handler(
 				hreq->method = afb_method_get;
 			} else if (strcasestr(type, FORM_CONTENT) != NULL) {
 				hreq->postform = MHD_create_post_processor (connection, 65500, postproc, hreq);
-				if (hreq->postform == NULL)
+				if (hreq->postform == NULL) {
+					ERROR("Can't create POST processor");
 					afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+				}
 				return MHD_YES;
 			} else if (strcasestr(type, JSON_CONTENT) != NULL) {
 				return MHD_YES;
                         } else {
+				WARNING("Unsupported media type %s", type);
 				afb_hreq_reply_error(hreq, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
 				return MHD_YES;
 			}
@@ -169,6 +174,7 @@ static int access_handler(
 	if (*upload_data_size) {
 		if (hreq->postform != NULL) {
 			if (!MHD_post_process (hreq->postform, upload_data, *upload_data_size)) {
+				ERROR("error in POST processor");
 				afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 				return MHD_YES;
 			}
@@ -187,6 +193,7 @@ static int access_handler(
 		rc = MHD_destroy_post_processor(hreq->postform);
 		hreq->postform = NULL;
 		if (rc == MHD_NO) {
+			ERROR("error detected in POST processing");
 			afb_hreq_reply_error(hreq, MHD_HTTP_BAD_REQUEST);
 			return MHD_YES;
 		}
@@ -219,6 +226,7 @@ static int access_handler(
 	}
 
 	/* no handler */
+	WARNING("Unhandled request to %s", hreq->url);
 	afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
 	return MHD_YES;
 }
