@@ -47,6 +47,12 @@
 
 #include <afb/afb-binding.h>
 
+/*
+   if SELF_PGROUP == 0 the launched command is the group leader
+   if SELF_PGROUP != 0 afb-daemon is the group leader
+*/
+#define SELF_PGROUP 1
+
 static struct afb_config *config;
 static pid_t childpid;
 
@@ -92,9 +98,11 @@ static void start_list(struct afb_config_list *list,
  +--------------------------------------------------------- */
 static void exit_handler()
 {
-	if (childpid > 0)
+	/* TODO: check whether using SIGHUP isn't better */
+	if (SELF_PGROUP)
+		killpg(0, SIGKILL);
+	else if (childpid > 0)
 		killpg(childpid, SIGKILL);
-		/* TODO: check whether using SIGHUP isn't better */
 }
 
 /*----------------------------------------------------------
@@ -239,7 +247,8 @@ static void on_sigchld(int signum, siginfo_t *info, void *uctx)
 		case CLD_KILLED:
 		case CLD_DUMPED:
 			childpid = 0;
-			killpg(info->si_pid, SIGKILL);
+			if (!SELF_PGROUP)
+				killpg(info->si_pid, SIGKILL);
 			waitpid(info->si_pid, NULL, 0);
 			exit(0);
 		}
@@ -313,6 +322,9 @@ static int execute_command()
 	if (!config->exec || !config->exec[0])
 		return 0;
 
+	if (SELF_PGROUP)
+		setpgid(0, 0);
+
 	/* install signal handler */
 	memset(&siga, 0, sizeof siga);
 	siga.sa_sigaction = on_sigchld;
@@ -326,7 +338,8 @@ static int execute_command()
 
 	/* makes arguments */
 	if (instanciate_command_args() >= 0) {
-		setpgid(0, 0);
+		if (!SELF_PGROUP)
+			setpgid(0, 0);
 		execv(config->exec[0], config->exec);
 		ERROR("can't launch %s: %m", config->exec[0]);
 	}
