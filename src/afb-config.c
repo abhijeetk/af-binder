@@ -24,6 +24,8 @@
 #include <getopt.h>
 #include <limits.h>
 
+#include <uuid/uuid.h>
+
 #include "verbose.h"
 #include "afb-config.h"
 #include "afb-hook.h"
@@ -50,10 +52,8 @@
 
 
 // Define command line option
-#define SET_VERBOSE        'v'
 #define SET_BACKGROUND     2
 #define SET_FORGROUND      3
-#define SET_QUIET          'q'
 
 #define SET_TCP_PORT       5
 #define SET_ROOT_DIR       6
@@ -64,13 +64,10 @@
 #define SET_CACHE_TIMEOUT  10
 #define SET_SESSION_DIR    11
 
-#define SET_AUTH_TOKEN     12
 #define SET_LDPATH         13
 #define SET_APITIMEOUT     14
 #define SET_CNTXTIMEOUT    15
 
-#define DISPLAY_VERSION    'V'
-#define DISPLAY_HELP       'h'
 
 #define SET_MODE           18
 #define SET_READYFD        19
@@ -86,13 +83,18 @@
 
 #define SET_ROOT_HTTP      26
 
-#define SET_TRACEREQ       27
-
 #define SET_NO_HTTPD       28
 
 #define SET_EXEC           'e'
+#define DISPLAY_HELP       'h'
+#define SET_QUIET          'q'
+#define SET_RNDTOKEN       'r'
+#define SET_TRACEREQ       'T'
+#define SET_AUTH_TOKEN     't'
+#define DISPLAY_VERSION    'V'
+#define SET_VERBOSE        'v'
 
-#define SHORTOPTS	"vqhVe"
+#define SHORTOPTS	"ehqrT:t:Vv"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -145,6 +147,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
+	{SET_RNDTOKEN,      0, "random-token","creates a random token"},
 
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
@@ -210,6 +213,19 @@ static void printHelp(FILE * file, const char *name)
 		name);
 }
 
+
+/*----------------------------------------------------------
+ |   adds a string to the list
+ +--------------------------------------------------------- */
+static char *random_token()
+{
+	static char uuidstr[37];
+	uuid_t uuid;
+	uuid_generate_random(uuid);
+	uuid_unparse(uuid, uuidstr);
+	return uuidstr;
+}
+
 /*----------------------------------------------------------
  |   adds a string to the list
  +--------------------------------------------------------- */
@@ -247,21 +263,29 @@ static void list_add(struct afb_config_list **head, char *value)
  |   helpers for argument scanning
  +--------------------------------------------------------- */
 
-static char *argvalstr(int index)
+static const char *optname(int optc)
+{
+	AFB_options *o = cliOptions;
+	while (o->name && o->val != optc)
+		o++;
+	return o->name ? : "<unknown-option-name>";
+}
+
+static char *argvalstr(int optc)
 {
 	if (optarg == 0) {
 		ERROR("option [--%s] needs a value i.e. --%s=xxx",
-		      cliOptions[index].name, cliOptions[index].name);
+		      optname(optc), optname(optc));
 		exit(1);
 	}
 	return optarg;
 }
 
-static int argvalenum(int index, struct enumdesc *desc)
+static int argvalenum(int optc, struct enumdesc *desc)
 {
 	int i;
 	size_t len;
-	char *list, *name = argvalstr(index);
+	char *list, *name = argvalstr(optc);
 
 	i = 0;
 	while(desc[i].name && strcmp(desc[i].name, name))
@@ -274,14 +298,14 @@ static int argvalenum(int index, struct enumdesc *desc)
 		list = malloc(len + i + i);
 		if (!i || !list)
 			ERROR("option [--%s] bad value (found %s)",
-				cliOptions[index].name, name);
+				optname(optc), name);
 		else {
 			i = 0;
 			strcpy(list, desc[i].name ? : "");
 			while(desc[++i].name)
 				strcat(strcat(list, ", "), desc[i].name);
 			ERROR("option [--%s] bad value, only accepts values %s (found %s)",
-				cliOptions[index].name, list, name);
+				optname(optc), list, name);
 		}
 		free(list);
 		exit(1);
@@ -289,34 +313,34 @@ static int argvalenum(int index, struct enumdesc *desc)
 	return desc[i].value;
 }
 
-static int argvalint(int index, int mini, int maxi, int base)
+static int argvalint(int optc, int mini, int maxi, int base)
 {
 	char *beg, *end;
 	long int val;
-	beg = argvalstr(index);
+	beg = argvalstr(optc);
 	val = strtol(beg, &end, base);
 	if (*end || end == beg) {
 		ERROR("option [--%s] requires a valid integer (found %s)",
-			cliOptions[index].name, beg);
+			optname(optc), beg);
 		exit(1);
 	}
 	if (val < (long int)mini || val > (long int)maxi) {
 		ERROR("option [--%s] value out of bounds (not %d<=%ld<=%d)",
-			cliOptions[index].name, mini, val, maxi);
+			optname(optc), mini, val, maxi);
 		exit(1);
 	}
 	return (int)val;
 }
 
-static int argvalintdec(int index, int mini, int maxi)
+static int argvalintdec(int optc, int mini, int maxi)
 {
-	return argvalint(index, mini, maxi, 10);
+	return argvalint(optc, mini, maxi, 10);
 }
 
-static void noarg(int index)
+static void noarg(int optc)
 {
 	if (optarg != 0) {
-		ERROR("option [--%s] need no value (found %s)", cliOptions[index].name, optarg);
+		ERROR("option [--%s] need no value (found %s)", optname(optc), optarg);
 		exit(1);
 	}
 }
@@ -328,7 +352,6 @@ static void noarg(int index)
 static void parse_arguments(int argc, char **argv, struct afb_config *config)
 {
 	char *programName = argv[0];
-	int optionIndex = 0;
 	int optc, ind;
 	int nbcmd;
 	struct option *gnuOptions;
@@ -346,7 +369,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	}
 
 	// get all options from command line
-	while ((optc = getopt_long(argc, argv, SHORTOPTS, gnuOptions, &optionIndex)) != EOF) {
+	while ((optc = getopt_long(argc, argv, SHORTOPTS, gnuOptions, NULL)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
 			verbosity++;
@@ -357,105 +380,105 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_TCP_PORT:
-			config->httpdPort = argvalintdec(optionIndex, 1024, 32767);
+			config->httpdPort = argvalintdec(optc, 1024, 32767);
 			break;
 
 		case SET_APITIMEOUT:
-			config->apiTimeout = argvalintdec(optionIndex, 0, INT_MAX);
+			config->apiTimeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_CNTXTIMEOUT:
-			config->cntxTimeout = argvalintdec(optionIndex, 0, INT_MAX);
+			config->cntxTimeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_ROOT_DIR:
-			config->rootdir = argvalstr(optionIndex);
+			config->rootdir = argvalstr(optc);
 			INFO("Forcing Rootdir=%s", config->rootdir);
 			break;
 
 		case SET_ROOT_HTTP:
-			config->roothttp = argvalstr(optionIndex);
+			config->roothttp = argvalstr(optc);
 			INFO("Forcing Root HTTP=%s", config->roothttp);
 			break;
 
 		case SET_ROOT_BASE:
-			config->rootbase = argvalstr(optionIndex);
+			config->rootbase = argvalstr(optc);
 			INFO("Forcing Rootbase=%s", config->rootbase);
 			break;
 
 		case SET_ROOT_API:
-			config->rootapi = argvalstr(optionIndex);
+			config->rootapi = argvalstr(optc);
 			INFO("Forcing Rootapi=%s", config->rootapi);
 			break;
 
 		case SET_ALIAS:
-			list_add(&config->aliases, argvalstr(optionIndex));
+			list_add(&config->aliases, argvalstr(optc));
 			break;
 
 		case SET_AUTH_TOKEN:
-			config->token = argvalstr(optionIndex);
+			config->token = argvalstr(optc);
 			break;
 
 		case SET_LDPATH:
-			list_add(&config->ldpaths, argvalstr(optionIndex));
+			list_add(&config->ldpaths, argvalstr(optc));
 			break;
 
 		case SET_SESSION_DIR:
-			config->sessiondir = argvalstr(optionIndex);
+			config->sessiondir = argvalstr(optc);
 			break;
 
 		case SET_CACHE_TIMEOUT:
-			config->cacheTimeout = argvalintdec(optionIndex, 0, INT_MAX);
+			config->cacheTimeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_SESSIONMAX:
-			config->nbSessionMax = argvalintdec(optionIndex, 1, INT_MAX);
+			config->nbSessionMax = argvalintdec(optc, 1, INT_MAX);
 			break;
 
 		case SET_FORGROUND:
-			noarg(optionIndex);
+			noarg(optc);
 			config->background = 0;
 			break;
 
 		case SET_BACKGROUND:
-			noarg(optionIndex);
+			noarg(optc);
 			config->background = 1;
 			break;
 
 		case SET_MODE:
-			config->mode = argvalenum(optionIndex, mode_desc);
+			config->mode = argvalenum(optc, mode_desc);
 			break;
 
 		case SET_READYFD:
-			config->readyfd = argvalintdec(optionIndex, 0, INT_MAX);
+			config->readyfd = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case DBUS_CLIENT:
-			list_add(&config->dbus_clients, argvalstr(optionIndex));
+			list_add(&config->dbus_clients, argvalstr(optc));
 			break;
 
 		case DBUS_SERVICE:
-			list_add(&config->dbus_servers, argvalstr(optionIndex));
+			list_add(&config->dbus_servers, argvalstr(optc));
 			break;
 
 		case WS_CLIENT:
-			list_add(&config->ws_clients, argvalstr(optionIndex));
+			list_add(&config->ws_clients, argvalstr(optc));
 			break;
 
 		case WS_SERVICE:
-			list_add(&config->ws_servers, argvalstr(optionIndex));
+			list_add(&config->ws_servers, argvalstr(optc));
 			break;
 
 		case SO_BINDING:
-			list_add(&config->so_bindings, argvalstr(optionIndex));
+			list_add(&config->so_bindings, argvalstr(optc));
 			break;
 
 		case SET_TRACEREQ:
-			config->tracereq = argvalenum(optionIndex, tracereq_desc);
+			config->tracereq = argvalenum(optc, tracereq_desc);
 			break;
 
 		case SET_NO_HTTPD:
-			noarg(optionIndex);
+			noarg(optc);
 			config->noHttpd = 1;
 			break;
 
@@ -464,8 +487,12 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			optind = argc;
 			break;
 
+		case SET_RNDTOKEN:
+			config->token = random_token();
+			break;
+
 		case DISPLAY_VERSION:
-			noarg(optionIndex);
+			noarg(optc);
 			printVersion(stdout);
 			exit(0);
 
