@@ -32,7 +32,8 @@ struct afb_config {
 	char *roothttp;		// directory for http files
 	char *rootbase;		// Angular HTML5 base URL
 	char *rootapi;		// Base URL for REST APIs
-	char *sessiondir;	// where to store mixer session files
+	char *workdir;		// where to run the program
+	char *uploaddir;	// where to store transient files
 	char *token;		// initial authentication token [default NULL no session]
 
 	struct afb_config_list *aliases;

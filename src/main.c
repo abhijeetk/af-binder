@@ -202,8 +202,8 @@ static struct afb_hsrv *start_http_server()
 	int rc;
 	struct afb_hsrv *hsrv;
 
-	if (afb_hreq_init_download_path("/tmp")) {	/* TODO: sessiondir? */
-		ERROR("unable to set the tmp directory");
+	if (afb_hreq_init_download_path(config->uploaddir)) {
+		ERROR("unable to set the upload directory %s", config->uploaddir);
 		return NULL;
 	}
 
@@ -220,8 +220,7 @@ static struct afb_hsrv *start_http_server()
 		return NULL;
 	}
 
-	NOTICE("Waiting port=%d rootdir=%s", config->httpdPort,
-	       config->rootdir);
+	NOTICE("Waiting port=%d rootdir=%s", config->httpdPort, config->rootdir);
 	NOTICE("Browser URL= http:/*localhost:%d", config->httpdPort);
 
 	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
@@ -369,6 +368,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	mkdir(config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
+	if (chdir(config->workdir) < 0) {
+		ERROR("Can't enter working dir %s", config->workdir);
+		exit(1);
+	}
+
 	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
 
 	afb_api_so_set_timeout(config->apiTimeout);
@@ -388,8 +393,8 @@ int main(int argc, char *argv[])
 		ERROR("failed to initialise signal handlers");
 		return 1;
 	}
-	// if directory does not exist createit
-	mkdir(config->rootdir, O_RDWR | S_IRWXU | S_IRGRP);
+
+	// set the root dir
 	if (afb_common_rootdir_set(config->rootdir) < 0) {
 		ERROR("failed to set common root directory");
 		return 1;

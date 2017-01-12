@@ -116,13 +116,31 @@ The launch options for binder **afb-daemon** are:
 
 		Increases the verbosity, can be repeated
 
+	  --quiet
+
+		Decreases the verbosity, can be repeated
+
 	  --port=xxxx
 
 		HTTP listening TCP port  [default 1234]
 
+	  --workdir=xxxx
+
+		Directory where the daemon must run [default: $PWD if defined
+		or the current working directory]
+
+	  --uploaddir=xxxx
+
+		Directory where uploaded files are temporarily stored [default: workdir]
+
 	  --rootdir=xxxx
 
-		HTTP Root Directory [default $AFBDIR or else $HOME/.AFB]
+		Root directory of the application to serve [default: workdir]
+
+	  --roothttp=xxxx
+
+		Directory of HTTP served files. If not set, files are not served
+		but apis are still accessibles.
 
 	  --rootbase=xxxx
 
@@ -149,6 +167,10 @@ The launch options for binder **afb-daemon** are:
 
 		This option can be repeated.
 
+	  --no-httpd
+
+		Tells to not start the HTTP server.
+
 	  --apitimeout=xxxx
 
 		binding API timeout in seconds [default 20]
@@ -163,10 +185,6 @@ The launch options for binder **afb-daemon** are:
 	  --cache-eol=xxxx
 
 		Client cache end of live [default 100000 that is 27,7 hours]
-
-	  --sessiondir=xxxx
-
-		Sessions file path [default rootdir/sessions]
 
 	  --session-max=xxxx
 
@@ -196,6 +214,10 @@ The launch options for binder **afb-daemon** are:
 
 		If set to the empty string, then any initial token is accepted.
 
+	  --random-token
+
+		Generate a random starting token. See option --exec.
+
 	  --mode=xxxx
 
 		Set the mode: either local, remote or global.
@@ -224,6 +246,20 @@ The launch options for binder **afb-daemon** are:
 		The name xxxx must be the name of an API defined by a binding.
 		This API is exported through DBUS.
 
+	  --ws-client=xxxx
+
+		Transparent binding to a binder afb-daemon service through a WebSocket.
+
+		The value of xxxx is either a unix naming socket, of the form "unix:path/api",
+		or an internet socket, of the form "host:port/api".
+
+	  --ws-server=xxxx
+
+		Provides a binder afb-daemon service through WebSocket.
+
+		The value of xxxx is either a unix naming socket, of the form "unix:path/api",
+		or an internet socket, of the form "host:port/api".
+
 	  --foreground
 
 		Get all in foreground mode (default)
@@ -242,6 +278,15 @@ The launch options for binder **afb-daemon** are:
 		arguments define a command that afb-daemon will launch.
 		The sequences @p, @t and @@ of the arguments are replaced
 		with the port, the token and @.
+
+	  --tracereq=xxxx
+
+		Trace the processing of requests in the log file.
+
+		Valid values are 'no' (default), 'common', 'extra' or 'all'.
+
+
+		  
 
 
 Future development of afb-daemon

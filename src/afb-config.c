@@ -23,6 +23,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include <uuid/uuid.h>
 
@@ -36,7 +37,7 @@
 #error "you should define BINDING_INSTALL_DIR"
 #endif
 
-#define AFB_VERSION    "0.5"
+#define AFB_VERSION    "0.6"
 
 // default
 #define DEFLT_CNTX_TIMEOUT  3600	// default Client Connection
@@ -91,10 +92,12 @@
 #define SET_RNDTOKEN       'r'
 #define SET_TRACEREQ       'T'
 #define SET_AUTH_TOKEN     't'
+#define SET_UPLOAD_DIR     'u'
 #define DISPLAY_VERSION    'V'
 #define SET_VERBOSE        'v'
+#define SET_WORK_DIR       'w'
 
-#define SHORTOPTS	"ehqrT:t:Vv"
+#define SHORTOPTS	"ehqrT:t:u:Vvw:"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -114,7 +117,6 @@ static AFB_options cliOptions[] = {
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
 
 	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default 1234]"},
-	{SET_ROOT_DIR,      1, "rootdir",     "Root Directory [default $HOME/.AFB]"},
 	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default rootdir]"},
 	{SET_ROOT_BASE,     1, "rootbase",    "Angular Base Root URL [default /opa]"},
 	{SET_ROOT_API,      1, "rootapi",     "HTML Root API URL [default /api]"},
@@ -124,10 +126,16 @@ static AFB_options cliOptions[] = {
 	{SET_CNTXTIMEOUT,   1, "cntxtimeout", "Client Session Context Timeout [default 900]"},
 	{SET_CACHE_TIMEOUT, 1, "cache-eol",   "Client cache end of live [default 3600]"},
 
-	{SET_SESSION_DIR,   1, "sessiondir",  "Sessions file path [default rootdir/sessions]"},
+	{SET_WORK_DIR,      1, "workdir",     "Set the working directory [default: $PWD or current working directory]"},
+	{SET_UPLOAD_DIR,    1, "uploaddir",   "Directory for uploading files [default: workdir]"},
+	{SET_ROOT_DIR,      1, "rootdir",     "Root Directory of the application [default: workdir]"},
+	{SET_SESSION_DIR,   1, "sessiondir",  "OBSOLETE (was: Sessions file path)"},
 
 	{SET_LDPATH,        1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
+	{SO_BINDING,        1, "binding",     "Load the binding of path"},
+
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=no-session, --token= for session without authentication]"},
+	{SET_RNDTOKEN,      0, "random-token","Creates a random token"},
 
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
@@ -139,7 +147,6 @@ static AFB_options cliOptions[] = {
 	{DBUS_SERVICE,      1, "dbus-server", "Provides an afb service through dbus"},
 	{WS_CLIENT,         1, "ws-client",   "Bind to an afb service through websocket"},
 	{WS_SERVICE,        1, "ws-server",   "Provides an afb service through websockets"},
-	{SO_BINDING,        1, "binding",     "Load the binding of path"},
 
 	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default 10]"},
 
@@ -147,7 +154,6 @@ static AFB_options cliOptions[] = {
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
-	{SET_RNDTOKEN,      0, "random-token","creates a random token"},
 
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
@@ -424,7 +430,16 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_SESSION_DIR:
-			config->sessiondir = argvalstr(optc);
+			/* config->sessiondir = argvalstr(optc); */
+			WARNING("Obsolete otpion %s ignored", optname(optc));
+			break;
+
+		case SET_UPLOAD_DIR:
+			config->uploaddir = argvalstr(optc);
+			break;
+
+		case SET_WORK_DIR:
+			config->workdir = argvalstr(optc);
 			break;
 
 		case SET_CACHE_TIMEOUT:
@@ -534,14 +549,16 @@ static void config_set_default(struct afb_config *config)
 	if (config->nbSessionMax == 0)
 		config->nbSessionMax = CTX_NBCLIENTS;
 
-	if (config->rootdir == NULL) {
-		config->rootdir = getenv("AFBDIR");
-		if (config->rootdir == NULL) {
-			config->rootdir = malloc(512);
-			strncpy(config->rootdir, getenv("HOME"), 512);
-			strncat(config->rootdir, "/.AFB", 512);
-		}
-	}
+	/* set directories */
+	if (config->workdir == NULL)
+		config->workdir = get_current_dir_name();
+
+	if (config->rootdir == NULL)
+		config->rootdir = config->workdir;
+
+	if (config->uploaddir == NULL)
+		config->uploaddir = config->workdir;
+
 	// if no Angular/HTML5 rootbase let's try '/' as default
 	if (config->rootbase == NULL)
 		config->rootbase = "/opa";
@@ -552,16 +569,10 @@ static void config_set_default(struct afb_config *config)
 	if (config->ldpaths == NULL)
 		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
 
-	// if no session dir create a default path from rootdir
-	if (config->sessiondir == NULL) {
-		config->sessiondir = malloc(512);
-		strncpy(config->sessiondir, config->rootdir, 512);
-		strncat(config->sessiondir, "/sessions", 512);
-	}
-	// if no config dir create a default path from sessiondir
+	// if no config dir create a default path from uploaddir
 	if (config->console == NULL) {
 		config->console = malloc(512);
-		strncpy(config->console, config->sessiondir, 512);
+		strncpy(config->console, config->uploaddir, 512);
 		strncat(config->console, "/AFB-console.out", 512);
 	}
 }
@@ -590,7 +601,8 @@ void afb_config_dump(struct afb_config *config)
 	S(roothttp)
 	S(rootbase)
 	S(rootapi)
-	S(sessiondir)
+	S(workdir)
+	S(uploaddir)
 	S(token)
 
 	L(aliases)
