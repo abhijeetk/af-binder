@@ -15,7 +15,7 @@ an application to the AGL framework and AGL system.
 On the following figure, you can use a typical use
 of afb-daemon:
 
-<a id="binder-fig-basis"><h4>Figure: binder afb-daemon, basis</h4></a>
+<h4><a id="binder-fig-basis">Figure: binder afb-daemon, basis</a></h4>
 
 ![binder-basis][binder-basis]
 
@@ -30,7 +30,7 @@ The binder afb-daemon serves multiple purposes:
 2. It acts as an HTTP server for serving files to HTML5 applications;
 
 3. It allows HTML5 applications to have native extensions subject
-to security enforcement for accessing hardware ressources or
+to security enforcement for accessing hardware resources or
 for speeding parts of algorithm.
 
 Use cases of the binder afb-daemon
@@ -49,7 +49,7 @@ protocols.
 So the [figure binder, basis](#binder-fig-basis) would become
 when the application is run remotely:
 
-<a id="binder-fig-remote"><h4>Figure: binder afb-daemon and remotely running application</h4></a>
+<h4><a id="binder-fig-remote">Figure: binder afb-daemon and remotely running application</a></h4>
 
 
 ### Adding native features to HTML5/QML applications
@@ -72,7 +72,7 @@ This will be used for:
 
 In that case, the figure showing the whole aspects is
 
-<a id="binder-fig-remote"><h4>Figure: binder afb-daemon for services</h4></a>
+<h4><a id="binder-fig-remote">Figure: binder afb-daemon for services</a></h4>
 
 ![afb-for-services][afb-for-services]
 
@@ -286,7 +286,7 @@ The launch options for binder **afb-daemon** are:
 		Valid values are 'no' (default), 'common', 'extra' or 'all'.
 
 
-		  
+
 
 
 Future development of afb-daemon
