@@ -117,10 +117,10 @@ static AFB_options cliOptions[] = {
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
 
 	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default 1234]"},
-	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default rootdir]"},
+	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
 	{SET_ROOT_BASE,     1, "rootbase",    "Angular Base Root URL [default /opa]"},
 	{SET_ROOT_API,      1, "rootapi",     "HTML Root API URL [default /api]"},
-	{SET_ALIAS,         1, "alias",       "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
+	{SET_ALIAS,         1, "alias",       "Multiple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
 
 	{SET_APITIMEOUT,    1, "apitimeout",  "Binding API timeout in seconds [default 10]"},
 	{SET_CNTXTIMEOUT,   1, "cntxtimeout", "Client Session Context Timeout [default 900]"},
@@ -240,7 +240,7 @@ static void list_add(struct afb_config_list **head, char *value)
 	struct afb_config_list *item;
 
 	/*
-	 * search tail 
+	 * search tail
 	 */
 	item = *head;
 	while (item != NULL) {
@@ -249,7 +249,7 @@ static void list_add(struct afb_config_list **head, char *value)
 	}
 
 	/*
-	 * alloc the item 
+	 * alloc the item
 	 */
 	item = malloc(sizeof *item);
 	if (item == NULL) {
@@ -258,7 +258,7 @@ static void list_add(struct afb_config_list **head, char *value)
 	}
 
 	/*
-	 * init the item 
+	 * init the item
 	 */
 	*head = item;
 	item->value = value;
