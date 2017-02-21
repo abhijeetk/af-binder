@@ -36,6 +36,7 @@ IF(NOT HAVE_LIBMAGIC)
   MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
     Please install the \"file-devel\" or \"libmagic-dev\" package !")
 ENDIF(NOT HAVE_LIBMAGIC)
+ADD_COMPILE_OPTIONS(-DUSE_MAGIC_MIME_TYPE)
 
 PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)
