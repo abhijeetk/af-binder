@@ -310,7 +310,7 @@ static inline int afb_req_session_set_LOA(struct afb_req req, unsigned level)
  */
 static inline struct afb_req *afb_req_store(struct afb_req req)
 {
-	struct afb_req *result = malloc(sizeof *result);
+	struct afb_req *result = (struct afb_req*)malloc(sizeof *result);
 	if (result != NULL) {
 		*result = req;
 		afb_req_addref(req);
