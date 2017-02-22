@@ -23,6 +23,7 @@ endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
 INCLUDE(FindPkgConfig)
 
 ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
+ADD_DEFINITIONS(-DINFER_EXTENSION)
 
 CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
 CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
@@ -36,7 +37,7 @@ IF(NOT HAVE_LIBMAGIC)
   MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
     Please install the \"file-devel\" or \"libmagic-dev\" package !")
 ENDIF(NOT HAVE_LIBMAGIC)
-ADD_COMPILE_OPTIONS(-DUSE_MAGIC_MIME_TYPE)
+ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
 
 PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)

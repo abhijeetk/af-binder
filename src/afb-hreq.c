@@ -280,6 +280,10 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 			{ ".js",   "text/javascript" },
 			{ ".html", "text/html" },
 			{ ".css",  "text/css" },
+			{ ".ico",  "image/x-icon"},
+			{ ".png",  "image/png" },
+			{ ".svg",  "image/svg+xml" },
+			{ ".ttf",  "application/x-font-ttf"},
 			{ NULL, NULL }
 		};
 		int i = 0;
