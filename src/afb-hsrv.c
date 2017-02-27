@@ -238,9 +238,11 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	struct afb_hreq *hreq;
 
 	hreq = *recordreq;
-	if (hreq->upgrade)
-		MHD_suspend_connection (connection);
-	afb_hreq_unref(hreq);
+	if (hreq) {
+		if (hreq->upgrade)
+			MHD_suspend_connection (connection);
+		afb_hreq_unref(hreq);
+	}
 }
 
 void run_micro_httpd(struct afb_hsrv *hsrv)
