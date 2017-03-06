@@ -274,6 +274,12 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	const char *result = NULL;
 
 #if defined(INFER_EXTENSION)
+	/*
+	 * Set some well-known extensions
+	 * Note that it is mandatory for example for css files in order to provide
+	 * right mimetype that must be text/css (otherwise chrome browser will not
+	 * load correctly css file) while libmagic returns text/plain.
+	 */
 	const char *extension = strrchr(filename, '.');
 	if (extension) {
 		static const char *const known[][2] = {
