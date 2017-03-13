@@ -46,6 +46,7 @@
 #include "afb-evt.h"
 #include "afb-subcall.h"
 #include "verbose.h"
+#include "sd-fds.h"
 
 struct api_ws_memo;
 struct api_ws_event;
@@ -212,7 +213,9 @@ static struct api_ws *api_ws_make(const char *path)
 	memcpy(api->path, path, length + 1);
 
 	/* api name is at the end of the path */
-	api->api = strrchr(api->path, '/');
+	while (length && path[length - 1] != '/' && path[length - 1] != ':')
+		length = length - 1;
+	api->api = &api->path[length];
 	if (api->api == NULL || !afb_apis_is_valid_api_name(++api->api)) {
 		errno = EINVAL;
 		goto error2;
@@ -314,20 +317,28 @@ static int api_ws_socket(const char *path, int server)
 {
 	int fd, rc;
 
-	/* check for unix socket */
-	if (0 == strncmp(path, "unix:", 5))
-		fd = api_ws_socket_unix(path + 5, server);
-	else
-		fd = api_ws_socket_inet(path, server);
+	/* check for systemd socket */
+	if (0 == strncmp(path, "sd:", 3))
+		fd = sd_fds_for(path + 3);
+	else {
+		/* check for unix socket */
+		if (0 == strncmp(path, "unix:", 5))
+			/* unix socket */
+			fd = api_ws_socket_unix(path + 5, server);
+		else
+			/* inet socket */
+			fd = api_ws_socket_inet(path, server);
 
-	if (fd >= 0) {
-		fcntl(fd, F_SETFD, FD_CLOEXEC);
-		fcntl(fd, F_SETFL, O_NONBLOCK);
-		if (server) {
+		if (fd >= 0 && server) {
 			rc = 1;
 			setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &rc, sizeof rc);
 			rc = listen(fd, 5);
 		}
+	}
+	/* configure the socket */
+	if (fd >= 0) {
+		fcntl(fd, F_SETFD, FD_CLOEXEC);
+		fcntl(fd, F_SETFL, O_NONBLOCK);
 	}
 	return fd;
 }
