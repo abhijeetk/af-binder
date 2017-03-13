@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 
 #include <systemd/sd-event.h>
+#include <systemd/sd-daemon.h>
 
 #include "afb-config.h"
 #include "afb-hswitch.h"
@@ -455,6 +456,7 @@ int main(int argc, char *argv[])
 
 	// infinite loop
 	eventloop = afb_common_get_event_loop();
+	sd_notify(1, "READY=1");
 	for (;;)
 		sd_event_run(eventloop, 30000000);
 
