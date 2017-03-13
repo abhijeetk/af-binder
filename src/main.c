@@ -30,6 +30,8 @@
 #include <systemd/sd-event.h>
 #include <systemd/sd-daemon.h>
 
+#include <afb/afb-binding.h>
+
 #include "afb-config.h"
 #include "afb-hswitch.h"
 #include "afb-apis.h"
@@ -45,8 +47,7 @@
 #include "verbose.h"
 #include "afb-common.h"
 #include "afb-hook.h"
-
-#include <afb/afb-binding.h>
+#include "sd-fds.h"
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -358,6 +359,8 @@ int main(int argc, char *argv[])
 	struct sd_event *eventloop;
 
 	LOGAUTH("afb-daemon");
+
+	sd_fds_init();
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);

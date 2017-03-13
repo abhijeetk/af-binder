@@ -81,6 +81,7 @@ ADD_LIBRARY(afb-lib STATIC
 	locale-root.c
 	verbose.c
 	websock.c
+	sd-fds.c
 )
 
 ###########################################
