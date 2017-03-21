@@ -265,52 +265,83 @@ static void on_sigchld(int signum, siginfo_t *info, void *uctx)
 #define SUBST_CHAR  '@'
 #define SUBST_STR   "@"
 
-static int instanciate_command_args()
+static char *instanciate_string(char *arg, const char *port, const char *token)
 {
-	char *orig, *repl, *sub, *val, port[20];
-	int i, rc, r;
-	size_t s, l;
+	char *resu, *it, *wr;
+	int chg, dif;
 
-	rc = snprintf(port, sizeof port, "%d", config->httpdPort);
-	if (rc < 0 || rc >= (int)(sizeof port))
-		return -1;
-
-	for (i = 0 ; (orig = config->exec[i]) ; i++) {
-		repl = 0;
-		s = 0;
-		for(;;) {
-			sub = strchrnul(orig, SUBST_CHAR);
-			l = sub - orig;
-			if (repl)
-				repl = mempcpy(repl, orig, l);
-			else
-				s += l;
-			if (!*sub) {
-				/* at end */
-				if (repl || orig == config->exec[i])
-					break;
-				repl = malloc(1 + s);
-				if (!repl)
-					return -1;
-				orig = config->exec[i];
-				config->exec[i] = repl;
-				repl[s] = 0;
-			} else {
-				r = 2;
-				switch(sub[1]) {
-				case 'p': val = port;  break;
-				case 't': val = config->token ? : ""; break;
-				default: r = 1;
-				case SUBST_CHAR: val = SUBST_STR; break;
-				}
-				orig = &sub[r];
-				l = strlen(val);
-				if (repl)
-					repl = mempcpy(repl, val, l);
-				else
-					s += l;
-			}
+	/* get the changes */
+	chg = 0;
+	dif = 0;
+	it = strchrnul(arg, SUBST_CHAR);
+	while (*it) {
+		switch(*++it) {
+		case 'p': chg++; dif += (int)strlen(port) - 2; break;
+		case 't': chg++; dif += (int)strlen(token) - 2; break;
+		case SUBST_CHAR: it++; chg++; dif--; break;
+		default: break;
 		}
+		it = strchrnul(it, SUBST_CHAR);
+	}
+
+	/* return arg when no change */
+	if (!chg)
+		return arg;
+
+	/* allocates the result */
+	resu = malloc((it - arg) + dif + 1);
+	if (!resu) {
+		ERROR("out of memory");
+		return NULL;
+	}
+
+	/* instanciate the arguments */
+	wr = resu;
+	for (;;) {
+		it = strchrnul(arg, SUBST_CHAR);
+		wr = mempcpy(wr, arg, it - arg);
+		if (!*it)
+			break;
+		switch(*++it) {
+		case 'p': wr = stpcpy(wr, port); break;
+		case 't': wr = stpcpy(wr, token); break;
+		default: *wr++ = SUBST_CHAR;
+		case SUBST_CHAR: *wr++ = *it;
+		}
+		arg = ++it;
+	}
+
+	*wr = 0;
+	return resu;
+}
+
+static int instanciate_environ(const char *port, const char *token)
+{
+	extern char **environ;
+	char *repl;
+	int i;
+
+	/* instanciate the environment */
+	for (i = 0 ; environ[i] ; i++) {
+		repl = instanciate_string(environ[i], port, token);
+		if (!repl)
+			return -1;
+		environ[i] = repl;
+	}
+	return 0;
+}
+
+static int instanciate_command_args(const char *port, const char *token)
+{
+	char *repl;
+	int i;
+
+	/* instanciate the arguments */
+	for (i = 0 ; config->exec[i] ; i++) {
+		repl = instanciate_string(config->exec[i], port, token);
+		if (!repl)
+			return -1;
+		config->exec[i] = repl;
 	}
 	return 0;
 }
@@ -318,6 +349,8 @@ static int instanciate_command_args()
 static int execute_command()
 {
 	struct sigaction siga;
+	char port[20];
+	int rc;
 
 	/* check whether a command is to execute or not */
 	if (!config->exec || !config->exec[0])
@@ -337,12 +370,24 @@ static int execute_command()
 	if (childpid)
 		return 0;
 
-	/* makes arguments */
-	if (instanciate_command_args() >= 0) {
-		if (!SELF_PGROUP)
-			setpgid(0, 0);
-		execv(config->exec[0], config->exec);
-		ERROR("can't launch %s: %m", config->exec[0]);
+	/* compute the string for port */
+	if (config->httpdPort)
+		rc = snprintf(port, sizeof port, "%d", config->httpdPort);
+	else
+		rc = snprintf(port, sizeof port, "%cp", SUBST_CHAR);
+	if (rc < 0 || rc >= (int)(sizeof port)) {
+		ERROR("port->txt failed");
+	}
+	else {
+		/* instanciate arguments and environment */
+		if (instanciate_command_args(port, config->token) >= 0
+		 && instanciate_environ(port, config->token) >= 0) {
+			/* run */
+			if (!SELF_PGROUP)
+				setpgid(0, 0);
+			execv(config->exec[0], config->exec);
+			ERROR("can't launch %s: %m", config->exec[0]);
+		}
 	}
 	exit(1);
 	return -1;
