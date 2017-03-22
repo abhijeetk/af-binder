@@ -38,7 +38,6 @@
 #include "afb-context.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
-#include "afb-sig-handler.h"
 #include "afb-thread.h"
 #include "afb-evt.h"
 #include "afb-svc.h"
@@ -194,12 +193,7 @@ static void call_cb(void *closure, struct afb_req req, struct afb_context *conte
 	if (!verb->name)
 		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, strverb, desc->binding->v1.prefix);
 	else if (call_check(req, context, verb)) {
-		if (0)
-			/* not threaded */
-			afb_sig_req_timeout(req, verb->callback, api_timeout);
-		else
-			/* threaded */
-			afb_thread_call(req, verb->callback, api_timeout, desc);
+		afb_thread_req_call(req, verb->callback, api_timeout, desc);
 	}
 }
 

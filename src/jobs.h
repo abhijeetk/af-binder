@@ -17,7 +17,28 @@
 
 #pragma once
 
-struct afb_req;
+extern int jobs_queue(
+		void *group,
+		int timeout,
+		void (*callback)(int signum, void* arg),
+		void *arg);
 
-extern void afb_thread_req_call(struct afb_req req, void (*callback)(struct afb_req req), int timeout, void *group);
+extern int jobs_queue2(
+		void *group,
+		int timeout,
+		void (*callback)(int signum, void* arg1, void *arg2),
+		void *arg1,
+		void *arg2);
+
+extern int jobs_queue3(
+		void *group,
+		int timeout,
+		void (*callback)(int signum, void* arg1, void *arg2, void *arg3),
+		void *arg1,
+		void *arg2,
+		void *arg3);
+
+extern int jobs_init(int allowed_count, int start_count, int waiter_count);
+extern void jobs_terminate();
+
 

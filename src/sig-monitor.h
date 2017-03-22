@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017 "IoT.bzh"
- * Author "Fulup Ar Foll"
+ * Copyright (C) 2017 "IoT.bzh"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +17,11 @@
 
 #pragma once
 
-struct afb_req;
+extern int sig_monitor_init();
+extern void sig_monitor_clean_timeouts();
+extern int sig_monitor_init_timeouts();
 
-extern int afb_sig_handler_init();
-
-extern void afb_sig_monitor(void (*function)(int sig, void*), void *closure, int timeout);
-extern int afb_sig_req(struct afb_req req, void (*callback)(struct afb_req req));
-extern int afb_sig_req_timeout(struct afb_req req, void (*callback)(struct afb_req req), int timeout);
+extern void sig_monitor(int timeout, void (*function)(int sig, void*), void *arg);
+extern void sig_monitor2(int timeout, void (*function)(int sig, void*, void*), void *arg1, void *arg2);
+extern void sig_monitor3(int timeout, void (*function)(int sig, void*, void*, void*), void *arg1, void *arg2, void *arg3);
 

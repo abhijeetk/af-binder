@@ -41,8 +41,8 @@
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
-#include "afb-sig-handler.h"
-#include "afb-thread.h"
+#include "sig-monitor.h"
+#include "jobs.h"
 #include "afb-session.h"
 #include "verbose.h"
 #include "afb-common.h"
@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (afb_sig_handler_init() < 0) {
+	if (sig_monitor_init() < 0) {
 		ERROR("failed to initialise signal handlers");
 		return 1;
 	}
@@ -450,7 +450,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (afb_thread_init(3, 1, 20) < 0) {
+	if (jobs_init(3, 1, 20) < 0) {
 		ERROR("failed to initialise threading");
 		return 1;
 	}

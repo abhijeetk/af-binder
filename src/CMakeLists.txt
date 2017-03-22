@@ -69,7 +69,6 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-method.c
 	afb-msg-json.c
 	afb-session.c
-	afb-sig-handler.c
 	afb-svc.c
 	afb-subcall.c
 	afb-thread.c
@@ -78,10 +77,12 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-ws-json1.c
 	afb-ws.c
 	afb-wsj1.c
+	jobs.c
 	locale-root.c
+	sd-fds.c
+	sig-monitor.c
 	verbose.c
 	websock.c
-	sd-fds.c
 )
 
 ###########################################
