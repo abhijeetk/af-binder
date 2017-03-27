@@ -394,6 +394,17 @@ static int execute_command()
 }
 
 /*---------------------------------------------------------
+ | main event processing
+ +--------------------------------------------------------- */
+
+static void main_evloop(int signum, void *closure)
+{
+	struct sd_event *evloop = closure;
+	if (signum == 0)
+		sd_event_run(evloop, 30000000);
+}
+
+/*---------------------------------------------------------
  | main
  |   Parse option and launch action
  +--------------------------------------------------------- */
@@ -401,7 +412,6 @@ static int execute_command()
 int main(int argc, char *argv[])
 {
 	struct afb_hsrv *hsrv;
-	struct sd_event *eventloop;
 
 	LOGAUTH("afb-daemon");
 
@@ -495,13 +505,17 @@ int main(int argc, char *argv[])
 	if (execute_command() < 0)
 		exit(1);
 
-	// infinite loop
-	eventloop = afb_common_get_event_loop();
+	/* records the loop */
+	if (jobs_add_event_loop(NULL, 0, main_evloop, afb_common_get_event_loop()) < 0) {
+		ERROR("failed to set main_evloop");
+		return 1;
+	}
+
+	/* ready */
 	sd_notify(1, "READY=1");
-	for (;;)
-		sd_event_run(eventloop, 30000000);
 
-	WARNING("hoops returned from infinite loop [report bug]");
-
+	/* turn as processing thread */
+	jobs_add_me();
+	WARNING("hoops returned from jobs_add_me! [report bug]");
 	return 0;
 }

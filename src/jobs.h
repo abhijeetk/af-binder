@@ -38,7 +38,10 @@ extern int jobs_queue3(
 		void *arg2,
 		void *arg3);
 
+extern int jobs_add_event_loop(void *key, int timeout, void (*evloop)(int, void*), void *closure);
+
 extern int jobs_init(int allowed_count, int start_count, int waiter_count);
+extern int jobs_add_me();
 extern void jobs_terminate();
 
 
