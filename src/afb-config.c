@@ -71,7 +71,6 @@
 
 
 #define SET_MODE           18
-#define SET_READYFD        19
 
 #define DBUS_CLIENT        20
 #define DBUS_SERVICE       21
@@ -141,7 +140,6 @@ static AFB_options cliOptions[] = {
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
 	{SET_MODE,          1, "mode",        "Set the mode: either local, remote or global"},
-	{SET_READYFD,       1, "readyfd",     "Set the #fd to signal when ready"},
 
 	{DBUS_CLIENT,       1, "dbus-client", "Bind to an afb service through dbus"},
 	{DBUS_SERVICE,      1, "dbus-server", "Provides an afb service through dbus"},
@@ -464,10 +462,6 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->mode = argvalenum(optc, mode_desc);
 			break;
 
-		case SET_READYFD:
-			config->readyfd = argvalintdec(optc, 0, INT_MAX);
-			break;
-
 		case DBUS_CLIENT:
 			list_add(&config->dbus_clients, argvalstr(optc));
 			break;
@@ -617,7 +611,6 @@ void afb_config_dump(struct afb_config *config)
 
 	D(httpdPort)
 	B(background)
-	D(readyfd)
 	D(cacheTimeout)
 	D(apiTimeout)
 	D(cntxTimeout)

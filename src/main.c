@@ -495,13 +495,6 @@ int main(int argc, char *argv[])
 	if (execute_command() < 0)
 		exit(1);
 
-	/* signal that ready */
-	if (config->readyfd != 0) {
-		static const char readystr[] = "READY=1";
-		write(config->readyfd, readystr, sizeof(readystr) - 1);
-		close(config->readyfd);
-	}
-
 	// infinite loop
 	eventloop = afb_common_get_event_loop();
 	sd_notify(1, "READY=1");

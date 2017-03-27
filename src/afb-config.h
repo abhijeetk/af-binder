@@ -48,7 +48,6 @@ struct afb_config {
 
 	int httpdPort;
 	int background;		// run in backround mode
-	int readyfd;		// a #fd to signal when ready to serve
 	int cacheTimeout;
 	int apiTimeout;
 	int cntxTimeout;	// Client Session Context timeout
