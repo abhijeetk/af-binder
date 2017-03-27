@@ -51,6 +51,8 @@ struct afb_hreq {
 	struct hreq_data *data;
 	struct json_object *json;
 	int upgrade;
+	char *api;
+	char *verb;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
@@ -82,6 +84,8 @@ extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *name, const
 extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char *data, size_t size);
 
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
+
+extern int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 
 extern int afb_hreq_init_context(struct afb_hreq *hreq);
 

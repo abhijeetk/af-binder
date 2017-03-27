@@ -187,7 +187,7 @@ void afb_subcall(struct afb_context *context, const char *api, const char *verb,
 	subcall->closure = closure;
 	subcall->context = *context;
 	afb_req_addref(req);
-	afb_apis_call_((struct afb_req){ .itf = &afb_subcall_req_itf, .closure = subcall }, &subcall->context, api, verb);
+	afb_apis_call((struct afb_req){ .itf = &afb_subcall_req_itf, .closure = subcall }, &subcall->context, api, verb);
 	subcall_unref(subcall);
 }
 

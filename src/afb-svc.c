@@ -64,19 +64,19 @@ struct svc_req
 };
 
 /* functions for services */
-static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-static void svc_call(struct afb_svc *svc, const char *api, const char *verb, struct json_object *args,
-				void (*callback)(void*, int, struct json_object*), void *closure);
+static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object);
+static void svc_call(void *closure, const char *api, const char *verb, struct json_object *args,
+				void (*callback)(void*, int, struct json_object*), void *cbclosure);
 
 /* the interface for services */
 static const struct afb_service_itf service_itf = {
-	.call = (void*)svc_call
+	.call = svc_call
 };
 
 /* the interface for events */
 static const struct afb_evt_itf evt_itf = {
-	.broadcast = (void*)svc_on_event,
-	.push = (void*)svc_on_event
+	.broadcast = svc_on_event,
+	.push = svc_on_event
 };
 
 /* functions for requests of services */
@@ -163,8 +163,9 @@ error:
 /*
  * Propagates the event to the service
  */
-static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object)
 {
+	struct afb_svc *svc = closure;
 	svc->on_event(event, object);
 	json_object_put(object);
 }
@@ -172,14 +173,15 @@ static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, st
 /*
  * Initiates a call for the service
  */
-static void svc_call(struct afb_svc *svc, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
+static void svc_call(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cbclosure)
 {
+	struct afb_svc *svc = closure;
 	struct svc_req *svcreq;
 
 	/* allocates the request */
 	svcreq = malloc(sizeof *svcreq);
 	if (svcreq == NULL)
-		return afb_subcall_internal_error(callback, closure);
+		return afb_subcall_internal_error(callback, cbclosure);
 
 	/* initialises the request */
 	afb_context_init(&svcreq->context, svc->session, NULL);
@@ -188,7 +190,7 @@ static void svc_call(struct afb_svc *svc, const char *api, const char *verb, str
 	svcreq->refcount = 1;
 
 	/* makes the call */
-	afb_subcall(&svcreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_svc_req_itf, .closure = svcreq });
+	afb_subcall(&svcreq->context, api, verb, args, callback, cbclosure, (struct afb_req){ .itf = &afb_svc_req_itf, .closure = svcreq });
 
 	/* terminates and frees ressources if needed */
 	svcreq_unref(svcreq);

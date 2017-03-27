@@ -182,16 +182,16 @@ static int call_check(struct afb_req req, struct afb_context *context, const str
 	return 1;
 }
 
-static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *strverb, size_t lenverb)
+static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *strverb)
 {
 	const struct afb_verb_desc_v1 *verb;
 	struct api_so_desc *desc = closure;
 
 	verb = desc->binding->v1.verbs;
-	while (verb->name && (strncasecmp(verb->name, strverb, lenverb) || verb->name[lenverb]))
+	while (verb->name && strcasecmp(verb->name, strverb))
 		verb++;
 	if (!verb->name)
-		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, strverb, desc->binding->v1.prefix);
+		afb_req_fail_f(req, "unknown-verb", "verb %s unknown within api %s", strverb, desc->binding->v1.prefix);
 	else if (call_check(req, context, verb)) {
 		afb_thread_req_call(req, verb->callback, api_timeout, desc);
 	}

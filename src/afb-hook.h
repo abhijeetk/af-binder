@@ -88,7 +88,7 @@ struct afb_hook_req_itf {
 	void (*hook_req_subcall_result)(void * closure, const struct afb_hook_req *tr, int status, struct json_object *result);
 };
 
-extern struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
+extern struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb);
 
 extern struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure);
 extern struct afb_hook *afb_hook_addref(struct afb_hook *spec);

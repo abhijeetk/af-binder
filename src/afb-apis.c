@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "afb-session.h"
 #include "verbose.h"
@@ -32,24 +33,32 @@
 struct api_desc {
 	struct afb_api api;
 	const char *name;
-	size_t namelen;
 };
 
 static struct api_desc *apis_array = NULL;
 static int apis_count = 0;
 
+/**
+ * Returns the current count of APIs
+ */
 int afb_apis_count()
 {
 	return apis_count;
 }
 
+/**
+ * Checks wether 'name' is a valid API name.
+ * @return 1 if valid, 0 otherwise
+ */
 int afb_apis_is_valid_api_name(const char *name)
 {
 	unsigned char c;
 
 	c = (unsigned char)*name;
 	if (c == 0)
+		/* empty names aren't valid */
 		return 0;
+
 	do {
 		if (c < (unsigned char)'\x80') {
 			switch(c) {
@@ -74,6 +83,16 @@ int afb_apis_is_valid_api_name(const char *name)
 	return 1;
 }
 
+/**
+ * Adds the api of 'name' described by 'api'.
+ * @param name the name of the api to add
+ * @param api the api
+ * @returns 0 in case of success or -1 in case
+ * of error with errno set:
+ *   - EINVAL if name isn't valid
+ *   - EEXIST if name already registered
+ *   - ENOMEM when out of memory
+ */
 int afb_apis_add(const char *name, struct afb_api api)
 {
 	struct api_desc *apis;
@@ -82,6 +101,7 @@ int afb_apis_add(const char *name, struct afb_api api)
 	/* Checks the api name */
 	if (!afb_apis_is_valid_api_name(name)) {
 		ERROR("invalid api name forbidden (name is '%s')", name);
+		errno = EINVAL;
 		goto error;
 	}
 
@@ -89,6 +109,7 @@ int afb_apis_add(const char *name, struct afb_api api)
 	for (i = 0 ; i < apis_count ; i++) {
 		if (!strcasecmp(apis_array[i].name, name)) {
 			ERROR("api of name %s already exists", name);
+			errno = EEXIST;
 			goto error;
 		}
 	}
@@ -97,6 +118,7 @@ int afb_apis_add(const char *name, struct afb_api api)
 	apis = realloc(apis_array, ((unsigned)apis_count + 1) * sizeof * apis);
 	if (apis == NULL) {
 		ERROR("out of memory");
+		errno = ENOMEM;
 		goto error;
 	}
 	apis_array = apis;
@@ -104,7 +126,6 @@ int afb_apis_add(const char *name, struct afb_api api)
 	/* record the plugin */
 	apis = &apis_array[apis_count];
 	apis->api = api;
-	apis->namelen = strlen(name);
 	apis->name = name;
 	apis_count++;
 
@@ -114,22 +135,17 @@ error:
 	return -1;
 }
 
-void afb_apis_call_(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
-{
-	afb_apis_call(req, context, api, strlen(api), verb, strlen(verb));
-}
-
-void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
 {
 	int i;
 	const struct api_desc *a;
 
-	req = afb_hook_req_call(req, context, api, lenapi, verb, lenverb);
+	req = afb_hook_req_call(req, context, api, verb);
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
-		if (a->namelen == lenapi && !strncasecmp(a->name, api, lenapi)) {
+		if (!strcasecmp(a->name, api)) {
 			context->api_index = i;
-			a->api.call(a->api.closure, req, context, verb, lenverb);
+			a->api.call(a->api.closure, req, context, verb);
 			return;
 		}
 	}

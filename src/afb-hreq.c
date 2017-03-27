@@ -335,6 +335,8 @@ void afb_hreq_unref(struct afb_hreq *hreq)
 	}
 	afb_context_disconnect(&hreq->context);
 	json_object_put(hreq->json);
+	free(hreq->api);
+	free(hreq->verb);
 	free(hreq);
 }
 
@@ -938,6 +940,20 @@ static int req_subscribe_unsubscribe_error(struct afb_hreq *hreq, struct afb_eve
 static void req_subcall(struct afb_hreq *hreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
 {
 	afb_subcall(&hreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_hreq_req_itf, .closure = hreq });
+}
+
+int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+{
+	free(hreq->api);
+	free(hreq->verb);
+	hreq->api = strndup(api, lenapi);
+	hreq->verb = strndup(verb, lenverb);
+	if (hreq->api == NULL || hreq->verb == NULL) {
+		ERROR("Out of memory");
+		errno = ENOMEM;
+		return -1;
+	}
+	return afb_hreq_init_context(hreq);
 }
 
 int afb_hreq_init_context(struct afb_hreq *hreq)

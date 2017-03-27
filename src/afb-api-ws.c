@@ -431,12 +431,6 @@ static int api_ws_write_uint32(struct writebuf *wb, uint32_t value)
 	return 1;
 }
 
-static int api_ws_write_string_nz(struct writebuf *wb, const char *value, size_t length)
-{
-	uint32_t len = (uint32_t)length;
-	return (size_t)len == length && ++len && api_ws_write_uint32(wb, len) && api_ws_write_put(wb, value, length) && api_ws_write_char(wb, '\0');
-}
-
 static int api_ws_write_string_length(struct writebuf *wb, const char *value, size_t length)
 {
 	uint32_t len = (uint32_t)++length;
@@ -815,7 +809,7 @@ static void api_ws_client_on_binary(void *closure, char *data, size_t size)
 }
 
 /* on call, propagate it to the ws service */
-static void api_ws_client_call_cb(void * closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
+static void api_ws_client_call_cb(void * closure, struct afb_req req, struct afb_context *context, const char *verb)
 {
 	int rc;
 	struct api_ws_memo *memo;
@@ -837,7 +831,7 @@ static void api_ws_client_call_cb(void * closure, struct afb_req req, struct afb
 		goto internal_error;
 	if (!api_ws_write_uint32(&wb, memo->msgid)
 	 || !api_ws_write_uint32(&wb, (uint32_t)context->flags)
-	 || !api_ws_write_string_nz(&wb, verb, lenverb)
+	 || !api_ws_write_string(&wb, verb)
 	 || !api_ws_write_string(&wb, afb_session_uuid(context->session))
 	 || !api_ws_write_string_length(&wb, raw, szraw))
 		goto overflow;
@@ -988,7 +982,7 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 	/* makes the call */
 	areq.itf = &afb_api_ws_req_itf;
 	areq.closure = wreq;
-	afb_apis_call_(areq, &wreq->context, client->api, verb);
+	afb_apis_call(areq, &wreq->context, client->api, verb);
 	api_ws_server_req_unref(wreq);
 	return;
 

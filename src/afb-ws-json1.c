@@ -220,7 +220,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	/* emits the call */
 	r.closure = wsreq;
 	r.itf = &afb_ws_json1_req_itf;
-	afb_apis_call_(r, &wsreq->context, api, verb);
+	afb_apis_call(r, &wsreq->context, api, verb);
 	wsreq_unref(wsreq);
 }
 

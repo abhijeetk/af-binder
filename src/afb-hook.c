@@ -272,25 +272,33 @@ static void hook_req_unref(struct afb_hook_req *tr)
 	}
 }
 
-static struct afb_hook_req *hook_req_create(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+static struct afb_hook_req *hook_req_create(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
 {
+	int len;
+	char name[257];
 	unsigned id;
 	struct afb_hook_req *tr;
 
-	tr = malloc(sizeof *tr + 8 + lenapi + lenverb);
-	if (tr != NULL) {
-		/* get the call id */
-		id = ++hook_count;
-		if (id == 1000000)
-			id = hook_count = 1;
+	/* get the call id */
+	id = ++hook_count;
+	if (id == 1000000)
+		id = hook_count = 1;
 
-		/* init hook */
-		tr->observers = NULL;
-		tr->refcount = 1;
-		tr->context = context;
-		tr->req = req;
-		afb_req_addref(req);
-		snprintf(tr->name, 9 + lenapi + lenverb, "%06d:%.*s/%.*s", id, (int)lenapi, api, (int)lenverb, verb);
+	/* creates the name */
+	len = snprintf(name, sizeof name, "%06d:%s/%s", id, api, verb);
+	if (len < 0 || (size_t)len >= sizeof name) {
+		tr = NULL;
+	} else {
+		tr = malloc(sizeof *tr + (size_t)len);
+		if (tr != NULL) {
+			/* init hook */
+			tr->observers = NULL;
+			tr->refcount = 1;
+			tr->context = context;
+			tr->req = req;
+			afb_req_addref(req);
+			memcpy(tr->name, name, (size_t)(len + 1));
+		}
 	}
 	return tr;
 }
@@ -494,7 +502,7 @@ static struct afb_req_itf req_hook_itf = {
  * section: 
  *****************************************************************************/
 
-struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
 {
 	int add;
 	struct afb_hook_req *tr;
@@ -506,11 +514,11 @@ struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context
 		do {
 			add = (hook->flags & afb_hook_flags_req_all) != 0
 			   && (!hook->session || hook->session == context->session)
-			   && (!hook->api || !(memcmp(hook->api, api, lenapi) || hook->api[lenapi]))
-			   && (!hook->verb || !(memcmp(hook->verb, verb, lenverb) || hook->verb[lenverb]));
+			   && (!hook->api || !strcasecmp(hook->api, api))
+			   && (!hook->verb || !strcasecmp(hook->verb, verb));
 			if (add) {
 				if (!tr)
-					tr = hook_req_create(req, context, api, lenapi, verb, lenverb);
+					tr = hook_req_create(req, context, api, verb);
 				if (tr)
 					hook_req_add_observer(tr, hook);
 			}

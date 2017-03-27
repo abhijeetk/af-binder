@@ -317,11 +317,11 @@ static int api_dbus_client_on_reply(sd_bus_message *message, void *userdata, sd_
 }
 
 /* on call, propagate it to the dbus service */
-static void api_dbus_client_call(struct api_dbus *api, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
+static void api_dbus_client_call(void *closure, struct afb_req req, struct afb_context *context, const char *verb)
 {
+	struct api_dbus *api = closure;
 	size_t size;
 	int rc;
-	char *method = strndupa(verb, lenverb);
 	struct dbus_memo *memo;
 	struct sd_bus_message *msg;
 
@@ -334,7 +334,7 @@ static void api_dbus_client_call(struct api_dbus *api, struct afb_req req, struc
 
 	/* creates the message */
 	msg = NULL;
-	rc = sd_bus_message_new_method_call(api->sdbus, &msg, api->name, api->path, api->name, method);
+	rc = sd_bus_message_new_method_call(api->sdbus, &msg, api->name, api->path, api->name, verb);
 	if (rc < 0)
 		goto error;
 
@@ -363,8 +363,10 @@ end:
 	sd_bus_message_unref(msg);
 }
 
-static int api_dbus_service_start(struct api_dbus *api, int share_session, int onneed)
+static int api_dbus_service_start(void *closure, int share_session, int onneed)
 {
+	struct api_dbus *api = closure;
+
 	/* not an error when onneed */
 	if (onneed != 0)
 		return 0;
@@ -618,8 +620,8 @@ int afb_api_dbus_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.call = (void*)api_dbus_client_call;
-	afb_api.service_start = (void*)api_dbus_service_start;
+	afb_api.call = api_dbus_client_call;
+	afb_api.service_start = api_dbus_service_start;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error2;
 
@@ -1003,7 +1005,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	dreq->refcount = 1;
 	areq.itf = &afb_api_dbus_req_itf;
 	areq.closure = dreq;
-	afb_apis_call_(areq, &dreq->context, api->api, method);
+	afb_apis_call(areq, &dreq->context, api->api, method);
 	dbus_req_unref(dreq);
 	return 1;
 
