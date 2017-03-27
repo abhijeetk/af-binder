@@ -39,14 +39,6 @@ static struct api_desc *apis_array = NULL;
 static int apis_count = 0;
 
 /**
- * Returns the current count of APIs
- */
-int afb_apis_count()
-{
-	return apis_count;
-}
-
-/**
  * Checks wether 'name' is a valid API name.
  * @return 1 if valid, 0 otherwise
  */
@@ -178,7 +170,7 @@ void afb_apis_call(struct afb_req req, struct afb_context *context, const char *
 		c = strcasecmp(a->name, api);
 		if (c == 0) {
 			/* api found */
-			context->api_index = i;
+			context->api_key = a->api.closure;
 			a->api.call(a->api.closure, req, context, verb);
 			break;
 		}

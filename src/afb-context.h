@@ -38,7 +38,7 @@ struct afb_context
 			unsigned loa_changed: 1;
 		};
 	};
-	int api_index;
+	void *api_key;
 };
 
 extern void afb_context_init(struct afb_context *context, struct afb_session *session, const char *token);

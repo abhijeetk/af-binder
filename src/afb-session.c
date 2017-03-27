@@ -33,12 +33,6 @@
 
 #define NOW (time(NULL))
 
-struct value
-{
-	void *value;
-	void (*freecb)(void*);
-};
-
 struct cookie
 {
 	struct cookie *next;
@@ -56,7 +50,6 @@ struct afb_session
 	time_t access;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
-	struct value *values;
 	struct cookie *cookies;
 };
 
@@ -67,7 +60,6 @@ static struct {
 	int count;                      // current number of sessions
 	int max;
 	int timeout;
-	int apicount;
 	char initok[37];
 } sessions;
 
@@ -82,15 +74,7 @@ static void new_uuid(char uuid[37])
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void free_data (struct afb_session *session)
 {
-	int idx;
 	struct cookie *cookie;
-
-	// If application add a handle let's free it now
-	assert (session->values != NULL);
-
-	// Free session handle with a standard Free function, with app callback or ignore it
-	for (idx=0; idx < sessions.apicount; idx ++)
-		afb_session_set_value(session, idx, NULL, NULL);
 
 	// free cookies
 	cookie = session->cookies;
@@ -104,13 +88,12 @@ static void free_data (struct afb_session *session)
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
-void afb_session_init (int max_session_count, int timeout, const char *initok, int context_count)
+void afb_session_init (int max_session_count, int timeout, const char *initok)
 {
 	// let's create as store as hashtable does not have any
 	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct afb_session));
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
-	sessions.apicount = context_count;
 	if (initok == NULL)
 		/* without token, a secret is made to forbid creation of sessions */
 		new_uuid(sessions.initok);
@@ -223,12 +206,11 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 	struct afb_session *session;
 
 	/* allocates a new one */
-	session = calloc(1, sizeof(struct afb_session) + ((unsigned)sessions.apicount * sizeof(*session->values)));
+	session = calloc(1, sizeof(struct afb_session));
 	if (session == NULL) {
 		errno = ENOMEM;
 		goto error;
 	}
-	session->values = (void*)(session + 1);
 
 	/* generate the uuid */
 	if (uuid == NULL) {
@@ -392,26 +374,6 @@ void afb_session_set_LOA (struct afb_session *session, unsigned loa)
 {
 	assert(session != NULL);
 	session->loa = loa;
-}
-
-void *afb_session_get_value(struct afb_session *session, int index)
-{
-	assert(session != NULL);
-	assert(index >= 0);
-	assert(index < sessions.apicount);
-	return session->values[index].value;
-}
-
-void afb_session_set_value(struct afb_session *session, int index, void *value, void (*freecb)(void*))
-{
-	struct value prev;
-	assert(session != NULL);
-	assert(index >= 0);
-	assert(index < sessions.apicount);
-	prev = session->values[index];
-	session->values[index] = (struct value){.value = value, .freecb = freecb};
-	if (prev.value != NULL && prev.value != value && prev.freecb != NULL)
-		prev.freecb(prev.value);
 }
 
 void *afb_session_get_cookie(struct afb_session *session, const void *key)

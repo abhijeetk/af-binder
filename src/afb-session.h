@@ -17,10 +17,9 @@
 
 #pragma once
 
-struct json_object;
 struct afb_session;
 
-extern void afb_session_init(int max_session_count, int timeout, const char *initok, int context_count);
+extern void afb_session_init(int max_session_count, int timeout, const char *initok);
 
 extern struct afb_session *afb_session_create (const char *uuid, int timeout);
 extern struct afb_session *afb_session_get (const char *uuid, int *created);
@@ -37,9 +36,6 @@ extern const char *afb_session_token(struct afb_session *session);
 
 extern unsigned afb_session_get_LOA(struct afb_session *session);
 extern void afb_session_set_LOA (struct afb_session *session, unsigned loa);
-
-extern void *afb_session_get_value(struct afb_session *session, int index);
-extern void afb_session_set_value(struct afb_session *session, int index, void *value, void (*freecb)(void*));
 
 extern void *afb_session_get_cookie(struct afb_session *session, const void *key);
 extern int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*));

@@ -28,7 +28,6 @@ struct afb_api
 };
 
 
-extern int afb_apis_count();
 extern int afb_apis_is_valid_api_name(const char *name);
 
 extern int afb_apis_add(const char *name, struct afb_api api);

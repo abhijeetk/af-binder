@@ -429,7 +429,7 @@ int main(int argc, char *argv[])
 	start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
 	start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
 
-	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
+	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
 
 	start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
 	start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");

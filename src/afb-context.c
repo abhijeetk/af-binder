@@ -31,7 +31,7 @@ static void init_context(struct afb_context *context, struct afb_session *sessio
 	/* reset the context for the session */
 	context->session = session;
 	context->flags = 0;
-	context->api_index = -1;
+	context->api_key = NULL;
 	context->loa_in = afb_session_get_LOA(session) & 7;
 
 	/* check the token */
@@ -109,13 +109,15 @@ const char *afb_context_sent_uuid(struct afb_context *context)
 void *afb_context_get(struct afb_context *context)
 {
 	assert(context->session != NULL);
-	return afb_session_get_value(context->session, context->api_index);
+	return afb_session_get_cookie(context->session, context->api_key);
 }
 
 void afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*))
 {
+	int rc;
 	assert(context->session != NULL);
-	return afb_session_set_value(context->session, context->api_index, value, free_value);
+	rc = afb_session_set_cookie(context->session, context->api_key, value, free_value);
+	(void)rc; /* TODO */
 }
 
 void afb_context_close(struct afb_context *context)
