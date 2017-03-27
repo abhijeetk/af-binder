@@ -31,6 +31,9 @@
 #include "afb-session.h"
 #include "verbose.h"
 
+#define COOKEYCOUNT  8
+#define COOKEYMASK   (COOKEYCOUNT - 1)
+
 #define NOW (time(NULL))
 
 struct cookie
@@ -50,7 +53,7 @@ struct afb_session
 	time_t access;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
-	struct cookie *cookies;
+	struct cookie *cookies[COOKEYCOUNT];
 };
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
@@ -63,6 +66,18 @@ static struct {
 	char initok[37];
 } sessions;
 
+/**
+ * Get the index of the 'key' in the cookies array.
+ * @param key the key to scan
+ * @return the index of the list for key within cookies
+ */
+static int cookeyidx(const void *key)
+{
+	intptr_t x = (intptr_t)key;
+	unsigned r = (unsigned)((x >> 5) ^ (x >> 15));
+	return r & COOKEYMASK;
+}
+
 /* generate a uuid */
 static void new_uuid(char uuid[37])
 {
@@ -74,16 +89,20 @@ static void new_uuid(char uuid[37])
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void free_data (struct afb_session *session)
 {
-	struct cookie *cookie;
+	int idx;
+	struct cookie *cookie, *next;
 
 	// free cookies
-	cookie = session->cookies;
-	while (cookie != NULL) {
-		session->cookies = cookie->next;
-		if (cookie->value != NULL && cookie->freecb != NULL)
-			cookie->freecb(cookie->value);
-		free(cookie);
-		cookie = session->cookies;
+	for (idx = 0 ; idx < COOKEYCOUNT ; idx++) {
+		cookie = session->cookies[idx];
+		session->cookies[idx] = NULL;
+		while (cookie != NULL) {
+			next = cookie->next;
+			if (cookie->value != NULL && cookie->freecb != NULL)
+				cookie->freecb(cookie->value);
+			free(cookie);
+			cookie = next;
+		}
 	}
 }
 
@@ -379,8 +398,10 @@ void afb_session_set_LOA (struct afb_session *session, unsigned loa)
 void *afb_session_get_cookie(struct afb_session *session, const void *key)
 {
 	struct cookie *cookie;
+	int idx;
 
-	cookie = session->cookies;
+	idx = cookeyidx(key);
+	cookie = session->cookies[idx];
 	while(cookie != NULL) {
 		if (cookie->key == key)
 			return cookie->value;
@@ -392,9 +413,11 @@ void *afb_session_get_cookie(struct afb_session *session, const void *key)
 int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*))
 {
 	struct cookie *cookie;
+	int idx;
 
 	/* search for a replacement */
-	cookie = session->cookies;
+	idx = cookeyidx(key);
+	cookie = session->cookies[idx];
 	while(cookie != NULL) {
 		if (cookie->key == key) {
 			if (cookie->value != NULL && cookie->value != value && cookie->freecb != NULL)
@@ -416,8 +439,8 @@ int afb_session_set_cookie(struct afb_session *session, const void *key, void *v
 	cookie->key = key;
 	cookie->value = value;
 	cookie->freecb = freecb;
-	cookie->next = session->cookies;
-	session->cookies = cookie;
+	cookie->next = session->cookies[idx];
+	session->cookies[idx] = cookie;
 	return 0;
 }
 
