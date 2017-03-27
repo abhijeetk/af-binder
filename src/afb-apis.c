@@ -31,8 +31,8 @@
 #include <afb/afb-req-itf.h>
 
 struct api_desc {
-	struct afb_api api;
 	const char *name;
+	struct afb_api api;
 };
 
 static struct api_desc *apis_array = NULL;
@@ -85,7 +85,7 @@ int afb_apis_is_valid_api_name(const char *name)
 
 /**
  * Adds the api of 'name' described by 'api'.
- * @param name the name of the api to add
+ * @param name the name of the api to add (have to survive, not copied!)
  * @param api the api
  * @returns 0 in case of success or -1 in case
  * of error with errno set:
@@ -96,7 +96,7 @@ int afb_apis_is_valid_api_name(const char *name)
 int afb_apis_add(const char *name, struct afb_api api)
 {
 	struct api_desc *apis;
-	int i;
+	int i, c;
 
 	/* Checks the api name */
 	if (!afb_apis_is_valid_api_name(name)) {
@@ -107,11 +107,14 @@ int afb_apis_add(const char *name, struct afb_api api)
 
 	/* check previously existing plugin */
 	for (i = 0 ; i < apis_count ; i++) {
-		if (!strcasecmp(apis_array[i].name, name)) {
+		c = strcasecmp(apis_array[i].name, name);
+		if (c == 0) {
 			ERROR("api of name %s already exists", name);
 			errno = EEXIST;
 			goto error;
 		}
+		if (c > 0)
+			break;
 	}
 
 	/* allocates enough memory */
@@ -123,8 +126,15 @@ int afb_apis_add(const char *name, struct afb_api api)
 	}
 	apis_array = apis;
 
+	/* copy higher part of the array */
+	c = apis_count;
+	while (c > i) {
+		apis_array[c] = apis_array[c - 1];
+		c--;
+	}
+
 	/* record the plugin */
-	apis = &apis_array[apis_count];
+	apis = &apis_array[i];
 	apis->api = api;
 	apis->name = name;
 	apis_count++;
@@ -135,21 +145,49 @@ error:
 	return -1;
 }
 
+/**
+ * Dispatch the request 'req' with the 'context' to the
+ * method of 'api' and 'verb'.
+ * @param req the request to dispatch
+ * @param context the context of the request
+ * @param api the api of the verb
+ * @param verb the verb within the api
+ */
 void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
 {
-	int i;
+	int i, c, up, lo;
 	const struct api_desc *a;
 
+	/* init hooking the request */
 	req = afb_hook_req_call(req, context, api, verb);
-	a = apis_array;
-	for (i = 0 ; i < apis_count ; i++, a++) {
-		if (!strcasecmp(a->name, api)) {
+
+	/* dichotomic search of the api */
+	/* initial slice */
+	lo = 0;
+	up = apis_count;
+	for (;;) {
+		/* check remaining slice */
+		if (lo >= up) {
+			/* empty ?! */
+			afb_req_fail(req, "fail", "api not found");
+			break;
+		}
+		/* check the mid of the slice */
+		i = (lo + up) >> 1;
+		a = &apis_array[i];
+		c = strcasecmp(a->name, api);
+		if (c == 0) {
+			/* api found */
 			context->api_index = i;
 			a->api.call(a->api.closure, req, context, verb);
-			return;
+			break;
 		}
+		/* update the slice */
+		if (c < 0)
+			lo = i + 1;
+		else
+			up = i;
 	}
-	afb_req_fail(req, "fail", "api not found");
 }
 
 int afb_apis_start_service(const char *api, int share_session, int onneed)
