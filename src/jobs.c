@@ -146,7 +146,9 @@ static struct job *job_create(
 
 	/* allocates the job */
 	job = free_jobs;
-	if (!job) {
+	if (job)
+		free_jobs = job->next;
+	else {
 		pthread_mutex_unlock(&mutex);
 		job = malloc(sizeof *job);
 		pthread_mutex_lock(&mutex);
@@ -369,7 +371,7 @@ int jobs_init(int allowed_count, int start_count, int waiter_count)
 }
 
 /* terminate all the threads and all pending requests */
-void jobs_terminate()
+void jobs_terminate(int wait)
 {
 	struct job *job;
 	pthread_t me, other;

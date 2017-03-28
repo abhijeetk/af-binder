@@ -7,6 +7,7 @@
 
 #include <afb/afb-req-itf.h>
 #include "../afb-thread.h"
+#include "../jobs.h"
 
 struct foo {
 	int value;
@@ -77,12 +78,12 @@ int main()
 	struct timespec ts;
 
 	req.itf = &itf;
-	afb_thread_init(4, 1);
+	jobs_init(4, 0, 20000);
 	for (i = 0 ; i  < 10000 ; i++) {
 		req.closure = foo = malloc(sizeof *foo);
 		foo->value = i;
 		foo->refcount = 1;
-		afb_thread_call(req, process, 5, (&ts) + (i % 4));
+		afb_thread_req_call(req, process, 5, (&ts) + (i % 7));
 		unref(foo);
 		ts.tv_sec = 0;
 		ts.tv_nsec = 1000000;
@@ -91,7 +92,7 @@ int main()
 	ts.tv_sec = 1;
 	ts.tv_nsec = 0;
 	nanosleep(&ts, NULL);
-	afb_thread_terminate();
+	jobs_terminate();
 }
 
 
