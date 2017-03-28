@@ -24,7 +24,7 @@ void unref(void *closure)
 {
 	struct foo *foo = closure;
 	if(!--foo->refcount) {
-		printf("%06d FREE\n", foo->value);
+		/* printf("%06d FREE\n", foo->value); */
 		free(foo);
 	}
 }
@@ -32,7 +32,7 @@ void unref(void *closure)
 void fail(void *closure, const char *status, const char *info)
 {
 	struct foo *foo = closure;
-	printf("%06d ERROR %s\n", foo->value, status);
+	printf("%06d ABORT T%d %s\n", foo->value, (int)syscall(SYS_gettid), status);
 }
 
 struct afb_req_itf itf = {
@@ -70,6 +70,17 @@ void process(struct afb_req req)
 //	nanosleep(&ts, NULL);
 }
 
+void terminate(int signum)
+{
+	printf("---------------- TERMINATE T%d (%d)\n", (int)syscall(SYS_gettid), signum);
+#if 0
+	jobs_terminate();
+#else
+	jobs_invoke0(0, jobs_terminate);
+#endif
+	exit(0);
+}
+
 int main()
 {
 	int i;
@@ -85,6 +96,12 @@ int main()
 		foo->refcount = 1;
 		afb_thread_req_call(req, process, 5, (&ts) + (i % 7));
 		unref(foo);
+		if (i == 5000)
+#if 1
+			jobs_invoke0(0, terminate);
+#else
+			jobs_queue0(NULL, 0, terminate);
+#endif
 		ts.tv_sec = 0;
 		ts.tv_nsec = 1000000;
 //		nanosleep(&ts, NULL);
@@ -93,6 +110,7 @@ int main()
 	ts.tv_nsec = 0;
 	nanosleep(&ts, NULL);
 	jobs_terminate();
+	return 0;
 }
 
 

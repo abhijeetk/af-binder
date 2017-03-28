@@ -17,6 +17,11 @@
 
 #pragma once
 
+extern int jobs_queue0(
+		void *group,
+		int timeout,
+		void (*callback)(int signum));
+
 extern int jobs_queue(
 		void *group,
 		int timeout,
@@ -38,10 +43,32 @@ extern int jobs_queue3(
 		void *arg2,
 		void *arg3);
 
+extern int jobs_invoke0(
+		int timeout,
+		void (*callback)(int signum));
+
+extern int jobs_invoke(
+		int timeout,
+		void (*callback)(int signum, void* arg),
+		void *arg);
+
+extern int jobs_invoke2(
+		int timeout,
+		void (*callback)(int signum, void* arg1, void *arg2),
+		void *arg1,
+		void *arg2);
+
+extern int jobs_invoke3(
+		int timeout,
+		void (*callback)(int signum, void* arg1, void *arg2, void *arg3),
+		void *arg1,
+		void *arg2,
+		void *arg3);
+
 extern int jobs_add_event_loop(void *key, int timeout, void (*evloop)(int, void*), void *closure);
 
 extern int jobs_init(int allowed_count, int start_count, int waiter_count);
 extern int jobs_add_me();
-extern void jobs_terminate(int wait);
+extern void jobs_terminate();
 
 
