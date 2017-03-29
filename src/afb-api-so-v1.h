@@ -18,16 +18,4 @@
 
 #pragma once
 
-extern int afb_api_so_timeout;
-
-extern void afb_api_so_set_timeout(int to);
-
-extern int afb_api_so_add_binding(const char *path);
-
-extern int afb_api_so_add_directory(const char *path);
-
-extern int afb_api_so_add_path(const char *path);
-
-extern int afb_api_so_add_pathset(const char *pathset);
-
-
+extern int afb_api_so_v1_add(const char *path, void *handle);
