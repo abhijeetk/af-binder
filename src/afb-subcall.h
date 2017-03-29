@@ -21,7 +21,16 @@ struct afb_context;
 struct afb_req;
 struct json_object;
 
-extern void afb_subcall(struct afb_context *context, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure, struct afb_req req);
+extern void afb_subcall(
+		struct afb_context *context,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		void (*callback)(void*, int, struct json_object*),
+		void *closure,
+		struct afb_req req);
 
-extern void afb_subcall_internal_error(void (*callback)(void*, int, struct json_object*), void *closure);
+extern void afb_subcall_internal_error(
+		void (*callback)(void*, int, struct json_object*),
+		void *closure);
 
