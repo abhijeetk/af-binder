@@ -397,11 +397,11 @@ static int execute_command()
  | main event processing
  +--------------------------------------------------------- */
 
-static void main_evloop(int signum, void *closure)
+static void main_event_wait_and_dispatch(int signum, void *closure)
 {
-	struct sd_event *evloop = closure;
+	struct sd_event *event = closure;
 	if (signum == 0)
-		sd_event_run(evloop, 30000000);
+		sd_event_run(event, 30000000);
 }
 
 /*---------------------------------------------------------
@@ -413,6 +413,9 @@ int main(int argc, char *argv[])
 {
 	struct afb_hsrv *hsrv;
 
+	// let's run this program with a low priority
+	nice(20);
+
 	LOGAUTH("afb-daemon");
 
 	sd_fds_init();
@@ -420,6 +423,16 @@ int main(int argc, char *argv[])
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
 	atexit(exit_handler);
+
+	if (sig_monitor_init() < 0) {
+		ERROR("failed to initialise signal handlers");
+		return 1;
+	}
+
+	if (jobs_init(3, 1, 20) < 0) {
+		ERROR("failed to initialise threading");
+		return 1;
+	}
 
 	// ------------------ sanity check ----------------------------------------
 	if (config->httpdPort <= 0) {
@@ -449,23 +462,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (sig_monitor_init() < 0) {
-		ERROR("failed to initialise signal handlers");
-		return 1;
-	}
-
 	// set the root dir
 	if (afb_common_rootdir_set(config->rootdir) < 0) {
 		ERROR("failed to set common root directory");
 		return 1;
 	}
-
-	if (jobs_init(3, 1, 20) < 0) {
-		ERROR("failed to initialise threading");
-		return 1;
-	}
-	// let's run this program with a low priority
-	nice(20);
 
 	// ------------------ Finaly Process Commands -----------------------------
 	// let's not take the risk to run as ROOT
@@ -506,8 +507,8 @@ int main(int argc, char *argv[])
 		exit(1);
 
 	/* records the loop */
-	if (jobs_add_event_loop(NULL, 0, main_evloop, afb_common_get_event_loop()) < 0) {
-		ERROR("failed to set main_evloop");
+	if (jobs_add_events(NULL, 0, main_event_wait_and_dispatch, afb_common_get_event_loop()) < 0) {
+		ERROR("failed to set main_event_wait_and_dispatch");
 		return 1;
 	}
 

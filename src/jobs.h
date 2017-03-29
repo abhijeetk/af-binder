@@ -65,7 +65,8 @@ extern int jobs_invoke3(
 		void *arg2,
 		void *arg3);
 
-extern int jobs_add_event_loop(void *key, int timeout, void (*evloop)(int, void*), void *closure);
+extern int jobs_add_events(void *key, int timeout, void (*events)(int, void*), void *closure);
+extern int jobs_del_events(void *key);
 
 extern int jobs_init(int allowed_count, int start_count, int waiter_count);
 extern int jobs_add_me();

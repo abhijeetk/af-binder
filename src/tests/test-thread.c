@@ -73,7 +73,7 @@ void process(struct afb_req req)
 void terminate(int signum)
 {
 	printf("---------------- TERMINATE T%d (%d)\n", (int)syscall(SYS_gettid), signum);
-#if 0
+#if 1
 	jobs_terminate();
 #else
 	jobs_invoke0(0, jobs_terminate);
@@ -97,7 +97,7 @@ int main()
 		afb_thread_req_call(req, process, 5, (&ts) + (i % 7));
 		unref(foo);
 		if (i == 5000)
-#if 1
+#if 0
 			jobs_invoke0(0, terminate);
 #else
 			jobs_queue0(NULL, 0, terminate);
@@ -106,11 +106,7 @@ int main()
 		ts.tv_nsec = 1000000;
 //		nanosleep(&ts, NULL);
 	}
-	ts.tv_sec = 1;
-	ts.tv_nsec = 0;
-	nanosleep(&ts, NULL);
-	jobs_terminate();
-	return 0;
+	return -jobs_add_me();
 }
 
 
