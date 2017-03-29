@@ -25,7 +25,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <afb/afb-event-itf.h>
+#include "afb-event-itf.h"
 
 /* avoid inclusion of <json-c/json.h> */
 struct json_object;
