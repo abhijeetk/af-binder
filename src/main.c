@@ -394,17 +394,6 @@ static int execute_command()
 }
 
 /*---------------------------------------------------------
- | main event processing
- +--------------------------------------------------------- */
-
-static void main_event_wait_and_dispatch(int signum, void *closure)
-{
-	struct sd_event *event = closure;
-	if (signum == 0)
-		sd_event_run(event, 30000000);
-}
-
-/*---------------------------------------------------------
  | job for starting the daemon
  +--------------------------------------------------------- */
 
@@ -518,15 +507,9 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	/* records the loop */
-	if (jobs_add_events(NULL, 0, main_event_wait_and_dispatch, afb_common_get_event_loop()) < 0) {
-		ERROR("failed to set main_event_wait_and_dispatch");
-		return 1;
-	}
-
 	/* queue the start job */
 	if (jobs_queue0(NULL, 0, start) < 0) {
-		ERROR("failed to set main_event_wait_and_dispatch");
+		ERROR("failed to start runnning jobs");
 		return 1;
 	}
 

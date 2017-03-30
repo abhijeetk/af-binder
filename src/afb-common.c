@@ -27,6 +27,7 @@
 
 #include "afb-common.h"
 #include "locale-root.h"
+#include "jobs.h"
 
 static const char *default_locale = NULL;
 static struct locale_root *rootdir = NULL;
@@ -42,7 +43,6 @@ struct sd_event *afb_common_get_thread_event_loop()
 	}
 	return result;
 }
-*/
 
 static void *sdopen(void **p, int (*f)(void **))
 {
@@ -55,6 +55,7 @@ static void *sdopen(void **p, int (*f)(void **))
 	}
 	return *p;
 }
+*/
 
 static struct sd_bus *sdbusopen(struct sd_bus **p, int (*f)(struct sd_bus **))
 {
@@ -77,8 +78,7 @@ static struct sd_bus *sdbusopen(struct sd_bus **p, int (*f)(struct sd_bus **))
 
 struct sd_event *afb_common_get_event_loop()
 {
-	static struct sd_event *result = NULL;
-	return sdopen((void*)&result, (void*)sd_event_new);
+	return jobs_get_sd_event();
 }
 
 struct sd_bus *afb_common_get_user_bus()
