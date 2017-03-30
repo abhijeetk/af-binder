@@ -18,6 +18,8 @@
 #pragma once
 
 struct afb_binding_interface;
+struct json_object;
+struct afb_service;
 
 /*
  * Function for registering the binding
@@ -43,6 +45,31 @@ struct afb_binding_interface;
  * is fully functionnal.
  */
 extern const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *interface);
+
+/*
+ * When a binding have an exported implementation of the
+ * function 'afbBindingV1ServiceInit', defined below,
+ * the framework calls it for initialising the service after
+ * registration of all bindings.
+ *
+ * The object 'service' should be recorded. It has functions that
+ * allows the binding to call features with its own personality.
+ *
+ * The function should return 0 in case of success or, else, should return
+ * a negative value.
+ */
+extern int afbBindingV1ServiceInit(struct afb_service service);
+
+/*
+ * When a binding have an implementation of the function 'afbBindingV1ServiceEvent',
+ * defined below, the framework calls that function for any broadcasted event or for
+ * events that the service subscribed to in its name.
+ *
+ * It receive the 'event' name and its related data in 'object' (be aware that 'object'
+ * might be NULL).
+ */
+extern void afbBindingV1ServiceEvent(const char *event, struct json_object *object);
+
 
 /*
  * Enum for Session/Token/Assurance middleware.
@@ -105,5 +132,25 @@ struct afb_binding_desc_v1
        const char *info;                       /* textual information about the binding */
        const char *prefix;                     /* required prefix name for the binding */
        const struct afb_verb_desc_v1 *verbs;   /* array of descriptions of verbs terminated by a NULL name */
+};
+
+/*
+ * Definition of the type+versions of the binding.
+ * The definition uses hashes.
+ */
+enum  afb_binding_type
+{
+       AFB_BINDING_VERSION_1 = 123456789
+};
+
+/*
+ * Description of a binding
+ */
+struct afb_binding
+{
+       enum afb_binding_type type; /* type of the binding */
+       union {
+               struct afb_binding_desc_v1 v1;   /* description of the binding of type 1 */
+       };
 };
 

@@ -847,7 +847,10 @@ int jobs_add_me()
 	return 0;
 }
 
-
+/**
+ * Gets a sd_event item for the current thread.
+ * @return a sd_event or NULL in case of error
+ */
 struct sd_event *jobs_get_sd_event()
 {
 	struct events *events;
@@ -885,9 +888,10 @@ struct sd_event *jobs_get_sd_event()
 						events = NULL;
 					}
 				} else {
-					if (!events)
+					if (!events) {
 						ERROR("out of memory");
-					else {
+						errno = ENOMEM;
+					} else {
 						free(events);
 						ERROR("creation of sd_event failed: %m");
 						events = NULL;
@@ -912,7 +916,7 @@ struct sd_event *jobs_get_sd_event()
 }
 
 /**
- * run the jobs as 
+ * Enter the jobs processing loop.
  * @param allowed_count Maximum count of thread for jobs including this one
  * @param start_count   Count of thread to start now, must be lower.
  * @param waiter_count  Maximum count of jobs that can be waiting.
@@ -941,4 +945,5 @@ int jobs_enter(int allowed_count, int start_count, int waiter_count, void (*star
 
 	/* turn as processing thread */
 	return jobs_add_me();
-};
+}
+

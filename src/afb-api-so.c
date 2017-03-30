@@ -27,6 +27,7 @@
 
 #include "afb-api-so.h"
 #include "afb-api-so-v1.h"
+#include "afb-api-so-v2.h"
 #include "verbose.h"
 
 int afb_api_so_timeout = 15;
@@ -53,9 +54,14 @@ static int load_binding(const char *path, int force)
 	}
 
 	/* retrieves the register function */
+	rc = afb_api_so_v2_add(path, handle);
+	if (rc < 0) {
+		/* error when loading a valid v2 binding */
+		goto error2;
+	}
 	rc = afb_api_so_v1_add(path, handle);
 	if (rc < 0) {
-		/* error when loading a valid v& binding */
+		/* error when loading a valid v1 binding */
 		goto error2;
 	}
 	if (rc == 0) {

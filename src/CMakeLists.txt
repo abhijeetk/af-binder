@@ -57,6 +57,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-api-dbus.c
 	afb-api-so.c
 	afb-api-so-v1.c
+	afb-api-so-v2.c
 	afb-api-ws.c
 	afb-apis.c
 	afb-common.c

@@ -38,27 +38,9 @@
 
 #include "afb-event-itf.h"
 #include "afb-req-itf.h"
+#include "afb-service-itf.h"
 #include "afb-binding-v1.h"
-
-/*
- * Definition of the type+versions of the binding.
- * The definition uses hashes.
- */
-enum  afb_binding_type
-{
-       AFB_BINDING_VERSION_1 = 123456789        /* version 1 */
-};
-
-/*
- * Description of a binding
- */
-struct afb_binding
-{
-       enum afb_binding_type type; /* type of the binding */
-       union {
-               struct afb_binding_desc_v1 v1;   /* description of the binding of type 1 */
-       };
-};
+#include "afb-binding-v2.h"
 
 /*
  * config mode

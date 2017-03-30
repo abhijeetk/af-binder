@@ -104,11 +104,10 @@ const struct afb_req_itf afb_svc_req_itf = {
 static struct afb_session *common_session;
 
 /*
- * Creates a new service
+ * Allocates a new service
  */
-struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service service), void (*on_event)(const char *event, struct json_object *object))
+static struct afb_svc *afb_svc_alloc(int share_session, void (*on_event)(const char *event, struct json_object *object))
 {
-	int rc;
 	struct afb_svc *svc;
 
 	/* allocates the svc handler */
@@ -142,19 +141,73 @@ struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service
 			goto error3;
 	}
 
-	/* initialises the svc now */
-	rc = init((struct afb_service){ .itf = &service_itf, .closure = svc });
-	if (rc < 0)
-		goto error4;
-
 	return svc;
 
-error4:
-	if (svc->listener != NULL)
-		afb_evt_listener_unref(svc->listener);
 error3:
 	afb_session_unref(svc->session);
 error2:
+	free(svc);
+error:
+	return NULL;
+}
+
+/*
+ * Creates a new service
+ */
+struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service service), void (*on_event)(const char *event, struct json_object *object))
+{
+	int rc;
+	struct afb_svc *svc;
+
+	/* allocates the svc handler */
+	svc = afb_svc_alloc(share_session, on_event);
+	if (svc == NULL)
+		goto error;
+
+	/* initialises the svc now */
+	rc = init((struct afb_service){ .itf = &service_itf, .closure = svc });
+	if (rc < 0)
+		goto error2;
+
+	return svc;
+
+error2:
+	if (svc->listener != NULL)
+		afb_evt_listener_unref(svc->listener);
+	afb_session_unref(svc->session);
+	free(svc);
+error:
+	return NULL;
+}
+
+/*
+ * Creates a new service
+ */
+struct afb_svc *afb_svc_create_v2(
+			int share_session,
+			void (*on_event)(const char *event, struct json_object *object),
+			int (*start)(const struct afb_binding_interface *interface, struct afb_service service),
+			const struct afb_binding_interface *interface)
+{
+	int rc;
+	struct afb_svc *svc;
+
+	/* allocates the svc handler */
+	svc = afb_svc_alloc(share_session, on_event);
+	if (svc == NULL)
+		goto error;
+
+	/* initialises the svc now */
+	rc = start(interface, (struct afb_service){ .itf = &service_itf, .closure = svc });
+	if (rc < 0)
+		goto error2;
+
+	return svc;
+
+error2:
+	if (svc->listener != NULL)
+		afb_evt_listener_unref(svc->listener);
+	afb_session_unref(svc->session);
 	free(svc);
 error:
 	return NULL;

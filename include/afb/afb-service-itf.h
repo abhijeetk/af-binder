@@ -43,8 +43,6 @@ struct afb_service
 	void *closure;
 };
 
-#include "afb-service-itf-v1.h"
-
 /**
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * The result of the call is delivered to the 'callback' function with the 'callback_closure'.

@@ -15,18 +15,7 @@
  * limitations under the License.
  */
 
+
 #pragma once
 
-struct afb_svc;
-struct afb_service;
-struct afb_binding_interface;
-
-extern struct afb_svc *afb_svc_create(int share_session,
-			int (*init)(struct afb_service service),
-			void (*onevent)(const char *event, struct json_object *object));
-
-extern struct afb_svc *afb_svc_create_v2(
-			int share_session,
-			void (*on_event)(const char *event, struct json_object *object),
-			int (*start)(const struct afb_binding_interface *interface, struct afb_service service),
-			const struct afb_binding_interface *interface);
+extern int afb_api_so_v2_add(const char *path, void *handle);
