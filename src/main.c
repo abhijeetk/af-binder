@@ -405,45 +405,23 @@ static void main_event_wait_and_dispatch(int signum, void *closure)
 }
 
 /*---------------------------------------------------------
- | main
- |   Parse option and launch action
+ | job for starting the daemon
  +--------------------------------------------------------- */
 
-int main(int argc, char *argv[])
+static void start(int signum)
 {
 	struct afb_hsrv *hsrv;
-
-	// let's run this program with a low priority
-	nice(20);
-
-	LOGAUTH("afb-daemon");
-
-	sd_fds_init();
-
-	// ------------- Build session handler & init config -------
-	config = afb_config_parse_arguments(argc, argv);
-	atexit(exit_handler);
-
-	if (sig_monitor_init() < 0) {
-		ERROR("failed to initialise signal handlers");
-		return 1;
-	}
-
-	if (jobs_init(3, 1, 20) < 0) {
-		ERROR("failed to initialise threading");
-		return 1;
-	}
 
 	// ------------------ sanity check ----------------------------------------
 	if (config->httpdPort <= 0) {
 		ERROR("no port is defined");
-		exit(1);
+		goto error;
 	}
 
 	mkdir(config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
 	if (chdir(config->workdir) < 0) {
 		ERROR("Can't enter working dir %s", config->workdir);
-		exit(1);
+		goto error;
 	}
 
 	afb_api_so_set_timeout(config->apiTimeout);
@@ -459,20 +437,58 @@ int main(int argc, char *argv[])
 
 	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
 		ERROR("initialisation of cookies failed");
-		exit(1);
+		goto error;
 	}
 
 	// set the root dir
 	if (afb_common_rootdir_set(config->rootdir) < 0) {
 		ERROR("failed to set common root directory");
-		return 1;
+		goto error;
 	}
 
-	// ------------------ Finaly Process Commands -----------------------------
-	// let's not take the risk to run as ROOT
-	//if (getuid() == 0)  goto errorNoRoot;
-
 	DEBUG("Init config done");
+
+	/* install trace of requests */
+	if (config->tracereq)
+		afb_hook_req_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
+
+	/* start the services */
+	if (afb_apis_start_all_services(1) < 0)
+		goto error;
+
+	/* start the HTTP server */
+	if (!config->noHttpd) {
+		hsrv = start_http_server();
+		if (hsrv == NULL)
+			goto error;
+	}
+
+	/* run the command */
+	if (execute_command() < 0)
+		goto error;
+
+	/* ready */
+	sd_notify(1, "READY=1");
+	return;
+error:
+	exit(1);
+}
+/*---------------------------------------------------------
+ | main
+ |   Parse option and launch action
+ +--------------------------------------------------------- */
+
+int main(int argc, char *argv[])
+{
+	// let's run this program with a low priority
+	nice(20);
+
+	LOGAUTH("afb-daemon");
+
+	sd_fds_init();
+
+	// ------------- Build session handler & init config -------
+	config = afb_config_parse_arguments(argc, argv);
 
 	// --------- run -----------
 	if (config->background) {
@@ -484,27 +500,23 @@ int main(int argc, char *argv[])
 		INFO("entering foreground mode");
 	}
 
+	/* handle groups */
+	atexit(exit_handler);
+
 	/* ignore any SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
 
-	/* install trace of requests */
-	if (config->tracereq)
-		afb_hook_req_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
-
-	/* start the services */
-	if (afb_apis_start_all_services(1) < 0)
-		exit(1);
-
-	/* start the HTTP server */
-	if (!config->noHttpd) {
-		hsrv = start_http_server();
-		if (hsrv == NULL)
-			exit(1);
+	/* start */
+	if (sig_monitor_init() < 0) {
+		ERROR("failed to initialise signal handlers");
+		return 1;
 	}
 
-	/* run the command */
-	if (execute_command() < 0)
-		exit(1);
+	/* init job processing */
+	if (jobs_init(3, 1, 20) < 0) {
+		ERROR("failed to initialise threading");
+		return 1;
+	}
 
 	/* records the loop */
 	if (jobs_add_events(NULL, 0, main_event_wait_and_dispatch, afb_common_get_event_loop()) < 0) {
@@ -512,11 +524,15 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	/* ready */
-	sd_notify(1, "READY=1");
+	/* queue the start job */
+	if (jobs_queue0(NULL, 0, start) < 0) {
+		ERROR("failed to set main_event_wait_and_dispatch");
+		return 1;
+	}
 
 	/* turn as processing thread */
 	jobs_add_me();
 	WARNING("hoops returned from jobs_add_me! [report bug]");
 	return 0;
 }
+
