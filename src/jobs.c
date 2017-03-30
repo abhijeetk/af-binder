@@ -911,3 +911,34 @@ struct sd_event *jobs_get_sd_event()
 	return events ? events->event : NULL;
 }
 
+/**
+ * run the jobs as 
+ * @param allowed_count Maximum count of thread for jobs including this one
+ * @param start_count   Count of thread to start now, must be lower.
+ * @param waiter_count  Maximum count of jobs that can be waiting.
+ * @param start         The start routine to activate (can't be NULL)
+ * @return 0 in case of success or -1 in case of error.
+ */
+int jobs_enter(int allowed_count, int start_count, int waiter_count, void (*start)())
+{
+	/* start */
+	if (sig_monitor_init() < 0) {
+		ERROR("failed to initialise signal handlers");
+		return -1;
+	}
+
+	/* init job processing */
+	if (jobs_init(allowed_count, start_count, waiter_count) < 0) {
+		ERROR("failed to initialise threading");
+		return -1;
+	}
+
+	/* queue the start job */
+	if (jobs_queue0(NULL, 0, (void(*)(int))start) < 0) {
+		ERROR("failed to start runnning jobs");
+		return -1;
+	}
+
+	/* turn as processing thread */
+	return jobs_add_me();
+};

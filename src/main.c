@@ -41,7 +41,6 @@
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
-#include "sig-monitor.h"
 #include "jobs.h"
 #include "afb-session.h"
 #include "verbose.h"
@@ -397,7 +396,7 @@ static int execute_command()
  | job for starting the daemon
  +--------------------------------------------------------- */
 
-static void start(int signum)
+static void start()
 {
 	struct afb_hsrv *hsrv;
 
@@ -495,27 +494,9 @@ int main(int argc, char *argv[])
 	/* ignore any SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
 
-	/* start */
-	if (sig_monitor_init() < 0) {
-		ERROR("failed to initialise signal handlers");
-		return 1;
-	}
-
-	/* init job processing */
-	if (jobs_init(3, 1, 20) < 0) {
-		ERROR("failed to initialise threading");
-		return 1;
-	}
-
-	/* queue the start job */
-	if (jobs_queue0(NULL, 0, start) < 0) {
-		ERROR("failed to start runnning jobs");
-		return 1;
-	}
-
-	/* turn as processing thread */
-	jobs_add_me();
-	WARNING("hoops returned from jobs_add_me! [report bug]");
-	return 0;
+	/* enter job processing */
+	jobs_enter(3, 1, 20, start);
+	WARNING("hoops returned from jobs_enter! [report bug]");
+	return 1;
 }
 

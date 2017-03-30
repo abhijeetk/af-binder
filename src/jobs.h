@@ -73,4 +73,5 @@ extern int jobs_init(int allowed_count, int start_count, int waiter_count);
 extern int jobs_add_me();
 extern void jobs_terminate();
 
+extern int jobs_enter(int allowed_count, int start_count, int waiter_count, void (*start)());
 
