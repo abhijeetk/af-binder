@@ -17,22 +17,16 @@
 
 #pragma once
 
+#include "afb-xreq.h"
+
 struct afb_session;
 struct json_object;
 struct hreq_data;
 struct afb_hsrv;
-struct afb_req_itf;
 struct locale_search;
 
-extern const struct afb_req_itf afb_hreq_req_itf;
-
 struct afb_hreq {
-	/*
-	 * CAUTION: 'context' field should be the first because there
-	 * is an implicit convertion to struct afb_context
-	 */
-	struct afb_context context;
-	int refcount;
+	struct afb_xreq xreq;
 	struct afb_hsrv *hsrv;
 	const char *cacheTimeout;
 	struct MHD_Connection *connection;
@@ -51,8 +45,6 @@ struct afb_hreq {
 	struct hreq_data *data;
 	struct json_object *json;
 	int upgrade;
-	char *api;
-	char *verb;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
@@ -83,8 +75,6 @@ extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *name, const
 
 extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char *data, size_t size);
 
-extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
-
 extern int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 
 extern int afb_hreq_init_context(struct afb_hreq *hreq);
@@ -105,3 +95,4 @@ extern void afb_hreq_addref(struct afb_hreq *hreq);
 
 extern void afb_hreq_unref(struct afb_hreq *hreq);
 
+extern struct afb_hreq *afb_hreq_create();

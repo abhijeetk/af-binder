@@ -31,6 +31,7 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-thread.h"
+#include "afb-xreq.h"
 #include "verbose.h"
 
 /*
@@ -171,18 +172,43 @@ static int call_check(struct afb_req req, struct afb_context *context, const str
 	return 1;
 }
 
-static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *strverb)
+static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *verb)
 {
-	const struct afb_verb_v2 *verb;
-	struct api_so_v2 *desc = closure;
+	const struct afb_verb_v2 *result;
 
-	verb = desc->binding->verbs;
-	while (verb->verb && strcasecmp(verb->verb, strverb))
-		verb++;
-	if (!verb->verb)
-		afb_req_fail_f(req, "unknown-verb", "verb %s unknown within api %s", strverb, desc->binding->api);
+	result = desc->binding->verbs;
+	while (result->verb && strcasecmp(result->verb, verb))
+		result++;
+	return result->verb ? result : NULL;
+}
+
+static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *name)
+{
+	struct api_so_v2 *desc = closure;
+	const struct afb_verb_v2 *verb;
+
+	verb = search(desc, name);
+	if (!verb)
+		afb_req_fail_f(req, "unknown-verb", "verb %s unknown within api %s", name, desc->binding->api);
 	else if (call_check(req, context, verb)) {
 		afb_thread_req_call(req, verb->callback, afb_api_so_timeout, desc);
+	}
+}
+
+static void xcall_cb(void *closure, struct afb_xreq *xreq)
+{
+	struct api_so_v2 *desc = closure;
+	const struct afb_verb_v2 *verb;
+
+	verb = search(desc, xreq->verb);
+	if (!verb)
+		afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, desc->binding->api);
+	else {
+		xreq->timeout = afb_api_so_timeout;
+		xreq->sessionflags = (int)verb->session;
+		xreq->group = desc;
+		xreq->callback = verb->callback;
+		afb_xreq_call(xreq);
 	}
 }
 
@@ -291,6 +317,7 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	if (afb_apis_add(binding->api, (struct afb_api){
 			.closure = desc,
 			.call = call_cb,
+			.xcall = xcall_cb,
 			.service_start = service_start_cb }) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;

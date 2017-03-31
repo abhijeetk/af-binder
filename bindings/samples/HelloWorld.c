@@ -245,6 +245,11 @@ static void eventpush (struct afb_req request)
 		afb_req_success(request, NULL, NULL);
 }
 
+static void exitnow (struct afb_req request)
+{
+	exit(0);
+}
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const struct afb_verb_desc_v1 verbs[]= {
@@ -260,6 +265,7 @@ static const struct afb_verb_desc_v1 verbs[]= {
   {"eventsub",  AFB_SESSION_NONE, eventsub    , "subscribes to the event of 'tag'"},
   {"eventunsub",AFB_SESSION_NONE, eventunsub  , "unsubscribes to the event of 'tag'"},
   {"eventpush", AFB_SESSION_NONE, eventpush   , "pushs the event of 'tag' with the 'data'"},
+  {"exit",      AFB_SESSION_NONE, exitnow     , "exits from afb-daemon"},
   {NULL}
 };
 

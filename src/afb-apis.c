@@ -28,11 +28,16 @@
 #include "afb-apis.h"
 #include "afb-context.h"
 #include "afb-hook.h"
+#include "afb-xreq.h"
+
 #include <afb/afb-req-itf.h>
 
+/**
+ * Internal description of an api
+ */
 struct api_desc {
-	const char *name;
-	struct afb_api api;
+	const char *name;	/**< name of the api */
+	struct afb_api api;	/**< handler of the api */
 };
 
 static struct api_desc *apis_array = NULL;
@@ -138,20 +143,14 @@ error:
 }
 
 /**
- * Dispatch the request 'req' with the 'context' to the
- * method of 'api' and 'verb'.
- * @param req the request to dispatch
- * @param context the context of the request
+ * Search the 'api'.
  * @param api the api of the verb
- * @param verb the verb within the api
+ * @return the descriptor if found or NULL otherwise
  */
-void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
+static const struct api_desc *search(const char *api)
 {
 	int i, c, up, lo;
 	const struct api_desc *a;
-
-	/* init hooking the request */
-	req = afb_hook_req_call(req, context, api, verb);
 
 	/* dichotomic search of the api */
 	/* initial slice */
@@ -160,19 +159,16 @@ void afb_apis_call(struct afb_req req, struct afb_context *context, const char *
 	for (;;) {
 		/* check remaining slice */
 		if (lo >= up) {
-			/* empty ?! */
-			afb_req_fail(req, "fail", "api not found");
-			break;
+			/* not found */
+			return NULL;
 		}
 		/* check the mid of the slice */
 		i = (lo + up) >> 1;
 		a = &apis_array[i];
 		c = strcasecmp(a->name, api);
 		if (c == 0) {
-			/* api found */
-			context->api_key = a->api.closure;
-			a->api.call(a->api.closure, req, context, verb);
-			break;
+			/* found */
+			return a;
 		}
 		/* update the slice */
 		if (c < 0)
@@ -182,6 +178,40 @@ void afb_apis_call(struct afb_req req, struct afb_context *context, const char *
 	}
 }
 
+/**
+ * Dispatch the request 'req' with the 'context' to the
+ * method of 'api' and 'verb'.
+ * @param req the request to dispatch
+ * @param context the context of the request
+ * @param api the api of the verb
+ * @param verb the verb within the api
+ */
+void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
+{
+	const struct api_desc *a;
+
+	/* init hooking the request */
+	req = afb_hook_req_call(req, context, api, verb);
+
+	/* search the api */
+	a = search(api);
+	if (!a)
+		afb_req_fail(req, "fail", "api not found");
+	else {
+		context->api_key = a->api.closure;
+		a->api.call(a->api.closure, req, context, verb);
+	}
+}
+
+/**
+ * Starts a service by its 'api' name.
+ * @param api name of the service to start
+ * @param share_session if true start the servic"e in a shared session
+ *                      if false start it in its own session
+ * @param onneed if true start the service if possible, if false the api
+ *               must be a service
+ * @return a positive number on success
+ */
 int afb_apis_start_service(const char *api, int share_session, int onneed)
 {
 	int i;
@@ -191,9 +221,16 @@ int afb_apis_start_service(const char *api, int share_session, int onneed)
 			return apis_array[i].api.service_start(apis_array[i].api.closure, share_session, onneed);
 	}
 	ERROR("can't find service %s", api);
+	errno = ENOENT;
 	return -1;
 }
 
+/**
+ * Starts all possible services but stops at first error.
+ * @param share_session if true start the servic"e in a shared session
+ *                      if false start it in its own session
+ * @return 0 on success or a negative number when an error is found
+ */
 int afb_apis_start_all_services(int share_session)
 {
 	int i, rc;
@@ -204,5 +241,30 @@ int afb_apis_start_all_services(int share_session)
 			return rc;
 	}
 	return 0;
+}
+
+/**
+ * Dispatch the request 'req' with the 'context' to the
+ * method of 'api' and 'verb'.
+ * @param req the request to dispatch
+ * @param context the context of the request
+ * @param api the api of the verb
+ * @param verb the verb within the api
+ */
+void afb_apis_xcall(struct afb_xreq *xreq)
+{
+	const struct api_desc *a;
+
+	/* init hooking the request */
+	// TODO req = afb_hook_req_call(req, context, api, verb);
+
+	/* search the api */
+	a = search(xreq->api);
+	if (!a)
+		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+	else {
+		xreq->context.api_key = a->api.closure;
+		a->api.xcall(a->api.closure, xreq);
+	}
 }
 

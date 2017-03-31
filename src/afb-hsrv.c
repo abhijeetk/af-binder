@@ -31,6 +31,7 @@
 
 #include "afb-method.h"
 #include "afb-context.h"
+#include "afb-xreq.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
 #include <afb/afb-req-itf.h>
@@ -38,8 +39,6 @@
 #include "locale-root.h"
 
 #include "afb-common.h"
-
-
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
@@ -67,8 +66,6 @@ struct afb_hsrv {
 	int in_run;
 	char *cache_to;
 };
-
-static int global_reqids = 0;
 
 static void reply_error(struct MHD_Connection *connection, unsigned int status)
 {
@@ -124,7 +121,7 @@ static int access_handler(
 		}
 
 		/* create the request */
-		hreq = calloc(1, sizeof *hreq);
+		hreq = afb_hreq_create();
 		if (hreq == NULL) {
 			ERROR("Can't allocate 'hreq'");
 			reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
@@ -132,13 +129,8 @@ static int access_handler(
 		}
 
 		/* init the request */
-		hreq->refcount = 1;
 		hreq->hsrv = hsrv;
 		hreq->cacheTimeout = hsrv->cache_to;
-		hreq->reqid = ++global_reqids;
-		hreq->scanned = 0;
-		hreq->suspended = 0;
-		hreq->replied = 0;
 		hreq->connection = connection;
 		hreq->method = method;
 		hreq->version = version;

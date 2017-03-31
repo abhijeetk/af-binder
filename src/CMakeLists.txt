@@ -79,6 +79,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-ws-json1.c
 	afb-ws.c
 	afb-wsj1.c
+	afb-xreq.c
 	jobs.c
 	locale-root.c
 	sd-fds.c

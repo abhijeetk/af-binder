@@ -19,7 +19,7 @@
 
 struct afb_event;
 struct afb_session;
-
+struct json_object;
 struct afb_evt_listener;
 
 struct afb_evt_itf

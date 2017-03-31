@@ -31,6 +31,7 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-thread.h"
+#include "afb-xreq.h"
 #include "verbose.h"
 
 /*
@@ -173,18 +174,43 @@ static int call_check(struct afb_req req, struct afb_context *context, const str
 	return 1;
 }
 
+static const struct afb_verb_desc_v1 *search(struct api_so_v1 *desc, const char *name)
+{
+	const struct afb_verb_desc_v1 *verb;
+
+	verb = desc->binding->v1.verbs;
+	while (verb->name && strcasecmp(verb->name, name))
+		verb++;
+	return verb->name ? verb : NULL;
+}
+
 static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *strverb)
 {
 	const struct afb_verb_desc_v1 *verb;
 	struct api_so_v1 *desc = closure;
 
-	verb = desc->binding->v1.verbs;
-	while (verb->name && strcasecmp(verb->name, strverb))
-		verb++;
-	if (!verb->name)
+	verb = search(desc, strverb);
+	if (!verb)
 		afb_req_fail_f(req, "unknown-verb", "verb %s unknown within api %s", strverb, desc->binding->v1.prefix);
 	else if (call_check(req, context, verb)) {
 		afb_thread_req_call(req, verb->callback, afb_api_so_timeout, desc);
+	}
+}
+
+static void xcall_cb(void *closure, struct afb_xreq *xreq)
+{
+	const struct afb_verb_desc_v1 *verb;
+	struct api_so_v1 *desc = closure;
+
+	verb = search(desc, xreq->verb);
+	if (!verb)
+		afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, desc->binding->v1.prefix);
+	else {
+		xreq->timeout = afb_api_so_timeout;
+		xreq->sessionflags = (int)verb->session;
+		xreq->group = desc;
+		xreq->callback = verb->callback;
+		afb_xreq_call(xreq);
 	}
 }
 
@@ -300,6 +326,7 @@ int afb_api_so_v1_add(const char *path, void *handle)
 	if (afb_apis_add(desc->binding->v1.prefix, (struct afb_api){
 			.closure = desc,
 			.call = call_cb,
+			.xcall = xcall_cb,
 			.service_start = service_start_cb }) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;
