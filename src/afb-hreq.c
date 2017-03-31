@@ -317,8 +317,8 @@ static void afb_hreq_destroy(struct afb_hreq *hreq)
 	}
 	afb_context_disconnect(&hreq->xreq.context);
 	json_object_put(hreq->json);
-	free(hreq->xreq.api);
-	free(hreq->xreq.verb);
+	free((char*)hreq->xreq.api);
+	free((char*)hreq->xreq.verb);
 	free(hreq);
 }
 
@@ -908,8 +908,6 @@ static void req_success(struct afb_hreq *hreq, json_object *obj, const char *inf
 
 int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
-	free(hreq->xreq.api);
-	free(hreq->xreq.verb);
 	hreq->xreq.api = strndup(api, lenapi);
 	hreq->xreq.verb = strndup(verb, lenverb);
 	if (hreq->xreq.api == NULL || hreq->xreq.verb == NULL) {

@@ -108,7 +108,7 @@ static void xreq_success_cb(void *closure, struct json_object *obj, const char *
 		if (xreq->queryitf->success)
 			xreq->queryitf->success(xreq->query, obj, info);
 		else
-			xreq->queryitf->reply(xreq->query, afb_msg_json_reply_ok(info, obj, &xreq->context, NULL));
+			xreq->queryitf->reply(xreq->query, 0, afb_msg_json_reply_ok(info, obj, &xreq->context, NULL));
 	}
 }
 
@@ -122,7 +122,7 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 		if (xreq->queryitf->fail)
 			xreq->queryitf->fail(xreq->query, status, info);
 		else
-			xreq->queryitf->reply(xreq->query, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
+			xreq->queryitf->reply(xreq->query, 1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
 	}
 }
 

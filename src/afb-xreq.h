@@ -31,7 +31,7 @@ struct afb_xreq_query_itf {
 	struct afb_arg (*get)(void *closure, const char *name);
 	void (*success)(void *closure, struct json_object *obj, const char *info);
 	void (*fail)(void *closure, const char *status, const char *info);
-	void (*reply)(void *closure, struct json_object *obj);
+	void (*reply)(void *closure, int iserror, struct json_object *obj);
 	void (*unref)(void *closure);
 	int (*subscribe)(void *closure, struct afb_event event);
 	int (*unsubscribe)(void *closure, struct afb_event event);
@@ -45,8 +45,8 @@ struct afb_xreq_query_itf {
 struct afb_xreq
 {
 	struct afb_context context; /**< context of the request */
-	char *api;	/**< the requested API */
-	char *verb;	/**< the requested VERB */
+	const char *api;	/**< the requested API */
+	const char *verb;	/**< the requested VERB */
 	void *query;	/**< closure for the query */
 	const struct afb_xreq_query_itf *queryitf;
 	int refcount;	/**< current ref count */

@@ -33,6 +33,7 @@
 #include "afb-msg-json.h"
 #include "afb-session.h"
 #include "afb-apis.h"
+#include "afb-xreq.h"
 #include "afb-context.h"
 #include "afb-evt.h"
 #include "afb-subcall.h"
@@ -48,17 +49,9 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 static void aws_on_event(struct afb_ws_json1 *ws, const char *event, int eventid, struct json_object *object);
 
 /* predeclaration of wsreq callbacks */
-static void wsreq_addref(struct afb_wsreq *wsreq);
-static void wsreq_unref(struct afb_wsreq *wsreq);
+static void wsreq_destroy(struct afb_wsreq *wsreq);
 static struct json_object *wsreq_json(struct afb_wsreq *wsreq);
-static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name);
-static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info);
-static void wsreq_success(struct afb_wsreq *wsreq, struct json_object *obj, const char *info);
-static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
-static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size);
-static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event);
-static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event);
-static void wsreq_subcall(struct afb_wsreq *wsreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure);
+static void wsreq_reply(struct afb_wsreq *wsreq, int iserror, json_object *obj);
 
 /* declaration of websocket structure */
 struct afb_ws_json1
@@ -75,12 +68,7 @@ struct afb_ws_json1
 /* declaration of wsreq structure */
 struct afb_wsreq
 {
-	/*
-	 * CAUTION: 'context' field should be the first because there
-	 * is an implicit convertion to struct afb_context
-	 */
-	struct afb_context context;
-	int refcount;
+	struct afb_xreq xreq;
 	struct afb_ws_json1 *aws;
 	struct afb_wsreq *next;
 	struct afb_wsj1_msg *msgj1;
@@ -92,23 +80,11 @@ static struct afb_wsj1_itf wsj1_itf = {
 	.on_call = (void*)aws_on_call
 };
 
-/* interface for wsreq / afb_req */
-const struct afb_req_itf afb_ws_json1_req_itf = {
+/* interface for xreq */
+const struct afb_xreq_query_itf afb_ws_json1_xreq_itf = {
 	.json = (void*)wsreq_json,
-	.get = (void*)wsreq_get,
-	.success = (void*)wsreq_success,
-	.fail = (void*)wsreq_fail,
-	.raw = (void*)wsreq_raw,
-	.send = (void*)wsreq_send,
-	.context_get = (void*)afb_context_get,
-	.context_set = (void*)afb_context_set,
-	.addref = (void*)wsreq_addref,
-	.unref = (void*)wsreq_unref,
-	.session_close = (void*)afb_context_close,
-	.session_set_LOA = (void*)afb_context_change_loa,
-	.subscribe = (void*)wsreq_subscribe,
-	.unsubscribe = (void*)wsreq_unsubscribe,
-	.subcall = (void*)wsreq_subcall
+	.reply = (void*)wsreq_reply,
+	.unref = (void*)wsreq_destroy
 };
 
 /* the interface for events */
@@ -190,7 +166,6 @@ static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1)
 
 static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg)
 {
-	struct afb_req r;
 	struct afb_wsreq *wsreq;
 
 	DEBUG("received websocket request for %s/%s: %s", api, verb, afb_wsj1_msg_object_s(msg));
@@ -203,25 +178,28 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	}
 
 	/* init the context */
-	afb_context_init(&wsreq->context, ws->session, afb_wsj1_msg_token(msg));
-	if (!wsreq->context.invalidated)
-		wsreq->context.validated = 1;
+	afb_context_init(&wsreq->xreq.context, ws->session, afb_wsj1_msg_token(msg));
+	if (!wsreq->xreq.context.invalidated)
+		wsreq->xreq.context.validated = 1;
 	if (ws->new_session != 0) {
-		wsreq->context.created = 1;
+		wsreq->xreq.context.created = 1;
 		ws->new_session = 0;
 	}
 
 	/* fill and record the request */
 	afb_wsj1_msg_addref(msg);
 	wsreq->msgj1 = msg;
-	wsreq->refcount = 1;
+	wsreq->xreq.refcount = 1;
+	wsreq->xreq.query = wsreq;
+	wsreq->xreq.queryitf = &afb_ws_json1_xreq_itf;
+	wsreq->xreq.api = api;
+	wsreq->xreq.verb = verb;
 	wsreq->aws = aws_addref(ws);
+	wsreq->xreq.listener = wsreq->aws->listener;
 
 	/* emits the call */
-	r.closure = wsreq;
-	r.itf = &afb_ws_json1_req_itf;
-	afb_apis_call(r, &wsreq->context, api, verb);
-	wsreq_unref(wsreq);
+	afb_apis_xcall(&wsreq->xreq);
+	afb_xreq_unref(&wsreq->xreq);
 }
 
 static void aws_on_event(struct afb_ws_json1 *aws, const char *event, int eventid, struct json_object *object)
@@ -237,19 +215,12 @@ static void aws_on_event(struct afb_ws_json1 *aws, const char *event, int eventi
 ****************************************************************
 ***************************************************************/
 
-static void wsreq_addref(struct afb_wsreq *wsreq)
+static void wsreq_destroy(struct afb_wsreq *wsreq)
 {
-	wsreq->refcount++;
-}
-
-static void wsreq_unref(struct afb_wsreq *wsreq)
-{
-	if (--wsreq->refcount == 0) {
-		afb_context_disconnect(&wsreq->context);
-		afb_wsj1_msg_unref(wsreq->msgj1);
-		aws_unref(wsreq->aws);
-		free(wsreq);
-	}
+	afb_context_disconnect(&wsreq->xreq.context);
+	afb_wsj1_msg_unref(wsreq->msgj1);
+	aws_unref(wsreq->aws);
+	free(wsreq);
 }
 
 static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
@@ -257,55 +228,12 @@ static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
 	return afb_wsj1_msg_object_j(wsreq->msgj1);
 }
 
-static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
-{
-	return afb_msg_json_get_arg(wsreq_json(wsreq), name);
-}
-
-static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
+static void wsreq_reply(struct afb_wsreq *wsreq, int iserror, json_object *obj)
 {
 	int rc;
-	rc = afb_wsj1_reply_error_j(wsreq->msgj1, afb_msg_json_reply_error(status, info, &wsreq->context, NULL), afb_context_sent_token(&wsreq->context));
+	rc = (iserror ? afb_wsj1_reply_error_j : afb_wsj1_reply_ok_j)(
+			wsreq->msgj1, obj, afb_context_sent_token(&wsreq->xreq.context));
 	if (rc)
-		ERROR("Can't send fail reply: %m");
-}
-
-static void wsreq_success(struct afb_wsreq *wsreq, json_object *obj, const char *info)
-{
-	int rc;
-	rc = afb_wsj1_reply_ok_j(wsreq->msgj1, afb_msg_json_reply_ok(info, obj, &wsreq->context, NULL), afb_context_sent_token(&wsreq->context));
-	if (rc)
-		ERROR("Can't send success reply: %m");
-}
-
-static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size)
-{
-	const char *result = afb_wsj1_msg_object_s(wsreq->msgj1);
-	if (size != NULL)
-		*size = strlen(result);
-	return result;
-}
-
-static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
-{
-	int rc;
-	rc = afb_wsj1_reply_ok_s(wsreq->msgj1, buffer, afb_context_sent_token(&wsreq->context));
-	if (rc)
-		ERROR("Can't send raw reply: %m");
-}
-
-static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event)
-{
-	return afb_evt_add_watch(wsreq->aws->listener, event);
-}
-
-static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event)
-{
-	return afb_evt_remove_watch(wsreq->aws->listener, event);
-}
-
-static void wsreq_subcall(struct afb_wsreq *wsreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
-{
-	afb_subcall(&wsreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_ws_json1_req_itf, .closure = wsreq });
+		ERROR("Can't send reply: %m (was %s)", json_object_get_string(obj));
 }
 
