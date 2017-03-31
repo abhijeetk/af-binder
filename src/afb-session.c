@@ -98,7 +98,7 @@ static void free_data (struct afb_session *session)
 		session->cookies[idx] = NULL;
 		while (cookie != NULL) {
 			next = cookie->next;
-			if (cookie->value != NULL && cookie->freecb != NULL)
+			if (cookie->freecb != NULL)
 				cookie->freecb(cookie->value);
 			free(cookie);
 			cookie = next;
@@ -420,7 +420,7 @@ int afb_session_set_cookie(struct afb_session *session, const void *key, void *v
 	cookie = session->cookies[idx];
 	while(cookie != NULL) {
 		if (cookie->key == key) {
-			if (cookie->value != NULL && cookie->value != value && cookie->freecb != NULL)
+			if (cookie->value != value && cookie->freecb)
 				cookie->freecb(cookie->value);
 			cookie->value = value;
 			cookie->freecb = freecb;
