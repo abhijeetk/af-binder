@@ -29,6 +29,9 @@
 #include "afb-evt.h"
 #include "afb-subcall.h"
 #include "afb-svc.h"
+#include "afb-xreq.h"
+#include "afb-apis.h"
+#include "verbose.h"
 
 /*
  * Structure for recording service
@@ -50,17 +53,15 @@ struct afb_svc
  */
 struct svc_req
 {
-	/*
-	 * CAUTION: 'context' field should be the first because there
-	 * is an implicit convertion to struct afb_context
-	 */
-	struct afb_context context;
+	struct afb_xreq xreq;
+
+	/* the args */
+	struct json_object *args;
+	void (*callback)(void*, int, struct json_object*);
+	void *closure;
 
 	/* the service */
 	struct afb_svc *svc;
-
-	/* the count of references to the request */
-	int refcount;
 };
 
 /* functions for services */
@@ -80,24 +81,15 @@ static const struct afb_evt_itf evt_itf = {
 };
 
 /* functions for requests of services */
-static void svcreq_addref(struct svc_req *svcreq);
-static void svcreq_unref(struct svc_req *svcreq);
-static int svcreq_subscribe(struct svc_req *svcreq, struct afb_event event);
-static int svcreq_unsubscribe(struct svc_req *svcreq, struct afb_event event);
-static void svcreq_subcall(struct svc_req *svcreq, const char *api, const char *verb, struct json_object *args,
-				void (*callback)(void*, int, struct json_object*), void *closure);
+static struct json_object *svcreq_json(void *closure);
+static void svcreq_destroy(void *closure);
+static void svcreq_reply(void *closure, int iserror, json_object *obj);
 
 /* interface for requests of services */
-const struct afb_req_itf afb_svc_req_itf = {
-	.addref = (void*)svcreq_addref,
-	.unref = (void*)svcreq_unref,
-	.context_get = (void*)afb_context_get,
-	.context_set = (void*)afb_context_set,
-	.session_close = (void*)afb_context_close,
-	.session_set_LOA = (void*)afb_context_change_loa,
-	.subscribe = (void*)svcreq_subscribe,
-	.unsubscribe = (void*)svcreq_unsubscribe,
-	.subcall = (void*)svcreq_subcall
+const struct afb_xreq_query_itf afb_svc_xreq_itf = {
+	.unref = svcreq_destroy,
+	.json = svcreq_json,
+	.reply = svcreq_reply
 };
 
 /* the common session for services sharing their session */
@@ -232,52 +224,50 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	struct svc_req *svcreq;
 
 	/* allocates the request */
-	svcreq = malloc(sizeof *svcreq);
-	if (svcreq == NULL)
+	svcreq = calloc(1, sizeof *svcreq);
+	if (svcreq == NULL) {
+		ERROR("out of memory");
+		json_object_put(args);
 		return afb_subcall_internal_error(callback, cbclosure);
+	}
 
 	/* initialises the request */
-	afb_context_init(&svcreq->context, svc->session, NULL);
-	svcreq->context.validated = 1;
+	afb_context_init(&svcreq->xreq.context, svc->session, NULL);
+	svcreq->xreq.context.validated = 1;
+	svcreq->xreq.refcount = 1;
+	svcreq->xreq.query = svcreq;
+	svcreq->xreq.queryitf = &afb_svc_xreq_itf;
+	svcreq->xreq.api = api;
+	svcreq->xreq.verb = verb;
+	svcreq->xreq.listener = svc->listener;
+	svcreq->args = args;
+	svcreq->callback = callback;
+	svcreq->closure = cbclosure;
 	svcreq->svc = svc;
-	svcreq->refcount = 1;
-
-	/* makes the call */
-	afb_subcall(&svcreq->context, api, verb, args, callback, cbclosure, (struct afb_req){ .itf = &afb_svc_req_itf, .closure = svcreq });
 
 	/* terminates and frees ressources if needed */
-	svcreq_unref(svcreq);
+	afb_apis_xcall(&svcreq->xreq);
+	afb_xreq_unref(&svcreq->xreq);
 }
 
-static void svcreq_addref(struct svc_req *svcreq)
+static void svcreq_destroy(void *closure)
 {
-	svcreq->refcount++;
+	struct svc_req *svcreq = closure;
+	afb_context_disconnect(&svcreq->xreq.context);
+	json_object_put(svcreq->args);
+	free(svcreq);
 }
 
-static void svcreq_unref(struct svc_req *svcreq)
+static struct json_object *svcreq_json(void *closure)
 {
-	if (0 == --svcreq->refcount) {
-		afb_context_disconnect(&svcreq->context);
-		free(svcreq);
-	}
+	struct svc_req *svcreq = closure;
+	return svcreq->args;
 }
 
-static int svcreq_subscribe(struct svc_req *svcreq, struct afb_event event)
+static void svcreq_reply(void *closure, int iserror, json_object *obj)
 {
-	if (svcreq->svc->listener == NULL)
-		return -1;
-	return afb_evt_add_watch(svcreq->svc->listener, event);
-}
-
-static int svcreq_unsubscribe(struct svc_req *svcreq, struct afb_event event)
-{
-	if (svcreq->svc->listener == NULL)
-		return -1;
-	return afb_evt_remove_watch(svcreq->svc->listener, event);
-}
-
-static void svcreq_subcall(struct svc_req *svcreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
-{
-	afb_subcall(&svcreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_svc_req_itf, .closure = svcreq });
+	struct svc_req *svcreq = closure;
+	svcreq->callback(svcreq->closure, iserror, obj);
+	json_object_put(obj);
 }
 

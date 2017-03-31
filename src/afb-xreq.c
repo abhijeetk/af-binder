@@ -215,7 +215,10 @@ static int xreq_unsubscribe_cb(void *closure, struct afb_event event)
 static void xreq_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
 	struct afb_xreq *xreq = closure;
-	afb_subcall(&xreq->context, api, verb, args, callback, cb_closure, (struct afb_req){ .itf = &xreq_itf, .closure = xreq });
+	if (xreq->queryitf->subcall)
+		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
+	else
+		afb_subcall(&xreq->context, api, verb, args, callback, cb_closure, (struct afb_req){ .itf = &xreq_itf, .closure = xreq });
 }
 
 void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...)

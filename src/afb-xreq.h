@@ -33,8 +33,6 @@ struct afb_xreq_query_itf {
 	void (*fail)(void *closure, const char *status, const char *info);
 	void (*reply)(void *closure, int iserror, struct json_object *obj);
 	void (*unref)(void *closure);
-	int (*subscribe)(void *closure, struct afb_event event);
-	int (*unsubscribe)(void *closure, struct afb_event event);
 	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 };
 
