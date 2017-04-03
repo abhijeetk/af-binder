@@ -489,13 +489,13 @@ int main(int argc, char *argv[])
 	}
 
 	/* handle groups */
-	atexit(exit_handler);
+//	atexit(exit_handler);
 
 	/* ignore any SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
 
 	/* enter job processing */
-	jobs_enter(3, 1, 20, start);
+	jobs_start(3, 0, 50, start);
 	WARNING("hoops returned from jobs_enter! [report bug]");
 	return 1;
 }

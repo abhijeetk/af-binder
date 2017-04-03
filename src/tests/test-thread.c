@@ -81,6 +81,30 @@ void terminate(int signum)
 	exit(0);
 }
 
+void start()
+{
+	int i;
+	struct foo *foo;
+	struct afb_req req;
+	struct timespec ts;
+
+	req.itf = &itf;
+	for (i = 0 ; i  < 10000 ; i++) {
+		req.closure = foo = malloc(sizeof *foo);
+		foo->value = i;
+		foo->refcount = 1;
+		afb_thread_req_call(req, process, 5, (&ts) + (i % 7));
+		unref(foo);
+		if (i == 5000)
+			jobs_queue0(NULL, 0, terminate);
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+//		nanosleep(&ts, NULL);
+	}
+}
+
+
+
 int main()
 {
 	int i;
@@ -89,26 +113,9 @@ int main()
 	struct timespec ts;
 
 	req.itf = &itf;
-	jobs_init(4, 0, 20000);
-	for (i = 0 ; i  < 10000 ; i++) {
-		req.closure = foo = malloc(sizeof *foo);
-		foo->value = i;
-		foo->refcount = 1;
-		afb_thread_req_call(req, process, 5, (&ts) + (i % 7));
-		unref(foo);
-		if (i == 5000)
-#if 0
-			jobs_invoke0(0, terminate);
-#else
-			jobs_queue0(NULL, 0, terminate);
-#endif
-		ts.tv_sec = 0;
-		ts.tv_nsec = 1000000;
-//		nanosleep(&ts, NULL);
-	}
-	return -jobs_add_me();
+	jobs_start(4, 0, 20000, start);
+	return 1;
 }
-
 
 
 

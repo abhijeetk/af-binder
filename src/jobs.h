@@ -18,6 +18,7 @@
 #pragma once
 
 struct sd_event;
+struct jobloop;
 
 extern int jobs_queue0(
 		void *group,
@@ -45,33 +46,17 @@ extern int jobs_queue3(
 		void *arg2,
 		void *arg3);
 
-extern int jobs_invoke0(
+extern int jobs_enter(
+		void *group,
 		int timeout,
-		void (*callback)(int signum));
+		void (*callback)(int signum, void *closure, struct jobloop *jobloop),
+		void *closure);
 
-extern int jobs_invoke(
-		int timeout,
-		void (*callback)(int signum, void* arg),
-		void *arg);
-
-extern int jobs_invoke2(
-		int timeout,
-		void (*callback)(int signum, void* arg1, void *arg2),
-		void *arg1,
-		void *arg2);
-
-extern int jobs_invoke3(
-		int timeout,
-		void (*callback)(int signum, void* arg1, void *arg2, void *arg3),
-		void *arg1,
-		void *arg2,
-		void *arg3);
+extern int jobs_leave(struct jobloop *jobloop);
 
 extern struct sd_event *jobs_get_sd_event();
 
-extern int jobs_init(int allowed_count, int start_count, int waiter_count);
-extern int jobs_add_me();
 extern void jobs_terminate();
 
-extern int jobs_enter(int allowed_count, int start_count, int waiter_count, void (*start)());
+extern int jobs_start(int allowed_count, int start_count, int waiter_count, void (*start)());
 

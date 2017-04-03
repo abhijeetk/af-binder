@@ -145,45 +145,31 @@ end:
 }
 
 /**
- * Adds 'job1' and 'job2' at the end of the list of jobs, marking it
+ * Adds 'job' at the end of the list of jobs, marking it
  * as blocked if an other job with the same group is pending.
- * @param job1 the first job to add
- * @param job2 the second job to add or NULL
+ * @param job the job to add
  */
-static void job_add2(struct job *job1, struct job *job2)
+static void job_add(struct job *job)
 {
-	void *group1, *group2, *group;
+	void *group;
 	struct job *ijob, **pjob;
 
 	/* prepare to add */
-	group1 = job1->group;
-	job1->next = job2;
-	if (!job2)
-		group2 = NULL;
-	else {
-		job2->next = NULL;
-		group2 = job2->group;
-		if (group2 && group2 == group1)
-			job2->blocked = 1;
-	}
+	group = job->group;
+	job->next = NULL;
 
 	/* search end and blockers */
 	pjob = &first_job;
 	ijob = first_job;
 	while (ijob) {
-		group = ijob->group;
-		if (group) {
-			if (group == group1)
-				job1->blocked = 1;
-			if (group == group2)
-				job2->blocked = 1;
-		}
+		if (group && ijob->group == group)
+			job->blocked = 1;
 		pjob = &ijob->next;
 		ijob = ijob->next;
 	}
 
 	/* queue the jobs */
-	*pjob = job1;
+	*pjob = job;
 }
 
 /**
@@ -321,6 +307,8 @@ static void thread_run(volatile struct thread *me)
 	threads = (struct thread*)me;
 	started++;
 
+	NOTICE("job thread starting %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
+
 	/* loop until stopped */
 	me->events = NULL;
 	while (!me->stop) {
@@ -368,6 +356,7 @@ static void thread_run(volatile struct thread *me)
 			}
 		}
 	}
+	NOTICE("job thread stoping %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
 
 	/* unlink the current thread and cleanup */
 	started--;
@@ -551,7 +540,7 @@ int jobs_queue3(
 
 	/* queues the job */
 	remains--;
-	job_add2(job, NULL);
+	job_add(job);
 
 	/* signal an existing job */
 	pthread_cond_signal(&cond);
@@ -568,131 +557,32 @@ error:
 }
 
 /**
- * Run a asynchronous job represented by 'callback'
- * with the 'timeout' but only returns after job completion.
- * @param timeout  The maximum execution time in seconds of the job
- *                 or 0 for unlimited time.
- * @param callback The function to execute for achieving the job.
- *                 Its first parameter is either 0 on normal flow
- *                 or the signal number that broke the normal flow.
- * @return 0 in case of success or -1 in case of error
+ * Enter a synchronisation point: activates the job given by 'callback'
+ * @param group the gro
  */
-int jobs_invoke0(
+int jobs_enter(
+		void *group,
 		int timeout,
-		void (*callback)(int signum))
+		void (*callback)(int signum, void *closure, struct jobloop *jobloop),
+		void *closure)
 {
-	return jobs_invoke3(timeout, (job_cb_t)callback, NULL, NULL, NULL);
-}
-
-/**
- * Run a asynchronous job represented by 'callback' and 'arg1'
- * with the 'timeout' but only returns after job completion.
- * @param timeout  The maximum execution time in seconds of the job
- *                 or 0 for unlimited time.
- * @param callback The function to execute for achieving the job.
- *                 Its first parameter is either 0 on normal flow
- *                 or the signal number that broke the normal flow.
- *                 The remaining parameter is the parameter 'arg1'
- *                 given here.
- * @param arg1     The second argument for 'callback'
- * @return 0 in case of success or -1 in case of error
- */
-int jobs_invoke(
-		int timeout,
-		void (*callback)(int, void*),
-		void *arg)
-{
-	return jobs_invoke3(timeout, (job_cb_t)callback, arg, NULL, NULL);
-}
-
-/**
- * Run a asynchronous job represented by 'callback' and 'arg[12]'
- * with the 'timeout' but only returns after job completion.
- * @param timeout  The maximum execution time in seconds of the job
- *                 or 0 for unlimited time.
- * @param callback The function to execute for achieving the job.
- *                 Its first parameter is either 0 on normal flow
- *                 or the signal number that broke the normal flow.
- *                 The remaining parameters are the parameters 'arg[12]'
- *                 given here.
- * @param arg1     The second argument for 'callback'
- * @param arg2     The third argument for 'callback'
- * @return 0 in case of success or -1 in case of error
- */
-int jobs_invoke2(
-		int timeout,
-		void (*callback)(int, void*, void*),
-		void *arg1,
-		void *arg2)
-{
-	return jobs_invoke3(timeout, (job_cb_t)callback, arg1, arg2, NULL);
-}
-
-/**
- * Stops the thread pointed by 'arg1'. Used with
- * invoke familly to return to the caller after completion.
- * @param signum Unused
- * @param arg1   The thread to stop
- * @param arg2   Unused
- * @param arg3   Unused
- */
-static void unlock_invoker(int signum, void *arg1, void *arg2, void *arg3)
-{
-	struct thread *t = arg1;
-	pthread_mutex_lock(&mutex);
-	t->stop = 1;
-	if (t->waits)
-		pthread_cond_broadcast(&cond);
-	pthread_mutex_unlock(&mutex);
-}
-
-/**
- * Run a asynchronous job represented by 'callback' and 'arg[123]'
- * with the 'timeout' but only returns after job completion.
- * @param timeout  The maximum execution time in seconds of the job
- *                 or 0 for unlimited time.
- * @param callback The function to execute for achieving the job.
- *                 Its first parameter is either 0 on normal flow
- *                 or the signal number that broke the normal flow.
- *                 The remaining parameters are the parameters 'arg[123]'
- *                 given here.
- * @param arg1     The second argument for 'callback'
- * @param arg2     The third argument for 'callback'
- * @param arg3     The forth argument for 'callback'
- * @return 0 in case of success or -1 in case of error
- */
-int jobs_invoke3(
-		int timeout,
-		void (*callback)(int, void*, void *, void*),
-		void *arg1,
-		void *arg2,
-		void *arg3)
-{
-	struct job *job1, *job2;
-	struct thread me;
 	
+	struct job *job;
+	struct thread me;
+
 	pthread_mutex_lock(&mutex);
 
 	/* allocates the job */
-	job1 = job_create(&me, timeout, callback, arg1, arg2, arg3);
-	job2 = job_create(&me, 0, unlock_invoker, &me, NULL, NULL);
-	if (!job1 || !job2) {
+	job = job_create(group, timeout, (job_cb_t)callback, closure, &me, NULL);
+	if (!job) {
 		ERROR("out of memory");
 		errno = ENOMEM;
-		if (job1) {
-			job1->next = free_jobs;
-			free_jobs = job1;
-		}
-		if (job2) {
-			job2->next = free_jobs;
-			free_jobs = job2;
-		}
 		pthread_mutex_unlock(&mutex);
 		return -1;
 	}
 
 	/* queues the job */
-	job_add2(job1, job2);
+	job_add(job);
 
 	/* run until stopped */
 	thread_run(&me);
@@ -700,22 +590,127 @@ int jobs_invoke3(
 	return 0;
 }
 
+int jobs_leave(struct jobloop *jobloop)
+{
+	struct thread *t;
+	pthread_mutex_lock(&mutex);
+
+	t = threads;
+	while (t && t != (struct thread*)jobloop)
+		t = t->next;
+	if (!t) {
+		errno = EINVAL;
+	} else {
+		t->stop = 1;
+		if (t->waits)
+			pthread_cond_broadcast(&cond);
+	}
+	pthread_mutex_unlock(&mutex);
+	return -!t;
+}
+
 /**
- * Initialise the job stuff.
- * @param allowed_count Maximum count of thread for jobs (can be 0,
- *                      see 'jobs_add_me' for merging new threads)
+ * Gets a sd_event item for the current thread.
+ * @return a sd_event or NULL in case of error
+ */
+struct sd_event *jobs_get_sd_event()
+{
+	struct events *events;
+	struct thread *me;
+	int rc;
+
+	pthread_mutex_lock(&mutex);
+
+	/* search events on stack */
+	me = current;
+	while (me && !me->events)
+		me = me->upper;
+	if (me)
+		/* return the stacked events */
+		events = me->events;
+	else {
+		/* search an available events */
+		events = events_get();
+		if (!events) {
+			/* not found, check if creation possible */
+			if (nevents >= allowed) {
+				ERROR("not possible to add a new event");
+				events = NULL;
+			} else {
+				events = malloc(sizeof *events);
+				if (events && (rc = sd_event_new(&events->event)) >= 0) {
+					if (nevents < started || start_one_thread() >= 0) {
+						events->runs = 0;
+						events->next = first_events;
+						first_events = events;
+					} else {
+						ERROR("can't start thread for events");
+						sd_event_unref(events->event);
+						free(events);
+						events = NULL;
+					}
+				} else {
+					if (!events) {
+						ERROR("out of memory");
+						errno = ENOMEM;
+					} else {
+						free(events);
+						ERROR("creation of sd_event failed: %m");
+						events = NULL;
+						errno = -rc;
+					} 
+				}
+			}
+		}
+		if (events) {
+			/* */
+			me = current;
+			if (me) {
+				events->runs = 1;
+				me->events = events;
+			} else {
+				WARNING("event returned for unknown thread!");
+			}
+		}
+	}
+	pthread_mutex_unlock(&mutex);
+	return events ? events->event : NULL;
+}
+
+/**
+ * Enter the jobs processing loop.
+ * @param allowed_count Maximum count of thread for jobs including this one
  * @param start_count   Count of thread to start now, must be lower.
  * @param waiter_count  Maximum count of jobs that can be waiting.
+ * @param start         The start routine to activate (can't be NULL)
  * @return 0 in case of success or -1 in case of error.
  */
-int jobs_init(int allowed_count, int start_count, int waiter_count)
+int jobs_start(int allowed_count, int start_count, int waiter_count, void (*start)())
 {
 	int rc, launched;
+	struct thread me;
+	struct job *job;
 
-	assert(allowed_count >= 0);
+	assert(allowed_count >= 1);
 	assert(start_count >= 0);
 	assert(waiter_count > 0);
 	assert(start_count <= allowed_count);
+
+	rc = -1;
+	pthread_mutex_lock(&mutex);
+
+	/* check whether already running */
+	if (current || allowed) {
+		ERROR("thread already started");
+		errno = EINVAL;
+		goto error;
+	}
+
+	/* start */
+	if (sig_monitor_init() < 0) {
+		ERROR("failed to initialise signal handlers");
+		goto error;
+	}
 
 	/* records the allowed count */
 	allowed = allowed_count;
@@ -724,16 +719,30 @@ int jobs_init(int allowed_count, int start_count, int waiter_count)
 	remains = waiter_count;
 
 	/* start at least one thread */
-	pthread_mutex_lock(&mutex);
 	launched = 0;
-	while (launched < start_count && start_one_thread() == 0)
+	while ((launched + 1) < start_count) {
+		if (start_one_thread() != 0) {
+			ERROR("Not all threads can be started");
+			goto error;
+		}
 		launched++;
-	rc = -(launched != start_count);
-	pthread_mutex_unlock(&mutex);
+	}
 
-	/* end */
-	if (rc)
-		ERROR("Not all threads can be started");
+	/* queue the start job */
+	job = job_create(NULL, 0, (job_cb_t)start, NULL, NULL, NULL);
+	if (!job) {
+		ERROR("out of memory");
+		errno = ENOMEM;
+		goto error;
+	}
+	job_add(job);
+	remains--;
+
+	/* run until end */
+	thread_run(&me);
+	rc = 0;
+error:
+	pthread_mutex_unlock(&mutex);
 	return rc;
 }
 
@@ -818,132 +827,5 @@ void jobs_terminate()
 		}
 	}
 	pthread_mutex_unlock(&mutex);
-}
-
-/**
- * Adds the current thread to the pool of threads
- * processing the jobs. Returns normally when the threads are
- * terminated or immediately with an error if the thread is
- * already in the pool.
- * @return 0 in case of success or -1 in case of error
- */
-int jobs_add_me()
-{
-	struct thread me;
-
-	/* check whether already running */
-	if (current) {
-		ERROR("thread already running");
-		errno = EINVAL;
-		return -1;
-	}
-
-	/* allowed... */
-	pthread_mutex_lock(&mutex);
-	allowed++;
-	thread_run(&me);
-	allowed--;
-	pthread_mutex_unlock(&mutex);
-	return 0;
-}
-
-/**
- * Gets a sd_event item for the current thread.
- * @return a sd_event or NULL in case of error
- */
-struct sd_event *jobs_get_sd_event()
-{
-	struct events *events;
-	struct thread *me;
-	int rc;
-
-	pthread_mutex_lock(&mutex);
-
-	/* search events on stack */
-	me = current;
-	while (me && !me->events)
-		me = me->upper;
-	if (me)
-		/* return the stacked events */
-		events = me->events;
-	else {
-		/* search an available events */
-		events = events_get();
-		if (!events) {
-			/* not found, check if creation possible */
-			if (nevents >= allowed) {
-				ERROR("not possible to add a new event");
-				events = NULL;
-			} else {
-				events = malloc(sizeof *events);
-				if (events && (rc = sd_event_new(&events->event)) >= 0) {
-					if (nevents < started || start_one_thread() >= 0) {
-						events->runs = 0;
-						events->next = first_events;
-						first_events = events;
-					} else {
-						ERROR("can't start thread for events");
-						sd_event_unref(events->event);
-						free(events);
-						events = NULL;
-					}
-				} else {
-					if (!events) {
-						ERROR("out of memory");
-						errno = ENOMEM;
-					} else {
-						free(events);
-						ERROR("creation of sd_event failed: %m");
-						events = NULL;
-						errno = -rc;
-					} 
-				}
-			}
-		}
-		if (events) {
-			/* */
-			me = current;
-			if (me) {
-				events->runs = 1;
-				me->events = events;
-			} else {
-				WARNING("event returned for unknown thread!");
-			}
-		}
-	}
-	pthread_mutex_unlock(&mutex);
-	return events ? events->event : NULL;
-}
-
-/**
- * Enter the jobs processing loop.
- * @param allowed_count Maximum count of thread for jobs including this one
- * @param start_count   Count of thread to start now, must be lower.
- * @param waiter_count  Maximum count of jobs that can be waiting.
- * @param start         The start routine to activate (can't be NULL)
- * @return 0 in case of success or -1 in case of error.
- */
-int jobs_enter(int allowed_count, int start_count, int waiter_count, void (*start)())
-{
-	/* start */
-	if (sig_monitor_init() < 0) {
-		ERROR("failed to initialise signal handlers");
-		return -1;
-	}
-
-	/* init job processing */
-	if (jobs_init(allowed_count, start_count, waiter_count) < 0) {
-		ERROR("failed to initialise threading");
-		return -1;
-	}
-
-	/* queue the start job */
-	if (jobs_queue0(NULL, 0, (void(*)(int))start) < 0) {
-		ERROR("failed to start runnning jobs");
-		return -1;
-	}
-
-	/* turn as processing thread */
-	return jobs_add_me();
 }
 
