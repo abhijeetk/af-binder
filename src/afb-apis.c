@@ -136,6 +136,8 @@ int afb_apis_add(const char *name, struct afb_api api)
 	apis->name = name;
 	apis_count++;
 
+	NOTICE("API %s added", name);
+
 	return 0;
 
 error:
