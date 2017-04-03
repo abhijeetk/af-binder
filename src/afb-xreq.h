@@ -33,6 +33,8 @@ struct afb_xreq_query_itf {
 	void (*fail)(void *closure, const char *status, const char *info);
 	void (*reply)(void *closure, int iserror, struct json_object *obj);
 	void (*unref)(void *closure);
+	int (*subscribe)(void *closure, struct afb_event event);
+	int (*unsubscribe)(void *closure, struct afb_event event);
 	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 };
 
@@ -45,6 +47,7 @@ struct afb_xreq
 	struct afb_context context; /**< context of the request */
 	const char *api;	/**< the requested API */
 	const char *verb;	/**< the requested VERB */
+	struct json_object *json; /**< the json object (or NULL) */
 	void *query;	/**< closure for the query */
 	const struct afb_xreq_query_itf *queryitf;
 	int refcount;	/**< current ref count */
@@ -58,7 +61,12 @@ struct afb_xreq
 
 extern void afb_xreq_addref(struct afb_xreq *xreq);
 extern void afb_xreq_unref(struct afb_xreq *xreq);
+extern void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info);
+extern void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info);
 extern void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info, ...);
 extern void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...);
 extern void afb_xreq_call(struct afb_xreq *xreq);
+extern const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size);
+extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event);
+extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
 

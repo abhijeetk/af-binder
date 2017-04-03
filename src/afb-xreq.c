@@ -81,11 +81,10 @@ const struct afb_req_itf xreq_itf = {
 	.subcall = xreq_subcall_cb
 };
 
-
 static struct json_object *xreq_json_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	return xreq->queryitf->json(xreq->query);
+	return xreq->json ? : (xreq->json = xreq->queryitf->json(xreq->query));
 }
 
 static struct afb_arg xreq_get_cb(void *closure, const char *name)
@@ -100,6 +99,11 @@ static struct afb_arg xreq_get_cb(void *closure, const char *name)
 static void xreq_success_cb(void *closure, struct json_object *obj, const char *info)
 {
 	struct afb_xreq *xreq = closure;
+	afb_xreq_success(xreq, obj, info);
+}
+
+void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info)
+{
 	if (xreq->replied) {
 		ERROR("reply called more than one time!!");
 		json_object_put(obj);
@@ -115,6 +119,11 @@ static void xreq_success_cb(void *closure, struct json_object *obj, const char *
 static void xreq_fail_cb(void *closure, const char *status, const char *info)
 {
 	struct afb_xreq *xreq = closure;
+	afb_xreq_fail(xreq, status, info);
+}
+
+void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info)
+{
 	if (xreq->replied) {
 		ERROR("reply called more than one time!!");
 	} else {
@@ -129,7 +138,12 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 static const char *xreq_raw_cb(void *closure, size_t *size)
 {
 	struct afb_xreq *xreq = closure;
-	const char *result = json_object_to_json_string(xreq->queryitf->json(xreq->query));
+	return afb_xreq_raw(xreq, size);
+}
+
+const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size)
+{
+	const char *result = json_object_to_json_string(xreq_json_cb(xreq));
 	if (size != NULL)
 		*size = strlen(result);
 	return result;
@@ -195,8 +209,15 @@ static int xreq_session_set_LOA_cb(void *closure, unsigned level)
 static int xreq_subscribe_cb(void *closure, struct afb_event event)
 {
 	struct afb_xreq *xreq = closure;
+	return afb_xreq_subscribe(xreq, event);
+}
+
+int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event)
+{
 	if (xreq->listener)
 		return afb_evt_add_watch(xreq->listener, event);
+	if (xreq->queryitf->subscribe)
+		return xreq->queryitf->subscribe(xreq->query, event);
 	ERROR("no event listener, subscription impossible");
 	errno = EINVAL;
 	return -1;
@@ -205,8 +226,15 @@ static int xreq_subscribe_cb(void *closure, struct afb_event event)
 static int xreq_unsubscribe_cb(void *closure, struct afb_event event)
 {
 	struct afb_xreq *xreq = closure;
+	return afb_xreq_unsubscribe(xreq, event);
+}
+
+int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
+{
 	if (xreq->listener)
 		return afb_evt_remove_watch(xreq->listener, event);
+	if (xreq->queryitf->unsubscribe)
+		return xreq->queryitf->unsubscribe(xreq->query, event);
 	ERROR("no event listener, unsubscription impossible");
 	errno = EINVAL;
 	return -1;
@@ -229,7 +257,7 @@ void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const ch
 	if (info == NULL || vasprintf(&message, info, args) < 0)
 		message = NULL;
 	va_end(args);
-	xreq_success_cb(xreq, obj, message);
+	afb_xreq_success(xreq, obj, message);
 	free(message);
 }
 
@@ -241,7 +269,7 @@ void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info
 	if (info == NULL || vasprintf(&message, info, args) < 0)
 		message = NULL;
 	va_end(args);
-	xreq_fail_cb(xreq, status, message);
+	afb_xreq_fail(xreq, status, message);
 	free(message);
 }
 
