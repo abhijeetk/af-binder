@@ -412,7 +412,7 @@ static void start()
 		goto error;
 	}
 
-	afb_api_so_set_timeout(config->apiTimeout);
+	afb_apis_set_timeout(config->apiTimeout);
 	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 	start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
 	start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");

@@ -30,13 +30,6 @@
 #include "afb-api-so-v2.h"
 #include "verbose.h"
 
-int afb_api_so_timeout = 15;
-
-void afb_api_so_set_timeout(int to)
-{
-	afb_api_so_timeout = to;
-}
-
 static int load_binding(const char *path, int force)
 {
 	int rc;

@@ -145,7 +145,6 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 	if (!verb)
 		afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, desc->binding->v1.prefix);
 	else {
-		xreq->timeout = afb_api_so_timeout;
 		xreq->sessionflags = (int)verb->session;
 		xreq->group = desc;
 		xreq->callback = verb->callback;

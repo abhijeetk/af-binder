@@ -28,6 +28,7 @@ struct afb_api
 	int (*service_start)(void *closure, int share_session, int onneed);
 };
 
+extern void afb_apis_set_timeout(int to);
 
 extern int afb_apis_is_valid_api_name(const char *name);
 

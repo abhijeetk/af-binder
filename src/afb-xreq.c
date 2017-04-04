@@ -30,7 +30,6 @@
 #include "afb-evt.h"
 #include "afb-msg-json.h"
 #include "afb-subcall.h"
-#include "jobs.h"
 #include "verbose.h"
 
 
@@ -320,31 +319,9 @@ static int xcheck(struct afb_xreq *xreq)
 	return 1;
 }
 
-static void xreq_run_cb(int signum, void *arg)
-{
-	struct afb_xreq *xreq = arg;
-
-	if (signum == 0)
-		xreq->callback((struct afb_req){ .itf = &xreq_itf, .closure = xreq });
-	else {
-		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
-		
-	}
-	afb_xreq_unref(xreq);
-}
-
 void afb_xreq_call(struct afb_xreq *xreq)
 {
-	int rc;
-	if (xcheck(xreq)) {
-		afb_xreq_addref(xreq);
-		rc = jobs_queue(xreq->group, xreq->timeout, xreq_run_cb, xreq);
-		if (rc < 0) {
-			/* TODO: allows or not to proccess it directly as when no threading? (see above) */
-			ERROR("can't process job with threads: %m");
-			afb_xreq_fail_f(xreq, "cancelled", "not able to pipe a job for the task");
-			xreq_unref_cb(xreq);
-		}
-	}
+	if (xcheck(xreq))
+		xreq->callback((struct afb_req){ .itf = &xreq_itf, .closure = xreq });
 }
 

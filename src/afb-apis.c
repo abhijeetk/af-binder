@@ -29,6 +29,7 @@
 #include "afb-context.h"
 #include "afb-hook.h"
 #include "afb-xreq.h"
+#include "jobs.h"
 
 #include <afb/afb-req-itf.h>
 
@@ -42,6 +43,16 @@ struct api_desc {
 
 static struct api_desc *apis_array = NULL;
 static int apis_count = 0;
+static int apis_timeout = 15;
+
+/**
+ * Set the API timeout
+ * @param to the timeout in seconds
+ */
+void afb_apis_set_timeout(int to)
+{
+	apis_timeout = to;
+}
 
 /**
  * Checks wether 'name' is a valid API name.
@@ -220,6 +231,31 @@ int afb_apis_start_all_services(int share_session)
 	return 0;
 }
 
+
+
+
+
+
+static void do_call_async(int signum, void *arg)
+{
+	struct afb_xreq *xreq = arg;
+	const struct api_desc *a;
+
+	if (signum != 0)
+		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
+	else {
+		/* search the api */
+		a = search(xreq->api);
+		if (!a)
+			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+		else {
+			xreq->context.api_key = a->api.closure;
+			a->api.call(a->api.closure, xreq);
+		}
+	}
+	afb_xreq_unref(xreq);
+}
+
 /**
  * Dispatch the request 'req' with the 'context' to the
  * method of 'api' and 'verb'.
@@ -230,18 +266,18 @@ int afb_apis_start_all_services(int share_session)
  */
 void afb_apis_call(struct afb_xreq *xreq)
 {
-	const struct api_desc *a;
+	int rc;
 
 	/* init hooking the request */
 	// TODO req = afb_hook_req_call(req, context, api, verb);
 
-	/* search the api */
-	a = search(xreq->api);
-	if (!a)
-		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
-	else {
-		xreq->context.api_key = a->api.closure;
-		a->api.call(a->api.closure, xreq);
+	afb_xreq_addref(xreq);
+	rc = jobs_queue(NULL, apis_timeout, do_call_async, xreq);
+	if (rc < 0) {
+		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
+		ERROR("can't process job with threads: %m");
+		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
+		afb_xreq_unref(xreq);
 	}
 }
 
