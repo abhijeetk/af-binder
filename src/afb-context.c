@@ -31,6 +31,7 @@ static void init_context(struct afb_context *context, struct afb_session *sessio
 	/* reset the context for the session */
 	context->session = session;
 	context->flags = 0;
+	context->super = NULL;
 	context->api_key = NULL;
 	context->loa_in = afb_session_get_LOA(session) & 7;
 
@@ -46,6 +47,12 @@ static void init_context(struct afb_context *context, struct afb_session *sessio
 void afb_context_init(struct afb_context *context, struct afb_session *session, const char *token)
 {
 	init_context(context, afb_session_addref(session), token);
+}
+
+void afb_context_subinit(struct afb_context *context, struct afb_context *super)
+{
+	*context = *super;
+	context->super = super;
 }
 
 int afb_context_connect(struct afb_context *context, const char *uuid, const char *token)
@@ -66,7 +73,7 @@ int afb_context_connect(struct afb_context *context, const char *uuid, const cha
 
 void afb_context_disconnect(struct afb_context *context)
 {
-	if (context->session != NULL) {
+	if (context->session && !context->super) {
 		if (context->refreshing && !context->refreshed) {
 			afb_session_new_token (context->session);
 			context->refreshed = 1;
@@ -86,7 +93,7 @@ void afb_context_disconnect(struct afb_context *context)
 
 const char *afb_context_sent_token(struct afb_context *context)
 {
-	if (context->session == NULL || context->closing)
+	if (context->session == NULL || context->closing || context->super)
 		return NULL;
 	if (!context->refreshing)
 		return NULL;
@@ -99,7 +106,7 @@ const char *afb_context_sent_token(struct afb_context *context)
 
 const char *afb_context_sent_uuid(struct afb_context *context)
 {
-	if (context->session == NULL || context->closing)
+	if (context->session == NULL || context->closing || context->super)
 		return NULL;
 	if (!context->created)
 		return NULL;
@@ -122,27 +129,41 @@ void afb_context_set(struct afb_context *context, void *value, void (*free_value
 
 void afb_context_close(struct afb_context *context)
 {
-	context->closing = 1;
+	if (context->super)
+		afb_context_close(context->super);
+	else
+		context->closing = 1;
 }
 
 void afb_context_refresh(struct afb_context *context)
 {
-	assert(context->validated);
-	context->refreshing = 1;
+	if (context->super)
+		afb_context_refresh(context->super);
+	else {
+		assert(context->validated);
+		context->refreshing = 1;
+	}
 }
 
 int afb_context_check(struct afb_context *context)
 {
+	if (context->super)
+		return afb_context_check(context);
 	return context->validated;
 }
 
 int afb_context_check_loa(struct afb_context *context, unsigned loa)
 {
+	if (context->super)
+		return afb_context_check_loa(context->super, loa);
 	return context->loa_in >= loa;
 }
 
 int afb_context_change_loa(struct afb_context *context, unsigned loa)
 {
+	if (context->super)
+		return afb_context_change_loa(context, loa);
+
 	if (!context->validated || loa > 7)
 		return 0;
 
