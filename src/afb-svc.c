@@ -246,7 +246,7 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	svcreq->svc = svc;
 
 	/* terminates and frees ressources if needed */
-	afb_apis_xcall(&svcreq->xreq);
+	afb_apis_call(&svcreq->xreq);
 	afb_xreq_unref(&svcreq->xreq);
 }
 

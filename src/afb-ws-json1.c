@@ -198,7 +198,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	wsreq->xreq.listener = wsreq->aws->listener;
 
 	/* emits the call */
-	afb_apis_xcall(&wsreq->xreq);
+	afb_apis_call(&wsreq->xreq);
 	afb_xreq_unref(&wsreq->xreq);
 }
 

@@ -765,7 +765,7 @@ static void api_ws_client_on_binary(void *closure, char *data, size_t size)
 }
 
 /* on call, propagate it to the ws service */
-static void api_ws_client_xcall_cb(void * closure, struct afb_xreq *xreq)
+static void api_ws_client_call_cb(void * closure, struct afb_xreq *xreq)
 {
 	int rc;
 	struct api_ws_memo *memo;
@@ -877,7 +877,7 @@ int afb_api_ws_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.xcall = api_ws_client_xcall_cb;
+	afb_api.call = api_ws_client_call_cb;
 	afb_api.service_start = api_ws_service_start_cb;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error3;
@@ -944,7 +944,7 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 	wreq->xreq.verb = verb;
 	wreq->xreq.query = wreq;
 	wreq->xreq.queryitf = &afb_api_ws_xreq_itf;
-	afb_apis_xcall(&wreq->xreq);
+	afb_apis_call(&wreq->xreq);
 	afb_xreq_unref(&wreq->xreq);
 	return;
 

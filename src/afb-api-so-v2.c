@@ -30,7 +30,6 @@
 #include "afb-common.h"
 #include "afb-context.h"
 #include "afb-api-so.h"
-#include "afb-thread.h"
 #include "afb-xreq.h"
 #include "verbose.h"
 
@@ -125,53 +124,6 @@ static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, i
 	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
 
-static int call_check(struct afb_req req, struct afb_context *context, const struct afb_verb_v2 *verb)
-{
-	int stag = (int)verb->session;
-
-	if ((stag & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
-		if (!afb_context_check(context)) {
-			afb_context_close(context);
-			afb_req_fail(req, "failed", "invalid token's identity");
-			return 0;
-		}
-	}
-
-	if ((stag & AFB_SESSION_CREATE) != 0) {
-		if (afb_context_check_loa(context, 1)) {
-			afb_req_fail(req, "failed", "invalid creation state");
-			return 0;
-		}
-		afb_context_change_loa(context, 1);
-		afb_context_refresh(context);
-	}
-
-	if ((stag & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0)
-		afb_context_refresh(context);
-
-	if ((stag & AFB_SESSION_CLOSE) != 0) {
-		afb_context_change_loa(context, 0);
-		afb_context_close(context);
-	}
-
-	if ((stag & AFB_SESSION_LOA_GE) != 0) {
-		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
-		if (!afb_context_check_loa(context, loa)) {
-			afb_req_fail(req, "failed", "invalid LOA");
-			return 0;
-		}
-	}
-
-	if ((stag & AFB_SESSION_LOA_LE) != 0) {
-		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
-		if (afb_context_check_loa(context, loa + 1)) {
-			afb_req_fail(req, "failed", "invalid LOA");
-			return 0;
-		}
-	}
-	return 1;
-}
-
 static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *verb)
 {
 	const struct afb_verb_v2 *result;
@@ -182,20 +134,7 @@ static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *verb
 	return result->verb ? result : NULL;
 }
 
-static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *name)
-{
-	struct api_so_v2 *desc = closure;
-	const struct afb_verb_v2 *verb;
-
-	verb = search(desc, name);
-	if (!verb)
-		afb_req_fail_f(req, "unknown-verb", "verb %s unknown within api %s", name, desc->binding->api);
-	else if (call_check(req, context, verb)) {
-		afb_thread_req_call(req, verb->callback, afb_api_so_timeout, desc);
-	}
-}
-
-static void xcall_cb(void *closure, struct afb_xreq *xreq)
+static void call_cb(void *closure, struct afb_xreq *xreq)
 {
 	struct api_so_v2 *desc = closure;
 	const struct afb_verb_v2 *verb;
@@ -317,7 +256,6 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	if (afb_apis_add(binding->api, (struct afb_api){
 			.closure = desc,
 			.call = call_cb,
-			.xcall = xcall_cb,
 			.service_start = service_start_cb }) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;

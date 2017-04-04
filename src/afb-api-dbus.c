@@ -311,7 +311,7 @@ static int api_dbus_client_on_reply(sd_bus_message *message, void *userdata, sd_
 }
 
 /* on call, propagate it to the dbus service */
-static void api_dbus_client_xcall(void *closure, struct afb_xreq *xreq)
+static void api_dbus_client_call(void *closure, struct afb_xreq *xreq)
 {
 	struct api_dbus *api = closure;
 	size_t size;
@@ -614,7 +614,7 @@ int afb_api_dbus_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.xcall = api_dbus_client_xcall;
+	afb_api.call = api_dbus_client_call;
 	afb_api.service_start = api_dbus_service_start;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error2;
@@ -963,7 +963,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	dreq->xreq.queryitf = &afb_api_dbus_xreq_itf;
 	dreq->xreq.api = api->api;
 	dreq->xreq.verb = method;
-	afb_apis_xcall(&dreq->xreq);
+	afb_apis_call(&dreq->xreq);
 	afb_xreq_unref(&dreq->xreq);
 	return 1;
 

@@ -73,7 +73,6 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-session.c
 	afb-svc.c
 	afb-subcall.c
-	afb-thread.c
 	afb-websock.c
 	afb-ws-client.c
 	afb-ws-json1.c

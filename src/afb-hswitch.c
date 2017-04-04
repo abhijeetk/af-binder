@@ -47,7 +47,7 @@ int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 	if (afb_hreq_init_req_call(hreq, api, lenapi, verb, lenverb) < 0)
 		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	else
-		afb_apis_xcall(&hreq->xreq);
+		afb_apis_call(&hreq->xreq);
 	return 1;
 }
 

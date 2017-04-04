@@ -181,31 +181,6 @@ static const struct api_desc *search(const char *api)
 }
 
 /**
- * Dispatch the request 'req' with the 'context' to the
- * method of 'api' and 'verb'.
- * @param req the request to dispatch
- * @param context the context of the request
- * @param api the api of the verb
- * @param verb the verb within the api
- */
-void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
-{
-	const struct api_desc *a;
-
-	/* init hooking the request */
-	req = afb_hook_req_call(req, context, api, verb);
-
-	/* search the api */
-	a = search(api);
-	if (!a)
-		afb_req_fail(req, "fail", "api not found");
-	else {
-		context->api_key = a->api.closure;
-		a->api.call(a->api.closure, req, context, verb);
-	}
-}
-
-/**
  * Starts a service by its 'api' name.
  * @param api name of the service to start
  * @param share_session if true start the servic"e in a shared session
@@ -253,7 +228,7 @@ int afb_apis_start_all_services(int share_session)
  * @param api the api of the verb
  * @param verb the verb within the api
  */
-void afb_apis_xcall(struct afb_xreq *xreq)
+void afb_apis_call(struct afb_xreq *xreq)
 {
 	const struct api_desc *a;
 
@@ -266,7 +241,7 @@ void afb_apis_xcall(struct afb_xreq *xreq)
 		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
 	else {
 		xreq->context.api_key = a->api.closure;
-		a->api.xcall(a->api.closure, xreq);
+		a->api.call(a->api.closure, xreq);
 	}
 }
 

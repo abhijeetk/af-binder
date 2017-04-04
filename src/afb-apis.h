@@ -24,9 +24,8 @@ struct afb_xreq;
 struct afb_api
 {
 	void *closure;
-	void (*call)(void *closure, struct afb_req req, struct afb_context *context, const char *verb);
+	void (*call)(void *closure, struct afb_xreq *xreq);
 	int (*service_start)(void *closure, int share_session, int onneed);
-	void (*xcall)(void *closure, struct afb_xreq *xreq);
 };
 
 
@@ -37,7 +36,6 @@ extern int afb_apis_add(const char *name, struct afb_api api);
 extern int afb_apis_start_all_services(int share_session);
 extern int afb_apis_start_service(const char *name, int share_session, int onneed);
 
-extern void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb);
-extern void afb_apis_xcall(struct afb_xreq *xreq);
+extern void afb_apis_call(struct afb_xreq *xreq);
 
 

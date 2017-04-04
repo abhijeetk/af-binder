@@ -134,7 +134,7 @@ void afb_subcall(
 	}
 
 	afb_xreq_addref(caller);
-	afb_apis_xcall(&subcall->xreq);
+	afb_apis_call(&subcall->xreq);
 	afb_xreq_unref(&subcall->xreq);
 }
 
