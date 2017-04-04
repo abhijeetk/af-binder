@@ -99,11 +99,10 @@ static void start_list(struct afb_config_list *list,
  +--------------------------------------------------------- */
 static void exit_handler()
 {
-	/* TODO: check whether using SIGHUP isn't better */
 	if (SELF_PGROUP)
-		killpg(0, SIGKILL);
+		killpg(0, SIGHUP);
 	else if (childpid > 0)
-		killpg(childpid, SIGKILL);
+		killpg(childpid, SIGHUP);
 }
 
 /*----------------------------------------------------------
@@ -489,7 +488,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* handle groups */
-//	atexit(exit_handler);
+	atexit(exit_handler);
 
 	/* ignore any SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
