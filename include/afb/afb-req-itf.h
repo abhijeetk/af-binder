@@ -72,6 +72,7 @@ struct afb_req_itf {
 	int (*unsubscribe)(void *closure, struct afb_event event);
 
 	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
+	int (*subcallsync)(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result);
 };
 
 /*
@@ -363,6 +364,19 @@ static inline int afb_req_unsubscribe(struct afb_req req, struct afb_event event
 static inline void afb_req_subcall(struct afb_req req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result), void *closure)
 {
 	req.itf->subcall(req.closure, api, verb, args, callback, closure);
+}
+
+/*
+ * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
+ * This call is made in the context of the request 'req'.
+ * This call is synchronous, it waits untill completion of the request.
+ * It returns 0 on an error answer and returns 1 when no error was detected.
+ * The object pointed by 'result' is filled and must be released by the caller
+ * after its use by calling 'json_object_put'.
+ */
+static inline int afb_req_subcall_sync(struct afb_req req, const char *api, const char *verb, struct json_object *args, struct json_object **result)
+{
+	return req.itf->subcallsync(req.closure, api, verb, args, result);
 }
 
 /* internal use */

@@ -231,38 +231,55 @@ int afb_apis_start_all_services(int share_session)
 	return 0;
 }
 
+/**
+ * Internal direct dispatch of the request 'xreq'
+ * @param xreq the request to dispatch
+ */
+static void do_call_direct(struct afb_xreq *xreq)
+{
+	const struct api_desc *a;
 
+	/* search the api */
+	a = search(xreq->api);
+	if (!a)
+		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+	else {
+		xreq->context.api_key = a->api.closure;
+		a->api.call(a->api.closure, xreq);
+	}
+}
 
-
-
-
+/**
+ * Asynchronous dispatch callback for the request 'xreq'
+ * @param signum 0 on normal flow or the signal number that interupted the normal flow
+ */
 static void do_call_async(int signum, void *arg)
 {
 	struct afb_xreq *xreq = arg;
-	const struct api_desc *a;
 
 	if (signum != 0)
 		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
 	else {
-		/* search the api */
-		a = search(xreq->api);
-		if (!a)
-			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
-		else {
-			xreq->context.api_key = a->api.closure;
-			a->api.call(a->api.closure, xreq);
-		}
+		do_call_direct(xreq);
 	}
 	afb_xreq_unref(xreq);
 }
 
 /**
- * Dispatch the request 'req' with the 'context' to the
- * method of 'api' and 'verb'.
- * @param req the request to dispatch
- * @param context the context of the request
- * @param api the api of the verb
- * @param verb the verb within the api
+ * Dispatch the request 'xreq' synchronously and directly.
+ * @param xreq the request to dispatch
+ */
+void afb_apis_call_direct(struct afb_xreq *xreq)
+{
+	/* init hooking the request */
+	// TODO req = afb_hook_req_call(req, context, api, verb);
+
+	do_call_direct(xreq);
+}
+
+/**
+ * Dispatch the request 'xreq' asynchronously.
+ * @param xreq the request to dispatch
  */
 void afb_apis_call(struct afb_xreq *xreq)
 {

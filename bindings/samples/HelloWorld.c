@@ -165,7 +165,7 @@ static void subcallcb (void *prequest, int iserror, json_object *object)
 	if (iserror)
 		afb_req_fail(request, "failed", json_object_to_json_string(object));
 	else
-		afb_req_success(request, object, NULL);
+		afb_req_success(request, json_object_get(object), NULL);
 	afb_req_unref(request);
 }
 
@@ -178,8 +178,32 @@ static void subcall (struct afb_req request)
 
 	if (object == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
-	else
+	else {
 		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
+		json_object_put(object);
+	}
+}
+
+static void subcallsync (struct afb_req request)
+{
+	int rc;
+	const char *api = afb_req_value(request, "api");
+	const char *verb = afb_req_value(request, "verb");
+	const char *args = afb_req_value(request, "args");
+	json_object *result, *object = api && verb && args ? json_tokener_parse(args) : NULL;
+
+	if (object == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else {
+		rc = afb_req_subcall_sync(request, api, verb, object, &result);
+		if (rc) {
+			afb_req_success(request, result, NULL);
+		} else {
+			afb_req_fail(request, "failed", json_object_to_json_string(result));
+			json_object_put(result);
+		}
+		json_object_put(object);
+	}
 }
 
 static void eventadd (struct afb_req request)
@@ -260,6 +284,7 @@ static const struct afb_verb_desc_v1 verbs[]= {
   {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
   {"pingevent", AFB_SESSION_NONE, pingEvent   , "Send an event"},
   {"subcall",   AFB_SESSION_NONE, subcall     , "Call api/verb(args)"},
+  {"subcallsync",   AFB_SESSION_NONE, subcallsync     , "Call api/verb(args)"},
   {"eventadd",  AFB_SESSION_NONE, eventadd    , "adds the event of 'name' for the 'tag'"},
   {"eventdel",  AFB_SESSION_NONE, eventdel    , "deletes the event of 'tag'"},
   {"eventsub",  AFB_SESSION_NONE, eventsub    , "subscribes to the event of 'tag'"},

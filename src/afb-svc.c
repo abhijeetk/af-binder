@@ -27,7 +27,7 @@
 #include "afb-session.h"
 #include "afb-context.h"
 #include "afb-evt.h"
-#include "afb-subcall.h"
+#include "afb-msg-json.h"
 #include "afb-svc.h"
 #include "afb-xreq.h"
 #include "afb-apis.h"
@@ -228,7 +228,8 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	if (svcreq == NULL) {
 		ERROR("out of memory");
 		json_object_put(args);
-		return afb_subcall_internal_error(callback, cbclosure);
+		callback(cbclosure, 1, afb_msg_json_internal_error());
+		return;
 	}
 
 	/* initialises the request */

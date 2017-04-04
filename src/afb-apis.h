@@ -38,5 +38,6 @@ extern int afb_apis_start_all_services(int share_session);
 extern int afb_apis_start_service(const char *name, int share_session, int onneed);
 
 extern void afb_apis_call(struct afb_xreq *xreq);
+extern void afb_apis_call_direct(struct afb_xreq *xreq);
 
 

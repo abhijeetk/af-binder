@@ -62,6 +62,13 @@ static void xreq_subcall_cb(
 		void (*callback)(void*, int, struct json_object*),
 		void *cb_closure);
 
+static int xreq_subcallsync_cb(
+		void *closure,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		struct json_object **result);
+
 const struct afb_req_itf xreq_itf = {
 	.json = xreq_json_cb,
 	.get = xreq_get_cb,
@@ -77,7 +84,8 @@ const struct afb_req_itf xreq_itf = {
 	.session_set_LOA = xreq_session_set_LOA_cb,
 	.subscribe = xreq_subscribe_cb,
 	.unsubscribe = xreq_unsubscribe_cb,
-	.subcall = xreq_subcall_cb
+	.subcall = xreq_subcall_cb,
+	.subcallsync = xreq_subcallsync_cb
 };
 
 static struct json_object *xreq_json_cb(void *closure)
@@ -246,6 +254,17 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
 	else
 		afb_subcall(xreq, api, verb, args, callback, cb_closure);
+}
+
+static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
+{
+	struct afb_xreq *xreq = closure;
+/*
+	if (xreq->queryitf->subcallsync)
+		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
+	else
+*/
+		return afb_subcall_sync(xreq, api, verb, args, result);
 }
 
 void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...)

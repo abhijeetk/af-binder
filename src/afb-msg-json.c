@@ -107,4 +107,14 @@ struct afb_arg afb_msg_json_get_arg(struct json_object *object, const char *name
 	return arg;
 }
 
+struct json_object *afb_msg_json_internal_error()
+{
+	static struct json_object *obj;
+
+	if (obj == NULL)
+		obj = afb_msg_json_reply_error("failed", "internal error", NULL, NULL);
+
+	return obj;
+}
+
 
