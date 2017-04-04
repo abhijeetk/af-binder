@@ -298,14 +298,15 @@ static void thread_run(volatile struct thread *me)
 	me->lowered = 0;
 	me->waits = 0;
 	me->upper = current;
-	if (current)
+	if (current) {
 		current->lowered = 1;
-	else
+	} else {
+		started++;
 		sig_monitor_init_timeouts();
-	current = (struct thread*)me;
+	}
 	me->next = threads;
 	threads = (struct thread*)me;
-	started++;
+	current = (struct thread*)me;
 
 	NOTICE("job thread starting %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
 
@@ -359,16 +360,17 @@ static void thread_run(volatile struct thread *me)
 	NOTICE("job thread stoping %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
 
 	/* unlink the current thread and cleanup */
-	started--;
 	prv = &threads;
 	while (*prv != me)
 		prv = &(*prv)->next;
 	*prv = me->next;
 	current = me->upper;
-	if (current)
+	if (current) {
 		current->lowered = 0;
-	else
+	} else {
 		sig_monitor_clean_timeouts();
+		started--;
+	}
 }
 
 /**
