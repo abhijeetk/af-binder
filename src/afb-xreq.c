@@ -246,7 +246,7 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 	if (xreq->queryitf->subcall)
 		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
 	else
-		afb_subcall(&xreq->context, api, verb, args, callback, cb_closure, (struct afb_req){ .itf = &xreq_itf, .closure = xreq });
+		afb_subcall(xreq, api, verb, args, callback, cb_closure);
 }
 
 void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...)
