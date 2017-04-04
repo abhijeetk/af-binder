@@ -250,6 +250,12 @@ int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 static void xreq_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
 	struct afb_xreq *xreq = closure;
+
+	afb_xreq_subcall(xreq, api, verb, args, callback, cb_closure);
+}
+
+void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+{
 	if (xreq->queryitf->subcall)
 		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
 	else
@@ -259,12 +265,7 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
 	struct afb_xreq *xreq = closure;
-/*
-	if (xreq->queryitf->subcallsync)
-		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
-	else
-*/
-		return afb_subcall_sync(xreq, api, verb, args, result);
+	return afb_subcall_sync(xreq, api, verb, args, result);
 }
 
 void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...)
@@ -291,10 +292,8 @@ void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info
 	free(message);
 }
 
-static int xcheck(struct afb_xreq *xreq)
+static int xcheck(struct afb_xreq *xreq, int stag)
 {
-	int stag = xreq->sessionflags;
-
 	if ((stag & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(&xreq->context)) {
 			afb_context_close(&xreq->context);
@@ -338,9 +337,9 @@ static int xcheck(struct afb_xreq *xreq)
 	return 1;
 }
 
-void afb_xreq_call(struct afb_xreq *xreq)
+void afb_xreq_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req))
 {
-	if (xcheck(xreq))
-		xreq->callback((struct afb_req){ .itf = &xreq_itf, .closure = xreq });
+	if (xcheck(xreq, sessionflags))
+		callback((struct afb_req){ .itf = &xreq_itf, .closure = xreq });
 }
 

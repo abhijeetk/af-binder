@@ -37,7 +37,6 @@ static void subcall_destroy(void *closure);
 static void subcall_reply(void *closure, int iserror, struct json_object *obj);
 static int subcall_subscribe(void *closure, struct afb_event event);
 static int subcall_unsubscribe(void *closure, struct afb_event event);
-static void subcall_sync_leave(struct subcall *subcall);
 
 const struct afb_xreq_query_itf afb_subcall_xreq_itf = {
 	.reply = subcall_reply,
@@ -52,9 +51,6 @@ struct subcall
 	struct afb_xreq *caller;
 	void (*callback)(void*, int, struct json_object*);
 	void *closure;
-	struct jobloop *jobloop;
-	struct json_object *result;
-	int iserror;
 };
 
 static void subcall_destroy(void *closure)
@@ -70,14 +66,8 @@ static void subcall_reply(void *closure, int iserror, struct json_object *obj)
 {
 	struct subcall *subcall = closure;
 
-	if (subcall->callback) {
-		subcall->callback(subcall->closure, iserror, obj);
-		json_object_put(obj);
-	} else {
-		subcall->result = obj;
-		subcall->iserror = iserror;
-		subcall_sync_leave(subcall);
-	}
+	subcall->callback(subcall->closure, iserror, obj);
+	json_object_put(obj);
 }
 
 static int subcall_subscribe(void *closure, struct afb_event event)
@@ -139,25 +129,47 @@ void afb_subcall(
 	afb_xreq_unref(&subcall->xreq);
 }
 
-static void subcall_sync_leave(struct subcall *subcall)
+struct subcall_sync
 {
-	struct jobloop *jobloop = subcall->jobloop;
-	subcall->jobloop = NULL;
+	struct afb_xreq *caller;
+	const char *api;
+	const char *verb;
+	struct json_object *args;
+	struct jobloop *jobloop;
+	struct json_object *result;
+	int iserror;
+};
+
+static void subcall_sync_leave(struct subcall_sync *sync)
+{
+	struct jobloop *jobloop = sync->jobloop;
+	sync->jobloop = NULL;
 	if (jobloop)
 		jobs_leave(jobloop);
 }
 
-static void subcall_sync_cb(int signum, void *closure, struct jobloop *jobloop)
+static void subcall_sync_reply(void *closure, int iserror, struct json_object *obj)
 {
-	struct subcall *subcall = closure;
+	struct subcall_sync *sync = closure;
+
+	sync->iserror = iserror;
+	sync->result = obj;
+	json_object_get(obj);
+	subcall_sync_leave(sync);
+}
+
+static void subcall_sync_enter(int signum, void *closure, struct jobloop *jobloop)
+{
+	struct subcall_sync *sync = closure;
 
 	if (!signum) {
-		subcall->jobloop = jobloop;
-		afb_apis_call_direct(&subcall->xreq);
+		sync->jobloop = jobloop;
+		afb_xreq_subcall(sync->caller, sync->api, sync->verb, sync->args, subcall_sync_reply, sync);
 	} else {
-		afb_xreq_fail_f(&subcall->xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
+		sync->result = json_object_get(afb_msg_json_internal_error());
+		sync->iserror = 1;
+		subcall_sync_leave(sync);
 	}
-	subcall_sync_leave(subcall);
 }
 
 int afb_subcall_sync(
@@ -169,22 +181,23 @@ int afb_subcall_sync(
 )
 {
 	int rc;
-	struct subcall *subcall;
+	struct subcall_sync sync;
 
-	subcall = create_subcall(caller, api, verb, args, NULL, NULL);
-	if (subcall == NULL) {
-		*result = json_object_get(afb_msg_json_internal_error());
-		return 0;
-	}
+	sync.caller = caller;
+	sync.api = api;
+	sync.verb = verb;
+	sync.args = args;
+	sync.jobloop = NULL;
+	sync.result = NULL;
+	sync.iserror = 1;
 
-	rc = jobs_enter(NULL, 0, subcall_sync_cb, subcall);
+	rc = jobs_enter(NULL, 0, subcall_sync_enter, &sync);
 	if (rc < 0) {
-		subcall->result = json_object_get(afb_msg_json_internal_error());
-		subcall->iserror = 1;
+		sync.result = json_object_get(afb_msg_json_internal_error());
+		sync.iserror = 1;
 	}
-	rc = !subcall->iserror;
-	*result = subcall->result;
-	afb_xreq_unref(&subcall->xreq);
+	rc = !sync.iserror;
+	*result = sync.result;
 	return rc;
 }
 
