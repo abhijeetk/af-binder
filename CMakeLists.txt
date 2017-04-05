@@ -35,6 +35,7 @@ INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
 INCLUDE(GNUInstallDirs)
+INCLUDE(CTest)
 
 ###########################################################################
 

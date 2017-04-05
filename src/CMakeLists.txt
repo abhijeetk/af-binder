@@ -22,6 +22,8 @@ endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
 
 INCLUDE(FindPkgConfig)
 
+ADD_SUBDIRECTORY(tests)
+
 ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 # Always add INFER_EXTENSION (more details in afb-hreq.c)
 ADD_DEFINITIONS(-DINFER_EXTENSION)
@@ -70,6 +72,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-hswitch.c
 	afb-method.c
 	afb-msg-json.c
+	afb-perm.c
 	afb-session.c
 	afb-svc.c
 	afb-subcall.c
