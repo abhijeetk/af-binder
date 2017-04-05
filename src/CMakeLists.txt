@@ -65,6 +65,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-common.c
 	afb-config.c
 	afb-context.c
+	afb-ditf.c
 	afb-evt.c
 	afb-hook.c
 	afb-hreq.c

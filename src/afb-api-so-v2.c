@@ -26,6 +26,7 @@
 
 #include "afb-apis.h"
 #include "afb-svc.h"
+#include "afb-ditf.h"
 #include "afb-evt.h"
 #include "afb-common.h"
 #include "afb-context.h"
@@ -43,86 +44,10 @@ static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
  */
 struct api_so_v2 {
 	struct afb_binding_v2 *binding;	/* descriptor */
-	size_t apilength;		/* length of the API name */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
-	struct afb_binding_interface interface;	/* interface for the binding */
+	struct afb_ditf ditf;		/* daemon interface */
 };
-
-static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name);
-static int afb_api_so_event_broadcast_cb(void *closure, const char *name, struct json_object *object);
-static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args);
-static int afb_api_so_rootdir_get_fd(void *closure);
-static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, int flags, const char *locale);
-
-static const struct afb_daemon_itf daemon_itf = {
-	.event_broadcast = afb_api_so_event_broadcast_cb,
-	.get_event_loop = afb_common_get_event_loop,
-	.get_user_bus = afb_common_get_user_bus,
-	.get_system_bus = afb_common_get_system_bus,
-	.vverbose = afb_api_so_vverbose_cb,
-	.event_make = afb_api_so_event_make_cb,
-	.rootdir_get_fd = afb_api_so_rootdir_get_fd,
-	.rootdir_open_locale = afb_api_so_rootdir_open_locale
-};
-
-static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name)
-{
-	size_t length;
-	char *event;
-	struct api_so_v2 *desc = closure;
-
-	/* makes the event name */
-	assert(desc->binding != NULL);
-	length = strlen(name);
-	event = alloca(length + 2 + desc->apilength);
-	memcpy(event, desc->binding->api, desc->apilength);
-	event[desc->apilength] = '/';
-	memcpy(event + desc->apilength + 1, name, length + 1);
-
-	/* crate the event */
-	return afb_evt_create_event(event);
-}
-
-static int afb_api_so_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
-{
-	size_t length;
-	char *event;
-	struct api_so_v2 *desc = closure;
-
-	/* makes the event name */
-	assert(desc->binding != NULL);
-	length = strlen(name);
-	event = alloca(length + 2 + desc->apilength);
-	memcpy(event, desc->binding->api, desc->apilength);
-	event[desc->apilength] = '/';
-	memcpy(event + desc->apilength + 1, name, length + 1);
-
-	return afb_evt_broadcast(event, object);
-}
-
-static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
-{
-	char *p;
-	struct api_so_v2 *desc = closure;
-
-	if (vasprintf(&p, fmt, args) < 0)
-		vverbose(level, file, line, fmt, args);
-	else {
-		verbose(level, file, line, "%s {binding %s}", p, desc->binding->api);
-		free(p);
-	}
-}
-
-static int afb_api_so_rootdir_get_fd(void *closure)
-{
-	return afb_common_rootdir_get_fd();
-}
-
-static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, int flags, const char *locale)
-{
-	return afb_common_rootdir_open_locale(filename, flags, locale);
-}
 
 static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *verb)
 {
@@ -178,7 +103,7 @@ static int service_start_cb(void *closure, int share_session, int onneed)
 
 	/* get the event handler if any */
 	onevent = desc->binding->onevent;
-	desc->service = afb_svc_create_v2(share_session, onevent, start, &desc->interface);
+	desc->service = afb_svc_create_v2(share_session, onevent, start, &desc->ditf.interface);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->api);
@@ -229,17 +154,14 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	desc->handle = handle;
 
 	/* init the interface */
-	desc->interface.verbosity = verbosity;
-	desc->interface.mode = AFB_MODE_LOCAL;
-	desc->interface.daemon.itf = &daemon_itf;
-	desc->interface.daemon.closure = desc;
+	afb_ditf_init(&desc->ditf, binding->api);
 
 	/* for log purpose, a fake binding is needed here */
 
 	/* init the binding */
 	if (binding->init) {
 		NOTICE("binding %s [%s] calling init function", binding->api, path);
-		rc = binding->init(&desc->interface);
+		rc = binding->init(&desc->ditf.interface);
 		if (rc < 0) {
 			ERROR("binding %s [%s] initialisation function failed...", binding->api, path);
 			goto error2;
@@ -247,7 +169,6 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	}
 
 	/* records the binding */
-	desc->apilength = strlen(binding->api);
 	if (afb_apis_add(binding->api, (struct afb_api){
 			.closure = desc,
 			.call = call_cb,

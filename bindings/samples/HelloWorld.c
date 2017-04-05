@@ -306,5 +306,6 @@ static const struct afb_binding plugin_desc = {
 const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
 	interface = itf;
+	NOTICE(interface, "hello plugin comes to live");
 	return &plugin_desc;
 }
