@@ -54,6 +54,12 @@ extern int jobs_enter(
 
 extern int jobs_leave(struct jobloop *jobloop);
 
+extern int jobs_call(
+		void *group,
+		int timeout,
+		void (*callback)(int, void*),
+		void *arg);
+
 extern struct sd_event *jobs_get_sd_event();
 
 extern void jobs_terminate();

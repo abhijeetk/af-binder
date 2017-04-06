@@ -82,6 +82,15 @@ struct thread
 	unsigned waits: 1;     /**< is waiting? */
 };
 
+/**
+ * Description of synchonous callback
+ */
+struct sync
+{
+	void (*callback)(int, void*);	/**< the synchrnous callback */
+	void *arg;			/**< the argument of the callback */
+};
+
 /* synchronisation of threads */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
@@ -451,7 +460,7 @@ int jobs_queue0(
  *                 or the signal number that broke the normal flow.
  *                 The remaining parameter is the parameter 'arg1'
  *                 given here.
- * @param arg1     The second argument for 'callback'
+ * @param arg      The second argument for 'callback'
  * @return 0 in case of success or -1 in case of error
  */
 int jobs_queue(
@@ -569,13 +578,25 @@ error:
 
 /**
  * Enter a synchronisation point: activates the job given by 'callback'
- * @param group the gro
+ * and 'closure' using 'group' and 'timeout' to control sequencing and
+ * execution time.
+ * @param group the group for sequencing jobs
+ * @param timeout the time in seconds allocated to the job
+ * @param callback the callback that will handle the job.
+ *                 it receives 3 parameters: 'signum' that will be 0
+ *                 on normal flow or the catched signal number in case
+ *                 of interrupted flow, the context 'closure' as given and
+ *                 a 'jobloop' reference that must be used when the job is
+ *                 terminated to unlock the current execution flow.
+ * @param closure the context completion closure for the callback
+ * @return 0 on success or -1 in case of error
  */
 int jobs_enter(
 		void *group,
 		int timeout,
 		void (*callback)(int signum, void *closure, struct jobloop *jobloop),
-		void *closure)
+		void *closure
+)
 {
 	
 	struct job *job;
@@ -601,11 +622,16 @@ int jobs_enter(
 	return 0;
 }
 
+/**
+ * Unlocks the execution flow designed by 'jobloop'.
+ * @param jobloop indication of the flow to unlock
+ * @return 0 in case of success of -1 on error
+ */
 int jobs_leave(struct jobloop *jobloop)
 {
 	struct thread *t;
-	pthread_mutex_lock(&mutex);
 
+	pthread_mutex_lock(&mutex);
 	t = threads;
 	while (t && t != (struct thread*)jobloop)
 		t = t->next;
@@ -618,6 +644,44 @@ int jobs_leave(struct jobloop *jobloop)
 	}
 	pthread_mutex_unlock(&mutex);
 	return -!t;
+}
+
+/**
+ * Internal helper function for 'jobs_call'.
+ * @see jobs_call, jobs_enter, jobs_leave
+ */
+static void call_cb(int signum, void *closure, struct jobloop *jobloop)
+{
+	struct sync *sync = closure;
+	sync->callback(signum, sync->arg);
+	jobs_leave(jobloop);
+}
+
+/**
+ * Calls synchronously the job represented by 'callback' and 'arg1'
+ * for the 'group' and the 'timeout' and waits for its completion.
+ * @param group    The group of the job or NULL when no group.
+ * @param timeout  The maximum execution time in seconds of the job
+ *                 or 0 for unlimited time.
+ * @param callback The function to execute for achieving the job.
+ *                 Its first parameter is either 0 on normal flow
+ *                 or the signal number that broke the normal flow.
+ *                 The remaining parameter is the parameter 'arg1'
+ *                 given here.
+ * @param arg      The second argument for 'callback'
+ * @return 0 in case of success or -1 in case of error
+ */
+int jobs_call(
+		void *group,
+		int timeout,
+		void (*callback)(int, void*),
+		void *arg)
+{
+	struct sync sync;
+
+	sync.callback = callback;
+	sync.arg = arg;
+	return jobs_enter(group, timeout, call_cb, &sync);
 }
 
 /**
