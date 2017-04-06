@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <json-c/json.h>
 
@@ -29,52 +30,34 @@
 #include "afb-context.h"
 #include "afb-hook.h"
 #include "afb-session.h"
+#include "afb-xreq.h"
 #include "verbose.h"
 
-/*
+/**
  * Definition of a hook
  */
 struct afb_hook {
-	struct afb_hook *next; /* next hook */
-	unsigned refcount; /* reference count */
-	char *api; /* api hooked or NULL for any */
-	char *verb; /* verb hooked or NULL for any */
-	struct afb_session *session; /* session hooked or NULL if any */
-	unsigned flags; /* hook flags */
-	struct afb_hook_req_itf *reqitf; /* interface of hook */
-	void *closure; /* closure for callbacks */
-};
-
-/*
- * Link hooks to a hooked request
- */
-struct hook_req_observer {
-	struct afb_hook *hook; /* the hook */
-	struct hook_req_observer *next; /* the next observer */
-};
-
-/*
- * Structure recording a request to hook
- */
-struct afb_hook_req {
-	struct hook_req_observer *observers; /* observers */
-	struct afb_context *context; /* context of the request */
-	struct afb_req req; /* the request hookd */
-	unsigned refcount; /* reference count proxy for request */
-	char name[1]; /* hook info for the request */
+	struct afb_hook *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	char *api; /**< api hooked or NULL for any */
+	char *verb; /**< verb hooked or NULL for any */
+	struct afb_session *session; /**< session hooked or NULL if any */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_xreq_itf *reqitf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
 };
 
 /*
  * Structure for handling subcalls callbacks
  */
 struct hook_subcall {
-	struct afb_hook_req *tr; /* hookd request */
+	struct afb_xreq *xreq; /* hookd request */
 	void (*callback)(void*, int, struct json_object*); /* client callback */
 	void *cb_closure; /* cient closure */
 };
 
-/* counter of hooking */
-static unsigned hook_count = 0;
+/* synchronisation across threads */
+static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* list of hooks */
 static struct afb_hook *list_of_hooks = NULL;
@@ -83,7 +66,7 @@ static struct afb_hook *list_of_hooks = NULL;
  * section: default callbacks for tracing requests
  *****************************************************************************/
 
-static void _hook_(const struct afb_hook_req *tr, const char *format, ...)
+static void _hook_xreq_(const struct afb_xreq *xreq, const char *format, ...)
 {
 	int len;
 	char *buffer;
@@ -94,499 +77,352 @@ static void _hook_(const struct afb_hook_req *tr, const char *format, ...)
 	va_end(ap);
 
 	if (len < 0)
-		NOTICE("tracing %s allocation error", tr->name);
+		NOTICE("hook xreq-%06d:%s/%s allocation error", xreq->hookindex, xreq->api, xreq->verb);
 	else {
-		NOTICE("hook %s %s", tr->name, buffer);
+		NOTICE("hook xreq-%06d:%s/%s %s", xreq->hookindex, xreq->api, xreq->verb, buffer);
 		free(buffer);
 	}
 }
 
-static void hook_req_begin_default_cb(void * closure, const struct afb_hook_req *tr)
+static void hook_xreq_begin_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_(tr, "BEGIN");
+	_hook_xreq_(xreq, "BEGIN");
 }
 
-static void hook_req_end_default_cb(void * closure, const struct afb_hook_req *tr)
+static void hook_xreq_end_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_(tr, "END");
+	_hook_xreq_(xreq, "END");
 }
 
-static void hook_req_json_default_cb(void * closure, const struct afb_hook_req *tr, struct json_object *obj)
+static void hook_xreq_json_default_cb(void * closure, const struct afb_xreq *xreq, struct json_object *obj)
 {
-	_hook_(tr, "json() -> %s", json_object_to_json_string(obj));
+	_hook_xreq_(xreq, "json() -> %s", json_object_to_json_string(obj));
 }
 
-static void hook_req_get_default_cb(void * closure, const struct afb_hook_req *tr, const char *name, struct afb_arg arg)
+static void hook_xreq_get_default_cb(void * closure, const struct afb_xreq *xreq, const char *name, struct afb_arg arg)
 {
-	_hook_(tr, "get(%s) -> { name: %s, value: %s, path: %s }", name, arg.name, arg.value, arg.path);
+	_hook_xreq_(xreq, "get(%s) -> { name: %s, value: %s, path: %s }", name, arg.name, arg.value, arg.path);
 }
 
-static void hook_req_success_default_cb(void * closure, const struct afb_hook_req *tr, struct json_object *obj, const char *info)
+static void hook_xreq_success_default_cb(void * closure, const struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
-	_hook_(tr, "success(%s, %s)", json_object_to_json_string(obj), info);
+	_hook_xreq_(xreq, "success(%s, %s)", json_object_to_json_string(obj), info);
 }
 
-static void hook_req_fail_default_cb(void * closure, const struct afb_hook_req *tr, const char *status, const char *info)
+static void hook_xreq_fail_default_cb(void * closure, const struct afb_xreq *xreq, const char *status, const char *info)
 {
-	_hook_(tr, "fail(%s, %s)", status, info);
+	_hook_xreq_(xreq, "fail(%s, %s)", status, info);
 }
 
-static void hook_req_raw_default_cb(void * closure, const struct afb_hook_req *tr, const char *buffer, size_t size)
+static void hook_xreq_raw_default_cb(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size)
 {
-	_hook_(tr, "raw() -> %.*s", (int)size, buffer);
+	_hook_xreq_(xreq, "raw() -> %.*s", (int)size, buffer);
 }
 
-static void hook_req_send_default_cb(void * closure, const struct afb_hook_req *tr, const char *buffer, size_t size)
+static void hook_xreq_send_default_cb(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size)
 {
-	_hook_(tr, "send(%.*s)", (int)size, buffer);
+	_hook_xreq_(xreq, "send(%.*s)", (int)size, buffer);
 }
 
-static void hook_req_context_get_default_cb(void * closure, const struct afb_hook_req *tr, void *value)
+static void hook_xreq_context_get_default_cb(void * closure, const struct afb_xreq *xreq, void *value)
 {
-	_hook_(tr, "context_get() -> %p", value);
+	_hook_xreq_(xreq, "context_get() -> %p", value);
 }
 
-static void hook_req_context_set_default_cb(void * closure, const struct afb_hook_req *tr, void *value, void (*free_value)(void*))
+static void hook_xreq_context_set_default_cb(void * closure, const struct afb_xreq *xreq, void *value, void (*free_value)(void*))
 {
-	_hook_(tr, "context_set(%p, %p)", value, free_value);
+	_hook_xreq_(xreq, "context_set(%p, %p)", value, free_value);
 }
 
-static void hook_req_addref_default_cb(void * closure, const struct afb_hook_req *tr)
+static void hook_xreq_addref_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_(tr, "addref()");
+	_hook_xreq_(xreq, "addref()");
 }
 
-static void hook_req_unref_default_cb(void * closure, const struct afb_hook_req *tr)
+static void hook_xreq_unref_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_(tr, "unref()");
+	_hook_xreq_(xreq, "unref()");
 }
 
-static void hook_req_session_close_default_cb(void * closure, const struct afb_hook_req *tr)
+static void hook_xreq_session_close_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_(tr, "session_close()");
+	_hook_xreq_(xreq, "session_close()");
 }
 
-static void hook_req_session_set_LOA_default_cb(void * closure, const struct afb_hook_req *tr, unsigned level, int result)
+static void hook_xreq_session_set_LOA_default_cb(void * closure, const struct afb_xreq *xreq, unsigned level, int result)
 {
-	_hook_(tr, "session_set_LOA(%u) -> %d", level, result);
+	_hook_xreq_(xreq, "session_set_LOA(%u) -> %d", level, result);
 }
 
-static void hook_req_subscribe_default_cb(void * closure, const struct afb_hook_req *tr, struct afb_event event, int result)
+static void hook_xreq_subscribe_default_cb(void * closure, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	_hook_(tr, "subscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
+	_hook_xreq_(xreq, "subscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
 }
 
-static void hook_req_unsubscribe_default_cb(void * closure, const struct afb_hook_req *tr, struct afb_event event, int result)
+static void hook_xreq_unsubscribe_default_cb(void * closure, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	_hook_(tr, "unsubscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
+	_hook_xreq_(xreq, "unsubscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
 }
 
-static void hook_req_subcall_default_cb(void * closure, const struct afb_hook_req *tr, const char *api, const char *verb, struct json_object *args)
+static void hook_xreq_subcall_default_cb(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_(tr, "subcall(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_xreq_(xreq, "subcall(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
 }
 
-static void hook_req_subcall_result_default_cb(void * closure, const struct afb_hook_req *tr, int status, struct json_object *result)
+static void hook_xreq_subcall_result_default_cb(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result)
 {
-	_hook_(tr, "    ...subcall... -> %d: %s", status, json_object_to_json_string(result));
+	_hook_xreq_(xreq, "    ...subcall... -> %d: %s", status, json_object_to_json_string(result));
 }
 
-static struct afb_hook_req_itf hook_req_default_itf = {
-	.hook_req_begin = hook_req_begin_default_cb,
-	.hook_req_end = hook_req_end_default_cb,
-	.hook_req_json = hook_req_json_default_cb,
-	.hook_req_get = hook_req_get_default_cb,
-	.hook_req_success = hook_req_success_default_cb,
-	.hook_req_fail = hook_req_fail_default_cb,
-	.hook_req_raw = hook_req_raw_default_cb,
-	.hook_req_send = hook_req_send_default_cb,
-	.hook_req_context_get = hook_req_context_get_default_cb,
-	.hook_req_context_set = hook_req_context_set_default_cb,
-	.hook_req_addref = hook_req_addref_default_cb,
-	.hook_req_unref = hook_req_unref_default_cb,
-	.hook_req_session_close = hook_req_session_close_default_cb,
-	.hook_req_session_set_LOA = hook_req_session_set_LOA_default_cb,
-	.hook_req_subscribe = hook_req_subscribe_default_cb,
-	.hook_req_unsubscribe = hook_req_unsubscribe_default_cb,
-	.hook_req_subcall = hook_req_subcall_default_cb,
-	.hook_req_subcall_result = hook_req_subcall_result_default_cb,
+static struct afb_hook_xreq_itf hook_xreq_default_itf = {
+	.hook_xreq_begin = hook_xreq_begin_default_cb,
+	.hook_xreq_end = hook_xreq_end_default_cb,
+	.hook_xreq_json = hook_xreq_json_default_cb,
+	.hook_xreq_get = hook_xreq_get_default_cb,
+	.hook_xreq_success = hook_xreq_success_default_cb,
+	.hook_xreq_fail = hook_xreq_fail_default_cb,
+	.hook_xreq_raw = hook_xreq_raw_default_cb,
+	.hook_xreq_send = hook_xreq_send_default_cb,
+	.hook_xreq_context_get = hook_xreq_context_get_default_cb,
+	.hook_xreq_context_set = hook_xreq_context_set_default_cb,
+	.hook_xreq_addref = hook_xreq_addref_default_cb,
+	.hook_xreq_unref = hook_xreq_unref_default_cb,
+	.hook_xreq_session_close = hook_xreq_session_close_default_cb,
+	.hook_xreq_session_set_LOA = hook_xreq_session_set_LOA_default_cb,
+	.hook_xreq_subscribe = hook_xreq_subscribe_default_cb,
+	.hook_xreq_unsubscribe = hook_xreq_unsubscribe_default_cb,
+	.hook_xreq_subcall = hook_xreq_subcall_default_cb,
+	.hook_xreq_subcall_result = hook_xreq_subcall_result_default_cb,
 };
-
-/******************************************************************************
- * section: macro for tracing requests
- *****************************************************************************/
-
-#define TRACE_REQX(what,tr) do{\
-		struct hook_req_observer *observer = tr->observers;\
-		while (observer != NULL) {\
-			struct afb_hook *hook = observer->hook;\
-			observer = observer->next;\
-			if (hook->reqitf && hook->reqitf->hook_req_##what)\
-				hook->reqitf->hook_req_##what(hook->closure, tr);\
-		}\
-	}while(0)
-
-#define TRACE_REQ_(what,tr) do{\
-		struct hook_req_observer *observer = tr->observers;\
-		while (observer != NULL) {\
-			struct afb_hook *hook = observer->hook;\
-			observer = observer->next;\
-			if ((hook->flags & afb_hook_flag_req_##what) && hook->reqitf && hook->reqitf->hook_req_##what)\
-				hook->reqitf->hook_req_##what(hook->closure, tr);\
-		}\
-	}while(0)
-
-#define TRACE_REQ(what,tr,...) do{\
-		struct hook_req_observer *observer = tr->observers;\
-		while (observer != NULL) {\
-			struct afb_hook *hook = observer->hook;\
-			observer = observer->next;\
-			if ((hook->flags & afb_hook_flag_req_##what) && hook->reqitf && hook->reqitf->hook_req_##what)\
-				hook->reqitf->hook_req_##what(hook->closure, tr, __VA_ARGS__);\
-		}\
-	}while(0)
-
-/******************************************************************************
- * section: afb_hook_req handling
- *****************************************************************************/
-
-static void hook_req_addref(struct afb_hook_req *tr)
-{
-	tr->refcount++;
-}
-
-static void hook_req_unref(struct afb_hook_req *tr)
-{
-	struct hook_req_observer *o1, *o2;
-	if (!--tr->refcount) {
-		TRACE_REQX(end, tr);
-		afb_req_unref(tr->req);
-		o1 = tr->observers;
-		while(o1) {
-			afb_hook_unref(o1->hook);
-			o2 = o1->next;
-			free(o1);
-			o1 = o2;
-		}
-		free(tr);
-	}
-}
-
-static struct afb_hook_req *hook_req_create(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
-{
-	int len;
-	char name[257];
-	unsigned id;
-	struct afb_hook_req *tr;
-
-	/* get the call id */
-	id = ++hook_count;
-	if (id == 1000000)
-		id = hook_count = 1;
-
-	/* creates the name */
-	len = snprintf(name, sizeof name, "%06d:%s/%s", id, api, verb);
-	if (len < 0 || (size_t)len >= sizeof name) {
-		tr = NULL;
-	} else {
-		tr = malloc(sizeof *tr + (size_t)len);
-		if (tr != NULL) {
-			/* init hook */
-			tr->observers = NULL;
-			tr->refcount = 1;
-			tr->context = context;
-			tr->req = req;
-			afb_req_addref(req);
-			memcpy(tr->name, name, (size_t)(len + 1));
-		}
-	}
-	return tr;
-}
-
-static void hook_req_add_observer(struct afb_hook_req *tr, struct afb_hook *hook)
-{
-	struct hook_req_observer *observer;
-
-	observer = malloc(sizeof *observer);
-	if (observer) {
-		observer->hook = afb_hook_addref(hook);
-		observer->next = tr->observers;
-		tr->observers = observer;
-	}
-}
 
 /******************************************************************************
  * section: hooks for tracing requests
  *****************************************************************************/
 
-static struct json_object *req_hook_json(void *closure)
-{
-	struct afb_hook_req *tr = closure;
-	struct json_object *r;
+#define _HOOK_XREQ_(what,...)   \
+	struct afb_hook *hook; \
+	pthread_rwlock_rdlock(&rwlock); \
+	hook = list_of_hooks; \
+	while (hook) { \
+		if (hook->reqitf->hook_xreq_##what \
+		 && (hook->flags & afb_hook_flag_req_##what) != 0 \
+		 && (!hook->session || hook->session == xreq->context.session) \
+		 && (!hook->api || !strcasecmp(hook->api, xreq->api)) \
+		 && (!hook->verb || !strcasecmp(hook->verb, xreq->verb))) { \
+			hook->reqitf->hook_xreq_##what(hook->closure, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
 
-	r = afb_req_json(tr->req);
-	TRACE_REQ(json, tr, r);
-	return r;
+
+void afb_hook_xreq_begin(const struct afb_xreq *xreq)
+{
+	_HOOK_XREQ_(begin, xreq);
 }
 
-static struct afb_arg req_hook_get(void *closure, const char *name)
+void afb_hook_xreq_end(const struct afb_xreq *xreq)
 {
-	struct afb_hook_req *tr = closure;
-	struct afb_arg a;
-
-	a = afb_req_get(tr->req, name);
-	TRACE_REQ(get, tr, name, a);
-	return a;
+	_HOOK_XREQ_(end, xreq);
 }
 
-static void req_hook_success(void *closure, struct json_object *obj, const char *info)
+struct json_object *afb_hook_xreq_json(const struct afb_xreq *xreq, struct json_object *obj)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ(success, tr, obj, info);
-	afb_req_success(tr->req, obj, info);
-	hook_req_unref(tr);
+	_HOOK_XREQ_(json, xreq, obj);
+	return obj;
 }
 
-static void req_hook_fail(void *closure, const char *status, const char *info)
+struct afb_arg afb_hook_xreq_get(const struct afb_xreq *xreq, const char *name, struct afb_arg arg)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ(fail, tr, status, info);
-	afb_req_fail(tr->req, status, info);
-	hook_req_unref(tr);
+	_HOOK_XREQ_(get, xreq, name, arg);
+	return arg;
 }
 
-static const char *req_hook_raw(void *closure, size_t *size)
+void afb_hook_xreq_success(const struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
-	struct afb_hook_req *tr = closure;
-	const char *r;
-	size_t s;
-
-	r = afb_req_raw(tr->req, &s);
-	TRACE_REQ(raw, tr, r, s);
-	if (size)
-		*size = s;
-	return r;
+	_HOOK_XREQ_(success, xreq, obj, info);
 }
 
-static void req_hook_send(void *closure, const char *buffer, size_t size)
+void afb_hook_xreq_fail(const struct afb_xreq *xreq, const char *status, const char *info)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ(send, tr, buffer, size);
-	afb_req_send(tr->req, buffer, size);
+	_HOOK_XREQ_(fail, xreq, status, info);
 }
 
-static void *req_hook_context_get(void *closure)
+const char *afb_hook_xreq_raw(const struct afb_xreq *xreq, const char *buffer, size_t size)
 {
-	struct afb_hook_req *tr = closure;
-	void *r;
-
-	r = afb_req_context_get(tr->req);
-	TRACE_REQ(context_get, tr, r);
-
-	return r;
+	_HOOK_XREQ_(raw, xreq, buffer, size);
+	return buffer;
 }
 
-static void req_hook_context_set(void *closure, void *value, void (*free_value)(void*))
+void afb_hook_xreq_send(const struct afb_xreq *xreq, const char *buffer, size_t size)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ(context_set, tr, value, free_value);
-	afb_req_context_set(tr->req, value, free_value);
+	_HOOK_XREQ_(send, xreq, buffer, size);
 }
 
-static void req_hook_addref(void *closure)
+void *afb_hook_xreq_context_get(const struct afb_xreq *xreq, void *value)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ_(addref, tr);
-	hook_req_addref(tr);
+	_HOOK_XREQ_(context_get, xreq, value);
+	return value;
 }
 
-static void req_hook_unref(void *closure)
+void afb_hook_xreq_context_set(const struct afb_xreq *xreq, void *value, void (*free_value)(void*))
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ_(unref, tr);
-	hook_req_unref(tr);
+	_HOOK_XREQ_(context_set, xreq, value, free_value);
 }
 
-static void req_hook_session_close(void *closure)
+void afb_hook_xreq_addref(const struct afb_xreq *xreq)
 {
-	struct afb_hook_req *tr = closure;
-
-	TRACE_REQ_(session_close, tr);
-	afb_req_session_close(tr->req);
+	_HOOK_XREQ_(addref, xreq);
 }
 
-static int req_hook_session_set_LOA(void *closure, unsigned level)
+void afb_hook_xreq_unref(const struct afb_xreq *xreq)
 {
-	struct afb_hook_req *tr = closure;
-	int r;
-
-	r = afb_req_session_set_LOA(tr->req, level);
-	TRACE_REQ(session_set_LOA, tr, level, r);
-	return r;
+	_HOOK_XREQ_(unref, xreq);
 }
 
-static int req_hook_subscribe(void *closure, struct afb_event event)
+void afb_hook_xreq_session_close(const struct afb_xreq *xreq)
 {
-	struct afb_hook_req *tr = closure;
-	int r;
-
-	r = afb_req_subscribe(tr->req, event);
-	TRACE_REQ(subscribe, tr, event, r);
-	return r;
+	_HOOK_XREQ_(session_close, xreq);
 }
 
-static int req_hook_unsubscribe(void *closure, struct afb_event event)
+int afb_hook_xreq_session_set_LOA(const struct afb_xreq *xreq, unsigned level, int result)
 {
-	struct afb_hook_req *tr = closure;
-	int r;
-
-	r = afb_req_unsubscribe(tr->req, event);
-	TRACE_REQ(unsubscribe, tr, event, r);
-	return r;
+	_HOOK_XREQ_(session_set_LOA, xreq, level, result);
+	return result;
 }
 
-static void req_hook_subcall_result(void *closure, int status, struct json_object *result)
+int afb_hook_xreq_subscribe(const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	struct hook_subcall *sc = closure;
-	struct hook_subcall s = *sc;
-
-	free(sc);
-	TRACE_REQ(subcall_result, s.tr, status, result);
-	hook_req_unref(s.tr);
-	s.callback(s.cb_closure, status, result);
+	_HOOK_XREQ_(subscribe, xreq, event, result);
+	return result;
 }
 
-static void req_hook_subcall(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+int afb_hook_xreq_unsubscribe(const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	struct afb_hook_req *tr = closure;
-	struct hook_subcall *sc;
-
-	TRACE_REQ(subcall, tr, api, verb, args);
-	sc = malloc(sizeof *sc);
-	if (sc) {
-		sc->tr = tr;
-		sc->callback = callback;
-		sc->cb_closure = cb_closure;
-		hook_req_addref(tr);
-		cb_closure = sc;
-		callback = req_hook_subcall_result;
-	}
-	afb_req_subcall(tr->req, api, verb, args, callback, cb_closure);
+	_HOOK_XREQ_(unsubscribe, xreq, event, result);
+	return result;
 }
 
-static struct afb_req_itf req_hook_itf = {
-	.json = req_hook_json,
-	.get = req_hook_get,
-	.success = req_hook_success,
-	.fail = req_hook_fail,
-	.raw = req_hook_raw,
-	.send = req_hook_send,
-	.context_get = req_hook_context_get,
-	.context_set = req_hook_context_set,
-	.addref = req_hook_addref,
-	.unref = req_hook_unref,
-	.session_close = req_hook_session_close,
-	.session_set_LOA = req_hook_session_set_LOA,
-	.subscribe = req_hook_subscribe,
-	.unsubscribe = req_hook_unsubscribe,
-	.subcall = req_hook_subcall
-};
+void afb_hook_xreq_subcall(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+{
+	_HOOK_XREQ_(subcall, xreq, api, verb, args);
+}
+
+void afb_hook_xreq_subcall_result(const struct afb_xreq *xreq, int status, struct json_object *result)
+{
+	_HOOK_XREQ_(subcall_result, xreq, status, result);
+}
 
 /******************************************************************************
  * section: 
  *****************************************************************************/
 
-struct afb_req afb_hook_req_call(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
+void afb_hook_init_xreq(struct afb_xreq *xreq)
 {
+	static int reqindex;
+
+	int f, flags;
 	int add;
-	struct afb_hook_req *tr;
 	struct afb_hook *hook;
 
+	/* scan hook list to get the expected flags */
+	flags = 0;
+	pthread_rwlock_rdlock(&rwlock);
 	hook = list_of_hooks;
-	if (hook) {
-		tr = NULL;
-		do {
-			add = (hook->flags & afb_hook_flags_req_all) != 0
-			   && (!hook->session || hook->session == context->session)
-			   && (!hook->api || !strcasecmp(hook->api, api))
-			   && (!hook->verb || !strcasecmp(hook->verb, verb));
-			if (add) {
-				if (!tr)
-					tr = hook_req_create(req, context, api, verb);
-				if (tr)
-					hook_req_add_observer(tr, hook);
-			}
-			hook = hook->next;
-		} while(hook);
-		if (tr) {
-			req.closure = tr;
-			req.itf = &req_hook_itf;
-			TRACE_REQX(begin, tr);
-		}
+	while (hook) {
+		f = hook->flags & afb_hook_flags_req_all;
+		add = f != 0
+		   && (!hook->session || hook->session == xreq->context.session)
+		   && (!hook->api || !strcasecmp(hook->api, xreq->api))
+		   && (!hook->verb || !strcasecmp(hook->verb, xreq->verb));
+		if (add)
+			flags |= f;
+		hook = hook->next;
 	}
+	pthread_rwlock_unlock(&rwlock);
 
-	return req;
+	/* store the hooking data */
+	xreq->hookflags = flags;
+	if (flags) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (++reqindex < 0)
+			reqindex = 1;
+		xreq->hookindex = reqindex;
+		pthread_rwlock_unlock(&rwlock);
+	}
 }
 
-struct afb_hook *afb_hook_req_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_req_itf *itf, void *closure)
+struct afb_hook *afb_hook_xreq_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_xreq_itf *itf, void *closure)
 {
 	struct afb_hook *hook;
 
+	/* alloc the result */
 	hook = malloc(sizeof *hook);
 	if (hook == NULL)
 		return NULL;
 
+	/* get a copy of the names */
 	hook->api = api ? strdup(api) : NULL;
 	hook->verb = verb ? strdup(verb) : NULL;
-	hook->session = session ? afb_session_addref(session) : NULL;
-
 	if ((api && !hook->api) || (verb && !hook->verb)) {
 		free(hook->api);
 		free(hook->verb);
-		if (hook->session)
-			afb_session_unref(hook->session);
 		free(hook);
 		return NULL;
 	}
 
+	/* initialise the rest */
+	hook->session = session;
+	if (session)
+		afb_session_addref(session);
 	hook->refcount = 1;
 	hook->flags = flags;
-	hook->reqitf = itf ? itf : &hook_req_default_itf;
+	hook->reqitf = itf ? itf : &hook_xreq_default_itf;
 	hook->closure = closure;
 
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
 	hook->next = list_of_hooks;
 	list_of_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* returns it */
 	return hook;
 }
 
 struct afb_hook *afb_hook_addref(struct afb_hook *hook)
 {
+	pthread_rwlock_wrlock(&rwlock);
 	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
 	return hook;
 }
 
 void afb_hook_unref(struct afb_hook *hook)
 {
-	if (!--hook->refcount) {
-		/* unlink */
-		struct afb_hook **prv = &list_of_hooks;
-		while (*prv && *prv != hook)
-			prv = &(*prv)->next;
-		if(*prv)
-			*prv = hook->next;
+	struct afb_hook **prv;
 
-		/* free */
-		free(hook->api);
-		free(hook->verb);
-		if (hook->session)
-			afb_session_unref(hook->session);
-		free(hook);
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook->api);
+			free(hook->verb);
+			if (hook->session)
+				afb_session_unref(hook->session);
+			free(hook);
+		}
 	}
 }
 

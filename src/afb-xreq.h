@@ -52,6 +52,8 @@ struct afb_xreq
 	const struct afb_xreq_query_itf *queryitf;
 	int refcount;	/**< current ref count */
 	int replied;	/**< is replied? */
+	int hookflags;	/**< flags for hooking */
+	int hookindex;	/**< index for hooking */
 	struct afb_evt_listener *listener;
 };
 
@@ -66,5 +68,6 @@ extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event);
 extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
 extern void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 
+extern void afb_xreq_begin(struct afb_xreq *xreq);
 extern void afb_xreq_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
 

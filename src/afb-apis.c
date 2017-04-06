@@ -27,7 +27,6 @@
 #include "verbose.h"
 #include "afb-apis.h"
 #include "afb-context.h"
-#include "afb-hook.h"
 #include "afb-xreq.h"
 #include "jobs.h"
 
@@ -271,9 +270,7 @@ static void do_call_async(int signum, void *arg)
  */
 void afb_apis_call_direct(struct afb_xreq *xreq)
 {
-	/* init hooking the request */
-	// TODO req = afb_hook_req_call(req, context, api, verb);
-
+	afb_xreq_begin(xreq);
 	do_call_direct(xreq);
 }
 
@@ -285,9 +282,7 @@ void afb_apis_call(struct afb_xreq *xreq)
 {
 	int rc;
 
-	/* init hooking the request */
-	// TODO req = afb_hook_req_call(req, context, api, verb);
-
+	afb_xreq_begin(xreq);
 	afb_xreq_addref(xreq);
 	rc = jobs_queue(NULL, apis_timeout, do_call_async, xreq);
 	if (rc < 0) {

@@ -437,7 +437,7 @@ static void start()
 
 	/* install trace of requests */
 	if (config->tracereq)
-		afb_hook_req_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
+		afb_hook_xreq_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
 
 	/* start the services */
 	if (afb_apis_start_all_services(1) < 0)
@@ -476,6 +476,7 @@ int main(int argc, char *argv[])
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
+	INFO("running with pid %d", getpid());
 
 	// --------- run -----------
 	if (config->background) {
