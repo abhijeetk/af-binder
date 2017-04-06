@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
@@ -38,6 +39,9 @@
 #define sig_monitor_clean_timeouts() ((void)0)
 #define sig_monitor(to,cb,arg)       (cb(0,arg))
 #endif
+
+#define EVENT_TIMEOUT_TOP  	((uint64_t)-1)
+#define EVENT_TIMEOUT_CHILD	((uint64_t)10000)
 
 /** Internal shortcut for callback */
 typedef void (*job_cb_t)(int, void*, void *, void*);
@@ -61,6 +65,7 @@ struct events
 {
 	struct events *next;
 	struct sd_event *event;
+	uint64_t timeout;
 	unsigned runs: 1;
 };
 
@@ -276,7 +281,7 @@ static void events_call(int signum, void *arg)
 {
 	struct events *events = arg;
 	if (!signum)
-		sd_event_run(events->event, (uint64_t) -1);
+		sd_event_run(events->event, events->timeout);
 }
 
 /**
@@ -291,6 +296,7 @@ static void thread_run(volatile struct thread *me)
 	struct thread **prv;
 	struct job *job;
 	struct events *events;
+	uint64_t evto;
 
 	/* initialize description of itself and link it in the list */
 	me->tid = pthread_self();
@@ -300,9 +306,11 @@ static void thread_run(volatile struct thread *me)
 	me->upper = current;
 	if (current) {
 		current->lowered = 1;
+		evto = EVENT_TIMEOUT_CHILD;
 	} else {
 		started++;
 		sig_monitor_init_timeouts();
+		evto = EVENT_TIMEOUT_TOP;
 	}
 	me->next = threads;
 	threads = (struct thread*)me;
@@ -341,6 +349,7 @@ static void thread_run(volatile struct thread *me)
 			if (events) {
 				/* run the events */
 				events->runs = 1;
+				events->timeout = evto;
 				me->events = events;
 				pthread_mutex_unlock(&mutex);
 				sig_monitor(0, events_call, events);
