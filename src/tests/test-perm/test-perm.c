@@ -108,12 +108,13 @@ void mke(int value, int bits, char *buffer)
 		case 3: add(buffer, "(%c or not %c) ", c, c); break;
 		}
 	} else if (val0 != val1) {
+		if (val0 && val1)
+			add(buffer, "(");
 		if (val0) {
 			add(buffer, "not %c", c);
 			if (val0 != smask) {
-				add(buffer, " and (");
+				add(buffer, " and ");
 				mke(val0, bits - 1, buffer);
-				add(buffer, ")");
 			}
 		}
 		if (val0 && val1)
@@ -121,11 +122,12 @@ void mke(int value, int bits, char *buffer)
 		if (val1) {
 			add(buffer, "%c", c);
 			if (val1 != smask) {
-				add(buffer, " and (");
+				add(buffer, " and ");
 				mke(val1, bits - 1, buffer);
-				add(buffer, ")");
 			}
 		}
+		if (val0 && val1)
+			add(buffer, ")");
 	} else {
 		mke(val0, bits - 1, buffer);
 	}
@@ -150,10 +152,11 @@ int fulltest()
 	for (i = 0 ; i < 65536 ; i++) {
 		makeexpr(i, buffer);
 		j = test(buffer);
-		printf("[[[ %d %s %d ]]]\n", i, i==j?"==":"!=", j);
+		printf("[[[ %d %s %d ]]] %d %s\n", i, i==j?"==":"!=", j, (int)strlen(buffer), buffer);
 		if (i != j)
 			r = 1;
 	}
+	return r;
 }
 
 int main()

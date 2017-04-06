@@ -136,27 +136,23 @@ static void node_free(struct node *node)
  */
 static int node_check(struct node *node, int (*check)(void *closure, const char *name), void *closure)
 {
-	int rc;
-
-	switch (node->type) {
-	case Text:
-		rc = check(closure, node->text);
-		break;
-	case And:
-		rc = node_check(node->children[0], check, closure);
-		if (rc)
-			rc = node_check(node->children[1], check, closure);
-		break;
-	case Or:
-		rc = node_check(node->children[0], check, closure);
-		if (!rc)
-			rc = node_check(node->children[1], check, closure);
-		break;
-	case Not:
-		rc = !node_check(node->children[0], check, closure);
-		break;
+	for(;;) {
+		switch (node->type) {
+		case Text:
+			return check(closure, node->text);
+		case And:
+			if (!node_check(node->children[0], check, closure))
+				return 0;
+			break;
+		case Or:
+			if (node_check(node->children[0], check, closure))
+				return 1;
+			break;
+		case Not:
+			return !node_check(node->children[0], check, closure);
+		}
+		node = node->children[1];
 	}
-	return rc;
 }
 
 /*********************************************************************
