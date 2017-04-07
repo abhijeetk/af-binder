@@ -29,14 +29,14 @@ int verbosity = 1;
 
 #include <syslog.h>
 
-void vverbose(int level, const char *file, int line, const char *fmt, va_list args)
+void vverbose(int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	char *p;
 
 	if (file == NULL || vasprintf(&p, fmt, args) < 0)
 		vsyslog(level, fmt, args);
 	else {
-		syslog(LEVEL(level), "%s [%s:%d]", p, file, line);
+		syslog(LEVEL(level), "%s [%s:%d, function]", p, file, line, function);
 		free(p);
 	}
 }
@@ -44,6 +44,34 @@ void vverbose(int level, const char *file, int line, const char *fmt, va_list ar
 void verbose_set_name(const char *name, int authority)
 {
 	openlog(name, LOG_PERROR, authority ? LOG_AUTH : LOG_USER);
+}
+
+#elif defined(VERBOSE_WITH_SYSTEMD)
+
+#define SD_JOURNAL_SUPPRESS_LOCATION
+
+#include <systemd/sd-journal.h>
+
+static const char *appname;
+
+static int appauthority;
+
+void vverbose(int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+{
+	char lino[20];
+
+	if (file == NULL) {
+		sd_journal_printv(level, fmt, args);
+	} else {
+		sprintf(lino, "%d", line);
+		sd_journal_printv_with_location(level, file, lino, function, fmt, args);
+	}
+}
+
+void verbose_set_name(const char *name, int authority)
+{
+	appname = name;
+	appauthority = authority;
 }
 
 #else
@@ -65,14 +93,14 @@ static const char *prefixes[] = {
 	"<7> DEBUG"
 };
 
-void vverbose(int level, const char *file, int line, const char *fmt, va_list args)
+void vverbose(int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	int tty = isatty(fileno(stderr));
 
 	fprintf(stderr, "%s: ", prefixes[LEVEL(level)] + (tty ? 4 : 0));
 	vfprintf(stderr, fmt, args);
 	if (file != NULL && (!tty || verbosity >5))
-		fprintf(stderr, " [%s:%d]\n", file, line);
+		fprintf(stderr, " [%s:%d,%s]\n", file, line, function);
 	else
 		fprintf(stderr, "\n");
 }
@@ -85,12 +113,12 @@ void verbose_set_name(const char *name, int authority)
 
 #endif
 
-void verbose(int level, const char *file, int line, const char *fmt, ...)
+void verbose(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vverbose(level, file, line, fmt, ap);
+	vverbose(level, file, line, function, fmt, ap);
 	va_end(ap);
 }
 

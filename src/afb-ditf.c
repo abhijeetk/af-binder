@@ -29,33 +29,22 @@
 #include "verbose.h"
 
 
-static struct afb_event event_make_cb(void *closure, const char *name);
-static int event_broadcast_cb(void *closure, const char *name, struct json_object *object);
-static void vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args);
-static int rootdir_open_locale_cb(void *closure, const char *filename, int flags, const char *locale);
-
-static const struct afb_daemon_itf daemon_itf = {
-	.vverbose = vverbose_cb,
-	.event_make = event_make_cb,
-	.event_broadcast = event_broadcast_cb,
-	.get_event_loop = afb_common_get_event_loop,
-	.get_user_bus = afb_common_get_user_bus,
-	.get_system_bus = afb_common_get_system_bus,
-	.rootdir_get_fd = afb_common_rootdir_get_fd,
-	.rootdir_open_locale = rootdir_open_locale_cb
-};
-
-static void vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
+static void vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	char *p;
 	struct afb_ditf *ditf = closure;
 
 	if (vasprintf(&p, fmt, args) < 0)
-		vverbose(level, file, line, fmt, args);
+		vverbose(level, file, line, function, fmt, args);
 	else {
-		verbose(level, file, line, "%s {binding %s}", p, ditf->prefix);
+		verbose(level, file, line, function, "%s {binding %s}", p, ditf->prefix);
 		free(p);
 	}
+}
+
+static void old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
+{
+	vverbose_cb(closure, level, file, line, "?", fmt, args);
 }
 
 static struct afb_event event_make_cb(void *closure, const char *name)
@@ -98,6 +87,17 @@ static int rootdir_open_locale_cb(void *closure, const char *filename, int flags
 {
 	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
+
+static const struct afb_daemon_itf daemon_itf = {
+	.vverbose = old_vverbose_cb,
+	.event_make = event_make_cb,
+	.event_broadcast = event_broadcast_cb,
+	.get_event_loop = afb_common_get_event_loop,
+	.get_user_bus = afb_common_get_user_bus,
+	.get_system_bus = afb_common_get_system_bus,
+	.rootdir_get_fd = afb_common_rootdir_get_fd,
+	.rootdir_open_locale = rootdir_open_locale_cb
+};
 
 void afb_ditf_init(struct afb_ditf *ditf, const char *prefix)
 {

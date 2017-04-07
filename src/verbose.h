@@ -23,14 +23,14 @@
 extern int verbosity;
 
 extern void verbose_set_name(const char *name, int authority);
-extern void verbose(int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
-extern void vverbose(int level, const char *file, int line, const char *fmt, va_list args);
+extern void verbose(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
+extern void vverbose(int level, const char *file, int line, const char *function, const char *fmt, va_list args);
 
-# define ERROR(...)   do{if(verbosity>=0)verbose(3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define WARNING(...) do{if(verbosity>=1)verbose(4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define NOTICE(...)  do{if(verbosity>=1)verbose(5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define INFO(...)    do{if(verbosity>=2)verbose(6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define DEBUG(...)   do{if(verbosity>=3)verbose(7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# define ERROR(...)   do{if(verbosity>=0)verbose(3,__FILE__,__LINE__,__func__,__VA_ARGS__);}while(0)
+# define WARNING(...) do{if(verbosity>=1)verbose(4,__FILE__,__LINE__,__func__,__VA_ARGS__);}while(0)
+# define NOTICE(...)  do{if(verbosity>=1)verbose(5,__FILE__,__LINE__,__func__,__VA_ARGS__);}while(0)
+# define INFO(...)    do{if(verbosity>=2)verbose(6,__FILE__,__LINE__,__func__,__VA_ARGS__);}while(0)
+# define DEBUG(...)   do{if(verbosity>=3)verbose(7,__FILE__,__LINE__,__func__,__VA_ARGS__);}while(0)
 # define LOGUSER(app) verbose_set_name(app,0)
 # define LOGAUTH(app) verbose_set_name(app,1)
 
