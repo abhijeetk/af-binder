@@ -52,11 +52,7 @@ static struct afb_arg xreq_get_cb(void *closure, const char *name)
 static void xreq_success_cb(void *closure, struct json_object *obj, const char *info)
 {
 	struct afb_xreq *xreq = closure;
-	afb_xreq_success(xreq, obj, info);
-}
 
-void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info)
-{
 	if (xreq->replied) {
 		ERROR("reply called more than one time!!");
 		json_object_put(obj);
@@ -72,11 +68,7 @@ void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char
 static void xreq_fail_cb(void *closure, const char *status, const char *info)
 {
 	struct afb_xreq *xreq = closure;
-	afb_xreq_fail(xreq, status, info);
-}
 
-void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info)
-{
 	if (xreq->replied) {
 		ERROR("reply called more than one time!!");
 	} else {
@@ -91,11 +83,6 @@ void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info)
 static const char *xreq_raw_cb(void *closure, size_t *size)
 {
 	struct afb_xreq *xreq = closure;
-	return afb_xreq_raw(xreq, size);
-}
-
-const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size)
-{
 	const char *result = json_object_to_json_string(xreq_json_cb(xreq));
 	if (size != NULL)
 		*size = strlen(result);
@@ -126,23 +113,13 @@ static void xreq_context_set_cb(void *closure, void *value, void (*free_value)(v
 static void xreq_addref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	afb_xreq_addref(xreq);
-}
-
-void afb_xreq_addref(struct afb_xreq *xreq)
-{
-	xreq->refcount++;
+	__atomic_add_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED);
 }
 
 static void xreq_unref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	afb_xreq_unref(xreq);
-}
-
-void afb_xreq_unref(struct afb_xreq *xreq)
-{
-	if (!--xreq->refcount) {
+	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
 		xreq->queryitf->unref(xreq->query);
 	}
 }
@@ -197,11 +174,6 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 {
 	struct afb_xreq *xreq = closure;
 
-	afb_xreq_subcall(xreq, api, verb, args, callback, cb_closure);
-}
-
-void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
-{
 	if (xreq->queryitf->subcall)
 		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
 	else
@@ -277,12 +249,17 @@ static void xreq_hooked_addref_cb(void *closure)
 	afb_hook_xreq_addref(xreq);
 	xreq_addref_cb(closure);
 }
-/*
+
 static void xreq_hooked_unref_cb(void *closure)
 {
-	TODO
+	struct afb_xreq *xreq = closure;
+	afb_hook_xreq_unref(xreq);
+	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
+		afb_hook_xreq_end(xreq);
+		xreq->queryitf->unref(xreq->query);
+	}
 }
-*/
+
 static void xreq_hooked_session_close_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
@@ -311,20 +288,47 @@ static int xreq_hooked_unsubscribe_cb(void *closure, struct afb_event event)
 	return afb_hook_xreq_unsubscribe(xreq, event, r);
 }
 
-/*
+struct reply
+{
+	struct afb_xreq *xreq;
+	void (*callback)(void*, int, struct json_object*);
+	void *closure;
+};
+
+static void xreq_hooked_subcall_reply_cb(void *closure, int iserror, struct json_object *result)
+{
+	struct reply *reply = closure;
+	
+	afb_hook_xreq_subcall_result(reply->xreq, iserror, result);
+	reply->callback(reply->closure, iserror, result);
+	free(reply);
+}
+
 static void xreq_hooked_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
+	struct reply *reply = malloc(sizeof *reply);
 	struct afb_xreq *xreq = closure;
-
-	afb_xreq_subcall(xreq, api, verb, args, callback, cb_closure);
+	afb_hook_xreq_subcall(xreq, api, verb, args);
+	if (reply) {
+		reply->xreq = xreq;
+		reply->callback = callback;
+		reply->closure = cb_closure;
+		xreq_subcall_cb(closure, api, verb, args, xreq_hooked_subcall_reply_cb, reply);
+	} else {
+		ERROR("out of memory");
+		xreq_subcall_cb(closure, api, verb, args, callback, cb_closure);
+	}
 }
 
 static int xreq_hooked_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
+	int r;
 	struct afb_xreq *xreq = closure;
-	return afb_subcall_sync(xreq, api, verb, args, result);
+	afb_hook_xreq_subcallsync(xreq, api, verb, args);
+	r = xreq_subcallsync_cb(closure, api, verb, args, result);
+	return afb_hook_xreq_subcallsync_result(xreq, r, *result);
 }
-*/
+
 const struct afb_req_itf xreq_itf = {
 	.json = xreq_json_cb,
 	.get = xreq_get_cb,
@@ -354,18 +358,23 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.context_get = xreq_hooked_context_get_cb,
 	.context_set = xreq_hooked_context_set_cb,
 	.addref = xreq_hooked_addref_cb,
-.unref = xreq_unref_cb,
+	.unref = xreq_hooked_unref_cb,
 	.session_close = xreq_hooked_session_close_cb,
 	.session_set_LOA = xreq_hooked_session_set_LOA_cb,
 	.subscribe = xreq_hooked_subscribe_cb,
 	.unsubscribe = xreq_hooked_unsubscribe_cb,
-.subcall = xreq_subcall_cb,
-.subcallsync = xreq_subcallsync_cb
+	.subcall = xreq_hooked_subcall_cb,
+	.subcallsync = xreq_hooked_subcallsync_cb
 };
 
 static inline struct afb_req to_req(struct afb_xreq *xreq)
 {
 	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
+}
+
+void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info)
+{
+	afb_req_success(to_req(xreq), obj, info);
 }
 
 void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...)
@@ -380,6 +389,11 @@ void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const ch
 	free(message);
 }
 
+void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info)
+{
+	afb_req_fail(to_req(xreq), status, info);
+}
+
 void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info, ...)
 {
 	char *message;
@@ -390,6 +404,31 @@ void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info
 	va_end(args);
 	afb_xreq_fail(xreq, status, message);
 	free(message);
+}
+
+const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size)
+{
+	return afb_req_raw(to_req(xreq), size);
+}
+
+void afb_xreq_addref(struct afb_xreq *xreq)
+{
+	afb_req_addref(to_req(xreq));
+}
+
+void afb_xreq_unref(struct afb_xreq *xreq)
+{
+	afb_req_unref(to_req(xreq));
+}
+
+void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+{
+	xreq_subcall_cb(xreq, api, verb, args, callback, cb_closure);
+}
+
+void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+{
+	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
 }
 
 static int xcheck(struct afb_xreq *xreq, int sessionflags)

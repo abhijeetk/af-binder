@@ -67,6 +67,7 @@ extern const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size);
 extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event);
 extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
 extern void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
+extern void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 
 extern void afb_xreq_begin(struct afb_xreq *xreq);
 extern void afb_xreq_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));

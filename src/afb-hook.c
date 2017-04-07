@@ -174,6 +174,16 @@ static void hook_xreq_subcall_result_default_cb(void * closure, const struct afb
 	_hook_xreq_(xreq, "    ...subcall... -> %d: %s", status, json_object_to_json_string(result));
 }
 
+static void hook_xreq_subcallsync_default_cb(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+{
+	_hook_xreq_(xreq, "subcallsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+}
+
+static void hook_xreq_subcallsync_result_default_cb(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result)
+{
+	_hook_xreq_(xreq, "    ...subcallsync... -> %d: %s", status, json_object_to_json_string(result));
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -193,6 +203,8 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_unsubscribe = hook_xreq_unsubscribe_default_cb,
 	.hook_xreq_subcall = hook_xreq_subcall_default_cb,
 	.hook_xreq_subcall_result = hook_xreq_subcall_result_default_cb,
+	.hook_xreq_subcallsync = hook_xreq_subcallsync_default_cb,
+	.hook_xreq_subcallsync_result = hook_xreq_subcallsync_result_default_cb,
 };
 
 /******************************************************************************
@@ -311,6 +323,17 @@ void afb_hook_xreq_subcall(const struct afb_xreq *xreq, const char *api, const c
 void afb_hook_xreq_subcall_result(const struct afb_xreq *xreq, int status, struct json_object *result)
 {
 	_HOOK_XREQ_(subcall_result, xreq, status, result);
+}
+
+void afb_hook_xreq_subcallsync(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+{
+	_HOOK_XREQ_(subcallsync, xreq, api, verb, args);
+}
+
+int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, struct json_object *result)
+{
+	_HOOK_XREQ_(subcallsync_result, xreq, status, result);
+	return status;
 }
 
 /******************************************************************************

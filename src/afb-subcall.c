@@ -164,7 +164,7 @@ static void subcall_sync_enter(int signum, void *closure, struct jobloop *jobloo
 
 	if (!signum) {
 		sync->jobloop = jobloop;
-		afb_xreq_subcall(sync->caller, sync->api, sync->verb, sync->args, subcall_sync_reply, sync);
+		afb_xreq_unhooked_subcall(sync->caller, sync->api, sync->verb, sync->args, subcall_sync_reply, sync);
 	} else {
 		sync->result = json_object_get(afb_msg_json_internal_error());
 		sync->iserror = 1;

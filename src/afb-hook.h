@@ -18,24 +18,26 @@
 #pragma once
 
 /* individual flags */
-#define afb_hook_flag_req_json			1
-#define afb_hook_flag_req_get			2
-#define afb_hook_flag_req_success		4
-#define afb_hook_flag_req_fail			8
-#define afb_hook_flag_req_raw			16
-#define afb_hook_flag_req_send			32
-#define afb_hook_flag_req_context_get		64
-#define afb_hook_flag_req_context_set		128
-#define afb_hook_flag_req_addref		256
-#define afb_hook_flag_req_unref			512
-#define afb_hook_flag_req_session_close		1024
-#define afb_hook_flag_req_session_set_LOA	2048
-#define afb_hook_flag_req_subscribe		4096
-#define afb_hook_flag_req_unsubscribe		8192
-#define afb_hook_flag_req_subcall		16384
-#define afb_hook_flag_req_subcall_result	32768
-#define afb_hook_flag_req_begin                 65536
-#define afb_hook_flag_req_end                   131072
+#define afb_hook_flag_req_begin			0x000001
+#define afb_hook_flag_req_end			0x000002
+#define afb_hook_flag_req_json			0x000004
+#define afb_hook_flag_req_get			0x000008
+#define afb_hook_flag_req_success		0x000010
+#define afb_hook_flag_req_fail			0x000020
+#define afb_hook_flag_req_raw			0x000040
+#define afb_hook_flag_req_send			0x000080
+#define afb_hook_flag_req_context_get		0x000100
+#define afb_hook_flag_req_context_set		0x000200
+#define afb_hook_flag_req_addref		0x000400
+#define afb_hook_flag_req_unref			0x000800
+#define afb_hook_flag_req_session_close		0x001000
+#define afb_hook_flag_req_session_set_LOA	0x002000
+#define afb_hook_flag_req_subscribe		0x004000
+#define afb_hook_flag_req_unsubscribe		0x010800
+#define afb_hook_flag_req_subcall		0x020000
+#define afb_hook_flag_req_subcall_result	0x040000
+#define afb_hook_flag_req_subcallsync		0x080000
+#define afb_hook_flag_req_subcallsync_result	0x100000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -43,7 +45,8 @@
 #define afb_hook_flags_req_result	(afb_hook_flag_req_success|afb_hook_flag_req_fail)
 #define afb_hook_flags_req_session	(afb_hook_flag_req_session_close|afb_hook_flag_req_session_set_LOA)
 #define afb_hook_flags_req_event	(afb_hook_flag_req_subscribe|afb_hook_flag_req_unsubscribe)
-#define afb_hook_flags_req_subcall	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result)
+#define afb_hook_flags_req_subcall	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result\
+					|afb_hook_flag_req_subcallsync|afb_hook_flag_req_subcallsync_result)
 
 /* extra flags */
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
@@ -87,6 +90,8 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_unsubscribe)(void * closure, const struct afb_xreq *xreq, struct afb_event event, int result);
 	void (*hook_xreq_subcall)(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 	void (*hook_xreq_subcall_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_subcallsync)(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+	void (*hook_xreq_subcallsync_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -114,4 +119,6 @@ extern int afb_hook_xreq_subscribe(const struct afb_xreq *xreq, struct afb_event
 extern int afb_hook_xreq_unsubscribe(const struct afb_xreq *xreq, struct afb_event event, int result);
 extern void afb_hook_xreq_subcall(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 extern void afb_hook_xreq_subcall_result(const struct afb_xreq *xreq, int status, struct json_object *result);
+extern void afb_hook_xreq_subcallsync(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+extern int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 
