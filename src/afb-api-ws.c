@@ -879,6 +879,7 @@ int afb_api_ws_add_client(const char *path)
 	afb_api.closure = api;
 	afb_api.call = api_ws_client_call_cb;
 	afb_api.service_start = api_ws_service_start_cb;
+	afb_api.update_hooks = NULL;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error3;
 

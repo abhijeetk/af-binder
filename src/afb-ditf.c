@@ -21,14 +21,19 @@
 #include <string.h>
 #include <errno.h>
 
+#include <json-c/json.h>
+
 #include <afb/afb-binding.h>
 
 #include "afb-ditf.h"
 #include "afb-evt.h"
 #include "afb-common.h"
+#include "afb-hook.h"
 #include "verbose.h"
 
-
+/**********************************************
+* normal flow
+**********************************************/
 static void vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	char *p;
@@ -88,6 +93,78 @@ static int rootdir_open_locale_cb(void *closure, const char *filename, int flags
 	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
 
+/**********************************************
+* hooked flow
+**********************************************/
+static void hooked_vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+{
+	struct afb_ditf *ditf = closure;
+	vverbose_cb(closure, level, file, line, function, fmt, args);
+	afb_hook_ditf_vverbose(ditf, level, file, line, function, fmt, args);
+	vverbose_cb(closure, level, file, line, function, fmt, args);
+}
+
+static void hooked_old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
+{
+	struct afb_ditf *ditf = closure;
+	old_vverbose_cb(closure, level, file, line, fmt, args);
+	afb_hook_ditf_vverbose(ditf, level, file, line, "", fmt, args);
+}
+
+static struct afb_event hooked_event_make_cb(void *closure, const char *name)
+{
+	struct afb_ditf *ditf = closure;
+	struct afb_event r = event_make_cb(closure, name);
+	return afb_hook_ditf_event_make(ditf, name, r);
+}
+
+static int hooked_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
+{
+	int r;
+	struct afb_ditf *ditf = closure;
+	json_object_get(object);
+	afb_hook_ditf_event_broadcast_before(ditf, name, json_object_get(object));
+	r = event_broadcast_cb(closure, name, object);
+	afb_hook_ditf_event_broadcast_after(ditf, name, object, r);
+	json_object_put(object);
+	return r;
+}
+
+static struct sd_event *hooked_get_event_loop(void *closure)
+{
+	struct afb_ditf *ditf = closure;
+	struct sd_event *r = afb_common_get_event_loop();
+	return afb_hook_ditf_get_event_loop(ditf, r);
+}
+
+static struct sd_bus *hooked_get_user_bus(void *closure)
+{
+	struct afb_ditf *ditf = closure;
+	struct sd_bus *r = afb_common_get_user_bus();
+	return afb_hook_ditf_get_user_bus(ditf, r);
+}
+
+static struct sd_bus *hooked_get_system_bus(void *closure)
+{
+	struct afb_ditf *ditf = closure;
+	struct sd_bus *r = afb_common_get_system_bus();
+	return afb_hook_ditf_get_system_bus(ditf, r);
+}
+
+static int hooked_rootdir_get_fd(void *closure)
+{
+	struct afb_ditf *ditf = closure;
+	int r = afb_common_rootdir_get_fd();
+	return afb_hook_ditf_rootdir_get_fd(ditf, r);
+}
+
+static int hooked_rootdir_open_locale_cb(void *closure, const char *filename, int flags, const char *locale)
+{
+	struct afb_ditf *ditf = closure;
+	int r = rootdir_open_locale_cb(closure, filename, flags, locale);
+	return afb_hook_ditf_rootdir_open_locale(ditf, filename, flags, locale, r);
+}
+
 static const struct afb_daemon_itf daemon_itf = {
 	.vverbose = old_vverbose_cb,
 	.event_make = event_make_cb,
@@ -99,11 +176,21 @@ static const struct afb_daemon_itf daemon_itf = {
 	.rootdir_open_locale = rootdir_open_locale_cb
 };
 
+static const struct afb_daemon_itf hooked_daemon_itf = {
+	.vverbose = hooked_old_vverbose_cb,
+	.event_make = hooked_event_make_cb,
+	.event_broadcast = hooked_event_broadcast_cb,
+	.get_event_loop = hooked_get_event_loop,
+	.get_user_bus = hooked_get_user_bus,
+	.get_system_bus = hooked_get_system_bus,
+	.rootdir_get_fd = hooked_rootdir_get_fd,
+	.rootdir_open_locale = hooked_rootdir_open_locale_cb
+};
+
 void afb_ditf_init(struct afb_ditf *ditf, const char *prefix)
 {
 	ditf->interface.verbosity = verbosity;
 	ditf->interface.mode = AFB_MODE_LOCAL;
-	ditf->interface.daemon.itf = &daemon_itf;
 	ditf->interface.daemon.closure = ditf;
 	afb_ditf_rename(ditf, prefix);
 }
@@ -111,5 +198,14 @@ void afb_ditf_init(struct afb_ditf *ditf, const char *prefix)
 void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix)
 {
 	ditf->prefix = prefix;
+	afb_ditf_update_hook(ditf);
+}
+
+void afb_ditf_update_hook(struct afb_ditf *ditf)
+{
+	if (afb_hook_flags_ditf(ditf->prefix))
+		ditf->interface.daemon.itf = &hooked_daemon_itf;
+	else
+		ditf->interface.daemon.itf = &daemon_itf;
 }
 

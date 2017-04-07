@@ -44,4 +44,5 @@ struct afb_ditf
 
 extern void afb_ditf_init(struct afb_ditf *ditf, const char *prefix);
 extern void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix);
+extern void afb_ditf_update_hook(struct afb_ditf *ditf);
 

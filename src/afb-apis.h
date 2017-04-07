@@ -26,6 +26,7 @@ struct afb_api
 	void *closure;
 	void (*call)(void *closure, struct afb_xreq *xreq);
 	int (*service_start)(void *closure, int share_session, int onneed);
+	void (*update_hooks)(void *closure);
 };
 
 extern void afb_apis_set_timeout(int to);
@@ -40,4 +41,4 @@ extern int afb_apis_start_service(const char *name, int share_session, int onnee
 extern void afb_apis_call(struct afb_xreq *xreq);
 extern void afb_apis_call_direct(struct afb_xreq *xreq);
 
-
+extern void afb_apis_update_hooks();

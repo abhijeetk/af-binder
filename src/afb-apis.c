@@ -293,3 +293,19 @@ void afb_apis_call(struct afb_xreq *xreq)
 	}
 }
 
+/**
+ * Ask to update the hook flags
+ */
+void afb_apis_update_hooks()
+{
+	const struct api_desc *i, *e;
+
+	i = apis_array;
+	e = &apis_array[apis_count]; 
+	while (i != e) {
+		if (i->api.update_hooks)
+			i->api.update_hooks(i->api.closure);
+		i++;
+	}
+}
+

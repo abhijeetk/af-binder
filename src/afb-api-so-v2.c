@@ -113,11 +113,18 @@ static int service_start_cb(void *closure, int share_session, int onneed)
 	return 0;
 }
 
+static void update_hooks_cb(void *closure)
+{
+	struct api_so_v2 *desc = closure;
+	afb_ditf_update_hook(&desc->ditf);
+}
+
 int afb_api_so_v2_add(const char *path, void *handle)
 {
 	int rc;
 	struct api_so_v2 *desc;
 	struct afb_binding_v2 *binding;
+	struct afb_api afb_api;
 
 	/* retrieves the register function */
 	binding = dlsym(handle, afb_api_so_v2_descriptor);
@@ -169,10 +176,11 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	}
 
 	/* records the binding */
-	if (afb_apis_add(binding->api, (struct afb_api){
-			.closure = desc,
-			.call = call_cb,
-			.service_start = service_start_cb }) < 0) {
+	afb_api.closure = desc;
+	afb_api.call = call_cb;
+	afb_api.service_start = service_start_cb;
+	afb_api.update_hooks = update_hooks_cb;
+	if (afb_apis_add(binding->api, afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;
 	}

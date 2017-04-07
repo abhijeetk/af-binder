@@ -85,6 +85,7 @@
 
 #define SET_NO_HTTPD       28
 
+#define SET_TRACEDITF      'D'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
 #define SET_QUIET          'q'
@@ -96,7 +97,7 @@
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
 
-#define SHORTOPTS	"ehqrT:t:u:Vvw:"
+#define SHORTOPTS	"D:ehqrT:t:u:Vvw:"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -149,6 +150,7 @@ static AFB_options cliOptions[] = {
 	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default 10]"},
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
+	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
@@ -169,6 +171,14 @@ static struct enumdesc tracereq_desc[] = {
 	{ "common", afb_hook_flags_req_common },
 	{ "extra",  afb_hook_flags_req_extra },
 	{ "all",    afb_hook_flags_req_all },
+	{ NULL, 0 }
+};
+
+static struct enumdesc traceditf_desc[] = {
+	{ "no",     0 },
+	{ "common", afb_hook_flags_ditf_common },
+	{ "extra",  afb_hook_flags_ditf_extra },
+	{ "all",    afb_hook_flags_ditf_all },
 	{ NULL, 0 }
 };
 
@@ -486,6 +496,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->tracereq = argvalenum(optc, tracereq_desc);
 			break;
 
+		case SET_TRACEDITF:
+			config->traceditf = argvalenum(optc, traceditf_desc);
+			break;
+
 		case SET_NO_HTTPD:
 			noarg(optc);
 			config->noHttpd = 1;
@@ -617,6 +631,7 @@ void afb_config_dump(struct afb_config *config)
 	D(nbSessionMax)
 	E(mode,mode_desc)
 	E(tracereq,tracereq_desc)
+	E(traceditf,traceditf_desc)
 	B(noHttpd)
 	P("---END-OF-CONFIG---\n");
 

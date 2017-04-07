@@ -17,10 +17,12 @@
 
 #define _GNU_SOURCE
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <json-c/json.h>
 
@@ -31,36 +33,43 @@
 #include "afb-hook.h"
 #include "afb-session.h"
 #include "afb-xreq.h"
+#include "afb-ditf.h"
 #include "verbose.h"
 
 /**
- * Definition of a hook
+ * Definition of a hook for xreq
  */
-struct afb_hook {
-	struct afb_hook *next; /**< next hook */
+struct afb_hook_xreq {
+	struct afb_hook_xreq *next; /**< next hook */
 	unsigned refcount; /**< reference count */
 	char *api; /**< api hooked or NULL for any */
 	char *verb; /**< verb hooked or NULL for any */
 	struct afb_session *session; /**< session hooked or NULL if any */
 	unsigned flags; /**< hook flags */
-	struct afb_hook_xreq_itf *reqitf; /**< interface of hook */
+	struct afb_hook_xreq_itf *itf; /**< interface of hook */
 	void *closure; /**< closure for callbacks */
 };
 
-/*
- * Structure for handling subcalls callbacks
+/**
+ * Definition of a hook for ditf
  */
-struct hook_subcall {
-	struct afb_xreq *xreq; /* hookd request */
-	void (*callback)(void*, int, struct json_object*); /* client callback */
-	void *cb_closure; /* cient closure */
+struct afb_hook_ditf {
+	struct afb_hook_ditf *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	char *api; /**< api hooked or NULL for any */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_ditf_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
 };
 
 /* synchronisation across threads */
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-/* list of hooks */
-static struct afb_hook *list_of_hooks = NULL;
+/* list of hooks for xreq */
+static struct afb_hook_xreq *list_of_xreq_hooks = NULL;
+
+/* list of hooks for ditf */
+static struct afb_hook_ditf *list_of_ditf_hooks = NULL;
 
 /******************************************************************************
  * section: default callbacks for tracing requests
@@ -212,16 +221,16 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
  *****************************************************************************/
 
 #define _HOOK_XREQ_(what,...)   \
-	struct afb_hook *hook; \
+	struct afb_hook_xreq *hook; \
 	pthread_rwlock_rdlock(&rwlock); \
-	hook = list_of_hooks; \
+	hook = list_of_xreq_hooks; \
 	while (hook) { \
-		if (hook->reqitf->hook_xreq_##what \
+		if (hook->itf->hook_xreq_##what \
 		 && (hook->flags & afb_hook_flag_req_##what) != 0 \
 		 && (!hook->session || hook->session == xreq->context.session) \
 		 && (!hook->api || !strcasecmp(hook->api, xreq->api)) \
 		 && (!hook->verb || !strcasecmp(hook->verb, xreq->verb))) { \
-			hook->reqitf->hook_xreq_##what(hook->closure, __VA_ARGS__); \
+			hook->itf->hook_xreq_##what(hook->closure, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
 	} \
@@ -346,12 +355,12 @@ void afb_hook_init_xreq(struct afb_xreq *xreq)
 
 	int f, flags;
 	int add;
-	struct afb_hook *hook;
+	struct afb_hook_xreq *hook;
 
 	/* scan hook list to get the expected flags */
 	flags = 0;
 	pthread_rwlock_rdlock(&rwlock);
-	hook = list_of_hooks;
+	hook = list_of_xreq_hooks;
 	while (hook) {
 		f = hook->flags & afb_hook_flags_req_all;
 		add = f != 0
@@ -375,12 +384,12 @@ void afb_hook_init_xreq(struct afb_xreq *xreq)
 	}
 }
 
-struct afb_hook *afb_hook_xreq_create(const char *api, const char *verb, struct afb_session *session, unsigned flags, struct afb_hook_xreq_itf *itf, void *closure)
+struct afb_hook_xreq *afb_hook_create_xreq(const char *api, const char *verb, struct afb_session *session, int flags, struct afb_hook_xreq_itf *itf, void *closure)
 {
-	struct afb_hook *hook;
+	struct afb_hook_xreq *hook;
 
 	/* alloc the result */
-	hook = malloc(sizeof *hook);
+	hook = calloc(1, sizeof *hook);
 	if (hook == NULL)
 		return NULL;
 
@@ -400,20 +409,20 @@ struct afb_hook *afb_hook_xreq_create(const char *api, const char *verb, struct 
 		afb_session_addref(session);
 	hook->refcount = 1;
 	hook->flags = flags;
-	hook->reqitf = itf ? itf : &hook_xreq_default_itf;
+	hook->itf = itf ? itf : &hook_xreq_default_itf;
 	hook->closure = closure;
 
 	/* record the hook */
 	pthread_rwlock_wrlock(&rwlock);
-	hook->next = list_of_hooks;
-	list_of_hooks = hook;
+	hook->next = list_of_xreq_hooks;
+	list_of_xreq_hooks = hook;
 	pthread_rwlock_unlock(&rwlock);
 
 	/* returns it */
 	return hook;
 }
 
-struct afb_hook *afb_hook_addref(struct afb_hook *hook)
+struct afb_hook_xreq *afb_hook_addref_xreq(struct afb_hook_xreq *hook)
 {
 	pthread_rwlock_wrlock(&rwlock);
 	hook->refcount++;
@@ -421,9 +430,9 @@ struct afb_hook *afb_hook_addref(struct afb_hook *hook)
 	return hook;
 }
 
-void afb_hook_unref(struct afb_hook *hook)
+void afb_hook_unref_xreq(struct afb_hook_xreq *hook)
 {
-	struct afb_hook **prv;
+	struct afb_hook_xreq **prv;
 
 	if (hook) {
 		pthread_rwlock_wrlock(&rwlock);
@@ -431,7 +440,7 @@ void afb_hook_unref(struct afb_hook *hook)
 			hook = NULL;
 		else {
 			/* unlink */
-			prv = &list_of_hooks;
+			prv = &list_of_xreq_hooks;
 			while (*prv && *prv != hook)
 				prv = &(*prv)->next;
 			if(*prv)
@@ -444,6 +453,273 @@ void afb_hook_unref(struct afb_hook *hook)
 			free(hook->verb);
 			if (hook->session)
 				afb_session_unref(hook->session);
+			free(hook);
+		}
+	}
+}
+
+/******************************************************************************
+ * section: default callbacks for tracing daemon interface
+ *****************************************************************************/
+
+static void _hook_ditf_(const struct afb_ditf *ditf, const char *format, ...)
+{
+	int len;
+	char *buffer;
+	va_list ap;
+
+	va_start(ap, format);
+	len = vasprintf(&buffer, format, ap);
+	va_end(ap);
+
+	if (len < 0)
+		NOTICE("hook ditf-%s allocation error for %s", ditf->prefix, format);
+	else {
+		NOTICE("hook ditf-%s %s", ditf->prefix, buffer);
+		free(buffer);
+	}
+}
+
+static void hook_ditf_event_broadcast_before_cb(void *closure, const struct afb_ditf *ditf, const char *name, struct json_object *object)
+{
+	_hook_ditf_(ditf, "event_broadcast.before(%s, %s)....", name, json_object_to_json_string(object));
+}
+
+static void hook_ditf_event_broadcast_after_cb(void *closure, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
+{
+	_hook_ditf_(ditf, "event_broadcast.after(%s, %s) -> %d", name, json_object_to_json_string(object), result);
+}
+
+static void hook_ditf_get_event_loop_cb(void *closure, const struct afb_ditf *ditf, struct sd_event *result)
+{
+	_hook_ditf_(ditf, "get_event_loop() -> %p", result);
+}
+
+static void hook_ditf_get_user_bus_cb(void *closure, const struct afb_ditf *ditf, struct sd_bus *result)
+{
+	_hook_ditf_(ditf, "get_user_bus() -> %p", result);
+}
+
+static void hook_ditf_get_system_bus_cb(void *closure, const struct afb_ditf *ditf, struct sd_bus *result)
+{
+	_hook_ditf_(ditf, "get_system_bus() -> %p", result);
+}
+
+static void hook_ditf_vverbose_cb(void*closure, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+{
+	int len;
+	char *msg;
+	va_list ap;
+
+	va_copy(ap, args);
+	len = vasprintf(&msg, fmt, ap);
+	va_end(ap);
+
+	if (len < 0)
+		_hook_ditf_(ditf, "vverbose(%d, %s, %d, %s) -> %s ? ? ?", level, file, line, function, fmt);
+	else {
+		_hook_ditf_(ditf, "vverbose(%d, %s, %d, %s) -> %s", level, file, line, function, msg);
+		free(msg);
+	}
+}
+
+static void hook_ditf_event_make_cb(void *closure, const struct afb_ditf *ditf, const char *name, struct afb_event result)
+{
+	_hook_ditf_(ditf, "event_make(%s) -> %s:%p", name, afb_event_name(result), result.closure);
+}
+
+static void hook_ditf_rootdir_get_fd_cb(void *closure, const struct afb_ditf *ditf, int result)
+{
+	char path[PATH_MAX];
+	if (result < 0)
+		_hook_ditf_(ditf, "rootdir_get_fd() -> %d, %m", result);
+	else {
+		sprintf(path, "/proc/self/fd/%d", result);
+		readlink(path, path, sizeof path);
+		_hook_ditf_(ditf, "rootdir_get_fd() -> %d = %s", result, path);
+	}
+}
+
+static void hook_ditf_rootdir_open_locale_cb(void *closure, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
+{
+	char path[PATH_MAX];
+	if (!locale)
+		locale = "(null)";
+	if (result < 0)
+		_hook_ditf_(ditf, "rootdir_open_locale(%s, %d, %s) -> %d, %m", filename, flags, locale, result);
+	else {
+		sprintf(path, "/proc/self/fd/%d", result);
+		readlink(path, path, sizeof path);
+		_hook_ditf_(ditf, "rootdir_open_locale(%s, %d, %s) -> %d = %s", filename, flags, locale, result, path);
+	}
+}
+
+
+static struct afb_hook_ditf_itf hook_ditf_default_itf = {
+	.hook_ditf_event_broadcast_before = hook_ditf_event_broadcast_before_cb,
+	.hook_ditf_event_broadcast_after = hook_ditf_event_broadcast_after_cb,
+	.hook_ditf_get_event_loop = hook_ditf_get_event_loop_cb,
+	.hook_ditf_get_user_bus = hook_ditf_get_user_bus_cb,
+	.hook_ditf_get_system_bus = hook_ditf_get_system_bus_cb,
+	.hook_ditf_vverbose = hook_ditf_vverbose_cb,
+	.hook_ditf_event_make = hook_ditf_event_make_cb,
+	.hook_ditf_rootdir_get_fd = hook_ditf_rootdir_get_fd_cb,
+	.hook_ditf_rootdir_open_locale = hook_ditf_rootdir_open_locale_cb,
+};
+
+/******************************************************************************
+ * section: hooks for tracing requests
+ *****************************************************************************/
+
+#define _HOOK_DITF_(what,...)   \
+	struct afb_hook_ditf *hook; \
+	pthread_rwlock_rdlock(&rwlock); \
+	hook = list_of_ditf_hooks; \
+	while (hook) { \
+		if (hook->itf->hook_ditf_##what \
+		 && (hook->flags & afb_hook_flag_ditf_##what) != 0 \
+		 && (!hook->api || !strcasecmp(hook->api, ditf->prefix))) { \
+			hook->itf->hook_ditf_##what(hook->closure, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
+
+void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object)
+{
+	_HOOK_DITF_(event_broadcast_before, ditf, name, object);
+}
+
+int afb_hook_ditf_event_broadcast_after(const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
+{
+	_HOOK_DITF_(event_broadcast_after, ditf, name, object, result);
+	return result;
+}
+
+struct sd_event *afb_hook_ditf_get_event_loop(const struct afb_ditf *ditf, struct sd_event *result)
+{
+	_HOOK_DITF_(get_event_loop, ditf, result);
+	return result;
+}
+
+struct sd_bus *afb_hook_ditf_get_user_bus(const struct afb_ditf *ditf, struct sd_bus *result)
+{
+	_HOOK_DITF_(get_user_bus, ditf, result);
+	return result;
+}
+
+struct sd_bus *afb_hook_ditf_get_system_bus(const struct afb_ditf *ditf, struct sd_bus *result)
+{
+	_HOOK_DITF_(get_system_bus, ditf, result);
+	return result;
+}
+
+void afb_hook_ditf_vverbose(const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+{
+	_HOOK_DITF_(vverbose, ditf, level, file, line, function, fmt, args);
+}
+
+struct afb_event afb_hook_ditf_event_make(const struct afb_ditf *ditf, const char *name, struct afb_event result)
+{
+	_HOOK_DITF_(event_make, ditf, name, result);
+	return result;
+}
+
+int afb_hook_ditf_rootdir_get_fd(const struct afb_ditf *ditf, int result)
+{
+	_HOOK_DITF_(rootdir_get_fd, ditf, result);
+	return result;
+}
+
+int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
+{
+	_HOOK_DITF_(rootdir_open_locale, ditf, filename, flags, locale, result);
+	return result;
+}
+
+
+
+/******************************************************************************
+ * section: 
+ *****************************************************************************/
+
+int afb_hook_flags_ditf(const char *api)
+{
+	int flags;
+	struct afb_hook_ditf *hook;
+
+	pthread_rwlock_rdlock(&rwlock);
+	flags = 0;
+	hook = list_of_ditf_hooks;
+	while (hook) {
+		if (!api || !hook->api || !strcasecmp(hook->api, api))
+			flags |= hook->flags;
+		hook = hook->next;
+	}
+	pthread_rwlock_unlock(&rwlock);
+	return flags;
+}
+
+struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure)
+{
+	struct afb_hook_ditf *hook;
+
+	/* alloc the result */
+	hook = calloc(1, sizeof *hook);
+	if (hook == NULL)
+		return NULL;
+
+	/* get a copy of the names */
+	hook->api = api ? strdup(api) : NULL;
+	if (api && !hook->api) {
+		free(hook);
+		return NULL;
+	}
+
+	/* initialise the rest */
+	hook->refcount = 1;
+	hook->flags = flags;
+	hook->itf = itf ? itf : &hook_ditf_default_itf;
+	hook->closure = closure;
+
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
+	hook->next = list_of_ditf_hooks;
+	list_of_ditf_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* returns it */
+	return hook;
+}
+
+struct afb_hook_ditf *afb_hook_addref_ditf(struct afb_hook_ditf *hook)
+{
+	pthread_rwlock_wrlock(&rwlock);
+	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
+	return hook;
+}
+
+void afb_hook_unref_ditf(struct afb_hook_ditf *hook)
+{
+	struct afb_hook_ditf **prv;
+
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_ditf_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook->api);
 			free(hook);
 		}
 	}

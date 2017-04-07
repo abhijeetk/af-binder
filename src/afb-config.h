@@ -54,6 +54,7 @@ struct afb_config {
 	int nbSessionMax;	// max count of sessions
 	int mode;		// mode of listening
 	int tracereq;
+	int traceditf;
 	int noHttpd;
 };
 

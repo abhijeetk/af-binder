@@ -616,6 +616,7 @@ int afb_api_dbus_add_client(const char *path)
 	afb_api.closure = api;
 	afb_api.call = api_dbus_client_call;
 	afb_api.service_start = api_dbus_service_start;
+	afb_api.update_hooks = NULL;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error2;
 

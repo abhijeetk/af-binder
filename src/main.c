@@ -411,6 +411,12 @@ static void start()
 		goto error;
 	}
 
+	/* install hooks */
+	if (config->tracereq)
+		afb_hook_create_xreq(NULL, NULL, NULL, config->tracereq, NULL, NULL);
+	if (config->traceditf)
+		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
+
 	afb_apis_set_timeout(config->apiTimeout);
 	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 	start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
@@ -434,10 +440,6 @@ static void start()
 	}
 
 	DEBUG("Init config done");
-
-	/* install trace of requests */
-	if (config->tracereq)
-		afb_hook_xreq_create(NULL, NULL, NULL, config->tracereq, NULL, NULL);
 
 	/* start the services */
 	if (afb_apis_start_all_services(1) < 0)
@@ -469,8 +471,6 @@ int main(int argc, char *argv[])
 {
 	// let's run this program with a low priority
 	nice(20);
-
-	LOGAUTH("afb-daemon");
 
 	sd_fds_init();
 
