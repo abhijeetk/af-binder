@@ -17,11 +17,14 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
+
 #include <json-c/json.h>
 
 #include <afb/afb-binding.h>
 
 const struct afb_binding_interface *interface;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct event
 {
@@ -211,48 +214,56 @@ static void eventadd (struct afb_req request)
 	const char *tag = afb_req_value(request, "tag");
 	const char *name = afb_req_value(request, "name");
 
+	pthread_mutex_lock(&mutex);
 	if (tag == NULL || name == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else if (0 != event_add(tag, name))
 		afb_req_fail(request, "failed", "creation error");
 	else
 		afb_req_success(request, NULL, NULL);
+	pthread_mutex_unlock(&mutex);
 }
 
 static void eventdel (struct afb_req request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
+	pthread_mutex_lock(&mutex);
 	if (tag == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else if (0 != event_del(tag))
 		afb_req_fail(request, "failed", "deletion error");
 	else
 		afb_req_success(request, NULL, NULL);
+	pthread_mutex_unlock(&mutex);
 }
 
 static void eventsub (struct afb_req request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
+	pthread_mutex_lock(&mutex);
 	if (tag == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else if (0 != event_subscribe(request, tag))
 		afb_req_fail(request, "failed", "subscription error");
 	else
 		afb_req_success(request, NULL, NULL);
+	pthread_mutex_unlock(&mutex);
 }
 
 static void eventunsub (struct afb_req request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
+	pthread_mutex_lock(&mutex);
 	if (tag == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else if (0 != event_unsubscribe(request, tag))
 		afb_req_fail(request, "failed", "unsubscription error");
 	else
 		afb_req_success(request, NULL, NULL);
+	pthread_mutex_unlock(&mutex);
 }
 
 static void eventpush (struct afb_req request)
@@ -261,12 +272,14 @@ static void eventpush (struct afb_req request)
 	const char *data = afb_req_value(request, "data");
 	json_object *object = data ? json_tokener_parse(data) : NULL;
 
+	pthread_mutex_lock(&mutex);
 	if (tag == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else if (0 > event_push(object, tag))
 		afb_req_fail(request, "failed", "push error");
 	else
 		afb_req_success(request, NULL, NULL);
+	pthread_mutex_unlock(&mutex);
 }
 
 static void exitnow (struct afb_req request)
