@@ -99,10 +99,49 @@ static void start_list(struct afb_config_list *list,
  +--------------------------------------------------------- */
 static void exit_handler()
 {
+	struct sigaction siga;
+
+	memset(&siga, 0, sizeof siga);
+	siga.sa_handler = SIG_IGN;
+	sigaction(SIGTERM, &siga, NULL);
+
 	if (SELF_PGROUP)
-		killpg(0, SIGHUP);
+		killpg(0, SIGTERM);
 	else if (childpid > 0)
-		killpg(childpid, SIGHUP);
+		killpg(childpid, SIGTERM);
+}
+
+static void on_sigterm(int signum, siginfo_t *info, void *uctx)
+{
+	NOTICE("Received SIGTERM");
+	exit(0);
+}
+
+static void on_sighup(int signum, siginfo_t *info, void *uctx)
+{
+	NOTICE("Received SIGHUP");
+	/* TODO */
+}
+
+static void setup_daemon()
+{
+	struct sigaction siga;
+
+	/* install signal handlers */
+	memset(&siga, 0, sizeof siga);
+	siga.sa_flags = SA_SIGINFO;
+
+	siga.sa_sigaction = on_sigterm;
+	sigaction(SIGTERM, &siga, NULL);
+
+	siga.sa_sigaction = on_sighup;
+	sigaction(SIGHUP, &siga, NULL);
+
+	/* handle groups */
+	atexit(exit_handler);
+
+	/* ignore any SIGPIPE */
+	signal(SIGPIPE, SIG_IGN);
 }
 
 /*----------------------------------------------------------
@@ -462,6 +501,7 @@ static void start()
 error:
 	exit(1);
 }
+
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action
@@ -488,11 +528,8 @@ int main(int argc, char *argv[])
 		INFO("entering foreground mode");
 	}
 
-	/* handle groups */
-	atexit(exit_handler);
-
-	/* ignore any SIGPIPE */
-	signal(SIGPIPE, SIG_IGN);
+	/* set the daemon environment */
+	setup_daemon();
 
 	/* enter job processing */
 	jobs_start(3, 0, 50, start);
