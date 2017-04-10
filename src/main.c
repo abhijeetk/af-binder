@@ -455,27 +455,28 @@ static void start()
 		goto error;
 	}
 
+	/* configure the daemon */
+	afb_apis_set_timeout(config->apiTimeout);
+	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
+	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
+		ERROR("initialisation of cookies failed");
+		goto error;
+	}
+
 	/* install hooks */
 	if (config->tracereq)
 		afb_hook_create_xreq(NULL, NULL, NULL, config->tracereq, NULL, NULL);
 	if (config->traceditf)
 		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
 
-	afb_apis_set_timeout(config->apiTimeout);
+	/* load bindings */
 	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 	start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
 	start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
 	start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
 
-	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
-
 	start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
 	start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
-
-	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
-		ERROR("initialisation of cookies failed");
-		goto error;
-	}
 
 	DEBUG("Init config done");
 
