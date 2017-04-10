@@ -260,7 +260,7 @@ static struct afb_hsrv *start_http_server()
 	}
 
 	NOTICE("Waiting port=%d rootdir=%s", config->httpdPort, config->rootdir);
-	NOTICE("Browser URL= http:/*localhost:%d", config->httpdPort);
+	NOTICE("Browser URL= http://localhost:%d", config->httpdPort);
 
 	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
 	if (!rc) {
