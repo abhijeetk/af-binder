@@ -559,13 +559,13 @@ static void config_set_default(struct afb_config *config)
 
 	/* set directories */
 	if (config->workdir == NULL)
-		config->workdir = get_current_dir_name();
+		config->workdir = ".";
 
 	if (config->rootdir == NULL)
-		config->rootdir = config->workdir;
+		config->rootdir = ".";
 
 	if (config->uploaddir == NULL)
-		config->uploaddir = config->workdir;
+		config->uploaddir = ".";
 
 	// if no Angular/HTML5 rootbase let's try '/' as default
 	if (config->rootbase == NULL)

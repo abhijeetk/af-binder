@@ -444,9 +444,14 @@ static void start()
 		goto error;
 	}
 
+	/* set the directories */
 	mkdir(config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
 	if (chdir(config->workdir) < 0) {
 		ERROR("Can't enter working dir %s", config->workdir);
+		goto error;
+	}
+	if (afb_common_rootdir_set(config->rootdir) < 0) {
+		ERROR("failed to set common root directory");
 		goto error;
 	}
 
@@ -469,12 +474,6 @@ static void start()
 
 	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
 		ERROR("initialisation of cookies failed");
-		goto error;
-	}
-
-	// set the root dir
-	if (afb_common_rootdir_set(config->rootdir) < 0) {
-		ERROR("failed to set common root directory");
 		goto error;
 	}
 
