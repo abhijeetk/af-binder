@@ -115,6 +115,8 @@ static void on_signal_error(int signum)
 {
 	sigset_t sigset;
 
+	ERROR("ALERT! signal %d received: %s", signum, strsignal(signum));
+
 	// unlock signal to allow a new signal to come
 	if (error_handler != NULL) {
 		sigemptyset(&sigset);

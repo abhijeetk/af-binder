@@ -29,15 +29,14 @@ struct json_object *afb_msg_json_reply(const char *status, const char *info, str
 {
 	json_object *msg, *request;
 	const char *token, *uuid;
-	static json_object *type_reply = NULL;
+	json_object *type_reply = NULL;
 
 	msg = json_object_new_object();
 	if (resp != NULL)
 		json_object_object_add(msg, "response", resp);
 
-	if (type_reply == NULL)
-		type_reply = json_object_new_string("afb-reply");
-	json_object_object_add(msg, "jtype", json_object_get(type_reply));
+	type_reply = json_object_new_string("afb-reply");
+	json_object_object_add(msg, "jtype", type_reply);
 
 	request = json_object_new_object();
 	json_object_object_add(msg, "request", request);
@@ -75,7 +74,7 @@ struct json_object *afb_msg_json_reply_error(const char *status, const char *inf
 struct json_object *afb_msg_json_event(const char *event, struct json_object *object)
 {
 	json_object *msg;
-	static json_object *type_event = NULL;
+	json_object *type_event = NULL;
 
 	msg = json_object_new_object();
 
@@ -84,9 +83,8 @@ struct json_object *afb_msg_json_event(const char *event, struct json_object *ob
 	if (object != NULL)
 		json_object_object_add(msg, "data", object);
 
-	if (type_event == NULL)
-		type_event = json_object_new_string("afb-event");
-	json_object_object_add(msg, "jtype", json_object_get(type_event));
+	type_event = json_object_new_string("afb-event");
+	json_object_object_add(msg, "jtype", type_event);
 
 	return msg;
 }

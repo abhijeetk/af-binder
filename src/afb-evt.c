@@ -22,6 +22,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include <json-c/json.h>
 #include <afb/afb-event-itf.h>
@@ -47,6 +48,9 @@ struct afb_evt_listener {
 	/* head of the list of events listened */
 	struct afb_evt_watch *watchs;
 
+	/* mutex of the listener */
+	pthread_mutex_t mutex;
+
 	/* count of reference to the listener */
 	int refcount;
 };
@@ -64,6 +68,9 @@ struct afb_evt_event {
 
 	/* id of the event */
 	int id;
+
+	/* mutex of the event */
+	pthread_mutex_t mutex;
 
 	/* name of the event */
 	char name[1];
@@ -105,9 +112,11 @@ static struct afb_event_itf afb_evt_event_itf = {
 };
 
 /* head of the list of listeners */
+static pthread_mutex_t listeners_mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct afb_evt_listener *listeners = NULL;
 
 /* handling id of events */
+static pthread_mutex_t events_mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct afb_evt_event *events = NULL;
 static int event_id_counter = 0;
 static int event_id_wrapped = 0;
@@ -133,6 +142,7 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
 	struct afb_evt_listener *listener;
 
 	result = 0;
+	pthread_mutex_lock(&listeners_mutex);
 	listener = listeners;
 	while(listener) {
 		if (listener->itf->broadcast != NULL) {
@@ -141,6 +151,7 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
 		}
 		listener = listener->next;
 	}
+	pthread_mutex_unlock(&listeners_mutex);
 	json_object_put(object);
 	return result;
 }
@@ -157,6 +168,7 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 	struct afb_evt_listener *listener;
 
 	result = 0;
+	pthread_mutex_lock(&evt->mutex);
 	watch = evt->watchs;
 	while(watch) {
 		listener = watch->listener;
@@ -166,6 +178,7 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 		watch = watch->next_by_event;
 		result++;
 	}
+	pthread_mutex_unlock(&evt->mutex);
 	json_object_put(obj);
 	return result;
 }
@@ -214,25 +227,35 @@ static void remove_watch(struct afb_evt_watch *watch)
  */
 static void evt_destroy(struct afb_evt_event *evt)
 {
+	int found;
 	struct afb_evt_event **prv;
+	struct afb_evt_listener *listener;
+
 	if (evt != NULL) {
-		/* removes the event if valid! */
+		/* unlinks the event if valid! */
+		pthread_mutex_lock(&events_mutex);
 		prv = &events;
-		while (*prv != NULL) {
-			if (*prv != evt)
-				prv = &(*prv)->next;
-			else {
-				/* valid, unlink */
-				*prv = evt->next;
+		while (*prv && !(found = (*prv == evt)))
+			prv = &(*prv)->next;
+		if (found)
+			*prv = evt->next;
+		pthread_mutex_unlock(&events_mutex);
 
-				/* removes all watchers */
-				while(evt->watchs != NULL)
-					remove_watch(evt->watchs);
-
-				/* free */
-				free(evt);
-				break;
+		/* destroys the event */
+		if (found) {
+			/* removes all watchers */
+			while(evt->watchs != NULL) {
+				listener = evt->watchs->listener;
+				pthread_mutex_lock(&listener->mutex);
+				pthread_mutex_lock(&evt->mutex);
+				remove_watch(evt->watchs);
+				pthread_mutex_unlock(&evt->mutex);
+				pthread_mutex_unlock(&listener->mutex);
 			}
+
+			/* free */
+			pthread_mutex_destroy(&evt->mutex);
+			free(evt);
 		}
 	}
 }
@@ -246,7 +269,18 @@ struct afb_event afb_evt_create_event(const char *name)
 	size_t len;
 	struct afb_evt_event *evt;
 
+	/* allocates the event */
+	len = strlen(name);
+	evt = malloc(len + sizeof * evt);
+	if (evt == NULL)
+		goto error;
+
+	/* initialize the event */
+	evt->watchs = NULL;
+	memcpy(evt->name, name, len + 1);
+
 	/* allocates the id */
+	pthread_mutex_lock(&events_mutex);
 	do {
 		if (++event_id_counter < 0) {
 			event_id_wrapped = 1;
@@ -259,19 +293,14 @@ struct afb_event afb_evt_create_event(const char *name)
 			evt = evt->next;
 	} while (evt != NULL);
 
-	/* allocates the event */
-	len = strlen(name);
-	evt = malloc(len + sizeof * evt);
-	if (evt == NULL)
-		goto error;
-
 	/* initialize the event */
+	memcpy(evt->name, name, len + 1);
 	evt->next = events;
 	evt->watchs = NULL;
 	evt->id = event_id_counter;
-	assert(evt->id > 0);
-	memcpy(evt->name, name, len + 1);
+	pthread_mutex_init(&evt->mutex, NULL);
 	events = evt;
+	pthread_mutex_unlock(&events_mutex);
 
 	/* returns the event */
 	return (struct afb_event){ .itf = &afb_evt_event_itf, .closure = evt };
@@ -305,10 +334,13 @@ struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, 
 	struct afb_evt_listener *listener;
 
 	/* search if an instance already exists */
+	pthread_mutex_lock(&listeners_mutex);
 	listener = listeners;
 	while (listener != NULL) {
-		if (listener->itf == itf && listener->closure == closure)
-			return afb_evt_listener_addref(listener);
+		if (listener->itf == itf && listener->closure == closure) {
+			listener = afb_evt_listener_addref(listener);
+			goto found;
+		}
 		listener = listener->next;
 	}
 
@@ -316,13 +348,16 @@ struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, 
 	listener = calloc(1, sizeof *listener);
 	if (listener != NULL) {
 		/* init */
-		listener->next = listeners;
 		listener->itf = itf;
 		listener->closure = closure;
 		listener->watchs = NULL;
 		listener->refcount = 1;
+		pthread_mutex_init(&listener->mutex, NULL);
+		listener->next = listeners;
 		listeners = listener;
 	}
+ found:
+	pthread_mutex_unlock(&listeners_mutex);
 	return listener;
 }
 
@@ -331,7 +366,7 @@ struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, 
  */
 struct afb_evt_listener *afb_evt_listener_addref(struct afb_evt_listener *listener)
 {
-	listener->refcount++;
+	__atomic_add_fetch(&listener->refcount, 1, __ATOMIC_RELAXED);
 	return listener;
 }
 
@@ -341,20 +376,31 @@ struct afb_evt_listener *afb_evt_listener_addref(struct afb_evt_listener *listen
  */
 void afb_evt_listener_unref(struct afb_evt_listener *listener)
 {
-	if (0 == --listener->refcount) {
-		struct afb_evt_listener **prv;
+	struct afb_evt_listener **prv;
+	struct afb_evt_event *evt;
 
-		/* remove the watchers */
-		while (listener->watchs != NULL)
-			remove_watch(listener->watchs);
+	if (!__atomic_sub_fetch(&listener->refcount, 1, __ATOMIC_RELAXED)) {
 
 		/* unlink the listener */
+		pthread_mutex_lock(&listeners_mutex);
 		prv = &listeners;
 		while (*prv != listener)
 			prv = &(*prv)->next;
 		*prv = listener->next;
+		pthread_mutex_unlock(&listeners_mutex);
+
+		/* remove the watchers */
+		pthread_mutex_lock(&listener->mutex);
+		while (listener->watchs != NULL) {
+			evt = listener->watchs->event;
+			pthread_mutex_lock(&evt->mutex);
+			remove_watch(listener->watchs);
+			pthread_mutex_unlock(&evt->mutex);
+		}
+		pthread_mutex_unlock(&listener->mutex);
 
 		/* free the listener */
+		pthread_mutex_destroy(&listener->mutex);
 		free(listener);
 	}
 }
@@ -376,6 +422,7 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 
 	/* search the existing watch for the listener */
 	evt = event.closure;
+	pthread_mutex_lock(&listener->mutex);
 	watch = listener->watchs;
 	while(watch != NULL) {
 		if (watch->event == evt)
@@ -386,23 +433,27 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 	/* not found, allocate a new */
 	watch = malloc(sizeof *watch);
 	if (watch == NULL) {
+		pthread_mutex_unlock(&listener->mutex);
 		errno = ENOMEM;
 		return -1;
 	}
 
 	/* initialise and link */
 	watch->event = evt;
-	watch->next_by_event = evt->watchs;
+	watch->activity = 0;
 	watch->listener = listener;
 	watch->next_by_listener = listener->watchs;
-	watch->activity = 0;
-	evt->watchs = watch;
 	listener->watchs = watch;
+	pthread_mutex_lock(&evt->mutex);
+	watch->next_by_event = evt->watchs;
+	evt->watchs = watch;
+	pthread_mutex_unlock(&evt->mutex);
 
 found:
 	if (watch->activity == 0 && listener->itf->add != NULL)
 		listener->itf->add(listener->closure, evt->name, evt->id);
 	watch->activity++;
+	pthread_mutex_unlock(&listener->mutex);
 
 	return 0;
 }
@@ -424,6 +475,7 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 
 	/* search the existing watch */
 	evt = event.closure;
+	pthread_mutex_lock(&listener->mutex);
 	watch = listener->watchs;
 	while(watch != NULL) {
 		if (watch->event == evt) {
@@ -433,10 +485,12 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 				if (watch->activity == 0 && listener->itf->remove != NULL)
 					listener->itf->remove(listener->closure, evt->name, evt->id);
 			}
+			pthread_mutex_unlock(&listener->mutex);
 			return 0;
 		}
 		watch = watch->next_by_listener;
 	}
+	pthread_mutex_unlock(&listener->mutex);
 	errno = ENOENT;
 	return -1;
 }

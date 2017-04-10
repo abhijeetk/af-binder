@@ -407,7 +407,7 @@ static int aws_read(struct afb_ws *ws, size_t size)
 					return 0;
 				pfd.fd = ws->fd;
 				pfd.events = POLLIN;
-				poll(&pfd, 1, 10);
+				poll(&pfd, 1, 10); /* TODO: make fully asynchronous websockets */
 			} else {
 				ws->buffer.size += (size_t)sz;
 				size -= (size_t)sz;
