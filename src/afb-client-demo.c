@@ -111,6 +111,7 @@ int main(int ac, char **av, char **env)
 static void on_hangup(void *closure, struct afb_wsj1 *wsj1)
 {
 	printf("ON-HANGUP\n");
+	fflush(stdout);
 	exit(0);
 }
 
@@ -119,6 +120,7 @@ static void on_call(void *closure, const char *api, const char *verb, struct afb
 {
 	int rc;
 	printf("ON-CALL %s/%s(%s)\n", api, verb, afb_wsj1_msg_object_s(msg));
+	fflush(stdout);
 	rc = afb_wsj1_reply_error_s(msg, "\"unimplemented\"", NULL);
 	if (rc < 0)
 		fprintf(stderr, "replying failed: %m\n");
@@ -128,12 +130,14 @@ static void on_call(void *closure, const char *api, const char *verb, struct afb
 static void on_event(void *closure, const char *event, struct afb_wsj1_msg *msg)
 {
 	printf("ON-EVENT %s(%s)\n", event, afb_wsj1_msg_object_s(msg));
+	fflush(stdout);
 }
 
 /* called when wsj1 receives a reply */
 static void on_reply(void *closure, struct afb_wsj1_msg *msg)
 {
 	printf("ON-REPLY %s: %s\n", (char*)closure, afb_wsj1_msg_object_s(msg));
+	fflush(stdout);
 	free(closure);
 	callcount--;
 	if (exonrep && !callcount)
