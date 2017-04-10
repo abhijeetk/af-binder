@@ -70,7 +70,7 @@ extern int websock_continue_v(struct websock *ws, int last, const struct iovec *
 extern ssize_t websock_read(struct websock *ws, void *buffer, size_t size);
 extern int websock_drop(struct websock *ws);
 
-extern int websock_dispatch(struct websock *ws);
+extern int websock_dispatch(struct websock *ws, int loop);
 
 extern struct websock *websock_create_v13(const struct websock_itf *itf, void *closure);
 extern void websock_destroy(struct websock *ws);

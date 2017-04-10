@@ -303,7 +303,7 @@ static int check_control_header(struct websock *ws)
 	return 1;
 }
 
-int websock_dispatch(struct websock *ws)
+int websock_dispatch(struct websock *ws, int loop)
 {
 	uint16_t code;
 loop:
@@ -418,16 +418,22 @@ loop:
 			ws->itf->on_continue(ws->closure,
 					     FRAME_GET_FIN(ws->header[0]),
 					     (size_t) ws->length);
+			if (!loop)
+				return 0;
 			break;
 		case OPCODE_TEXT:
 			ws->itf->on_text(ws->closure,
 					 FRAME_GET_FIN(ws->header[0]),
 					 (size_t) ws->length);
+			if (!loop)
+				return 0;
 			break;
 		case OPCODE_BINARY:
 			ws->itf->on_binary(ws->closure,
 					   FRAME_GET_FIN(ws->header[0]),
 					   (size_t) ws->length);
+			if (!loop)
+				return 0;
 			break;
 		case OPCODE_CLOSE:
 			if (ws->length == 0)
@@ -447,6 +453,8 @@ loop:
 				websock_pong(ws, NULL, 0);
 			}
 			ws->state = STATE_INIT;
+			if (!loop)
+				return 0;
 			break;
 		case OPCODE_PONG:
 			if (ws->itf->on_pong)
@@ -454,6 +462,8 @@ loop:
 			else
 				websock_drop(ws);
 			ws->state = STATE_INIT;
+			if (!loop)
+				return 0;
 			break;
 		default:
 			goto protocol_error;

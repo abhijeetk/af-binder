@@ -379,7 +379,7 @@ static void aws_on_readable(struct afb_ws *ws)
 	int rc;
 
 	assert(ws->ws != NULL);
-	rc = websock_dispatch(ws->ws);
+	rc = websock_dispatch(ws->ws, 0);
 	if (rc < 0 && errno == EPIPE)
 		afb_ws_hangup(ws);
 }
