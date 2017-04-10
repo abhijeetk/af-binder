@@ -856,6 +856,11 @@ static int api_ws_client_connect(struct api_ws *api)
 	return -1;
 }
 
+static struct afb_api_itf ws_api_itf = {
+	.call = api_ws_client_call_cb,
+	.service_start = api_ws_service_start_cb
+};
+
 /* adds a afb-ws-service client api */
 int afb_api_ws_add_client(const char *path)
 {
@@ -877,9 +882,7 @@ int afb_api_ws_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.call = api_ws_client_call_cb;
-	afb_api.service_start = api_ws_service_start_cb;
-	afb_api.update_hooks = NULL;
+	afb_api.itf = &ws_api_itf;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error3;
 

@@ -205,7 +205,7 @@ int afb_apis_start_service(const char *api, int share_session, int onneed)
 
 	for (i = 0 ; i < apis_count ; i++) {
 		if (!strcasecmp(apis_array[i].name, api))
-			return apis_array[i].api.service_start(apis_array[i].api.closure, share_session, onneed);
+			return apis_array[i].api.itf->service_start(apis_array[i].api.closure, share_session, onneed);
 	}
 	ERROR("can't find service %s", api);
 	errno = ENOENT;
@@ -223,7 +223,7 @@ int afb_apis_start_all_services(int share_session)
 	int i, rc;
 
 	for (i = 0 ; i < apis_count ; i++) {
-		rc = apis_array[i].api.service_start(apis_array[i].api.closure, share_session, 1);
+		rc = apis_array[i].api.itf->service_start(apis_array[i].api.closure, share_session, 1);
 		if (rc < 0)
 			return rc;
 	}
@@ -244,7 +244,7 @@ static void do_call_direct(struct afb_xreq *xreq)
 		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
 	else {
 		xreq->context.api_key = a->api.closure;
-		a->api.call(a->api.closure, xreq);
+		a->api.itf->call(a->api.closure, xreq);
 	}
 }
 
@@ -294,18 +294,94 @@ void afb_apis_call(struct afb_xreq *xreq)
 }
 
 /**
- * Ask to update the hook flags
+ * Ask to update the hook flags of the 'api'
+ * @param api the api to update (NULL updates all)
  */
-void afb_apis_update_hooks()
+void afb_apis_update_hooks(const char *api)
 {
 	const struct api_desc *i, *e;
 
-	i = apis_array;
-	e = &apis_array[apis_count]; 
+	if (!api) {
+		i = apis_array;
+		e = &apis_array[apis_count];
+	} else {
+		i = search(api);
+		e = &i[!!i];
+	}
 	while (i != e) {
-		if (i->api.update_hooks)
-			i->api.update_hooks(i->api.closure);
+		if (i->api.itf->update_hooks)
+			i->api.itf->update_hooks(i->api.closure);
 		i++;
 	}
+}
+
+/**
+ * Set the verbosity level of the 'api'
+ * @param api the api to set (NULL set all)
+ */
+void afb_apis_set_verbosity(const char *api, int level)
+{
+	const struct api_desc *i, *e;
+
+	if (!api) {
+		i = apis_array;
+		e = &apis_array[apis_count];
+	} else {
+		i = search(api);
+		e = &i[!!i];
+	}
+	while (i != e) {
+		if (i->api.itf->set_verbosity)
+			i->api.itf->set_verbosity(i->api.closure, level);
+		i++;
+	}
+}
+
+/**
+ * Set the verbosity level of the 'api'
+ * @param api the api to set (NULL set all)
+ */
+int afb_apis_get_verbosity(const char *api)
+{
+	const struct api_desc *i;
+
+	i = api ? search(api) : NULL;
+	if (!i) {
+		errno = ENOENT;
+		return -1;
+	}
+	if (!i->api.itf->get_verbosity)
+		return 0;
+
+	return i->api.itf->get_verbosity(i->api.closure);
+}
+
+/**
+ * Get the list of api names
+ * @return a NULL terminated array of api names. Must be freed.
+ */
+const char **afb_apis_get_names()
+{
+	size_t size;
+	char *dest;
+	const char **names;
+	int i;
+
+	size = apis_count * (1 + sizeof(*names)) + sizeof(*names);
+	for (i = 0 ; i < apis_count ; i++)
+		size += strlen(apis_array[i].name);
+
+	names = malloc(size);
+	if (!names)
+		errno = ENOMEM;
+	else {
+		dest = (void*)&names[apis_count+1];
+		for (i = 0 ; i < apis_count ; i++) {
+			names[i] = dest;
+			dest = stpcpy(dest, apis_array[i].name) + 1;
+		}
+		names[i] = NULL;
+	}
+	return names;
 }
 

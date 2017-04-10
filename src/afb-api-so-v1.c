@@ -121,6 +121,26 @@ static void update_hooks_cb(void *closure)
 	afb_ditf_update_hook(&desc->ditf);
 }
 
+static int get_verbosity_cb(void *closure)
+{
+	struct api_so_v1 *desc = closure;
+	return desc->ditf.interface.verbosity;
+}
+
+static void set_verbosity_cb(void *closure, int level)
+{
+	struct api_so_v1 *desc = closure;
+	desc->ditf.interface.verbosity = level;
+}
+
+static struct afb_api_itf so_v1_api_itf = {
+	.call = call_cb,
+	.service_start = service_start_cb,
+	.update_hooks = update_hooks_cb,
+	.get_verbosity = get_verbosity_cb,
+	.set_verbosity = set_verbosity_cb
+};
+
 int afb_api_so_v1_add(const char *path, void *handle)
 {
 	struct api_so_v1 *desc;
@@ -177,9 +197,7 @@ int afb_api_so_v1_add(const char *path, void *handle)
 	/* records the binding */
 	afb_ditf_rename(&desc->ditf, desc->binding->v1.prefix);
 	afb_api.closure = desc;
-	afb_api.call = call_cb;
-	afb_api.service_start = service_start_cb;
-	afb_api.update_hooks = update_hooks_cb;
+	afb_api.itf = &so_v1_api_itf;
 	if (afb_apis_add(desc->binding->v1.prefix, afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;

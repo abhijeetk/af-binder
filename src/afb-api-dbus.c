@@ -576,6 +576,11 @@ static int api_dbus_client_on_manage_event(sd_bus_message *m, void *userdata, sd
 	return 1;
 }
 
+static struct afb_api_itf dbus_api_itf = {
+	.call = api_dbus_client_call,
+	.service_start = api_dbus_service_start
+};
+
 /* adds a afb-dbus-service client api */
 int afb_api_dbus_add_client(const char *path)
 {
@@ -614,9 +619,7 @@ int afb_api_dbus_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.call = api_dbus_client_call;
-	afb_api.service_start = api_dbus_service_start;
-	afb_api.update_hooks = NULL;
+	afb_api.itf = &dbus_api_itf;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error2;
 
