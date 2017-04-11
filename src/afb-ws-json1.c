@@ -231,9 +231,10 @@ static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
 static void wsreq_reply(struct afb_wsreq *wsreq, int iserror, json_object *obj)
 {
 	int rc;
+
 	rc = (iserror ? afb_wsj1_reply_error_j : afb_wsj1_reply_ok_j)(
 			wsreq->msgj1, obj, afb_context_sent_token(&wsreq->xreq.context));
 	if (rc)
-		ERROR("Can't send reply: %m (was %s)", json_object_get_string(obj));
+		ERROR("Can't send reply: %m");
 }
 
