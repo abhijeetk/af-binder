@@ -280,6 +280,7 @@ static void eventpush (struct afb_req request)
 	else
 		afb_req_success(request, NULL, NULL);
 	pthread_mutex_unlock(&mutex);
+	json_object_put(object);
 }
 
 static void exitnow (struct afb_req request)
