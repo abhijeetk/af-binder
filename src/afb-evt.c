@@ -234,6 +234,7 @@ static void evt_destroy(struct afb_evt_event *evt)
 	if (evt != NULL) {
 		/* unlinks the event if valid! */
 		pthread_mutex_lock(&events_mutex);
+		found = 0;
 		prv = &events;
 		while (*prv && !(found = (*prv == evt)))
 			prv = &(*prv)->next;
