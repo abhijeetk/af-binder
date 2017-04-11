@@ -498,7 +498,7 @@ static void aws_on_binary(struct afb_ws *ws, int last, size_t size)
 }
 
 /*
- * Callback when 'close' command received from 'ws' with 'code' and 'size'.
+ * Callback when 'continue' command received from 'ws' with 'code' and 'size'.
  */
 static void aws_on_continue(struct afb_ws *ws, int last, size_t size)
 {
