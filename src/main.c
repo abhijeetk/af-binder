@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <json-c/json.h>
+
 #include <systemd/sd-event.h>
 #include <systemd/sd-daemon.h>
 
@@ -41,6 +43,7 @@
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
+#include "afb-xreq.h"
 #include "jobs.h"
 #include "afb-session.h"
 #include "verbose.h"
@@ -431,6 +434,101 @@ static int execute_command()
 }
 
 /*---------------------------------------------------------
+ | startup calls
+ +--------------------------------------------------------- */
+
+struct startup_req
+{
+	struct afb_xreq xreq;
+	char *api;
+	char *verb;
+	struct afb_config_list *current;
+	struct afb_session *session;
+};
+
+static void startup_call_reply(void *closure, int iserror, struct json_object *obj)
+{
+	struct startup_req *sreq = closure;
+
+	if (!iserror)
+		NOTICE("startup call %s returned %s", sreq->current->value, json_object_get_string(obj));
+	else {
+		ERROR("startup call %s ERROR! %s", sreq->current->value, json_object_get_string(obj));
+		exit(1);
+	}
+}
+
+static void startup_call_current(struct startup_req *sreq);
+
+static void startup_call_unref(void *closure)
+{
+	struct startup_req *sreq = closure;
+
+	free(sreq->api);
+	free(sreq->verb);
+	json_object_put(sreq->xreq.json);
+	sreq->current = sreq->current->next;
+	if (sreq->current)
+		startup_call_current(sreq);
+	else {
+		afb_session_close(sreq->session);
+		afb_session_unref(sreq->session);
+		free(sreq);
+	}
+}
+
+static struct afb_xreq_query_itf startup_xreq_itf =
+{
+	.reply = startup_call_reply,
+	.unref = startup_call_unref
+};
+
+static void startup_call_current(struct startup_req *sreq)
+{
+	char *api, *verb, *json;
+
+	api = sreq->current->value;
+	verb = strchr(api, '/');
+	if (verb) {
+		json = strchr(verb, ':');
+		if (json) {
+			memset(&sreq->xreq, 0, sizeof sreq->xreq);
+			afb_context_init(&sreq->xreq.context, sreq->session, NULL);
+			sreq->xreq.context.validated = 1;
+			sreq->api = strndup(api, verb - api);
+			sreq->xreq.api = sreq->api;
+			sreq->verb = strndup(verb + 1, json - verb - 1);
+			sreq->xreq.verb = sreq->verb;
+			sreq->xreq.json = json_tokener_parse(json + 1);
+			sreq->xreq.refcount = 1;
+			sreq->xreq.query = sreq;
+			sreq->xreq.queryitf = &startup_xreq_itf;
+			if (sreq->api && sreq->verb && sreq->xreq.json) {
+				afb_apis_call(&sreq->xreq);
+				afb_xreq_unref(&sreq->xreq);
+				return;
+			}
+		}
+	}
+	ERROR("Bad call specification %s", sreq->current->value);
+	exit(1);
+}
+
+static void run_startup_calls()
+{
+	struct afb_config_list *list;
+	struct startup_req *sreq;
+
+	list = config->calls;
+	if (list) {
+		sreq = calloc(1, sizeof *sreq);
+		sreq->session = afb_session_create("startup", 3600);
+		sreq->current = list;
+		startup_call_current(sreq);
+	}
+}
+
+/*---------------------------------------------------------
  | job for starting the daemon
  +--------------------------------------------------------- */
 
@@ -497,6 +595,9 @@ static void start()
 
 	/* ready */
 	sd_notify(1, "READY=1");
+
+	/* run the startup calls */
+	run_startup_calls();
 	return;
 error:
 	exit(1);

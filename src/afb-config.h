@@ -43,6 +43,7 @@ struct afb_config {
 	struct afb_config_list *ws_servers;
 	struct afb_config_list *so_bindings;
 	struct afb_config_list *ldpaths;
+	struct afb_config_list *calls;
 
 	char **exec;
 

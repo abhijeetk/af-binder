@@ -85,6 +85,7 @@
 
 #define SET_NO_HTTPD       28
 
+#define ADD_CALL           'c'
 #define SET_TRACEDITF      'D'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
@@ -97,7 +98,7 @@
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
 
-#define SHORTOPTS	"D:ehqrT:t:u:Vvw:"
+#define SHORTOPTS	"c:D:ehqrT:t:u:Vvw:"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -151,6 +152,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
 	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
+	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
@@ -437,6 +439,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			list_add(&config->ldpaths, argvalstr(optc));
 			break;
 
+		case ADD_CALL:
+			list_add(&config->calls, argvalstr(optc));
+			break;
+
 		case SET_SESSION_DIR:
 			/* config->sessiondir = argvalstr(optc); */
 			WARNING("Obsolete otpion %s ignored", optname(optc));
@@ -620,6 +626,7 @@ void afb_config_dump(struct afb_config *config)
 	L(ws_servers)
 	L(so_bindings)
 	L(ldpaths)
+	L(calls)
 
 	V(exec)
 
