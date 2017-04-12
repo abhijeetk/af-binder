@@ -56,12 +56,8 @@ struct svc_req
 	struct afb_xreq xreq;
 
 	/* the args */
-	struct json_object *args;
 	void (*callback)(void*, int, struct json_object*);
 	void *closure;
-
-	/* the service */
-	struct afb_svc *svc;
 };
 
 /* functions for services */
@@ -81,14 +77,12 @@ static const struct afb_evt_itf evt_itf = {
 };
 
 /* functions for requests of services */
-static struct json_object *svcreq_json(void *closure);
-static void svcreq_destroy(void *closure);
-static void svcreq_reply(void *closure, int iserror, json_object *obj);
+static void svcreq_destroy(struct afb_xreq *xreq);
+static void svcreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj);
 
 /* interface for requests of services */
 const struct afb_xreq_query_itf afb_svc_xreq_itf = {
 	.unref = svcreq_destroy,
-	.json = svcreq_json,
 	.reply = svcreq_reply
 };
 
@@ -233,41 +227,32 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	}
 
 	/* initialises the request */
+	afb_xreq_init(&svcreq->xreq, &afb_svc_xreq_itf);
 	afb_context_init(&svcreq->xreq.context, svc->session, NULL);
 	svcreq->xreq.context.validated = 1;
-	svcreq->xreq.refcount = 1;
-	svcreq->xreq.query = svcreq;
-	svcreq->xreq.queryitf = &afb_svc_xreq_itf;
 	svcreq->xreq.api = api;
 	svcreq->xreq.verb = verb;
 	svcreq->xreq.listener = svc->listener;
-	svcreq->args = args;
+	svcreq->xreq.json = args;
 	svcreq->callback = callback;
 	svcreq->closure = cbclosure;
-	svcreq->svc = svc;
 
 	/* terminates and frees ressources if needed */
 	afb_apis_call(&svcreq->xreq);
 	afb_xreq_unref(&svcreq->xreq);
 }
 
-static void svcreq_destroy(void *closure)
+static void svcreq_destroy(struct afb_xreq *xreq)
 {
-	struct svc_req *svcreq = closure;
+	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
 	afb_context_disconnect(&svcreq->xreq.context);
-	json_object_put(svcreq->args);
+	json_object_put(svcreq->xreq.json);
 	free(svcreq);
 }
 
-static struct json_object *svcreq_json(void *closure)
+static void svcreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
 {
-	struct svc_req *svcreq = closure;
-	return svcreq->args;
-}
-
-static void svcreq_reply(void *closure, int iserror, json_object *obj)
-{
-	struct svc_req *svcreq = closure;
+	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
 	svcreq->callback(svcreq->closure, iserror, obj);
 	json_object_put(obj);
 }

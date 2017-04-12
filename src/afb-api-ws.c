@@ -159,11 +159,11 @@ struct api_ws_server_req {
 	uint32_t msgid;			/* the incoming request msgid */
 };
 
-static void api_ws_server_req_success_cb(void *closure, struct json_object *obj, const char *info);
-static void api_ws_server_req_fail_cb(void *closure, const char *status, const char *info);
-static void api_ws_server_req_destroy_cb(void *closure);
-static int api_ws_server_req_subscribe_cb(void *closure, struct afb_event event);
-static int api_ws_server_req_unsubscribe_cb(void *closure, struct afb_event event);
+static void api_ws_server_req_success_cb(struct afb_xreq *xreq, struct json_object *obj, const char *info);
+static void api_ws_server_req_fail_cb(struct afb_xreq *xreq, const char *status, const char *info);
+static void api_ws_server_req_destroy_cb(struct afb_xreq *xreq);
+static int api_ws_server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event event);
+static int api_ws_server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event event);
 
 const struct afb_xreq_query_itf afb_api_ws_xreq_itf = {
 	.success = api_ws_server_req_success_cb,
@@ -937,6 +937,7 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 	 || !api_ws_read_string(rb, &wreq->request, &wreq->lenreq))
 		goto overflow;
 
+	afb_xreq_init(&wreq->xreq, &afb_api_ws_xreq_itf);
 	wreq->xreq.json = json_tokener_parse(wreq->request);
 	if (wreq->xreq.json == NULL && strcmp(wreq->request, "null")) {
 		wreq->xreq.json = json_object_new_string(wreq->request);
@@ -948,11 +949,8 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 	wreq->xreq.context.flags = flags;
 
 	/* makes the call */
-	wreq->xreq.refcount = 1;
 	wreq->xreq.api = client->api;
 	wreq->xreq.verb = verb;
-	wreq->xreq.query = wreq;
-	wreq->xreq.queryitf = &afb_api_ws_xreq_itf;
 	afb_apis_call(&wreq->xreq);
 	afb_xreq_unref(&wreq->xreq);
 	return;
@@ -1071,9 +1069,9 @@ static void api_ws_server_event_broadcast(void *closure, const char *event, int 
 /******************* ws request part for server *****************/
 
 /* decrement the reference count of the request and free/release it on falling to null */
-static void api_ws_server_req_destroy_cb(void *closure)
+static void api_ws_server_req_destroy_cb(struct afb_xreq *xreq)
 {
-	struct api_ws_server_req *wreq = closure;
+	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	afb_context_disconnect(&wreq->xreq.context);
 	json_object_put(wreq->xreq.json);
@@ -1082,11 +1080,11 @@ static void api_ws_server_req_destroy_cb(void *closure)
 	free(wreq);
 }
 
-static void api_ws_server_req_success_cb(void *closure, struct json_object *obj, const char *info)
+static void api_ws_server_req_success_cb(struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
 	int rc;
 	struct writebuf wb = { .count = 0 };
-	struct api_ws_server_req *wreq = closure;
+	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	if (api_ws_write_char(&wb, 'T')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1102,11 +1100,11 @@ success:
 	json_object_put(obj);
 }
 
-static void api_ws_server_req_fail_cb(void *closure, const char *status, const char *info)
+static void api_ws_server_req_fail_cb(struct afb_xreq *xreq, const char *status, const char *info)
 {
 	int rc;
 	struct writebuf wb = { .count = 0 };
-	struct api_ws_server_req *wreq = closure;
+	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	if (api_ws_write_char(&wb, 'F')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1120,11 +1118,11 @@ static void api_ws_server_req_fail_cb(void *closure, const char *status, const c
 	ERROR("error while sending fail");
 }
 
-static int api_ws_server_req_subscribe_cb(void *closure, struct afb_event event)
+static int api_ws_server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event event)
 {
 	int rc, rc2;
 	struct writebuf wb = { .count = 0 };
-	struct api_ws_server_req *wreq = closure;
+	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	rc = afb_evt_add_watch(wreq->client->listener, event);
 	if (rc < 0)
@@ -1143,11 +1141,11 @@ success:
 	return rc;
 }
 
-static int api_ws_server_req_unsubscribe_cb(void *closure, struct afb_event event)
+static int api_ws_server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event event)
 {
 	int rc, rc2;
 	struct writebuf wb = { .count = 0 };
-	struct api_ws_server_req *wreq = closure;
+	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	if (api_ws_write_char(&wb, 'U')
 	 && api_ws_write_uint32(&wb, wreq->msgid)

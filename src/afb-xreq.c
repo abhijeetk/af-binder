@@ -37,14 +37,14 @@
 static struct json_object *xreq_json_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	return xreq->json ? : (xreq->json = xreq->queryitf->json(xreq->query));
+	return xreq->json ? : (xreq->json = xreq->queryitf->json(xreq));
 }
 
 static struct afb_arg xreq_get_cb(void *closure, const char *name)
 {
 	struct afb_xreq *xreq = closure;
 	if (xreq->queryitf->get)
-		return xreq->queryitf->get(xreq->query, name);
+		return xreq->queryitf->get(xreq, name);
 	else
 		return afb_msg_json_get_arg(xreq_json_cb(closure), name);
 }
@@ -59,9 +59,9 @@ static void xreq_success_cb(void *closure, struct json_object *obj, const char *
 	} else {
 		xreq->replied = 1;
 		if (xreq->queryitf->success)
-			xreq->queryitf->success(xreq->query, obj, info);
+			xreq->queryitf->success(xreq, obj, info);
 		else
-			xreq->queryitf->reply(xreq->query, 0, afb_msg_json_reply_ok(info, obj, &xreq->context, NULL));
+			xreq->queryitf->reply(xreq, 0, afb_msg_json_reply_ok(info, obj, &xreq->context, NULL));
 	}
 }
 
@@ -74,9 +74,9 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 	} else {
 		xreq->replied = 1;
 		if (xreq->queryitf->fail)
-			xreq->queryitf->fail(xreq->query, status, info);
+			xreq->queryitf->fail(xreq, status, info);
 		else
-			xreq->queryitf->reply(xreq->query, 1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
+			xreq->queryitf->reply(xreq, 1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
 	}
 }
 
@@ -120,7 +120,7 @@ static void xreq_unref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
 	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
-		xreq->queryitf->unref(xreq->query);
+		xreq->queryitf->unref(xreq);
 	}
 }
 
@@ -147,7 +147,7 @@ int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event)
 	if (xreq->listener)
 		return afb_evt_add_watch(xreq->listener, event);
 	if (xreq->queryitf->subscribe)
-		return xreq->queryitf->subscribe(xreq->query, event);
+		return xreq->queryitf->subscribe(xreq, event);
 	ERROR("no event listener, subscription impossible");
 	errno = EINVAL;
 	return -1;
@@ -164,7 +164,7 @@ int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 	if (xreq->listener)
 		return afb_evt_remove_watch(xreq->listener, event);
 	if (xreq->queryitf->unsubscribe)
-		return xreq->queryitf->unsubscribe(xreq->query, event);
+		return xreq->queryitf->unsubscribe(xreq, event);
 	ERROR("no event listener, unsubscription impossible");
 	errno = EINVAL;
 	return -1;
@@ -175,7 +175,7 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 	struct afb_xreq *xreq = closure;
 
 	if (xreq->queryitf->subcall)
-		xreq->queryitf->subcall(xreq->query, api, verb, args, callback, cb_closure);
+		xreq->queryitf->subcall(xreq, api, verb, args, callback, cb_closure);
 	else
 		afb_subcall(xreq, api, verb, args, callback, cb_closure);
 }
@@ -256,7 +256,7 @@ static void xreq_hooked_unref_cb(void *closure)
 	afb_hook_xreq_unref(xreq);
 	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_hook_xreq_end(xreq);
-		xreq->queryitf->unref(xreq->query);
+		xreq->queryitf->unref(xreq);
 	}
 }
 
@@ -489,4 +489,9 @@ void afb_xreq_begin(struct afb_xreq *xreq)
 		afb_hook_xreq_begin(xreq);
 }
 
+void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)
+{
+	xreq->refcount = 1;
+	xreq->queryitf = queryitf;
+}
 

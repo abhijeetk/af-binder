@@ -33,10 +33,10 @@
 
 struct subcall;
 
-static void subcall_destroy(void *closure);
-static void subcall_reply(void *closure, int iserror, struct json_object *obj);
-static int subcall_subscribe(void *closure, struct afb_event event);
-static int subcall_unsubscribe(void *closure, struct afb_event event);
+static void subcall_destroy(struct afb_xreq *xreq);
+static void subcall_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj);
+static int subcall_subscribe(struct afb_xreq *xreq, struct afb_event event);
+static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
 
 const struct afb_xreq_query_itf afb_subcall_xreq_itf = {
 	.reply = subcall_reply,
@@ -53,33 +53,33 @@ struct subcall
 	void *closure;
 };
 
-static void subcall_destroy(void *closure)
+static void subcall_destroy(struct afb_xreq *xreq)
 {
-	struct subcall *subcall = closure;
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
 	json_object_put(subcall->xreq.json);
 	afb_xreq_unref(subcall->caller);
 	free(subcall);
 }
 
-static void subcall_reply(void *closure, int iserror, struct json_object *obj)
+static void subcall_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj)
 {
-	struct subcall *subcall = closure;
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
 	subcall->callback(subcall->closure, iserror, obj);
 	json_object_put(obj);
 }
 
-static int subcall_subscribe(void *closure, struct afb_event event)
+static int subcall_subscribe(struct afb_xreq *xreq, struct afb_event event)
 {
-	struct subcall *subcall = closure;
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
 	return afb_xreq_subscribe(subcall->caller, event);
 }
 
-static int subcall_unsubscribe(void *closure, struct afb_event event)
+static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 {
-	struct subcall *subcall = closure;
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
 	return afb_xreq_unsubscribe(subcall->caller, event);
 }
@@ -93,13 +93,11 @@ static struct subcall *create_subcall(struct afb_xreq *caller, const char *api, 
 		return NULL;
 	}
 
+	afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
 	afb_context_subinit(&subcall->xreq.context, &caller->context);
-	subcall->xreq.refcount = 1;
 	subcall->xreq.json = args;
 	subcall->xreq.api = api; /* TODO: alloc ? */
 	subcall->xreq.verb = verb; /* TODO: alloc ? */
-	subcall->xreq.query = subcall;
-	subcall->xreq.queryitf = &afb_subcall_xreq_itf;
 	subcall->caller = caller;
 	subcall->callback = callback;
 	subcall->closure = closure;

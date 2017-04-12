@@ -446,9 +446,9 @@ struct startup_req
 	struct afb_session *session;
 };
 
-static void startup_call_reply(void *closure, int iserror, struct json_object *obj)
+static void startup_call_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj)
 {
-	struct startup_req *sreq = closure;
+	struct startup_req *sreq = CONTAINER_OF_XREQ(struct startup_req, xreq);
 
 	if (!iserror)
 		NOTICE("startup call %s returned %s", sreq->current->value, json_object_get_string(obj));
@@ -460,9 +460,9 @@ static void startup_call_reply(void *closure, int iserror, struct json_object *o
 
 static void startup_call_current(struct startup_req *sreq);
 
-static void startup_call_unref(void *closure)
+static void startup_call_unref(struct afb_xreq *xreq)
 {
-	struct startup_req *sreq = closure;
+	struct startup_req *sreq = CONTAINER_OF_XREQ(struct startup_req, xreq);
 
 	free(sreq->api);
 	free(sreq->verb);
@@ -493,16 +493,14 @@ static void startup_call_current(struct startup_req *sreq)
 		json = strchr(verb, ':');
 		if (json) {
 			memset(&sreq->xreq, 0, sizeof sreq->xreq);
+			afb_xreq_init(&sreq->xreq, &startup_xreq_itf);
 			afb_context_init(&sreq->xreq.context, sreq->session, NULL);
 			sreq->xreq.context.validated = 1;
 			sreq->api = strndup(api, verb - api);
-			sreq->xreq.api = sreq->api;
 			sreq->verb = strndup(verb + 1, json - verb - 1);
+			sreq->xreq.api = sreq->api;
 			sreq->xreq.verb = sreq->verb;
 			sreq->xreq.json = json_tokener_parse(json + 1);
-			sreq->xreq.refcount = 1;
-			sreq->xreq.query = sreq;
-			sreq->xreq.queryitf = &startup_xreq_itf;
 			if (sreq->api && sreq->verb && sreq->xreq.json) {
 				afb_apis_call(&sreq->xreq);
 				afb_xreq_unref(&sreq->xreq);

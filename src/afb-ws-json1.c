@@ -50,9 +50,8 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 static void aws_on_event(struct afb_ws_json1 *ws, const char *event, int eventid, struct json_object *object);
 
 /* predeclaration of wsreq callbacks */
-static void wsreq_destroy(struct afb_wsreq *wsreq);
-static struct json_object *wsreq_json(struct afb_wsreq *wsreq);
-static void wsreq_reply(struct afb_wsreq *wsreq, int iserror, json_object *obj);
+static void wsreq_destroy(struct afb_xreq *xreq);
+static void wsreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj);
 
 /* declaration of websocket structure */
 struct afb_ws_json1
@@ -84,9 +83,8 @@ static struct afb_wsj1_itf wsj1_itf = {
 
 /* interface for xreq */
 const struct afb_xreq_query_itf afb_ws_json1_xreq_itf = {
-	.json = (void*)wsreq_json,
-	.reply = (void*)wsreq_reply,
-	.unref = (void*)wsreq_destroy
+	.reply = wsreq_reply,
+	.unref = wsreq_destroy
 };
 
 /* the interface for events */
@@ -182,6 +180,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	}
 
 	/* init the context */
+	afb_xreq_init(&wsreq->xreq, &afb_ws_json1_xreq_itf);
 	afb_context_init(&wsreq->xreq.context, ws->session, afb_wsj1_msg_token(msg));
 	if (!wsreq->xreq.context.invalidated)
 		wsreq->xreq.context.validated = 1;
@@ -193,11 +192,9 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	/* fill and record the request */
 	afb_wsj1_msg_addref(msg);
 	wsreq->msgj1 = msg;
-	wsreq->xreq.refcount = 1;
-	wsreq->xreq.query = wsreq;
-	wsreq->xreq.queryitf = &afb_ws_json1_xreq_itf;
 	wsreq->xreq.api = api;
 	wsreq->xreq.verb = verb;
+	wsreq->xreq.json = afb_wsj1_msg_object_j(wsreq->msgj1);
 	wsreq->aws = aws_addref(ws);
 	wsreq->xreq.listener = wsreq->aws->listener;
 
@@ -219,21 +216,19 @@ static void aws_on_event(struct afb_ws_json1 *aws, const char *event, int eventi
 ****************************************************************
 ***************************************************************/
 
-static void wsreq_destroy(struct afb_wsreq *wsreq)
+static void wsreq_destroy(struct afb_xreq *xreq)
 {
+	struct afb_wsreq *wsreq = CONTAINER_OF_XREQ(struct afb_wsreq, xreq);
+
 	afb_context_disconnect(&wsreq->xreq.context);
 	afb_wsj1_msg_unref(wsreq->msgj1);
 	aws_unref(wsreq->aws);
 	free(wsreq);
 }
 
-static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
+static void wsreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
 {
-	return afb_wsj1_msg_object_j(wsreq->msgj1);
-}
-
-static void wsreq_reply(struct afb_wsreq *wsreq, int iserror, json_object *obj)
-{
+	struct afb_wsreq *wsreq = CONTAINER_OF_XREQ(struct afb_wsreq, xreq);
 	int rc;
 
 	rc = (iserror ? afb_wsj1_reply_error_j : afb_wsj1_reply_ok_j)(

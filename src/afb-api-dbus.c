@@ -808,9 +808,9 @@ struct dbus_req {
 };
 
 /* decrement the reference count of the request and free/release it on falling to null */
-static void dbus_req_destroy(void *closure)
+static void dbus_req_destroy(struct afb_xreq *xreq)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 
 	afb_context_disconnect(&dreq->xreq.context);
 	json_object_put(dreq->json);
@@ -819,9 +819,9 @@ static void dbus_req_destroy(void *closure)
 }
 
 /* get the object of the request */
-static struct json_object *dbus_req_json(void *closure)
+static struct json_object *dbus_req_json(struct afb_xreq *xreq)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 
 	return dreq->json;
 }
@@ -836,25 +836,25 @@ static void dbus_req_reply(struct dbus_req *dreq, uint8_t type, const char *firs
 		ERROR("sending the reply failed");
 }
 
-static void dbus_req_success(void *closure, struct json_object *obj, const char *info)
+static void dbus_req_success(struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 
 	dbus_req_reply(dreq, RETOK, json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN), info);
 }
 
-static void dbus_req_fail(void *closure, const char *status, const char *info)
+static void dbus_req_fail(struct afb_xreq *xreq, const char *status, const char *info)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 
 	dbus_req_reply(dreq, RETERR, status, info);
 }
 
 static void afb_api_dbus_server_event_send(struct origin *origin, char order, const char *event, int eventid, const char *data, uint64_t msgid);
 
-static int dbus_req_subscribe(void *closure, struct afb_event event)
+static int dbus_req_subscribe(struct afb_xreq *xreq, struct afb_event event)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 	uint64_t msgid;
 	int rc;
 
@@ -864,9 +864,9 @@ static int dbus_req_subscribe(void *closure, struct afb_event event)
 	return rc;
 }
 
-static int dbus_req_unsubscribe(void *closure, struct afb_event event)
+static int dbus_req_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 {
-	struct dbus_req *dreq = closure;
+	struct dbus_req *dreq = CONTAINER_OF_XREQ(struct dbus_req, xreq);
 	uint64_t msgid;
 	int rc;
 
@@ -976,6 +976,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	}
 
 	/* connect to the context */
+	afb_xreq_init(&dreq->xreq, &afb_api_dbus_xreq_itf);
 	if (afb_context_connect(&dreq->xreq.context, uuid, NULL) < 0)
 		goto out_of_memory;
 	session = dreq->xreq.context.session;
@@ -994,9 +995,6 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 		dreq->json = json_object_new_string(dreq->request);
 	}
 	dreq->listener = listener;
-	dreq->xreq.refcount = 1;
-	dreq->xreq.query = dreq;
-	dreq->xreq.queryitf = &afb_api_dbus_xreq_itf;
 	dreq->xreq.api = api->api;
 	dreq->xreq.verb = method;
 	afb_apis_call(&dreq->xreq);

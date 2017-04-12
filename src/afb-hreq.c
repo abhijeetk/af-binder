@@ -72,19 +72,18 @@ struct hreq_data {
 	char *path;		/* path of the file saved */
 };
 
-static struct json_object *req_json(struct afb_hreq *hreq);
-static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
-static void req_fail(struct afb_hreq *hreq, const char *status, const char *info);
-static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
-
-static void afb_hreq_destroy(struct afb_hreq *hreq);
+static struct json_object *req_json(struct afb_xreq *xreq);
+static struct afb_arg req_get(struct afb_xreq *xreq, const char *name);
+static void req_fail(struct afb_xreq *xreq, const char *status, const char *info);
+static void req_success(struct afb_xreq *xreq, json_object *obj, const char *info);
+static void req_destroy(struct afb_xreq *xreq);
 
 const struct afb_xreq_query_itf afb_hreq_xreq_query_itf = {
-	.json = (void*)req_json,
-	.get = (void*)req_get,
-	.success = (void*)req_success,
-	.fail = (void*)req_fail,
-	.unref = (void*)afb_hreq_destroy
+	.json = req_json,
+	.get = req_get,
+	.success = req_success,
+	.fail = req_fail,
+	.unref = req_destroy
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -299,8 +298,9 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	return result;
 }
 
-static void afb_hreq_destroy(struct afb_hreq *hreq)
+static void req_destroy(struct afb_xreq *xreq)
 {
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	struct hreq_data *data;
 
 	if (hreq->postform != NULL)
@@ -820,9 +820,10 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 	return !size;
 }
 
-static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
+static struct afb_arg req_get(struct afb_xreq *xreq, const char *name)
 {
 	const char *value;
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	struct hreq_data *hdat = get_data(hreq, name, 0);
 	if (hdat)
 		return (struct afb_arg){
@@ -845,10 +846,11 @@ static int _iterargs_(struct json_object *obj, enum MHD_ValueKind kind, const ch
 	return 1;
 }
 
-static struct json_object *req_json(struct afb_hreq *hreq)
+static struct json_object *req_json(struct afb_xreq *xreq)
 {
 	struct hreq_data *hdat;
 	struct json_object *obj, *val;
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 
 	obj = hreq->json;
 	if (obj == NULL) {
@@ -896,13 +898,15 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 	afb_hreq_reply(hreq, retcode, response, NULL);
 }
 
-static void req_fail(struct afb_hreq *hreq, const char *status, const char *info)
+static void req_fail(struct afb_xreq *xreq, const char *status, const char *info)
 {
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	req_reply(hreq, MHD_HTTP_OK, status, info, NULL);
 }
 
-static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info)
+static void req_success(struct afb_xreq *xreq, json_object *obj, const char *info)
 {
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
 }
 
@@ -973,9 +977,7 @@ struct afb_hreq *afb_hreq_create()
 	struct afb_hreq *hreq = calloc(1, sizeof *hreq);
 	if (hreq) {
 		/* init the request */
-		hreq->xreq.refcount = 1;
-		hreq->xreq.query = hreq;
-		hreq->xreq.queryitf = &afb_hreq_xreq_query_itf;
+		afb_xreq_init(&hreq->xreq, &afb_hreq_xreq_query_itf);
 		hreq->reqid = ++global_reqids;
 	}
 	return hreq;
