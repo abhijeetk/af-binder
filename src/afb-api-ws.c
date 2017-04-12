@@ -38,6 +38,7 @@
 #include "afb-common.h"
 
 #include "afb-session.h"
+#include "afb-cred.h"
 #include "afb-ws.h"
 #include "afb-msg-json.h"
 #include "afb-apis.h"
@@ -125,6 +126,9 @@ struct api_ws_client
 
 	/* websocket */
 	struct afb_ws *ws;
+
+	/* credentials */
+	struct afb_cred *cred;
 };
 
 /******************* websocket interface for client part **********************************/
@@ -903,6 +907,7 @@ static void api_ws_server_client_unref(struct api_ws_client *client)
 	if (!--client->refcount) {
 		afb_evt_listener_unref(client->listener);
 		afb_ws_destroy(client->ws);
+		afb_cred_unref(client->cred);
 		free(client);
 	}
 }
@@ -994,6 +999,7 @@ static void api_ws_server_accept(struct api_ws *api)
 			lenaddr = (socklen_t)sizeof addr;
 			client->fd = accept(api->fd, &addr, &lenaddr);
 			if (client->fd >= 0) {
+				client->cred = afb_cred_create_for_socket(client->fd);
 				fcntl(client->fd, F_SETFD, FD_CLOEXEC);
 				fcntl(client->fd, F_SETFL, O_NONBLOCK);
 				client->ws = afb_ws_create(afb_common_get_event_loop(), client->fd, &api_ws_server_ws_itf, client);
@@ -1002,6 +1008,7 @@ static void api_ws_server_accept(struct api_ws *api)
 					client->refcount = 1;
 					return;
 				}
+				afb_cred_unref(client->cred);
 				close(client->fd);
 			}
 			afb_evt_listener_unref(client->listener);

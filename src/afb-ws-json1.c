@@ -32,6 +32,7 @@
 #include "afb-common.h"
 #include "afb-msg-json.h"
 #include "afb-session.h"
+#include "afb-cred.h"
 #include "afb-apis.h"
 #include "afb-xreq.h"
 #include "afb-context.h"
@@ -62,6 +63,7 @@ struct afb_ws_json1
 	struct afb_session *session;
 	struct afb_evt_listener *listener;
 	struct afb_wsj1 *wsj1;
+	struct afb_cred *cred;
 	int new_session;
 };
 
@@ -128,6 +130,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 	if (result->listener == NULL)
 		goto error4;
 
+	result->cred = afb_cred_create_for_socket(fd);
 	return result;
 
 error4:
@@ -155,6 +158,7 @@ static void aws_unref(struct afb_ws_json1 *ws)
 		if (ws->cleanup != NULL)
 			ws->cleanup(ws->cleanup_closure);
 		afb_session_unref(ws->session);
+		afb_cred_unref(ws->cred);
 		free(ws);
 	}
 }

@@ -35,6 +35,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-context.h"
+#include "afb-cred.h"
 #include "afb-evt.h"
 #include "afb-xreq.h"
 #include "verbose.h"
@@ -663,9 +664,38 @@ struct origin
 	/* count of references */
 	int refcount;
 
+	/* credentials of the origin */
+	struct afb_cred *cred;
+
 	/* the origin */
 	char name[1];
 };
+
+/* get the credentials for the message */
+static void init_origin_creds(struct origin *origin)
+{
+	int rc;
+	sd_bus_creds *c;
+	uid_t uid;
+	gid_t gid;
+	pid_t pid;
+	const char *context;
+
+	rc = sd_bus_get_name_creds(origin->api->sdbus, origin->name,
+			SD_BUS_CREDS_PID|SD_BUS_CREDS_UID|SD_BUS_CREDS_GID|SD_BUS_CREDS_SELINUX_CONTEXT,
+			&c);
+	if (rc < 0)
+		origin->cred = NULL;
+	else {
+		afb_cred_unref(origin->cred);
+		sd_bus_creds_get_uid(c, &uid);
+		sd_bus_creds_get_gid(c, &gid);
+		sd_bus_creds_get_pid(c, &pid);
+		sd_bus_creds_get_selinux_context(c, &context);
+		origin->cred = afb_cred_create(uid, gid, pid, context);
+		sd_bus_creds_unref(c);
+	}
+}
 
 static struct origin *afb_api_dbus_server_origin_get(struct api_dbus *api, const char *sender)
 {
@@ -689,6 +719,7 @@ static struct origin *afb_api_dbus_server_origin_get(struct api_dbus *api, const
 		origin->api = api;
 		origin->refcount = 1;
 		strcpy(origin->name, sender);
+		init_origin_creds(origin);
 		origin->next = api->server.origins;
 		api->server.origins = origin;
 	}
@@ -704,6 +735,7 @@ static void afb_api_dbus_server_origin_unref(struct origin *origin)
 		while(*prv != origin)
 			prv = &(*prv)->next;
 		*prv = origin->next;
+		afb_cred_unref(origin->cred);
 		free(origin);
 	}
 }
