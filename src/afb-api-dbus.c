@@ -756,7 +756,7 @@ static void afb_api_dbus_server_listener_free(struct listener *listener)
 	free(listener);
 }
 
-static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, const char *sender, struct afb_session *session)
+static struct listener *afb_api_dbus_server_listener_get(struct api_dbus *api, const char *sender, struct afb_session *session)
 {
 	int rc;
 	struct listener *listener;
@@ -982,7 +982,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	session = dreq->xreq.context.session;
 
 	/* get the listener */
-	listener = afb_api_dbus_server_listerner_get(api, sd_bus_message_get_sender(message), session);
+	listener = afb_api_dbus_server_listener_get(api, sd_bus_message_get_sender(message), session);
 	if (listener == NULL)
 		goto out_of_memory;
 
