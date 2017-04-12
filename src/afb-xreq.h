@@ -26,6 +26,7 @@
 struct json_object;
 struct afb_evt_listener;
 struct afb_xreq;
+struct afb_cred;
 
 struct afb_xreq_query_itf {
 	struct json_object *(*json)(struct afb_xreq *xreq);
@@ -54,6 +55,7 @@ struct afb_xreq
 	int hookflags;	/**< flags for hooking */
 	int hookindex;	/**< index for hooking */
 	struct afb_evt_listener *listener;
+	struct afb_cred *cred;
 };
 
 #define CONTAINER_OF_XREQ(type,x) ((type*)(((intptr_t)(x))-((intptr_t)&(((type*)NULL)->xreq))))

@@ -192,6 +192,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	/* fill and record the request */
 	afb_wsj1_msg_addref(msg);
 	wsreq->msgj1 = msg;
+	wsreq->xreq.cred = afb_cred_addref(ws->cred);
 	wsreq->xreq.api = api;
 	wsreq->xreq.verb = verb;
 	wsreq->xreq.json = afb_wsj1_msg_object_j(wsreq->msgj1);
@@ -222,6 +223,7 @@ static void wsreq_destroy(struct afb_xreq *xreq)
 
 	afb_context_disconnect(&wsreq->xreq.context);
 	afb_wsj1_msg_unref(wsreq->msgj1);
+	afb_cred_unref(wsreq->xreq.cred);
 	aws_unref(wsreq->aws);
 	free(wsreq);
 }

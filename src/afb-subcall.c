@@ -28,6 +28,7 @@
 #include "afb-apis.h"
 #include "afb-context.h"
 #include "afb-xreq.h"
+#include "afb-cred.h"
 #include "verbose.h"
 #include "jobs.h"
 
@@ -58,6 +59,7 @@ static void subcall_destroy(struct afb_xreq *xreq)
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
 	json_object_put(subcall->xreq.json);
+	afb_cred_unref(subcall->xreq.cred);
 	afb_xreq_unref(subcall->caller);
 	free(subcall);
 }
@@ -95,6 +97,7 @@ static struct subcall *create_subcall(struct afb_xreq *caller, const char *api, 
 
 	afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
 	afb_context_subinit(&subcall->xreq.context, &caller->context);
+	subcall->xreq.cred = afb_cred_addref(caller->cred);
 	subcall->xreq.json = args;
 	subcall->xreq.api = api; /* TODO: alloc ? */
 	subcall->xreq.verb = verb; /* TODO: alloc ? */

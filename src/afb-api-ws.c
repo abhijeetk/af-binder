@@ -949,6 +949,7 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 	wreq->xreq.context.flags = flags;
 
 	/* makes the call */
+	wreq->xreq.cred = afb_cred_addref(client->cred);
 	wreq->xreq.api = client->api;
 	wreq->xreq.verb = verb;
 	afb_apis_call(&wreq->xreq);
@@ -1074,6 +1075,7 @@ static void api_ws_server_req_destroy_cb(struct afb_xreq *xreq)
 	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
 	afb_context_disconnect(&wreq->xreq.context);
+	afb_cred_unref(wreq->xreq.cred);
 	json_object_put(wreq->xreq.json);
 	free(wreq->rcvdata);
 	api_ws_server_client_unref(wreq->client);

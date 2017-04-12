@@ -30,6 +30,7 @@
 #include "afb-msg-json.h"
 #include "afb-svc.h"
 #include "afb-xreq.h"
+#include "afb-cred.h"
 #include "afb-apis.h"
 #include "verbose.h"
 
@@ -230,6 +231,7 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	afb_xreq_init(&svcreq->xreq, &afb_svc_xreq_itf);
 	afb_context_init(&svcreq->xreq.context, svc->session, NULL);
 	svcreq->xreq.context.validated = 1;
+	svcreq->xreq.cred = afb_cred_current();
 	svcreq->xreq.api = api;
 	svcreq->xreq.verb = verb;
 	svcreq->xreq.listener = svc->listener;
@@ -247,6 +249,7 @@ static void svcreq_destroy(struct afb_xreq *xreq)
 	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
 	afb_context_disconnect(&svcreq->xreq.context);
 	json_object_put(svcreq->xreq.json);
+	afb_cred_unref(svcreq->xreq.cred);
 	free(svcreq);
 }
 
