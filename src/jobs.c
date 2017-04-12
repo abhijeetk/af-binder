@@ -325,8 +325,6 @@ static void thread_run(volatile struct thread *me)
 	threads = (struct thread*)me;
 	current = (struct thread*)me;
 
-	NOTICE("job thread starting %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
-
 	/* loop until stopped */
 	me->events = NULL;
 	while (!me->stop) {
@@ -375,7 +373,6 @@ static void thread_run(volatile struct thread *me)
 			}
 		}
 	}
-	NOTICE("job thread stoping %d(/%d) %s", started, allowed, me->upper ? "child" : "parent");
 
 	/* unlink the current thread and cleanup */
 	prv = &threads;
