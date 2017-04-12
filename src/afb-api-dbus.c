@@ -43,7 +43,7 @@ static const char DEFAULT_PATH_PREFIX[] = "/org/agl/afb/api/";
 
 struct dbus_memo;
 struct dbus_event;
-struct destination;
+struct origin;
 
 /*
  * The path given are of the form
@@ -67,7 +67,7 @@ struct api_dbus
 		struct {
 			struct sd_bus_slot *slot_call;
 			struct afb_evt_listener *listener; /* listener for broadcasted events */
-			struct destination *destinations;
+			struct origin *origins;
 		} server;
 	};
 };
@@ -650,12 +650,12 @@ static const struct afb_evt_itf evt_push_itf = {
 	.remove = afb_api_dbus_server_event_remove
 };
 
-/******************* destination description part for server *****************************/
+/******************* origin description part for server *****************************/
 
-struct destination
+struct origin
 {
-	/* link to next different destination */
-	struct destination *next;
+	/* link to next different origin */
+	struct origin *next;
 
 	/* the server dbus-api */
 	struct api_dbus *api;
@@ -663,55 +663,55 @@ struct destination
 	/* count of references */
 	int refcount;
 
-	/* the destination */
+	/* the origin */
 	char name[1];
 };
 
-static struct destination *afb_api_dbus_server_destination_get(struct api_dbus *api, const char *sender)
+static struct origin *afb_api_dbus_server_origin_get(struct api_dbus *api, const char *sender)
 {
-	struct destination *destination;
+	struct origin *origin;
 
-	/* searchs for an existing destination */
-	destination = api->server.destinations;
-	while (destination != NULL) {
-		if (0 == strcmp(destination->name, sender)) {
-			destination->refcount++;
-			return destination;
+	/* searchs for an existing origin */
+	origin = api->server.origins;
+	while (origin != NULL) {
+		if (0 == strcmp(origin->name, sender)) {
+			origin->refcount++;
+			return origin;
 		}
-		destination = destination->next;
+		origin = origin->next;
 	}
 
 	/* not found, create it */
-	destination = malloc(strlen(sender) + sizeof *destination);
-	if (destination == NULL)
+	origin = malloc(strlen(sender) + sizeof *origin);
+	if (origin == NULL)
 		errno = ENOMEM;
 	else {
-		destination->api = api;
-		destination->refcount = 1;
-		strcpy(destination->name, sender);
-		destination->next = api->server.destinations;
-		api->server.destinations = destination;
+		origin->api = api;
+		origin->refcount = 1;
+		strcpy(origin->name, sender);
+		origin->next = api->server.origins;
+		api->server.origins = origin;
 	}
-	return destination;
+	return origin;
 }
 
-static void afb_api_dbus_server_destination_unref(struct destination *destination)
+static void afb_api_dbus_server_origin_unref(struct origin *origin)
 {
-	if (!--destination->refcount) {
-		struct destination **prv;
+	if (!--origin->refcount) {
+		struct origin **prv;
 
-		prv = &destination->api->server.destinations;
-		while(*prv != destination)
+		prv = &origin->api->server.origins;
+		while(*prv != origin)
 			prv = &(*prv)->next;
-		*prv = destination->next;
-		free(destination);
+		*prv = origin->next;
+		free(origin);
 	}
 }
 
 struct listener
 {
-	/* link to next different destination */
-	struct destination *destination;
+	/* link to next different origin */
+	struct origin *origin;
 
 	/* the listener of events */
 	struct afb_evt_listener *listener;
@@ -720,7 +720,7 @@ struct listener
 static void afb_api_dbus_server_listener_free(struct listener *listener)
 {
 	afb_evt_listener_unref(listener->listener);
-	afb_api_dbus_server_destination_unref(listener->destination);
+	afb_api_dbus_server_origin_unref(listener->origin);
 	free(listener);
 }
 
@@ -728,18 +728,18 @@ static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, 
 {
 	int rc;
 	struct listener *listener;
-	struct destination *destination;
+	struct origin *origin;
 
-	/* get the destination */
-	destination = afb_api_dbus_server_destination_get(api, sender);
-	if (destination == NULL)
+	/* get the origin */
+	origin = afb_api_dbus_server_origin_get(api, sender);
+	if (origin == NULL)
 		return NULL;
 
 	/* retrieves the stored listener */
-	listener = afb_session_get_cookie(session, destination);
+	listener = afb_session_get_cookie(session, origin);
 	if (listener != NULL) {
 		/* found */
-		afb_api_dbus_server_destination_unref(destination);
+		afb_api_dbus_server_origin_unref(origin);
 		return listener;
 	}
 
@@ -748,17 +748,17 @@ static struct listener *afb_api_dbus_server_listerner_get(struct api_dbus *api, 
 	if (listener == NULL)
 		errno = ENOMEM;
 	else {
-		listener->destination = destination;
-		listener->listener = afb_evt_listener_create(&evt_push_itf, destination);
+		listener->origin = origin;
+		listener->listener = afb_evt_listener_create(&evt_push_itf, origin);
 		if (listener->listener != NULL) {
-			rc = afb_session_set_cookie(session, destination, listener, (void*)afb_api_dbus_server_listener_free);
+			rc = afb_session_set_cookie(session, origin, listener, (void*)afb_api_dbus_server_listener_free);
 			if (rc == 0)
 				return listener;
 			afb_evt_listener_unref(listener->listener);
 		}
 		free(listener);
 	}
-	afb_api_dbus_server_destination_unref(destination);
+	afb_api_dbus_server_origin_unref(origin);
 	return NULL;
 }
 
@@ -818,7 +818,7 @@ static void dbus_req_fail(void *closure, const char *status, const char *info)
 	dbus_req_reply(dreq, RETERR, status, info);
 }
 
-static void afb_api_dbus_server_event_send(struct destination *destination, char order, const char *event, int eventid, const char *data, uint64_t msgid);
+static void afb_api_dbus_server_event_send(struct origin *origin, char order, const char *event, int eventid, const char *data, uint64_t msgid);
 
 static int dbus_req_subscribe(void *closure, struct afb_event event)
 {
@@ -828,7 +828,7 @@ static int dbus_req_subscribe(void *closure, struct afb_event event)
 
 	rc = afb_evt_add_watch(dreq->listener->listener, event);
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->destination, 'S', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'S', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
 	return rc;
 }
 
@@ -839,7 +839,7 @@ static int dbus_req_unsubscribe(void *closure, struct afb_event event)
 	int rc;
 
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->destination, 'U', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'U', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
 	rc = afb_evt_remove_watch(dreq->listener->listener, event);
 	return rc;
 }
@@ -855,16 +855,16 @@ const struct afb_xreq_query_itf afb_api_dbus_xreq_itf = {
 
 /******************* server part **********************************/
 
-static void afb_api_dbus_server_event_send(struct destination *destination, char order, const char *event, int eventid, const char *data, uint64_t msgid)
+static void afb_api_dbus_server_event_send(struct origin *origin, char order, const char *event, int eventid, const char *data, uint64_t msgid)
 {
 	int rc;
 	struct api_dbus *api;
 	struct sd_bus_message *msg;
 
-	api = destination->api;
+	api = origin->api;
 	msg = NULL;
 
-	rc = sd_bus_message_new_method_call(api->sdbus, &msg, destination->name, api->path, api->name, "event");
+	rc = sd_bus_message_new_method_call(api->sdbus, &msg, origin->name, api->path, api->name, "event");
 	if (rc < 0)
 		goto error;
 
@@ -877,7 +877,7 @@ static void afb_api_dbus_server_event_send(struct destination *destination, char
 		goto end;
 
 error:
-	ERROR("error while send event %c%s(%d) to %s", order, event, eventid, destination->name);
+	ERROR("error while send event %c%s(%d) to %s", order, event, eventid, origin->name);
 end:
 	sd_bus_message_unref(msg);
 }
