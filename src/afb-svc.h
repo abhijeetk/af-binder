@@ -19,13 +19,17 @@
 
 struct afb_svc;
 struct afb_service;
+struct afb_apiset;
 struct afb_binding_interface;
 
-extern struct afb_svc *afb_svc_create(int share_session,
+extern struct afb_svc *afb_svc_create(
+			struct afb_apiset *apiset,
+			int share_session,
 			int (*init)(struct afb_service service),
 			void (*onevent)(const char *event, struct json_object *object));
 
 extern struct afb_svc *afb_svc_create_v2(
+			struct afb_apiset *apiset,
 			int share_session,
 			void (*on_event)(const char *event, struct json_object *object),
 			int (*start)(const struct afb_binding_interface *interface, struct afb_service service),

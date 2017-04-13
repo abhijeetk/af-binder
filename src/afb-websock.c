@@ -94,7 +94,7 @@ static int headerhas(const char *header, const char *needle)
 struct protodef
 {
 	const char *name;
-	void *(*create)(int fd, void *context, void (*cleanup)(void*), void *cleanup_closure);
+	void *(*create)(int fd, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure);
 };
 
 static const struct protodef *search_proto(const struct protodef *protodefs, const char *protocols)
@@ -119,7 +119,7 @@ static const struct protodef *search_proto(const struct protodef *protodefs, con
 	}
 }
 
-static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, void *context, void **websock)
+static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, void *context, void **websock, struct afb_apiset *apiset)
 {
 	const union MHD_ConnectionInfo *info;
 	struct MHD_Response *response;
@@ -174,7 +174,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 		MHD_destroy_response(response);
 		return 1;
 	}
-	ws = proto->create(info->connect_fd, context, (void*)MHD_resume_connection, con);
+	ws = proto->create(info->connect_fd, apiset, context, (void*)MHD_resume_connection, con);
 	if (ws == NULL) {
 		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
@@ -197,11 +197,11 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 }
 
 static const struct protodef protodefs[] = {
-	{ "x-afb-ws-json1",	(void*)afb_ws_json1_create },
+	{ "x-afb-ws-json1",	afb_ws_json1_create },
 	{ NULL, NULL }
 };
 
-int afb_websock_check_upgrade(struct afb_hreq *hreq)
+int afb_websock_check_upgrade(struct afb_hreq *hreq, struct afb_apiset *apiset)
 {
 	void *ws;
 	int rc;
@@ -212,7 +212,7 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 		return 0;
 
 	ws = NULL;
-	rc = check_websocket_upgrade(hreq->connection, protodefs, &hreq->xreq.context, &ws);
+	rc = check_websocket_upgrade(hreq->connection, protodefs, &hreq->xreq.context, &ws, apiset);
 	if (rc == 1) {
 		hreq->replied = 1;
 		if (ws != NULL)

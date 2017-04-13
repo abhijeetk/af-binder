@@ -24,7 +24,8 @@
 
 #include <afb/afb-binding.h>
 
-#include "afb-apis.h"
+#include "afb-api.h"
+#include "afb-apiset.h"
 #include "afb-svc.h"
 #include "afb-ditf.h"
 #include "afb-evt.h"
@@ -68,10 +69,10 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 	if (!verb)
 		afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, desc->binding->api);
 	else
-		afb_xreq_call(xreq, verb->session, verb->callback);
+		afb_xreq_so_call(xreq, verb->session, verb->callback);
 }
 
-static int service_start_cb(void *closure, int share_session, int onneed)
+static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
 	int (*start)(const struct afb_binding_interface *interface, struct afb_service service);
 	void (*onevent)(const char *event, struct json_object *object);
@@ -103,7 +104,7 @@ static int service_start_cb(void *closure, int share_session, int onneed)
 
 	/* get the event handler if any */
 	onevent = desc->binding->onevent;
-	desc->service = afb_svc_create_v2(share_session, onevent, start, &desc->ditf.interface);
+	desc->service = afb_svc_create_v2(apiset, share_session, onevent, start, &desc->ditf.interface);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->api);
@@ -139,7 +140,7 @@ static struct afb_api_itf so_v2_api_itf = {
 	.set_verbosity = set_verbosity_cb
 };
 
-int afb_api_so_v2_add(const char *path, void *handle)
+int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_so_v2 *desc;
@@ -158,7 +159,7 @@ int afb_api_so_v2_add(const char *path, void *handle)
 		ERROR("binding [%s] bad api name...", path);
 		goto error;
 	}
-	if (!afb_apis_is_valid_api_name(binding->api)) {
+	if (!afb_api_is_valid_name(binding->api)) {
 		ERROR("binding [%s] invalid api name...", path);
 		goto error;
 	}
@@ -198,7 +199,7 @@ int afb_api_so_v2_add(const char *path, void *handle)
 	/* records the binding */
 	afb_api.closure = desc;
 	afb_api.itf = &so_v2_api_itf;
-	if (afb_apis_add(binding->api, afb_api) < 0) {
+	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;
 	}

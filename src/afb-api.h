@@ -17,14 +17,13 @@
 
 #pragma once
 
-struct afb_req;
-struct afb_context;
 struct afb_xreq;
+struct afb_apiset;
 
 struct afb_api_itf
 {
 	void (*call)(void *closure, struct afb_xreq *xreq);
-	int (*service_start)(void *closure, int share_session, int onneed);
+	int (*service_start)(void *closure, int share_session, int onneed, struct afb_apiset *apiset);
 	void (*update_hooks)(void *closure);
 	int (*get_verbosity)(void *closure);
 	void (*set_verbosity)(void *closure, int level);
@@ -36,21 +35,4 @@ struct afb_api
 	struct afb_api_itf *itf;
 };
 
-extern void afb_apis_set_timeout(int to);
-
-extern int afb_apis_is_valid_api_name(const char *name);
-
-extern int afb_apis_add(const char *name, struct afb_api api);
-
-extern int afb_apis_start_all_services(int share_session);
-extern int afb_apis_start_service(const char *name, int share_session, int onneed);
-
-extern void afb_apis_call(struct afb_xreq *xreq);
-extern void afb_apis_call_direct(struct afb_xreq *xreq);
-
-extern void afb_apis_update_hooks(const char *api);
-
-extern void afb_apis_set_verbosity(const char *api, int level);
-extern int afb_apis_get_verbosity(const char *api);
-extern const char **afb_apis_get_names();
-
+extern int afb_api_is_valid_name(const char *name);

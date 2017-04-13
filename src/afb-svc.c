@@ -31,7 +31,7 @@
 #include "afb-svc.h"
 #include "afb-xreq.h"
 #include "afb-cred.h"
-#include "afb-apis.h"
+#include "afb-apiset.h"
 #include "verbose.h"
 
 /*
@@ -41,6 +41,9 @@ struct afb_svc
 {
 	/* session of the service */
 	struct afb_session *session;
+
+	/* the apiset for the service */
+	struct afb_apiset *apiset;
 
 	/* event listener of the service or NULL */
 	struct afb_evt_listener *listener;
@@ -93,7 +96,11 @@ static struct afb_session *common_session;
 /*
  * Allocates a new service
  */
-static struct afb_svc *afb_svc_alloc(int share_session, void (*on_event)(const char *event, struct json_object *object))
+static struct afb_svc *afb_svc_alloc(
+			struct afb_apiset *apiset,
+			int share_session,
+			void (*on_event)(const char *event, struct json_object *object)
+)
 {
 	struct afb_svc *svc;
 
@@ -101,6 +108,9 @@ static struct afb_svc *afb_svc_alloc(int share_session, void (*on_event)(const c
 	svc = malloc(sizeof * svc);
 	if (svc == NULL)
 		goto error;
+
+	/* instanciate the apiset */
+	svc->apiset = afb_apiset_addref(apiset);
 
 	/* instanciate the session */
 	if (share_session) {
@@ -133,6 +143,7 @@ static struct afb_svc *afb_svc_alloc(int share_session, void (*on_event)(const c
 error3:
 	afb_session_unref(svc->session);
 error2:
+	afb_apiset_unref(svc->apiset);
 	free(svc);
 error:
 	return NULL;
@@ -141,13 +152,18 @@ error:
 /*
  * Creates a new service
  */
-struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service service), void (*on_event)(const char *event, struct json_object *object))
+struct afb_svc *afb_svc_create(
+		struct afb_apiset *apiset,
+		int share_session,
+		int (*init)(struct afb_service service),
+		void (*on_event)(const char *event, struct json_object *object)
+)
 {
 	int rc;
 	struct afb_svc *svc;
 
 	/* allocates the svc handler */
-	svc = afb_svc_alloc(share_session, on_event);
+	svc = afb_svc_alloc(apiset, share_session, on_event);
 	if (svc == NULL)
 		goto error;
 
@@ -162,6 +178,7 @@ error2:
 	if (svc->listener != NULL)
 		afb_evt_listener_unref(svc->listener);
 	afb_session_unref(svc->session);
+	afb_apiset_unref(svc->apiset);
 	free(svc);
 error:
 	return NULL;
@@ -171,16 +188,18 @@ error:
  * Creates a new service
  */
 struct afb_svc *afb_svc_create_v2(
+			struct afb_apiset *apiset,
 			int share_session,
 			void (*on_event)(const char *event, struct json_object *object),
 			int (*start)(const struct afb_binding_interface *interface, struct afb_service service),
-			const struct afb_binding_interface *interface)
+			const struct afb_binding_interface *interface
+)
 {
 	int rc;
 	struct afb_svc *svc;
 
 	/* allocates the svc handler */
-	svc = afb_svc_alloc(share_session, on_event);
+	svc = afb_svc_alloc(apiset, share_session, on_event);
 	if (svc == NULL)
 		goto error;
 
@@ -195,6 +214,7 @@ error2:
 	if (svc->listener != NULL)
 		afb_evt_listener_unref(svc->listener);
 	afb_session_unref(svc->session);
+	afb_apiset_unref(svc->apiset);
 	free(svc);
 error:
 	return NULL;
@@ -240,8 +260,7 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	svcreq->closure = cbclosure;
 
 	/* terminates and frees ressources if needed */
-	afb_apis_call(&svcreq->xreq);
-	afb_xreq_unref(&svcreq->xreq);
+	afb_xreq_process(&svcreq->xreq, svc->apiset);
 }
 
 static void svcreq_destroy(struct afb_xreq *xreq)

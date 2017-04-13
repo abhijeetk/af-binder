@@ -32,8 +32,9 @@
 
 #include "afb-session.h"
 #include "afb-msg-json.h"
-#include "afb-apis.h"
-#include "afb-api-so.h"
+#include "afb-api.h"
+#include "afb-apiset.h"
+#include "afb-api-dbus.h"
 #include "afb-context.h"
 #include "afb-cred.h"
 #include "afb-evt.h"
@@ -69,6 +70,7 @@ struct api_dbus
 			struct sd_bus_slot *slot_call;
 			struct afb_evt_listener *listener; /* listener for broadcasted events */
 			struct origin *origins;
+			struct afb_apiset *apiset;
 		} server;
 	};
 };
@@ -110,7 +112,7 @@ static struct api_dbus *make_api_dbus_3(int system, const char *path, size_t pat
 		goto error2;
 	}
 	api->api++;
-	if (!afb_apis_is_valid_api_name(api->api)) {
+	if (!afb_api_is_valid_name(api->api)) {
 		errno = EINVAL;
 		goto error2;
 	}
@@ -358,19 +360,6 @@ end:
 	sd_bus_message_unref(msg);
 }
 
-static int api_dbus_service_start(void *closure, int share_session, int onneed)
-{
-	struct api_dbus *api = closure;
-
-	/* not an error when onneed */
-	if (onneed != 0)
-		return 0;
-
-	/* already started: it is an error */
-	ERROR("The Dbus binding %s is not a startable service", api->name);
-	return -1;
-}
-
 /* receives broadcasted events */
 static int api_dbus_client_on_broadcast_event(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
 {
@@ -578,12 +567,11 @@ static int api_dbus_client_on_manage_event(sd_bus_message *m, void *userdata, sd
 }
 
 static struct afb_api_itf dbus_api_itf = {
-	.call = api_dbus_client_call,
-	.service_start = api_dbus_service_start
+	.call = api_dbus_client_call
 };
 
 /* adds a afb-dbus-service client api */
-int afb_api_dbus_add_client(const char *path)
+int afb_api_dbus_add_client(const char *path, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_dbus *api;
@@ -621,7 +609,7 @@ int afb_api_dbus_add_client(const char *path)
 	/* record it as an API */
 	afb_api.closure = api;
 	afb_api.itf = &dbus_api_itf;
-	if (afb_apis_add(api->api, afb_api) < 0)
+	if (afb_apiset_add(apiset, api->api, afb_api) < 0)
 		goto error2;
 
 	return 0;
@@ -997,8 +985,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	dreq->listener = listener;
 	dreq->xreq.api = api->api;
 	dreq->xreq.verb = method;
-	afb_apis_call(&dreq->xreq);
-	afb_xreq_unref(&dreq->xreq);
+	afb_xreq_process(&dreq->xreq, api->server.apiset);
 	return 1;
 
 out_of_memory:
@@ -1009,7 +996,7 @@ error:
 }
 
 /* create the service */
-int afb_api_dbus_add_server(const char *path)
+int afb_api_dbus_add_server(const char *path, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_dbus *api;
@@ -1037,6 +1024,7 @@ int afb_api_dbus_add_server(const char *path)
 	INFO("afb service over dbus installed, name %s, path %s", api->name, api->path);
 
 	api->server.listener = afb_evt_listener_create(&evt_broadcast_itf, api);
+	api->server.apiset = afb_apiset_addref(apiset);
 	return 0;
 error3:
 	sd_bus_release_name(api->sdbus, api->name);

@@ -26,7 +26,7 @@
 #include <afb/afb-req-itf.h>
 #include "afb-context.h"
 #include "afb-hreq.h"
-#include "afb-apis.h"
+#include "afb-apiset.h"
 #include "afb-session.h"
 #include "afb-websock.h"
 
@@ -34,6 +34,7 @@ int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 {
 	const char *api, *verb;
 	size_t lenapi, lenverb;
+	struct afb_apiset *apiset = data;
 
 	api = &hreq->tail[strspn(hreq->tail, "/")];
 	lenapi = strcspn(api, "/");
@@ -44,10 +45,7 @@ int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 	if (!(*api && *verb && lenapi && lenverb))
 		return 0;
 
-	if (afb_hreq_init_req_call(hreq, api, lenapi, verb, lenverb) < 0)
-		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
-	else
-		afb_apis_call(&hreq->xreq);
+	afb_hreq_call(hreq, apiset, api, lenapi, verb, lenverb);
 	return 1;
 }
 
@@ -79,6 +77,8 @@ int afb_hswitch_one_page_api_redirect(struct afb_hreq *hreq, void *data)
 
 int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 {
+	struct afb_apiset *apiset = data;
+
 	if (hreq->lentail != 0)
 		return 0;
 
@@ -92,7 +92,7 @@ int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 		return 1;
 	}
 
-	return afb_websock_check_upgrade(hreq);
+	return afb_websock_check_upgrade(hreq, apiset);
 }
 
 

@@ -910,16 +910,19 @@ static void req_success(struct afb_xreq *xreq, json_object *obj, const char *inf
 	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
 }
 
-int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
 	hreq->xreq.api = strndup(api, lenapi);
 	hreq->xreq.verb = strndup(verb, lenverb);
 	if (hreq->xreq.api == NULL || hreq->xreq.verb == NULL) {
 		ERROR("Out of memory");
-		errno = ENOMEM;
-		return -1;
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+	} else if (afb_hreq_init_context(hreq) < 0) {
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+	} else {
+		afb_xreq_addref(&hreq->xreq); /* TODO check if needed */
+		afb_xreq_process(&hreq->xreq, apiset);
 	}
-	return afb_hreq_init_context(hreq);
 }
 
 int afb_hreq_init_context(struct afb_hreq *hreq)

@@ -42,7 +42,8 @@
 #include "afb-cred.h"
 #include "afb-ws.h"
 #include "afb-msg-json.h"
-#include "afb-apis.h"
+#include "afb-api.h"
+#include "afb-apiset.h"
 #include "afb-api-so.h"
 #include "afb-context.h"
 #include "afb-evt.h"
@@ -83,6 +84,7 @@ struct api_ws
 		} client;
 		struct {
 			sd_event_source *listensrc; /**< systemd source for server socket */
+			struct afb_apiset *apiset;
 		} server;
 	};
 };
@@ -169,6 +171,9 @@ struct api_ws_client
 
 	/* pending subcalls */
 	struct api_ws_subcall *subcalls;
+
+	/* apiset */
+	struct afb_apiset *apiset;
 };
 
 /******************* websocket interface for client part **********************************/
@@ -238,7 +243,7 @@ static struct api_ws *api_ws_make(const char *path)
 	while (length && path[length - 1] != '/' && path[length - 1] != ':')
 		length = length - 1;
 	api->api = &api->path[length];
-	if (api->api == NULL || !afb_apis_is_valid_api_name(api->api)) {
+	if (api->api == NULL || !afb_api_is_valid_name(api->api)) {
 		errno = EINVAL;
 		goto error2;
 	}
@@ -931,19 +936,6 @@ end:
 	pthread_mutex_unlock(&apiws->mutex);
 }
 
-static int api_ws_service_start_cb(void *closure, int share_session, int onneed)
-{
-	struct api_ws *api = closure;
-
-	/* not an error when onneed */
-	if (onneed != 0)
-		return 0;
-
-	/* already started: it is an error */
-	ERROR("The WS binding %s is not a startable service", api->path);
-	return -1;
-}
-
 /*  */
 static void api_ws_client_disconnect(struct api_ws *api)
 {
@@ -975,12 +967,11 @@ static int api_ws_client_connect(struct api_ws *api)
 }
 
 static struct afb_api_itf ws_api_itf = {
-	.call = api_ws_client_call_cb,
-	.service_start = api_ws_service_start_cb
+	.call = api_ws_client_call_cb
 };
 
 /* adds a afb-ws-service client api */
-int afb_api_ws_add_client(const char *path)
+int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_ws *api;
@@ -1001,7 +992,7 @@ int afb_api_ws_add_client(const char *path)
 	/* record it as an API */
 	afb_api.closure = api;
 	afb_api.itf = &ws_api_itf;
-	if (afb_apis_add(api->api, afb_api) < 0)
+	if (afb_apiset_add(apiset, api->api, afb_api) < 0)
 		goto error3;
 
 	return 0;
@@ -1031,6 +1022,7 @@ static void api_ws_server_client_unref(struct api_ws_client *client)
 			free(sc);
 		}
 		afb_cred_unref(client->cred);
+		afb_apiset_unref(client->apiset);
 		free(client);
 	}
 }
@@ -1081,8 +1073,7 @@ static void api_ws_server_on_call(struct api_ws_client *client, struct readbuf *
 	wreq->xreq.api = client->api;
 	wreq->xreq.verb = cverb;
 	wreq->xreq.json = object;
-	afb_apis_call(&wreq->xreq);
-	afb_xreq_unref(&wreq->xreq);
+	afb_xreq_process(&wreq->xreq, client->apiset);
 	return;
 
 unconnected:
@@ -1180,6 +1171,7 @@ static void api_ws_server_accept(struct api_ws *api)
 				client->ws = afb_ws_create(afb_common_get_event_loop(), client->fd, &api_ws_server_ws_itf, client);
 				if (client->ws != NULL) {
 					client->api = api->api;
+					client->apiset = afb_apiset_addref(api->server.apiset);
 					client->refcount = 1;
 					client->subcalls = NULL;
 					return;
@@ -1429,7 +1421,7 @@ static int api_ws_server_connect(struct api_ws *api)
 }
 
 /* create the service */
-int afb_api_ws_add_server(const char *path)
+int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_ws *api;
@@ -1444,6 +1436,7 @@ int afb_api_ws_add_server(const char *path)
 	if (rc < 0)
 		goto error2;
 
+	api->server.apiset = afb_apiset_addref(apiset);
 	return 0;
 
 error2:

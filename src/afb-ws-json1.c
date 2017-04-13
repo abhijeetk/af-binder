@@ -33,7 +33,7 @@
 #include "afb-msg-json.h"
 #include "afb-session.h"
 #include "afb-cred.h"
-#include "afb-apis.h"
+#include "afb-apiset.h"
 #include "afb-xreq.h"
 #include "afb-context.h"
 #include "afb-evt.h"
@@ -63,6 +63,7 @@ struct afb_ws_json1
 	struct afb_evt_listener *listener;
 	struct afb_wsj1 *wsj1;
 	struct afb_cred *cred;
+	struct afb_apiset *apiset;
 	int new_session;
 };
 
@@ -101,7 +102,7 @@ static const struct afb_evt_itf evt_itf = {
 ****************************************************************
 ***************************************************************/
 
-struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
+struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
 {
 	struct afb_ws_json1 *result;
 
@@ -129,6 +130,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 		goto error4;
 
 	result->cred = afb_cred_create_for_socket(fd);
+	result->apiset = afb_apiset_addref(apiset);
 	return result;
 
 error4:
@@ -157,6 +159,7 @@ static void aws_unref(struct afb_ws_json1 *ws)
 			ws->cleanup(ws->cleanup_closure);
 		afb_session_unref(ws->session);
 		afb_cred_unref(ws->cred);
+		afb_apiset_unref(ws->apiset);
 		free(ws);
 	}
 }
@@ -200,8 +203,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	wsreq->xreq.listener = wsreq->aws->listener;
 
 	/* emits the call */
-	afb_apis_call(&wsreq->xreq);
-	afb_xreq_unref(&wsreq->xreq);
+	afb_xreq_process(&wsreq->xreq, ws->apiset);
 }
 
 static void aws_on_event(struct afb_ws_json1 *aws, const char *event, int eventid, struct json_object *object)

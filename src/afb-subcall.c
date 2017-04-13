@@ -25,7 +25,7 @@
 
 #include "afb-subcall.h"
 #include "afb-msg-json.h"
-#include "afb-apis.h"
+#include "afb-apiset.h"
 #include "afb-context.h"
 #include "afb-xreq.h"
 #include "afb-cred.h"
@@ -133,8 +133,7 @@ void afb_subcall(
 		return;
 	}
 
-	afb_apis_call(&subcall->xreq);
-	afb_xreq_unref(&subcall->xreq);
+	afb_xreq_process(&subcall->xreq, caller->apiset);
 }
 
 struct subcall_sync

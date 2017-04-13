@@ -36,7 +36,7 @@
 
 #include "afb-config.h"
 #include "afb-hswitch.h"
-#include "afb-apis.h"
+#include "afb-apiset.h"
 #include "afb-api-so.h"
 #include "afb-api-dbus.h"
 #include "afb-api-ws.h"
@@ -57,6 +57,8 @@
    if SELF_PGROUP != 0 afb-daemon is the group leader
 */
 #define SELF_PGROUP 1
+
+struct afb_apiset *main_apiset;
 
 static struct afb_config *config;
 static pid_t childpid;
@@ -83,12 +85,12 @@ static struct afb_config_list *run_for_list(struct afb_config_list *list,
 
 static int run_start(void *closure, char *value)
 {
-	int (*starter) (const char *value) = closure;
-	return starter(value) >= 0;
+	int (*starter) (const char *value, struct afb_apiset *apiset) = closure;
+	return starter(value, main_apiset) >= 0;
 }
 
-static void start_list(struct afb_config_list *list,
-		       int (*starter) (const char *value), const char *message)
+static void apiset_start_list(struct afb_config_list *list,
+		       int (*starter) (const char *value, struct afb_apiset *apiset), const char *message)
 {
 	list = run_for_list(list, run_start, starter);
 	if (list) {
@@ -113,6 +115,7 @@ static void exit_handler()
 		killpg(0, SIGTERM);
 	else if (childpid > 0)
 		killpg(childpid, SIGTERM);
+	exit(0);
 }
 
 static void on_sigterm(int signum, siginfo_t *info, void *uctx)
@@ -215,11 +218,11 @@ static int init_alias(void *closure, char *spec)
 static int init_http_server(struct afb_hsrv *hsrv)
 {
 	if (!afb_hsrv_add_handler
-	    (hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
+	    (hsrv, config->rootapi, afb_hswitch_websocket_switch, main_apiset, 20))
 		return 0;
 
 	if (!afb_hsrv_add_handler
-	    (hsrv, config->rootapi, afb_hswitch_apis, NULL, 10))
+	    (hsrv, config->rootapi, afb_hswitch_apis, main_apiset, 10))
 		return 0;
 
 	if (run_for_list(config->aliases, init_alias, hsrv))
@@ -505,8 +508,7 @@ static void startup_call_current(struct startup_req *sreq)
 			sreq->xreq.verb = sreq->verb;
 			sreq->xreq.json = json_tokener_parse(json + 1);
 			if (sreq->api && sreq->verb && sreq->xreq.json) {
-				afb_apis_call(&sreq->xreq);
-				afb_xreq_unref(&sreq->xreq);
+				afb_xreq_process(&sreq->xreq, main_apiset);
 				return;
 			}
 		}
@@ -555,7 +557,11 @@ static void start()
 	}
 
 	/* configure the daemon */
-	afb_apis_set_timeout(config->apiTimeout);
+	main_apiset = afb_apiset_create("main", config->apiTimeout, NULL);
+	if (!main_apiset) {
+		ERROR("can't create main api set");
+		goto error;
+	}
 	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
 	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
 		ERROR("initialisation of cookies failed");
@@ -569,18 +575,18 @@ static void start()
 		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
 
 	/* load bindings */
-	start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
-	start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
-	start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
-	start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
+	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
+	apiset_start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
+	apiset_start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
+	apiset_start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
 
-	start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
-	start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
+	apiset_start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
+	apiset_start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
 
 	DEBUG("Init config done");
 
 	/* start the services */
-	if (afb_apis_start_all_services(1) < 0)
+	if (afb_apiset_start_all_services(main_apiset, 1) < 0)
 		goto error;
 
 	/* start the HTTP server */

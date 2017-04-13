@@ -56,12 +56,13 @@ INCLUDE_DIRECTORIES(
 )
 
 ADD_LIBRARY(afb-lib STATIC
+	afb-api.c
 	afb-api-dbus.c
 	afb-api-so.c
 	afb-api-so-v1.c
 	afb-api-so-v2.c
 	afb-api-ws.c
-	afb-apis.c
+	afb-apiset.c
 	afb-common.c
 	afb-config.c
 	afb-context.c

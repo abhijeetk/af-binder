@@ -75,7 +75,7 @@ extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *name, const
 
 extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char *data, size_t size);
 
-extern int afb_hreq_init_req_call(struct afb_hreq *hreq, const char *api, size_t lenapi, const char *verb, size_t lenverb);
+extern void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 
 extern int afb_hreq_init_context(struct afb_hreq *hreq);
 

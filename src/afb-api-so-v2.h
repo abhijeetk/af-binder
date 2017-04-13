@@ -18,4 +18,4 @@
 
 #pragma once
 
-extern int afb_api_so_v2_add(const char *path, void *handle);
+extern int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset);

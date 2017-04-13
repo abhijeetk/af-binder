@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016, 2017 "IoT.bzh"
+ * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,32 +17,48 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <dlfcn.h>
-#include <assert.h>
+#include <errno.h>
 
-#include <afb/afb-binding.h>
+#include "afb-api.h"
 
-#include "afb-svc.h"
-#include "afb-evt.h"
-#include "afb-common.h"
-#include "afb-context.h"
-#include "afb-api-so.h"
-#include "afb-xreq.h"
-#include "verbose.h"
-
-
-struct afb_binding_interface;
-
-struct afb_ditf
+/**
+ * Checks wether 'name' is a valid API name.
+ * @return 1 if valid, 0 otherwise
+ */
+int afb_api_is_valid_name(const char *name)
 {
-	struct afb_binding_interface interface;
-	const char *prefix;
-};
+	unsigned char c;
 
-extern void afb_ditf_init(struct afb_ditf *ditf, const char *prefix);
-extern void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix);
-extern void afb_ditf_update_hook(struct afb_ditf *ditf);
+	c = (unsigned char)*name;
+	if (c == 0)
+		/* empty names aren't valid */
+		return 0;
+
+	do {
+		if (c < (unsigned char)'\x80') {
+			switch(c) {
+			default:
+				if (c > ' ')
+					break;
+			case '"':
+			case '#':
+			case '%':
+			case '&':
+			case '\'':
+			case '/':
+			case '?':
+			case '`':
+			case '\\':
+			case '\x7f':
+				return 0;
+			}
+		}
+		c = (unsigned char)*++name;
+	} while(c != 0);
+	return 1;
+}
 

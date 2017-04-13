@@ -20,10 +20,8 @@
 
 struct afb_req_itf;
 
-extern const struct afb_req_itf afb_api_dbus_req_itf;
+extern int afb_api_dbus_add_client(const char *path, struct afb_apiset *apiset);
 
-extern int afb_api_dbus_add_client(const char *path);
-
-extern int afb_api_dbus_add_server(const char *path);
+extern int afb_api_dbus_add_server(const char *path, struct afb_apiset *apiset);
 
 

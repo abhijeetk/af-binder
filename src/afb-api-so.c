@@ -30,7 +30,7 @@
 #include "afb-api-so-v2.h"
 #include "verbose.h"
 
-static int load_binding(const char *path, int force)
+static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 {
 	int rc;
 	void *handle;
@@ -47,12 +47,12 @@ static int load_binding(const char *path, int force)
 	}
 
 	/* retrieves the register function */
-	rc = afb_api_so_v2_add(path, handle);
+	rc = afb_api_so_v2_add(path, handle, apiset);
 	if (rc < 0) {
 		/* error when loading a valid v2 binding */
 		goto error2;
 	}
-	rc = afb_api_so_v1_add(path, handle);
+	rc = afb_api_so_v1_add(path, handle, apiset);
 	if (rc < 0) {
 		/* error when loading a valid v1 binding */
 		goto error2;
@@ -74,12 +74,12 @@ error:
 }
 
 
-int afb_api_so_add_binding(const char *path)
+int afb_api_so_add_binding(const char *path, struct afb_apiset *apiset)
 {
-	return load_binding(path, 1);
+	return load_binding(path, 1, apiset);
 }
 
-static int adddirs(char path[PATH_MAX], size_t end)
+static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset)
 {
 	DIR *dir;
 	struct dirent *dent;
@@ -119,13 +119,13 @@ static int adddirs(char path[PATH_MAX], size_t end)
 					continue;
 			}
 			memcpy(&path[end], dent->d_name, len+1);
-			adddirs(path, end+len);;
+			adddirs(path, end+len, apiset);
 		} else if (dent->d_type == DT_REG) {
 			/* case of files */
 			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
 			memcpy(&path[end], dent->d_name, len+1);
-			if (load_binding(path, 0) < 0)
+			if (load_binding(path, 0, apiset) < 0)
 				return -1;
 		}
 	}
@@ -133,7 +133,7 @@ static int adddirs(char path[PATH_MAX], size_t end)
 	return 0;
 }
 
-int afb_api_so_add_directory(const char *path)
+int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset)
 {
 	size_t length;
 	char buffer[PATH_MAX];
@@ -145,10 +145,10 @@ int afb_api_so_add_directory(const char *path)
 	}
 
 	memcpy(buffer, path, length + 1);
-	return adddirs(buffer, length);
+	return adddirs(buffer, length, apiset);
 }
 
-int afb_api_so_add_path(const char *path)
+int afb_api_so_add_path(const char *path, struct afb_apiset *apiset)
 {
 	struct stat st;
 	int rc;
@@ -157,15 +157,15 @@ int afb_api_so_add_path(const char *path)
 	if (rc < 0)
 		ERROR("Invalid binding path [%s]: %m", path);
 	else if (S_ISDIR(st.st_mode))
-		rc = afb_api_so_add_directory(path);
+		rc = afb_api_so_add_directory(path, apiset);
 	else if (strstr(path, ".so"))
-		rc = load_binding(path, 0);
+		rc = load_binding(path, 0, apiset);
 	else
 		INFO("not a binding [%s], skipped", path);
 	return rc;
 }
 
-int afb_api_so_add_pathset(const char *pathset)
+int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset)
 {
 	static char sep[] = ":";
 	char *ps, *p;
@@ -175,7 +175,7 @@ int afb_api_so_add_pathset(const char *pathset)
 		p = strsep(&ps, sep);
 		if (!p)
 			return 0;
-		if (afb_api_so_add_path(p) < 0)
+		if (afb_api_so_add_path(p, apiset) < 0)
 			return -1;
 	}
 }

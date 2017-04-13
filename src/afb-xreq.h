@@ -27,6 +27,7 @@ struct json_object;
 struct afb_evt_listener;
 struct afb_xreq;
 struct afb_cred;
+struct afb_apiset;
 
 struct afb_xreq_query_itf {
 	struct json_object *(*json)(struct afb_xreq *xreq);
@@ -46,6 +47,7 @@ struct afb_xreq_query_itf {
 struct afb_xreq
 {
 	struct afb_context context; /**< context of the request */
+	struct afb_apiset *apiset; /**< apiset of the xreq */
 	const char *api;	/**< the requested API */
 	const char *verb;	/**< the requested VERB */
 	struct json_object *json; /**< the json object (or NULL) */
@@ -74,5 +76,6 @@ extern void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, co
 
 extern void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf);
 extern void afb_xreq_begin(struct afb_xreq *xreq);
-extern void afb_xreq_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
+extern void afb_xreq_so_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
 
+extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);

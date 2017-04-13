@@ -31,6 +31,9 @@
 #include "afb-msg-json.h"
 #include "afb-subcall.h"
 #include "afb-hook.h"
+#include "afb-api.h"
+#include "afb-apiset.h"
+#include "jobs.h"
 #include "verbose.h"
 
 
@@ -476,7 +479,7 @@ static int xcheck(struct afb_xreq *xreq, int sessionflags)
 	return 1;
 }
 
-void afb_xreq_call(struct afb_xreq *xreq, int sessionflags, void (*method)(struct afb_req req))
+void afb_xreq_so_call(struct afb_xreq *xreq, int sessionflags, void (*method)(struct afb_req req))
 {
 	if (xcheck(xreq, sessionflags))
 		method(to_req(xreq));
@@ -494,5 +497,44 @@ void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *query
 	memset(xreq, 0, sizeof *xreq);
 	xreq->refcount = 1;
 	xreq->queryitf = queryitf;
+}
+
+
+static void process_async(int signum, void *arg)
+{
+	struct afb_xreq *xreq = arg;
+	struct afb_api api;
+
+	if (signum != 0) {
+		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
+	} else {
+		/* init hooking */
+		afb_hook_init_xreq(xreq);
+		if (xreq->hookflags)
+			afb_hook_xreq_begin(xreq);
+
+		/* search the api */
+		if (afb_apiset_get(xreq->apiset, xreq->api, &api) < 0) {
+			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+		} else {
+			xreq->context.api_key = api.closure;
+			api.itf->call(api.closure, xreq);
+		}
+	}
+	afb_xreq_unref(xreq);
+}
+
+void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
+{
+	xreq->apiset = apiset;
+
+	afb_xreq_addref(xreq);
+	if (jobs_queue(NULL, afb_apiset_get_timeout(apiset), process_async, xreq) < 0) {
+		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
+		ERROR("can't process job with threads: %m");
+		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
+		afb_xreq_unref(xreq);
+	}
+	afb_xreq_unref(xreq);
 }
 
