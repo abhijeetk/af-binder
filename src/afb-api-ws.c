@@ -53,6 +53,7 @@ struct api_ws_memo;
 struct api_ws_event;
 struct api_ws_client;
 
+#define CHAR_FOR_CALL             'C'
 #define CHAR_FOR_ANSWER_SUCCESS   'T'
 #define CHAR_FOR_ANSWER_FAIL      'F'
 #define CHAR_FOR_EVT_BROADCAST    '*'
@@ -160,7 +161,6 @@ static const struct afb_ws_itf api_ws_server_ws_itf =
 struct api_ws_server_req {
 	struct afb_xreq xreq;		/* the xreq */
 	struct api_ws_client *client;	/* the client of the request */
-	char *rcvdata;			/* the received data to free */
 	const char *request;		/* the readen request as string */
 	size_t lenreq;			/* the length of the request */
 	uint32_t msgid;			/* the incoming request msgid */
@@ -796,7 +796,8 @@ static void api_ws_client_call_cb(void * closure, struct afb_xreq *xreq)
 	raw = afb_xreq_raw(xreq, &szraw);
 	if (raw == NULL)
 		goto internal_error;
-	if (!api_ws_write_uint32(&wb, memo->msgid)
+	if (!api_ws_write_char(&wb, CHAR_FOR_CALL)
+	 || !api_ws_write_uint32(&wb, memo->msgid)
 	 || !api_ws_write_uint32(&wb, (uint32_t)xreq->context.flags)
 	 || !api_ws_write_string(&wb, xreq->verb)
 	 || !api_ws_write_string(&wb, afb_session_uuid(xreq->context.session))
@@ -920,7 +921,7 @@ static void api_ws_server_client_unref(struct api_ws_client *client)
 }
 
 /* on call, propagate it to the ws service */
-static void api_ws_server_called(struct api_ws_client *client, struct readbuf *rb, char *data, size_t size)
+static void api_ws_server_on_call(struct api_ws_client *client, struct readbuf *rb)
 {
 	struct api_ws_server_req *wreq;
 	const char *uuid, *verb;
@@ -934,7 +935,6 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 		goto out_of_memory;
 
 	wreq->client = client;
-	wreq->rcvdata = data;
 
 	/* reads the call message data */
 	if (!api_ws_read_uint32(rb, &wreq->msgid)
@@ -966,15 +966,24 @@ static void api_ws_server_called(struct api_ws_client *client, struct readbuf *r
 out_of_memory:
 overflow:
 	free(wreq);
-	free(data);
 	api_ws_server_client_unref(client);
 }
 
 /* callback when receiving binary data */
 static void api_ws_server_on_binary(void *closure, char *data, size_t size)
 {
-	struct readbuf rb = { .head = data, .end = data + size };
-	api_ws_server_called(closure, &rb, data, size);
+	if (size > 0) {
+		struct readbuf rb = { .head = data, .end = data + size };
+		switch (*rb.head++) {
+		case CHAR_FOR_CALL:
+			api_ws_server_on_call(closure, &rb);
+			break;
+		default: /* unexpected message */
+			/* TODO: close the connection */
+			break;
+		}
+	}
+	free(data);
 }
 
 /* callback when receiving a hangup */
@@ -1084,7 +1093,6 @@ static void api_ws_server_req_destroy_cb(struct afb_xreq *xreq)
 	afb_context_disconnect(&wreq->xreq.context);
 	afb_cred_unref(wreq->xreq.cred);
 	json_object_put(wreq->xreq.json);
-	free(wreq->rcvdata);
 	api_ws_server_client_unref(wreq->client);
 	free(wreq);
 }
