@@ -89,18 +89,25 @@ static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 static struct subcall *create_subcall(struct afb_xreq *caller, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
 {
 	struct subcall *subcall;
+	size_t lenapi, lenverb;
+	char *copy;
 
-	subcall = calloc(1, sizeof *subcall);
+	lenapi = 1 + strlen(api);
+	lenverb = 1 + strlen(verb);
+	subcall = malloc(lenapi + lenverb + sizeof *subcall);
 	if (subcall == NULL) {
 		return NULL;
 	}
-
 	afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
 	afb_context_subinit(&subcall->xreq.context, &caller->context);
 	subcall->xreq.cred = afb_cred_addref(caller->cred);
 	subcall->xreq.json = args;
-	subcall->xreq.api = api; /* TODO: alloc ? */
-	subcall->xreq.verb = verb; /* TODO: alloc ? */
+	copy = (char*)&subcall[1];
+	memcpy(copy, api, lenapi);
+	subcall->xreq.api = copy;
+	copy = &copy[lenapi];
+	memcpy(copy, verb, lenverb);
+	subcall->xreq.verb = copy;
 	subcall->caller = caller;
 	subcall->callback = callback;
 	subcall->closure = closure;
