@@ -491,6 +491,7 @@ void afb_xreq_begin(struct afb_xreq *xreq)
 
 void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)
 {
+	memset(xreq, 0, sizeof *xreq);
 	xreq->refcount = 1;
 	xreq->queryitf = queryitf;
 }
