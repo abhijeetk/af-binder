@@ -119,15 +119,47 @@ static const struct protodef *search_proto(const struct protodef *protodefs, con
 	}
 }
 
-static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, void *context, void **websock, struct afb_apiset *apiset)
+struct memo_websocket {
+	const struct protodef *proto;
+	struct afb_hreq *hreq;
+	struct afb_apiset *apiset;
+};
+
+static void close_websocket(void *closure)
 {
-	const union MHD_ConnectionInfo *info;
+	struct MHD_UpgradeResponseHandle *urh = closure;
+	MHD_upgrade_action (urh, MHD_UPGRADE_ACTION_CLOSE);
+}
+
+static void upgrade_to_websocket(
+			void *cls,
+			struct MHD_Connection *connection,
+			void *con_cls,
+			const char *extra_in,
+			size_t extra_in_size,
+			MHD_socket sock,
+			struct MHD_UpgradeResponseHandle *urh)
+{
+	struct memo_websocket *memo = cls;
+	void *ws;
+
+	ws = memo->proto->create(sock, memo->apiset, &memo->hreq->xreq.context, close_websocket, urh);
+	if (ws == NULL) {
+		/* TODO */
+		close_websocket(urh);
+	}
+	afb_hreq_unref(memo->hreq);
+	free(memo);
+}
+
+static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, struct afb_hreq *hreq, struct afb_apiset *apiset)
+{
+	struct memo_websocket *memo;
 	struct MHD_Response *response;
 	const char *connection, *upgrade, *key, *version, *protocols;
 	char acceptval[29];
 	int vernum;
 	const struct protodef *proto;
-	void *ws;
 
 	/* is an upgrade to websocket ? */
 	upgrade = MHD_lookup_connection_value(con, MHD_HEADER_KIND, MHD_HTTP_HEADER_UPGRADE);
@@ -137,7 +169,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 	/* is a connection for upgrade ? */
 	connection = MHD_lookup_connection_value(con, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONNECTION);
 	if (connection == NULL
-         || !headerhas (connection, MHD_HTTP_HEADER_UPGRADE))
+	 || !headerhas (connection, MHD_HTTP_HEADER_UPGRADE))
 		return 0;
 
 	/* has a key and a version ? */
@@ -166,25 +198,21 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 		return 1;
 	}
 
-	/* create the web socket */
-	info = MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD);
-	if (info == NULL) {
+	/* record context */
+	memo = malloc(sizeof *memo);
+	if (memo == NULL) {
 		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
 		MHD_destroy_response(response);
 		return 1;
 	}
-	ws = proto->create(info->connect_fd, apiset, context, (void*)MHD_resume_connection, con);
-	if (ws == NULL) {
-		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
-		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-		MHD_destroy_response(response);
-		return 1;
-	}
+	memo->proto = proto;
+	memo->hreq = hreq;
+	memo->apiset = apiset;
 
 	/* send the accept connection */
+	response = MHD_create_response_for_upgrade(upgrade_to_websocket, memo);
 	make_accept_value(key, acceptval);
-	response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 	MHD_add_response_header(response, sec_websocket_accept_s, acceptval);
 	MHD_add_response_header(response, sec_websocket_protocol_s, proto->name);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE);
@@ -192,7 +220,6 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 	MHD_queue_response(con, MHD_HTTP_SWITCHING_PROTOCOLS, response);
 	MHD_destroy_response(response);
 
-	*websock = ws;
 	return 1;
 }
 
@@ -203,7 +230,6 @@ static const struct protodef protodefs[] = {
 
 int afb_websock_check_upgrade(struct afb_hreq *hreq, struct afb_apiset *apiset)
 {
-	void *ws;
 	int rc;
 
 	/* is a get ? */
@@ -211,12 +237,9 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq, struct afb_apiset *apiset)
 	 || strcasecmp(hreq->version, MHD_HTTP_VERSION_1_1))
 		return 0;
 
-	ws = NULL;
-	rc = check_websocket_upgrade(hreq->connection, protodefs, &hreq->xreq.context, &ws, apiset);
+	rc = check_websocket_upgrade(hreq->connection, protodefs, hreq, apiset);
 	if (rc == 1) {
 		hreq->replied = 1;
-		if (ws != NULL)
-			hreq->upgrade = 1;
 	}
 	return rc;
 }

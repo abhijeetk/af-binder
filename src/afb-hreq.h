@@ -44,7 +44,6 @@ struct afb_hreq {
 	struct MHD_PostProcessor *postform;
 	struct hreq_data *data;
 	struct json_object *json;
-	int upgrade;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);

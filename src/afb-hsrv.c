@@ -231,8 +231,6 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 
 	hreq = *recordreq;
 	if (hreq) {
-		if (hreq->upgrade)
-			MHD_suspend_connection (connection);
 		afb_hreq_unref(hreq);
 	}
 }
@@ -399,7 +397,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 	const union MHD_DaemonInfo *info;
 
 	httpd = MHD_start_daemon(
-		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
+		MHD_USE_EPOLL | MHD_ALLOW_UPGRADE | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
 		port,				/* port */
 		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
 		access_handler, hsrv,	/* Http Request Call back + extra attribute */
