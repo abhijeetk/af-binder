@@ -22,6 +22,4 @@ extern void sig_monitor_clean_timeouts();
 extern int sig_monitor_init_timeouts();
 
 extern void sig_monitor(int timeout, void (*function)(int sig, void*), void *arg);
-extern void sig_monitor2(int timeout, void (*function)(int sig, void*, void*), void *arg1, void *arg2);
-extern void sig_monitor3(int timeout, void (*function)(int sig, void*, void*, void*), void *arg1, void *arg2, void *arg3);
 

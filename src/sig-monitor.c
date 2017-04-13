@@ -164,16 +164,6 @@ void sig_monitor_clean_timeouts()
 
 void sig_monitor(int timeout, void (*function)(int sig, void*), void *arg)
 {
-	sig_monitor3(timeout, (void (*)(int,void*,void*,void*))function, arg, NULL, NULL);
-}
-
-void sig_monitor2(int timeout, void (*function)(int sig, void*, void*), void *arg1, void *arg2)
-{
-	sig_monitor3(timeout, (void (*)(int,void*,void*,void*))function, arg1, arg2, NULL);
-}
-
-void sig_monitor3(int timeout, void (*function)(int sig, void*, void*, void*), void *arg1, void *arg2, void *arg3)
-{
 	volatile int signum, signum2;
 	sigjmp_buf jmpbuf, *older;
 
@@ -183,11 +173,11 @@ void sig_monitor3(int timeout, void (*function)(int sig, void*, void*, void*), v
 		error_handler = &jmpbuf;
 		if (timeout)
 			timeout_arm(timeout);
-		function(0, arg1, arg2, arg3);
+		function(0, arg);
 	} else {
 		signum2 = setjmp(jmpbuf);
 		if (signum2 == 0)
-			function(signum, arg1, arg2, arg3);
+			function(signum, arg);
 	}
 	error_handler = older;
 	if (timeout)
