@@ -53,7 +53,14 @@ struct api_ws_memo;
 struct api_ws_event;
 struct api_ws_client;
 
-
+#define CHAR_FOR_ANSWER_SUCCESS   'T'
+#define CHAR_FOR_ANSWER_FAIL      'F'
+#define CHAR_FOR_EVT_BROADCAST    '*'
+#define CHAR_FOR_EVT_ADD          '+'
+#define CHAR_FOR_EVT_DEL          '-'
+#define CHAR_FOR_EVT_PUSH         '!'
+#define CHAR_FOR_EVT_SUBSCRIBE    'S'
+#define CHAR_FOR_EVT_UNSUBSCRIBE  'U'
 
 /*
  */
@@ -737,28 +744,28 @@ static void api_ws_client_on_binary(void *closure, char *data, size_t size)
 	if (size > 0) {
 		struct readbuf rb = { .head = data, .end = data + size };
 		switch (*rb.head++) {
-		case 'T': /* success */
+		case CHAR_FOR_ANSWER_SUCCESS: /* success */
 			api_ws_client_reply_success(closure, &rb);
 			break;
-		case 'F': /* fail */
+		case CHAR_FOR_ANSWER_FAIL: /* fail */
 			api_ws_client_reply_fail(closure, &rb);
 			break;
-		case '*': /* broadcast */
+		case CHAR_FOR_EVT_BROADCAST: /* broadcast */
 			api_ws_client_event_broadcast(closure, &rb);
 			break;
-		case '+': /* creates the event */
+		case CHAR_FOR_EVT_ADD: /* creates the event */
 			api_ws_client_event_create(closure, &rb);
 			break;
-		case '-': /* drops the event */
+		case CHAR_FOR_EVT_DEL: /* drops the event */
 			api_ws_client_event_drop(closure, &rb);
 			break;
-		case '!': /* pushs the event */
+		case CHAR_FOR_EVT_PUSH: /* pushs the event */
 			api_ws_client_event_push(closure, &rb);
 			break;
-		case 'S': /* subscribe event for a request */
+		case CHAR_FOR_EVT_SUBSCRIBE: /* subscribe event for a request */
 			api_ws_client_event_subscribe(closure, &rb);
 			break;
-		case 'U': /* unsubscribe event for a request */
+		case CHAR_FOR_EVT_UNSUBSCRIBE: /* unsubscribe event for a request */
 			api_ws_client_event_unsubscribe(closure, &rb);
 			break;
 		default: /* unexpected message */
@@ -1036,18 +1043,18 @@ static void api_ws_server_event_send(struct api_ws_client *client, char order, c
 
 static void api_ws_server_event_add(void *closure, const char *event, int eventid)
 {
-	api_ws_server_event_send(closure, '+', event, eventid, NULL);
+	api_ws_server_event_send(closure, CHAR_FOR_EVT_ADD, event, eventid, NULL);
 }
 
 static void api_ws_server_event_remove(void *closure, const char *event, int eventid)
 {
-	api_ws_server_event_send(closure, '-', event, eventid, NULL);
+	api_ws_server_event_send(closure, CHAR_FOR_EVT_DEL, event, eventid, NULL);
 }
 
 static void api_ws_server_event_push(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	const char *data = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
-	api_ws_server_event_send(closure, '!', event, eventid, data ? : "null");
+	api_ws_server_event_send(closure, CHAR_FOR_EVT_PUSH, event, eventid, data ? : "null");
 	json_object_put(object);
 }
 
@@ -1058,7 +1065,7 @@ static void api_ws_server_event_broadcast(void *closure, const char *event, int 
 
 	struct writebuf wb = { .count = 0 };
 
-	if (api_ws_write_char(&wb, '*') && api_ws_write_string(&wb, event) && api_ws_write_object(&wb, object)) {
+	if (api_ws_write_char(&wb, CHAR_FOR_EVT_BROADCAST) && api_ws_write_string(&wb, event) && api_ws_write_object(&wb, object)) {
 		rc = afb_ws_binary_v(client->ws, wb.iovec, wb.count);
 		if (rc < 0)
 			ERROR("error while broadcasting event %s", event);
@@ -1088,7 +1095,7 @@ static void api_ws_server_req_success_cb(struct afb_xreq *xreq, struct json_obje
 	struct writebuf wb = { .count = 0 };
 	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
-	if (api_ws_write_char(&wb, 'T')
+	if (api_ws_write_char(&wb, CHAR_FOR_ANSWER_SUCCESS)
 	 && api_ws_write_uint32(&wb, wreq->msgid)
 	 && api_ws_write_uint32(&wb, (uint32_t)wreq->xreq.context.flags)
 	 && api_ws_write_string(&wb, info ? : "")
@@ -1108,7 +1115,7 @@ static void api_ws_server_req_fail_cb(struct afb_xreq *xreq, const char *status,
 	struct writebuf wb = { .count = 0 };
 	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
-	if (api_ws_write_char(&wb, 'F')
+	if (api_ws_write_char(&wb, CHAR_FOR_ANSWER_FAIL)
 	 && api_ws_write_uint32(&wb, wreq->msgid)
 	 && api_ws_write_uint32(&wb, (uint32_t)wreq->xreq.context.flags)
 	 && api_ws_write_string(&wb, status)
@@ -1130,7 +1137,7 @@ static int api_ws_server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_even
 	if (rc < 0)
 		return rc;
 
-	if (api_ws_write_char(&wb, 'S')
+	if (api_ws_write_char(&wb, CHAR_FOR_EVT_SUBSCRIBE)
 	 && api_ws_write_uint32(&wb, wreq->msgid)
 	 && api_ws_write_uint32(&wb, (uint32_t)afb_evt_event_id(event))
 	 && api_ws_write_string(&wb, afb_evt_event_name(event))) {
@@ -1149,7 +1156,7 @@ static int api_ws_server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_ev
 	struct writebuf wb = { .count = 0 };
 	struct api_ws_server_req *wreq = CONTAINER_OF_XREQ(struct api_ws_server_req, xreq);
 
-	if (api_ws_write_char(&wb, 'U')
+	if (api_ws_write_char(&wb, CHAR_FOR_EVT_UNSUBSCRIBE)
 	 && api_ws_write_uint32(&wb, wreq->msgid)
 	 && api_ws_write_uint32(&wb, (uint32_t)afb_evt_event_id(event))
 	 && api_ws_write_string(&wb, afb_evt_event_name(event))) {
