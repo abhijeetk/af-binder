@@ -4,12 +4,13 @@ ROOT=$(dirname $0)
 echo ROOT=$ROOT
 
 cd $ROOT
+pwd
 
 AFB=build/src/afb-daemon
 HELLO=build/bindings/samples/helloWorld.so
 PORT=12345
 TEST=test
-TOKEN=knock-knock-knoc
+TOKEN=knock-knock-knock
 OUT=stress-out-server
 
 rm $OUT*
@@ -26,6 +27,7 @@ case "$1" in
 esac
 
 
+echo $AFB $ARGS $@
 echo -n launch afb...
 case "$1" in
  gdb) shift; gdb $AFB -ex "run $ARGS $@";;

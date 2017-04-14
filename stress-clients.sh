@@ -8,7 +8,7 @@ CLI=$ROOT/build/src/afb-client-demo
 HELLO=build/bindings/samples/helloWorld.so
 PORT=12345
 TEST=test
-TOKEN=knock-knock-knoc
+TOKEN=knock-knock-knock
 OUT=$ROOT/stress-out-clients
 
 rm $OUT*
