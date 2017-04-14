@@ -77,7 +77,6 @@ struct api_ws
 	pthread_mutex_t mutex;	/**< resource control */
 	union {
 		struct {
-			uint32_t id;
 			struct afb_ws *ws;
 			struct api_ws_event *events;
 			struct api_ws_memo *memos;
@@ -92,6 +91,18 @@ struct api_ws
 #define RETOK   1
 #define RETERR  2
 #define RETRAW  3
+
+/******************* common usefull tools **********************************/
+
+/**
+ * translate a pointer to some integer
+ * @param ptr the pointer to translate
+ * @return an integer
+ */
+static inline uint32_t ptr2id(void *ptr)
+{
+	return (uint32_t)(((intptr_t)ptr) >> 6);
+}
 
 /******************* websocket interface for client part **********************************/
 
@@ -545,7 +556,9 @@ static struct api_ws_memo *api_ws_client_memo_make(struct api_ws *api, struct af
 	if (memo != NULL) {
 		afb_xreq_addref(xreq);
 		memo->xreq = xreq;
-		do { memo->msgid = ++api->client.id; } while(api_ws_client_memo_search(api, memo->msgid) != NULL);
+		memo->msgid = ptr2id(memo);
+		while(api_ws_client_memo_search(api, memo->msgid) != NULL)
+			memo->msgid++;
 		memo->api = api;
 		memo->next = api->client.memos;
 		api->client.memos = memo;
@@ -1304,7 +1317,7 @@ static void api_ws_server_req_subcall_cb(struct afb_xreq *xreq, const char *api,
 		sc->closure = cb_closure;
 
 		pthread_mutex_unlock(&client->mutex);
-		sc->subcallid = (uint32_t)(((intptr_t)sc) >> 6);
+		sc->subcallid = ptr2id(sc);
 		do {
 			sc->subcallid++;
 			osc = client->subcalls;
