@@ -281,7 +281,7 @@ static int api_ws_socket_unix(const char *path, int server)
 		return -1;
 	}
 
-	if (server)
+	if (server && path[0] != '@')
 		unlink(path);
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -291,6 +291,8 @@ static int api_ws_socket_unix(const char *path, int server)
 	memset(&addr, 0, sizeof addr);
 	addr.sun_family = AF_UNIX;
 	strcpy(addr.sun_path, path);
+	if (addr.sun_path[0] == '@')
+		addr.sun_path[0] = 0; /* implement abstract sockets */
 	if (server) {
 		rc = bind(fd, (struct sockaddr *) &addr, (socklen_t)(sizeof addr));
 	} else {
