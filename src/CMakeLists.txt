@@ -77,8 +77,9 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-msg-json.c
 	afb-perm.c
 	afb-session.c
-	afb-svc.c
+	afb-stub-ws.c
 	afb-subcall.c
+	afb-svc.c
 	afb-websock.c
 	afb-ws-client.c
 	afb-ws-json1.c
