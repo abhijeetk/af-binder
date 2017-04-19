@@ -18,8 +18,8 @@ rm $OUT*
 case "$1" in
  --ws)
   shift
-  ARGS="-q --ldpaths=/tmp --binding=$HELLO --session-max=100 --ws-server=unix:hello --no-httpd --exec $AFB --session-max=100 --port=$PORT --ldpaths=/tmp --roothttp=$TEST --token=$TOKEN --ws-client=unix:hello "
-#  ARGS="-vv --tracereq=all --ldpaths=/tmp --binding=$HELLO --session-max=100 --ws-server=unix:hello --no-httpd --exec $AFB --session-max=100 --port=$PORT --ldpaths=/tmp --roothttp=$TEST --token=$TOKEN --ws-client=unix:hello "
+  ARGS="-q --ldpaths=/tmp --binding=$HELLO --session-max=100 --ws-server=unix:@afw:hello --no-httpd --exec $AFB --session-max=100 --port=$PORT --ldpaths=/tmp --roothttp=$TEST --token=$TOKEN --ws-client=unix:@afw:hello "
+#  ARGS="$ARGS -vvv --tracereq=all"
   ;;
  *)
   ARGS="-q --session-max=100 --port=$PORT --workdir=$ROOT --roothttp=$TEST --token=$TOKEN --ldpaths=/tmp --binding=$HELLO"

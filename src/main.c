@@ -20,7 +20,8 @@
 #define NO_BINDING_VERBOSE_MACRO
 
 #include <stdlib.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -29,10 +30,7 @@
 
 #include <json-c/json.h>
 
-#include <systemd/sd-event.h>
 #include <systemd/sd-daemon.h>
-
-#include <afb/afb-binding.h>
 
 #include "afb-config.h"
 #include "afb-hswitch.h"
@@ -41,10 +39,8 @@
 #include "afb-api-dbus.h"
 #include "afb-api-ws.h"
 #include "afb-hsrv.h"
-#include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-xreq.h"
-#include "afb-cred.h"
 #include "jobs.h"
 #include "afb-session.h"
 #include "verbose.h"
@@ -471,7 +467,6 @@ static void startup_call_unref(struct afb_xreq *xreq)
 	free(sreq->api);
 	free(sreq->verb);
 	json_object_put(sreq->xreq.json);
-	afb_cred_unref(sreq->xreq.cred);
 	sreq->current = sreq->current->next;
 	if (sreq->current)
 		startup_call_current(sreq);
@@ -497,11 +492,9 @@ static void startup_call_current(struct startup_req *sreq)
 	if (verb) {
 		json = strchr(verb, ':');
 		if (json) {
-			memset(&sreq->xreq, 0, sizeof sreq->xreq);
 			afb_xreq_init(&sreq->xreq, &startup_xreq_itf);
 			afb_context_init(&sreq->xreq.context, sreq->session, NULL);
 			sreq->xreq.context.validated = 1;
-			sreq->xreq.cred = afb_cred_current();
 			sreq->api = strndup(api, verb - api);
 			sreq->verb = strndup(verb + 1, json - verb - 1);
 			sreq->xreq.api = sreq->api;
