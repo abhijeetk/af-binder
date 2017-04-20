@@ -91,42 +91,6 @@ static const struct api_desc *search(struct afb_apiset *set, const char *name)
 }
 
 /**
- * Checks wether 'name' is a valid API name.
- * @return 1 if valid, 0 otherwise
- */
-int afb_apiset_valid_name(const char *name)
-{
-	unsigned char c;
-
-	c = (unsigned char)*name;
-	if (c == 0)
-		/* empty names aren't valid */
-		return 0;
-
-	do {
-		if (c < (unsigned char)'\x80') {
-			switch(c) {
-			default:
-				if (c > ' ')
-					break;
-			case '"':
-			case '#':
-			case '%':
-			case '&':
-			case '\'':
-			case '/':
-			case '?':
-			case '`':
-			case '\\':
-			case '\x7f':
-				return 0;
-			}
-		}
-		c = (unsigned char)*++name;
-	} while(c != 0);
-	return 1;
-}
-
 struct afb_apiset *afb_apiset_addref(struct afb_apiset *set)
 {
 	if (set)
@@ -225,7 +189,7 @@ int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api)
 	int i, c;
 
 	/* Checks the api name */
-	if (!afb_apiset_valid_name(name)) {
+	if (!afb_api_is_valid_name(name)) {
 		ERROR("invalid api name forbidden (name is '%s')", name);
 		errno = EINVAL;
 		goto error;
