@@ -67,9 +67,10 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 
 	verb = search(desc, xreq->verb);
 	if (!verb)
-		afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, desc->binding->api);
+		afb_xreq_fail_unknown_verb(xreq);
 	else
-		afb_xreq_so_call(xreq, verb->session, verb->callback);
+		if (!xreq_session_check_apply(xreq, verb->session))
+			afb_xreq_call(xreq, verb->callback);
 }
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)

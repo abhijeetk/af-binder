@@ -38,7 +38,13 @@ struct afb_xreq_query_itf {
 	void (*unref)(struct afb_xreq *xreq);
 	int (*subscribe)(struct afb_xreq *xreq, struct afb_event event);
 	int (*unsubscribe)(struct afb_xreq *xreq, struct afb_event event);
-	void (*subcall)(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
+	void (*subcall)(
+		struct afb_xreq *xreq,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		void (*callback)(void*, int, struct json_object*),
+		void *cb_closure);
 };
 
 /**
@@ -46,36 +52,82 @@ struct afb_xreq_query_itf {
  */
 struct afb_xreq
 {
-	struct afb_context context; /**< context of the request */
-	struct afb_apiset *apiset; /**< apiset of the xreq */
-	const char *api;	/**< the requested API */
-	const char *verb;	/**< the requested VERB */
-	struct json_object *json; /**< the json object (or NULL) */
-	const struct afb_xreq_query_itf *queryitf;
-	int refcount;	/**< current ref count */
-	int replied;	/**< is replied? */
-	int hookflags;	/**< flags for hooking */
-	int hookindex;	/**< index for hooking */
-	struct afb_evt_listener *listener;
-	struct afb_cred *cred;
+	struct afb_context context;	/**< context of the request */
+	struct afb_apiset *apiset;	/**< apiset of the xreq */
+	const char *api;		/**< the requested API */
+	const char *verb;		/**< the requested VERB */
+	struct json_object *json;	/**< the json object (or NULL) */
+	const struct afb_xreq_query_itf *queryitf; /**< interface of xreq implmentation functions */
+	int refcount;			/**< current ref count */
+	int replied;			/**< is replied? */
+	int hookflags;			/**< flags for hooking */
+	int hookindex;			/**< index for hooking */
+	struct afb_evt_listener *listener; /**< event listener for the request */
+	struct afb_cred *cred;		/**< client credential if revelant */
 };
 
-#define CONTAINER_OF_XREQ(type,x) ((type*)(((intptr_t)(x))-((intptr_t)&(((type*)NULL)->xreq))))
+/**
+ * Macro for retrieve the pointer of a structure of 'type' having a field named 'field'
+ * of adress 'ptr'.
+ * @param type the type that has the 'field' (ex: "struct mystruct")
+ * @param field the name of the field within the structure 'type'
+ * @param ptr the pointer to an element 'field'
+ * @return the pointer to the structure that contains the 'field' at address 'ptr'
+ */
+#define CONTAINER_OF(type,field,ptr) ((type*)(((intptr_t)(ptr))-((intptr_t)&(((type*)NULL)->field))))
 
+/**
+ * Macro for retrieve the pointer of a structure of 'type' having a field named "xreq"
+ * of adress 'x'.
+ * @param type the type that has the field "xreq" (ex: "struct mystruct")
+ * @param x the pointer to the field "xreq"
+ * @return the pointer to the structure that contains the field "xreq" of address 'x'
+ */
+#define CONTAINER_OF_XREQ(type,x) CONTAINER_OF(type,xreq,x)
+
+/* req wrappers for xreq */
 extern void afb_xreq_addref(struct afb_xreq *xreq);
 extern void afb_xreq_unref(struct afb_xreq *xreq);
+
+extern struct json_object *afb_xreq_json(struct afb_xreq *xreq);
+
 extern void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info);
+extern void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...);
+
 extern void afb_xreq_fail(struct afb_xreq *xreq, const char *status, const char *info);
 extern void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info, ...);
-extern void afb_xreq_success_f(struct afb_xreq *xreq, struct json_object *obj, const char *info, ...);
+extern void afb_xreq_fail_unknown_api(struct afb_xreq *xreq);
+extern void afb_xreq_fail_unknown_verb(struct afb_xreq *xreq);
+
 extern const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size);
+
 extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event);
 extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
-extern void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
-extern void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 
+extern void afb_xreq_subcall(
+		struct afb_xreq *xreq,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		void (*callback)(void*, int, struct json_object*),
+		void *cb_closure);
+extern void afb_xreq_unhooked_subcall(
+		struct afb_xreq *xreq,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		void (*callback)(void*, int, struct json_object*),
+		void *cb_closure);
+
+/* initialisation and processing of xreq */
 extern void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf);
-extern void afb_xreq_begin(struct afb_xreq *xreq);
-extern void afb_xreq_so_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
 
 extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);
+
+extern int xreq_session_check(struct afb_xreq *xreq, int sessionflags);
+extern void xreq_session_apply(struct afb_xreq *xreq, int sessionflags);
+extern int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags);
+
+extern void afb_xreq_call(struct afb_xreq *xreq, void (*callback)(struct afb_req req));
+extern void afb_xreq_check_apply_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
+

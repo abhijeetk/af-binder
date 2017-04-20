@@ -375,6 +375,11 @@ static inline struct afb_req to_req(struct afb_xreq *xreq)
 	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
 }
 
+struct json_object *afb_xreq_json(struct afb_xreq *xreq)
+{
+	return afb_req_json(to_req(xreq));
+}
+
 void afb_xreq_success(struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
 	afb_req_success(to_req(xreq), obj, info);
@@ -434,62 +439,77 @@ void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, 
 	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
 }
 
-static int xcheck(struct afb_xreq *xreq, int sessionflags)
+int xreq_session_check(struct afb_xreq *xreq, int sessionflags)
 {
+	int loa;
+
 	if ((sessionflags & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(&xreq->context)) {
 			afb_context_close(&xreq->context);
 			afb_xreq_fail_f(xreq, "failed", "invalid token's identity");
-			return 0;
+			errno = EINVAL;
+			return -1;
 		}
 	}
 
 	if ((sessionflags & AFB_SESSION_CREATE) != 0) {
 		if (afb_context_check_loa(&xreq->context, 1)) {
 			afb_xreq_fail_f(xreq, "failed", "invalid creation state");
-			return 0;
+			errno = EINVAL;
+			return -1;
 		}
-		afb_context_change_loa(&xreq->context, 1);
-		afb_context_refresh(&xreq->context);
-	}
-
-	if ((sessionflags & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0)
-		afb_context_refresh(&xreq->context);
-
-	if ((sessionflags & AFB_SESSION_CLOSE) != 0) {
-		afb_context_change_loa(&xreq->context, 0);
-		afb_context_close(&xreq->context);
 	}
 
 	if ((sessionflags & AFB_SESSION_LOA_GE) != 0) {
-		int loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (!afb_context_check_loa(&xreq->context, loa)) {
 			afb_xreq_fail_f(xreq, "failed", "invalid LOA");
-			return 0;
+			errno = EPERM;
+			return -1;
 		}
 	}
 
 	if ((sessionflags & AFB_SESSION_LOA_LE) != 0) {
-		int loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (afb_context_check_loa(&xreq->context, loa + 1)) {
 			afb_xreq_fail_f(xreq, "failed", "invalid LOA");
-			return 0;
+			errno = EPERM;
+			return -1;
 		}
 	}
-	return 1;
+
+	return 0;
 }
 
-void afb_xreq_so_call(struct afb_xreq *xreq, int sessionflags, void (*method)(struct afb_req req))
+void xreq_session_apply(struct afb_xreq *xreq, int sessionflags)
 {
-	if (xcheck(xreq, sessionflags))
+	if ((sessionflags & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0) {
+		afb_context_refresh(&xreq->context);
+	}
+	if ((sessionflags & AFB_SESSION_CLOSE) != 0) {
+		afb_context_change_loa(&xreq->context, 0);
+		afb_context_close(&xreq->context);
+	}
+}
+
+int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
+{
+	int rc = xreq_session_check(xreq, sessionflags);
+	if (!rc)
+		xreq_session_apply(xreq, sessionflags);
+
+	return rc;
+}
+
+void afb_xreq_call(struct afb_xreq *xreq, void (*method)(struct afb_req req))
+{
+	method(to_req(xreq));
+}
+
+void afb_xreq_check_apply_call(struct afb_xreq *xreq, int sessionflags, void (*method)(struct afb_req req))
+{
+	if (!xreq_session_check_apply(xreq, sessionflags))
 		method(to_req(xreq));
-}
-
-void afb_xreq_begin(struct afb_xreq *xreq)
-{
-	afb_hook_init_xreq(xreq);
-	if (xreq->hookflags)
-		afb_hook_xreq_begin(xreq);
 }
 
 void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)
@@ -499,6 +519,15 @@ void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *query
 	xreq->queryitf = queryitf;
 }
 
+void afb_xreq_fail_unknown_api(struct afb_xreq *xreq)
+{
+	afb_xreq_fail_f(xreq, "unknown-api", "api %s not found (for verb %s)", xreq->api, xreq->verb);
+}
+
+void afb_xreq_fail_unknown_verb(struct afb_xreq *xreq)
+{
+	afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, xreq->api);
+}
 
 static void process_async(int signum, void *arg)
 {

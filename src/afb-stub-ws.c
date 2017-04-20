@@ -1156,15 +1156,3 @@ void afb_stub_ws_addref(struct afb_stub_ws *stubws)
 	__atomic_add_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED);
 }
 
-/*
-static void client_disconnect(struct afb_stub_ws *stubws)
-{
-	if (stubws->fd >= 0) {
-		afb_ws_destroy(stubws->ws);
-		stubws->ws = NULL;
-		close(stubws->fd);
-		stubws->fd = -1;
-	}
-}
-*/
-
