@@ -43,14 +43,18 @@ struct api_desc {
 	struct afb_api api;	/**< handler of the api */
 };
 
+/**
+ * Data structure for apiset
+ */
 struct afb_apiset
 {
-	struct afb_apiset *subset;
-	struct api_desc *apis;
-	int count;
-	int timeout;
-	int refcount;
-	char name[1];
+	struct api_desc *apis;		/**< description of apis */
+	struct afb_apiset *subset;	/**< subset if any */
+	struct afb_api defapi;		/**< default api if any */
+	int count;			/**< count of apis in the set */
+	int timeout;			/**< the timeout in second for the apiset */
+	int refcount;			/**< reference count for freeing resources */
+	char name[1];			/**< name of the apiset */
 };
 
 /**
@@ -91,6 +95,10 @@ static const struct api_desc *search(struct afb_apiset *set, const char *name)
 }
 
 /**
+ * Increases the count of references to the apiset and return its address
+ * @param set the set whose reference count is to be increased
+ * @return the given apiset
+ */
 struct afb_apiset *afb_apiset_addref(struct afb_apiset *set)
 {
 	if (set)
@@ -98,6 +106,11 @@ struct afb_apiset *afb_apiset_addref(struct afb_apiset *set)
 	return set;
 }
 
+/**
+ * Decreases the count of references to the apiset and frees its
+ * resources when no more references exists.
+ * @param set the set to unrefrence
+ */
 void afb_apiset_unref(struct afb_apiset *set)
 {
 	if (set && !__atomic_sub_fetch(&set->refcount, 1, __ATOMIC_RELAXED)) {
@@ -109,18 +122,22 @@ void afb_apiset_unref(struct afb_apiset *set)
 
 /**
  * Create an apiset
+ * @param name the name of the apiset
+ * @param timeout the default timeout in seconds for the apiset
+ * @return the created apiset or NULL in case of error
  */
-struct afb_apiset *afb_apiset_create(const char *name, int timeout, struct afb_apiset *subset)
+struct afb_apiset *afb_apiset_create(const char *name, int timeout)
 {
 	struct afb_apiset *set;
 
 	set = malloc((name ? strlen(name) : 0) + sizeof *set);
 	if (set) {
-		set->subset = afb_apiset_addref(subset);
 		set->apis = malloc(INCR * sizeof *set->apis);
 		set->count = 0;
 		set->timeout = timeout;
 		set->refcount = 1;
+		set->subset = NULL;
+		set->defapi.itf = NULL;
 		if (name)
 			strcpy(set->name, name);
 		else
@@ -135,7 +152,7 @@ struct afb_apiset *afb_apiset_create(const char *name, int timeout, struct afb_a
  * @param set the api set
  * @return the timeout in seconds
  */
-int afb_apiset_get_timeout(struct afb_apiset *set)
+int afb_apiset_timeout_get(struct afb_apiset *set)
 {
 	return set->timeout;
 }
@@ -145,7 +162,7 @@ int afb_apiset_get_timeout(struct afb_apiset *set)
  * @param set the api set
  * @param to the timeout in seconds
  */
-void afb_apiset_set_timeout(struct afb_apiset *set, int to)
+void afb_apiset_timeout_set(struct afb_apiset *set, int to)
 {
 	set->timeout = to;
 }
@@ -155,7 +172,7 @@ void afb_apiset_set_timeout(struct afb_apiset *set, int to)
  * @param set the api set
  * @return the subset of set
  */
-struct afb_apiset *afb_apiset_get_subset(struct afb_apiset *set)
+struct afb_apiset *afb_apiset_subset_get(struct afb_apiset *set)
 {
 	return set->subset;
 }
@@ -165,11 +182,61 @@ struct afb_apiset *afb_apiset_get_subset(struct afb_apiset *set)
  * @param set the api set
  * @param subset the subset to set
  */
-void afb_apiset_set_subset(struct afb_apiset *set, struct afb_apiset *subset)
+void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
 {
-	struct afb_apiset *tmp = set->subset;
+	struct afb_apiset *tmp;
+	if (subset == set) {
+		/* avoid infinite loop */
+		subset = NULL;
+	}
+	tmp = set->subset;
 	set->subset = afb_apiset_addref(subset);
 	afb_apiset_unref(tmp);
+}
+
+/**
+ * Check if the apiset has a default api
+ * @param set the api set
+ * @return 1 if the set has a default api or 0 otherwise
+ */
+int afb_apiset_default_api_exist(struct afb_apiset *set)
+{
+	return !!set->defapi.itf;
+}
+
+/**
+ * Get the default api of the api set.
+ * @param set the api set
+ * @param api where to store the default api
+ * @return 0 in case of success or -1 when no default api is set
+ */
+int afb_apiset_default_api_get(struct afb_apiset *set, struct afb_api *api)
+{
+	if (set->defapi.itf) {
+		*api = set->defapi;
+		return 0;
+	}
+	errno = ENOENT;
+	return -1;
+}
+
+/**
+ * Set the default api of the api set
+ * @param set the api set
+ * @param subset the subset to set
+ */
+void afb_apiset_default_api_set(struct afb_apiset *set, struct afb_api api)
+{
+	set->defapi = api;
+}
+
+/**
+ * Set the default api of the api set
+ * @param set the api set
+ */
+void afb_apiset_default_api_drop(struct afb_apiset *set)
+{
+	set->defapi.itf = NULL;
 }
 
 /**
@@ -235,6 +302,12 @@ error:
 	return -1;
 }
 
+/**
+ * Delete from the 'set' the api of 'name'.
+ * @param set the set to be changed
+ * @param name the name of the API to remove
+ * @return 0 in case of success or -1 in case where the API doesn't exist.
+ */
 int afb_apiset_del(struct afb_apiset *set, const char *name)
 {
 	int i, c;
@@ -257,6 +330,13 @@ int afb_apiset_del(struct afb_apiset *set, const char *name)
 	return -1;
 }
 
+/**
+ * Get from the 'set' the API of 'name' in 'api'
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @param api the structure where to store data about the API of name
+ * @return 0 in case of success or -1 in case of error
+ */
 int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api)
 {
 	const struct api_desc *i;
@@ -266,8 +346,14 @@ int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api
 		*api = i->api;
 		return 0;
 	}
-	if (set->subset)
-		return afb_apiset_get(set->subset, name, api);
+
+	if (set->subset && 0 == afb_apiset_get(set->subset, name, api))
+		return 0;
+
+	if (set->defapi.itf) {
+		*api = set->defapi;
+		return 0;
+	}
 
 	errno = ENOENT;
 	return -1;
@@ -426,78 +512,4 @@ const char **afb_apiset_get_names(struct afb_apiset *set)
 	}
 	return names;
 }
-
-
-#if 0
-
-
-
-/**
- * Internal direct dispatch of the request 'xreq'
- * @param set the api set
- * @param xreq the request to dispatch
- */
-static void do_call_direct(struct afb_xreq *xreq)
-{
-	const struct api_desc *a;
-
-	/* search the api */
-	a = search(xreq->api);
-	if (!a)
-		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
-	else {
-		xreq->context.api_key = a->api.closure;
-		a->api.itf->call(a->api.closure, xreq);
-	}
-}
-
-/**
- * Asynchronous dispatch callback for the request 'xreq'
- * @param set the api set
- * @param signum 0 on normal flow or the signal number that interupted the normal flow
- */
-static void do_call_async(int signum, void *arg)
-{
-	struct afb_xreq *xreq = arg;
-
-	if (signum != 0)
-		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
-	else {
-		do_call_direct(xreq);
-	}
-	afb_xreq_unref(xreq);
-}
-
-/**
- * Dispatch the request 'xreq' synchronously and directly.
- * @param set the api set
- * @param xreq the request to dispatch
- */
-void afb_apiset_call_direct(struct afb_apiset *set, struct afb_xreq *xreq)
-{
-	afb_xreq_begin(xreq);
-	do_call_direct(xreq);
-}
-
-/**
- * Dispatch the request 'xreq' asynchronously.
- * @param set the api set
- * @param xreq the request to dispatch
- */
-void afb_apiset_call(struct afb_apiset *set, struct afb_xreq *xreq)
-{
-	int rc;
-
-	afb_xreq_begin(xreq);
-	afb_xreq_addref(xreq);
-	rc = jobs_queue(NULL, apis_timeout, do_call_async, xreq);
-	if (rc < 0) {
-		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
-		ERROR("can't process job with threads: %m");
-		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
-		afb_xreq_unref(xreq);
-	}
-}
-
-#endif
 

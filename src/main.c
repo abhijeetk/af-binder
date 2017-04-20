@@ -550,7 +550,7 @@ static void start()
 	}
 
 	/* configure the daemon */
-	main_apiset = afb_apiset_create("main", config->apiTimeout, NULL);
+	main_apiset = afb_apiset_create("main", config->apiTimeout);
 	if (!main_apiset) {
 		ERROR("can't create main api set");
 		goto error;

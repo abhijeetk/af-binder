@@ -529,7 +529,7 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 	xreq->apiset = apiset;
 
 	afb_xreq_addref(xreq);
-	if (jobs_queue(NULL, afb_apiset_get_timeout(apiset), process_async, xreq) < 0) {
+	if (jobs_queue(NULL, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
