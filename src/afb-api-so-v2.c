@@ -141,12 +141,58 @@ static struct afb_api_itf so_v2_api_itf = {
 	.set_verbosity = set_verbosity_cb
 };
 
-int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
+int afb_api_so_v2_add_binding(struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_so_v2 *desc;
-	struct afb_binding_v2 *binding;
 	struct afb_api afb_api;
+
+	/* basic checks */
+	assert(binding->api);
+	assert(binding->specification);
+	assert(binding->verbs);
+
+	/* allocates the description */
+	desc = calloc(1, sizeof *desc);
+	if (desc == NULL) {
+		ERROR("out of memory");
+		goto error;
+	}
+	desc->binding = binding;
+	desc->handle = handle;
+
+	/* init the interface */
+	afb_ditf_init(&desc->ditf, binding->api);
+
+	/* init the binding */
+	if (binding->init) {
+		INFO("binding %s calling init function", binding->api);
+		rc = binding->init(&desc->ditf.interface);
+		if (rc < 0) {
+			ERROR("binding %s initialisation function failed...", binding->api);
+			goto error2;
+		}
+	}
+
+	/* records the binding */
+	afb_api.closure = desc;
+	afb_api.itf = &so_v2_api_itf;
+	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
+		ERROR("binding %s can't be registered to set %s...", binding->api, afb_apiset_name(apiset));
+		goto error2;
+	}
+	NOTICE("binding %s added to set %s", binding->api, afb_apiset_name(apiset));
+	return 1;
+
+error2:
+	free(desc);
+error:
+	return -1;
+}
+
+int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
+{
+	struct afb_binding_v2 *binding;
 
 	/* retrieves the register function */
 	binding = dlsym(handle, afb_api_so_v2_descriptor);
@@ -173,43 +219,9 @@ int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 		goto error;
 	}
 
-	/* allocates the description */
-	desc = calloc(1, sizeof *desc);
-	if (desc == NULL) {
-		ERROR("out of memory");
-		goto error;
-	}
-	desc->binding = binding;
-	desc->handle = handle;
+	return afb_api_so_v2_add_binding(binding, handle, apiset);
 
-	/* init the interface */
-	afb_ditf_init(&desc->ditf, binding->api);
-
-	/* for log purpose, a fake binding is needed here */
-
-	/* init the binding */
-	if (binding->init) {
-		NOTICE("binding %s [%s] calling init function", binding->api, path);
-		rc = binding->init(&desc->ditf.interface);
-		if (rc < 0) {
-			ERROR("binding %s [%s] initialisation function failed...", binding->api, path);
-			goto error2;
-		}
-	}
-
-	/* records the binding */
-	afb_api.closure = desc;
-	afb_api.itf = &so_v2_api_itf;
-	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
-		ERROR("binding [%s] can't be registered...", path);
-		goto error2;
-	}
-	NOTICE("binding %s loaded with API prefix %s", path, binding->api);
-	return 1;
-
-error2:
-	free(desc);
-error:
+ error:
 	return -1;
 }
 
