@@ -146,6 +146,15 @@ struct afb_apiset *afb_apiset_create(const char *name, int timeout)
 	return set;
 }
 
+/**
+ * the name of the apiset
+ * @param set the api set
+ * @return the name of the set
+ */
+const char *afb_apiset_name(struct afb_apiset *set)
+{
+	return set->name;
+}
 
 /**
  * Get the API timeout of the set
@@ -246,7 +255,6 @@ void afb_apiset_default_api_drop(struct afb_apiset *set)
  * @param api the api
  * @returns 0 in case of success or -1 in case
  * of error with errno set:
- *   - EINVAL if name isn't valid
  *   - EEXIST if name already registered
  *   - ENOMEM when out of memory
  */
@@ -254,13 +262,6 @@ int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api)
 {
 	struct api_desc *apis;
 	int i, c;
-
-	/* Checks the api name */
-	if (!afb_api_is_valid_name(name)) {
-		ERROR("invalid api name forbidden (name is '%s')", name);
-		errno = EINVAL;
-		goto error;
-	}
 
 	/* check previously existing plugin */
 	for (i = 0 ; i < set->count ; i++) {
@@ -332,6 +333,27 @@ int afb_apiset_del(struct afb_apiset *set, const char *name)
 
 /**
  * Get from the 'set' the API of 'name' in 'api'
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @param api the structure where to store data about the API of name
+ * @return 0 in case of success or -1 in case of error
+ */
+int afb_apiset_lookup(struct afb_apiset *set, const char *name, struct afb_api *api)
+{
+	const struct api_desc *i;
+
+	i = search(set, name);
+	if (i) {
+		*api = i->api;
+		return 0;
+	}
+
+	errno = ENOENT;
+	return -1;
+}
+
+/**
+ * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
  * @param set the set of API
  * @param name the name of the API to get
  * @param api the structure where to store data about the API of name
@@ -478,7 +500,7 @@ int afb_apiset_get_verbosity(struct afb_apiset *set, const char *name)
 		return -1;
 	}
 	if (!i->api.itf->get_verbosity)
-		return 0;
+		return verbosity;
 
 	return i->api.itf->get_verbosity(i->api.closure);
 }
@@ -511,5 +533,19 @@ const char **afb_apiset_get_names(struct afb_apiset *set)
 		names[i] = NULL;
 	}
 	return names;
+}
+
+/**
+ * Enumerate the api names to a callback.
+ * @param set the api set
+ * @param callback the function to call for each name
+ * @param closure the closure for the callback
+ */
+void afb_apiset_enum(struct afb_apiset *set, void (*callback)(struct afb_apiset *set, const char *name, void *closure), void *closure)
+{
+	int i;
+
+	for (i = 0 ; i < set->count ; i++)
+		callback(set, set->apis[i].name, closure);
 }
 
