@@ -550,14 +550,16 @@ static void start()
 	}
 
 	/* configure the daemon */
+	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
+	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
+		ERROR("initialisation of cookies failed");
+		goto error;
+	}
 	main_apiset = afb_apiset_create("main", config->apiTimeout);
 	if (!main_apiset) {
 		ERROR("can't create main api set");
 		goto error;
 	}
-	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
-	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
-		ERROR("initialisation of cookies failed");
 		goto error;
 	}
 
