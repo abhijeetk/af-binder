@@ -19,6 +19,7 @@
 
 struct afb_xreq;
 struct afb_apiset;
+struct json_object;
 
 struct afb_api_itf
 {
@@ -27,6 +28,7 @@ struct afb_api_itf
 	void (*update_hooks)(void *closure);
 	int (*get_verbosity)(void *closure);
 	void (*set_verbosity)(void *closure, int level);
+	struct json_object *(*describe)(void *closure);
 };
 
 struct afb_api

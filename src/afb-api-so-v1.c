@@ -22,6 +22,8 @@
 #include <dlfcn.h>
 #include <assert.h>
 
+#include <json-c/json.h>
+
 #include <afb/afb-binding.h>
 
 #include "afb-api.h"
@@ -135,12 +137,56 @@ static void set_verbosity_cb(void *closure, int level)
 	desc->ditf.interface.verbosity = level;
 }
 
+struct json_object *describe_cb(void *closure)
+{
+	struct api_so_v1 *desc = closure;
+	const struct afb_verb_desc_v1 *verb;
+	struct json_object *r, *v, *f, *a;
+
+	r = json_object_new_object();
+	json_object_object_add(r, "version", json_object_new_int(1));
+	json_object_object_add(r, "info", json_object_new_string(desc->binding->v1.info));
+	v = json_object_new_object();
+	json_object_object_add(r, "verbs", v);
+	verb = desc->binding->v1.verbs;
+	while (verb->name) {
+		f = json_object_new_object();
+		a = json_object_new_array();
+		json_object_object_add(f, "name", json_object_new_string(verb->name));
+		json_object_object_add(f, "info", json_object_new_string(verb->info));
+		if (verb->session & AFB_SESSION_CREATE)
+			json_object_array_add(a, json_object_new_string("session-create"));
+		if (verb->session & AFB_SESSION_CLOSE)
+			json_object_array_add(a, json_object_new_string("session-close"));
+		if (verb->session & AFB_SESSION_RENEW)
+			json_object_array_add(a, json_object_new_string("session-renew"));
+		if (verb->session & AFB_SESSION_CHECK)
+			json_object_array_add(a, json_object_new_string("session-check"));
+		if (verb->session & AFB_SESSION_LOA_EQ) {
+			const char *rel;
+			char buffer[80];
+			switch (verb->session & AFB_SESSION_LOA_EQ) {
+			case AFB_SESSION_LOA_GE: rel = ">="; break;
+			case AFB_SESSION_LOA_LE: rel = "<="; break;
+			case AFB_SESSION_LOA_EQ: rel = "=="; break;
+			}
+			snprintf(buffer, sizeof buffer, "LOA%s%d", rel, (int)((verb->session >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK));
+			json_object_array_add(a, json_object_new_string(buffer));
+		}
+		json_object_object_add(f, "flags", a);
+		json_object_object_add(v, verb->name, f);
+		verb++;
+	}
+	return r;
+}
+
 static struct afb_api_itf so_v1_api_itf = {
 	.call = call_cb,
 	.service_start = service_start_cb,
 	.update_hooks = update_hooks_cb,
 	.get_verbosity = get_verbosity_cb,
-	.set_verbosity = set_verbosity_cb
+	.set_verbosity = set_verbosity_cb,
+	.describe = describe_cb
 };
 
 int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
