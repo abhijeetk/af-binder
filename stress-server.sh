@@ -1,10 +1,9 @@
 #!/bin/bash
 
 ROOT=$(dirname $0)
+cd ${ROOT:-.}
+ROOT=$(pwd)
 echo ROOT=$ROOT
-
-cd $ROOT
-pwd
 
 AFB=build/src/afb-daemon
 HELLO=build/bindings/samples/helloWorld.so
