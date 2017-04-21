@@ -85,7 +85,10 @@ struct afb_wsj1 *afb_wsj1_create(struct sd_event *eloop, int fd, struct afb_wsj1
 {
 	struct afb_wsj1 *result;
 
+	assert(eloop);
 	assert(fd >= 0);
+	assert(itf);
+	assert(itf->on_call);
 
 	result = calloc(1, sizeof * result);
 	if (result == NULL)
@@ -337,7 +340,8 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 		free(call);
 		break;
 	case EVENT:
-		wsj1->itf->on_event(wsj1->closure, msg->event, msg);
+		if (wsj1->itf->on_event != NULL)
+			wsj1->itf->on_event(wsj1->closure, msg->event, msg);
 		break;
 	}
 	afb_wsj1_msg_unref(msg);
