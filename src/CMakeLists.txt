@@ -74,6 +74,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-hsrv.c
 	afb-hswitch.c
 	afb-method.c
+	afb-monitor.c
 	afb-msg-json.c
 	afb-perm.c
 	afb-session.c

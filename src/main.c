@@ -45,6 +45,7 @@
 #include "afb-session.h"
 #include "verbose.h"
 #include "afb-common.h"
+#include "afb-monitor.h"
 #include "afb-hook.h"
 #include "sd-fds.h"
 
@@ -560,6 +561,8 @@ static void start()
 		ERROR("can't create main api set");
 		goto error;
 	}
+	if (afb_monitor_init() < 0) {
+		ERROR("failed to setup monitor");
 		goto error;
 	}
 
