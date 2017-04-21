@@ -226,9 +226,12 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 		rest[0] = i; while(i < count && line[i] != '\n') i++; rest[1] = i;
 		if (i == count) break;
 		line[i++] = 0;
-		if (api[0] == api[1] || verb[0] == verb[1]) {
-			if (api[0] != api[1] || verb[0] != verb[1])
-				fprintf(stderr, "bad line: %s\n", line+pos);
+		if (api[0] == api[1]) {
+			/* empty line */
+		} else if (line[api[0]] == '#') {
+			/* comment */
+		} else if (verb[0] == verb[1]) {
+			fprintf(stderr, "verb missing, bad line: %s\n", line+pos);
 		} else {
 			line[api[1]] = line[verb[1]] = 0;
 			emit(line + api[0], line + verb[0], line + rest[0]);
