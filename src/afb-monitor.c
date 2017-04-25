@@ -16,90 +16,27 @@
  */
 
 #define _GNU_SOURCE
+#define NO_BINDING_VERBOSE_MACRO
 
 #include <string.h>
 
 #include <json-c/json.h>
+#include <afb/afb-binding.h>
 
 #include "afb-api.h"
 #include "afb-apiset.h"
+#include "afb-api-so-v2.h"
 #include "afb-ditf.h"
 #include "afb-xreq.h"
 #include "verbose.h"
 
+#include "monitor-api.inc"
+
 extern struct afb_apiset *main_apiset;
-
-/* CAUTION! KEEP VERBS SORTED */
-#define VERBS  \
-	V(get) \
-	V(hook) \
-	V(set)
-
-/**
- * Declare functions of verbs
- */
-#define F(x) static void f_##x(struct afb_xreq *xreq)
-#define V(x) F(x);
-	VERBS
-#undef V
-
-/**
- * Name of the known verbs
- */
-static const struct {
-	const char *name;
-	void (*function)(struct afb_xreq*);
-} verbs[] = {
-#define V(x) { .name = #x, .function = f_##x },
-	VERBS
-#undef V
-};
-
-/**
- * get the function of a verb
- * @param verb the name of the verb
- * @return the function for the verb or NULL when no verb of name exists
- */
-static void (*lookfun(const char *verb))(struct afb_xreq*)
-{
-	int l, u, i, c;
-
-	l = 0;
-	u = (int)(sizeof verbs / sizeof *verbs);
-	while (l < u) {
-		i = (l + u) >> 1;
-		c = strcmp(verb, verbs[i].name);
-		if (c == 0)
-			return verbs[i].function;
-		if (c < 0)
-			u = i;
-		else
-			l = i + 1;
-	}
-	return NULL;
-}
-
-static void call_cb(void *closure, struct afb_xreq *xreq)
-{
-	void (*fun)(struct afb_xreq*);
-
-	fun = lookfun(xreq->verb);
-	if (!fun)
-		afb_xreq_fail_unknown_verb(xreq);
-	else
-		fun(xreq);
-}
-
-static struct afb_api_itf monitor_api_itf = {
-	.call = call_cb
-};
 
 int afb_monitor_init()
 {
-	struct afb_api api;
-	api.closure = NULL;
-	api.itf = &monitor_api_itf;
-	return afb_apiset_add(main_apiset, "monitor", api);
+	return afb_api_so_v2_add_binding(&_afb_binding_v2_, NULL, main_apiset);
 }
 
 /******************************************************************************
@@ -348,12 +285,12 @@ static void get_apis(struct json_object *resu, struct json_object *spec)
 static const char _verbosity_[] = "verbosity";
 static const char _apis_[] = "apis";
 
-static void f_get(struct afb_xreq *xreq)
+static void f_get(struct afb_req req)
 {
 	struct json_object *o, *v, *r, *x;
 
 	r = json_object_new_object();
-	o = afb_xreq_json(xreq);
+	o = afb_req_json(req);
 
 	if (json_object_object_get_ex(o, _verbosity_, &v)) {
 		x = json_object_new_object();
@@ -367,24 +304,23 @@ static void f_get(struct afb_xreq *xreq)
 		get_apis(x, v);
 	}
 
-	if (!xreq->replied)
-		afb_xreq_success(xreq, json_object_get(r), NULL);
+	afb_req_success(req, json_object_get(r), NULL);
 	json_object_put(r);
 }
 
-static void f_set(struct afb_xreq *xreq)
+static void f_set(struct afb_req req)
 {
 	struct json_object *o, *v;
 
-	o = afb_xreq_json(xreq);
+	o = afb_req_json(req);
 	if (json_object_object_get_ex(o, _verbosity_, &v)) {
 		set_verbosity(v);
 	}
 
-	if (!xreq->replied)
-		afb_xreq_success(xreq, NULL, NULL);
+	afb_req_success(req, NULL, NULL);
 }
 
+#if 0
 static void f_hook(struct afb_xreq *xreq)
 {
 	struct json_object *o, *v;
@@ -397,4 +333,5 @@ static void f_hook(struct afb_xreq *xreq)
 	if (!xreq->replied)
 		afb_xreq_success(xreq, NULL, NULL);
 }
+#endif
 

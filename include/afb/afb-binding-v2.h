@@ -37,7 +37,7 @@ struct afb_verb_v2
 {
 	const char *verb;                       /* name of the verb */
 	void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-	const char * const *permissions;	/* required permissions */
+	const char * permissions;		/* required permissions */
 	enum afb_session_v1 session;            /* authorisation and session requirements of the verb */
 };
 

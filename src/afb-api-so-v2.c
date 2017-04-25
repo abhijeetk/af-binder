@@ -23,6 +23,7 @@
 #include <assert.h>
 
 #include <afb/afb-binding.h>
+#include <json-c/json.h>
 
 #include "afb-api.h"
 #include "afb-apiset.h"
@@ -44,7 +45,7 @@ static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
  * Description of a binding
  */
 struct api_so_v2 {
-	struct afb_binding_v2 *binding;	/* descriptor */
+	const struct afb_binding_v2 *binding;	/* descriptor */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
 	struct afb_ditf ditf;		/* daemon interface */
@@ -133,15 +134,23 @@ static void set_verbosity_cb(void *closure, int level)
 	desc->ditf.interface.verbosity = level;
 }
 
+static struct json_object *describe_cb(void *closure)
+{
+	struct api_so_v2 *desc = closure;
+	return desc->binding->specification ? json_tokener_parse(desc->binding->specification) : NULL;
+}
+
 static struct afb_api_itf so_v2_api_itf = {
 	.call = call_cb,
 	.service_start = service_start_cb,
 	.update_hooks = update_hooks_cb,
 	.get_verbosity = get_verbosity_cb,
-	.set_verbosity = set_verbosity_cb
+	.set_verbosity = set_verbosity_cb,
+	.describe = describe_cb
+
 };
 
-int afb_api_so_v2_add_binding(struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset)
+int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_so_v2 *desc;
@@ -192,7 +201,7 @@ error:
 
 int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
-	struct afb_binding_v2 *binding;
+	const struct afb_binding_v2 *binding;
 
 	/* retrieves the register function */
 	binding = dlsym(handle, afb_api_so_v2_descriptor);
