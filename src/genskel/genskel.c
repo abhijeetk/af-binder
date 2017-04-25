@@ -69,6 +69,7 @@ const char *api = NULL;
 const char *scope = NULL;
 const char *prefix = NULL;
 const char *postfix = NULL;
+int priv = -1;
 
 /**
  * Search for a reference of type "#/a/b/c" int the
@@ -284,7 +285,7 @@ char *make_desc(struct json_object *o)
 	const char *a, *b;
 	char *desc, c, buf[3];
 	size_t len;
-	int i, pos;
+	int i, pos, e;
 
 	a = b = json_object_to_json_string_ext(root, 0);
 	len = 1;
@@ -324,9 +325,9 @@ char *make_desc(struct json_object *o)
 			buf[0] = c;
 			buf[1] = 0;
 		}
-		i = 0;
+		i = e = 0;
 		while (buf[i]) {
-			if (pos == 77) {
+			if (pos >= 77 && !e) {
 				desc[len++] = '"';
 				desc[len++] = '\n';
 				pos = 0;
@@ -339,7 +340,9 @@ char *make_desc(struct json_object *o)
 				desc[len++] = '"';
 				pos = 5;
 			}
-			desc[len++] = buf[i++];
+			c = buf[i++];
+			desc[len++] = c;
+			e = !e && c == '\\';
 			pos++;
 		}
 	}
@@ -435,6 +438,19 @@ void print_verbs(int real)
 	free(verbs);
 }
 
+void getvarbool(int *var, const char *path, int defval)
+{
+	struct json_object *o;
+
+	if (*var != 0 && *var != 1) {
+		o = search(path);
+		if (o && json_object_is_type(o, json_type_boolean))
+			*var = json_object_get_boolean(o);
+		else
+			*var = !!defval;
+	}
+}
+
 void getvar(const char **var, const char *path, const char *defval)
 {
 	struct json_object *o;
@@ -489,6 +505,7 @@ void process(char *filename)
 	getvar(&scope, "#/meta-binding/scope", "static");
 	getvar(&prefix, "#/meta-binding/prefix", "afb_verb_");
 	getvar(&postfix, "#/meta-binding/postfix", "_cb");
+	getvarbool(&priv, "#/meta-binding/private", 0);
 
 	/* get the API name */
 	printf(
@@ -509,7 +526,7 @@ void process(char *filename)
 		"    { .verb = NULL }\n"
 		"};\n"
 		"\n"
-		"const struct afb_binding_v2 afbBindingV2 = {\n"
+		"%sconst struct afb_binding_v2 %s = {\n"
 		"    .api = \"%s\",\n"
 		"    .specification = _afb_description_v2_,\n"
 		"    .verbs = _afb_verbs_v2_,\n"
@@ -518,6 +535,7 @@ void process(char *filename)
 		"    .onevent = %s,\n"
 		"};\n"
 		"\n"
+		, priv?"static ":"", priv?"_afb_binding_v2_":"afbBindingV2"
 		, api?:"?", init?:"NULL", start?:"NULL", onevent?:"NULL"
 	);
 
