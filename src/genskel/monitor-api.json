@@ -9,14 +9,14 @@
 		"set": {
 			"doc": "set various values",
 			"permissions": { "$ref": "#/permissions/set" },
-			"LOA": { "minimum": 2 },
+			"LOA": { "minimum": 0 },
 			"request": { "$ref": "#/types/set-request" },
 			"response": { "$ref": "#/types/set-response" }
 		},
 		"get": {
 			"doc": "get the verbosity of apis",
 			"permissions": { "$ref": "#/permissions/get-or-set" },
-			"LOA": { "minimum": 1 },
+			"LOA": { "minimum": 0 },
 			"request": { "$ref": "#/types/get-request" },
 			"response": { "$ref": "#/types/get-response" }
 		}
@@ -97,11 +97,12 @@
 	},
 
 	"meta-binding": {
-		"prefix": "",
-		"postfix": "_request_callback",
-		"start": "start_binding",
+		"prefix": "f_",
+		"postfix": "",
+		"start": null,
 		"onevent": null,
 		"init": null,
-		"scope": "extern"
+		"scope": "static",
+		"private": true
 	}
 }
