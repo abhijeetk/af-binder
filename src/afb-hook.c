@@ -554,6 +554,10 @@ static void hook_ditf_rootdir_open_locale_cb(void *closure, const struct afb_dit
 	}
 }
 
+static void hook_ditf_queue_job(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+{
+	_hook_ditf_(ditf, "queue_job(%p, %p, %p, %d) -> %d", callback, argument, group, timeout, result);
+}
 
 static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_event_broadcast_before = hook_ditf_event_broadcast_before_cb,
@@ -565,6 +569,7 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_event_make = hook_ditf_event_make_cb,
 	.hook_ditf_rootdir_get_fd = hook_ditf_rootdir_get_fd_cb,
 	.hook_ditf_rootdir_open_locale = hook_ditf_rootdir_open_locale_cb,
+	.hook_ditf_queue_job = hook_ditf_queue_job
 };
 
 /******************************************************************************
@@ -637,7 +642,11 @@ int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *f
 	return result;
 }
 
-
+int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+{
+	_HOOK_DITF_(queue_job, ditf, callback, argument, group, timeout, result);
+	return result;
+}
 
 /******************************************************************************
  * section: 

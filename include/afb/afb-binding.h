@@ -67,6 +67,7 @@ struct afb_daemon_itf {
 	struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
 	int (*rootdir_get_fd)(void *closure);
 	int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
+	int (*queue_job)(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout);
 };
 
 /*
@@ -193,4 +194,20 @@ static inline int afb_daemon_rootdir_open_locale(struct afb_daemon daemon, const
 	return daemon.itf->rootdir_open_locale(daemon.closure, filename, flags, locale);
 }
 
-
+/*
+ * Queue the job defined by 'callback' and 'argument' for being executed asynchronously
+ * in this thread (later) or in an other thread.
+ * If 'group' is not NUL, the jobs queued with a same value (as the pointer value 'group')
+ * are executed in sequence in the order of there submission.
+ * If 'timeout' is not 0, it represent the maximum execution time for the job in seconds.
+ * At first, the job is called with 0 as signum and the given argument.
+ * The job is executed with the monitoring of its time and some signals like SIGSEGV and
+ * SIGFPE. When a such signal is catched, the job is terminated and reexecuted but with
+ * signum being the signal number (SIGALRM when timeout expired).
+ *
+ * Returns 0 in case of success or -1 in case of error.
+ */
+static inline int afb_daemon_queue_job(struct afb_daemon daemon, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+{
+	return daemon.itf->queue_job(daemon.closure, callback, argument, group, timeout);
+}

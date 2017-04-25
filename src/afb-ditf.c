@@ -29,6 +29,7 @@
 #include "afb-evt.h"
 #include "afb-common.h"
 #include "afb-hook.h"
+#include "jobs.h"
 #include "verbose.h"
 
 /**********************************************
@@ -91,6 +92,11 @@ static int event_broadcast_cb(void *closure, const char *name, struct json_objec
 static int rootdir_open_locale_cb(void *closure, const char *filename, int flags, const char *locale)
 {
 	return afb_common_rootdir_open_locale(filename, flags, locale);
+}
+
+static int queue_job_cb(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+{
+	return jobs_queue(group, timeout, callback, argument);
 }
 
 /**********************************************
@@ -165,6 +171,13 @@ static int hooked_rootdir_open_locale_cb(void *closure, const char *filename, in
 	return afb_hook_ditf_rootdir_open_locale(ditf, filename, flags, locale, r);
 }
 
+static int hooked_queue_job_cb(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+{
+	struct afb_ditf *ditf = closure;
+	int r = queue_job_cb(closure, callback, argument, group, timeout);
+	return afb_hook_ditf_queue_job(ditf, callback, argument, group, timeout, r);
+}
+
 static const struct afb_daemon_itf daemon_itf = {
 	.vverbose = old_vverbose_cb,
 	.event_make = event_make_cb,
@@ -173,7 +186,8 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_user_bus = afb_common_get_user_bus,
 	.get_system_bus = afb_common_get_system_bus,
 	.rootdir_get_fd = afb_common_rootdir_get_fd,
-	.rootdir_open_locale = rootdir_open_locale_cb
+	.rootdir_open_locale = rootdir_open_locale_cb,
+	.queue_job = queue_job_cb
 };
 
 static const struct afb_daemon_itf hooked_daemon_itf = {
@@ -184,7 +198,8 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.get_user_bus = hooked_get_user_bus,
 	.get_system_bus = hooked_get_system_bus,
 	.rootdir_get_fd = hooked_rootdir_get_fd,
-	.rootdir_open_locale = hooked_rootdir_open_locale_cb
+	.rootdir_open_locale = hooked_rootdir_open_locale_cb,
+	.queue_job = hooked_queue_job_cb
 };
 
 void afb_ditf_init(struct afb_ditf *ditf, const char *prefix)
