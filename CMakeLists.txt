@@ -69,7 +69,6 @@ SET(include_dirs
 	)
 
 SET(link_libraries
-	${libefence_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
 	${json-c_LIBRARIES}
 	)
