@@ -46,9 +46,9 @@ struct afb_verb_v2
  */
 struct afb_binding_v2
 {
-	const char *api;                        /* api name for the binding */
-	const char *specification;              /* textual specification of the binding */
-	const struct afb_verb_v2 *verbs;   /* array of descriptions of verbs terminated by a NULL name */
+	const char *api;			/* api name for the binding */
+	const char *specification;		/* textual specification of the binding */
+	const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
 	int (*init)(const struct afb_binding_interface *interface);
 	int (*start)(const struct afb_binding_interface *interface, struct afb_service service);
 	void (*onevent)(const char *event, struct json_object *object);
