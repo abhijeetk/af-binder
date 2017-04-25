@@ -1,0 +1,107 @@
+{
+	"namespace": "urn:AGL:binding",
+
+	"api": "monitor",
+
+	"doc": "monitor the bindings",
+
+	"verbs": {
+		"set": {
+			"doc": "set various values",
+			"permissions": { "$ref": "#/permissions/set" },
+			"LOA": { "minimum": 2 },
+			"request": { "$ref": "#/types/set-request" },
+			"response": { "$ref": "#/types/set-response" }
+		},
+		"get": {
+			"doc": "get the verbosity of apis",
+			"permissions": { "$ref": "#/permissions/get-or-set" },
+			"LOA": { "minimum": 1 },
+			"request": { "$ref": "#/types/get-request" },
+			"response": { "$ref": "#/types/get-response" }
+		}
+	},
+
+	"permissions": {
+		"get": {
+			"permission": "urn:AGL:permission::platform:monitor:get"
+		},
+		"set": {
+			"permission": "urn:AGL:permission::platform:monitor:set"
+		},
+		"get-or-set": {
+			"anyOf": [
+				{ "$ref": "#/permissions/get" },
+				{ "$ref": "#/permissions/set" }
+			]
+		}
+	},
+
+	"types": {
+		"set-request": {
+			"type": "object",
+			"properties": {
+				"verbosity": { "$ref": "#/types/set-verbosity" }
+			}
+		},
+		"set-response": {
+			"type": "object"
+		},
+
+		"set-verbosity": {
+			"anyOf": [
+				{ "$ref": "#/types/verbosity-map" },
+				{ "$ref": "#/types/verbosity-level" }
+			]
+		},
+
+		"get-request": {
+			"type": "object",
+			"properties": {
+				"verbosity": { "$ref": "#/types/get-verbosity" },
+				"apis": { "$ref": "#/types/get-apis" }
+			}
+		},
+		"get-response": {
+			"type": "object",
+			"properties": {
+				"verbosity": { "$ref": "#/types/verbosity-map" },
+				"apis": { "type": "object" }
+			}
+		},
+
+		"get-verbosity": {
+			"anyOf": [
+				{ "type": "boolean" },
+				{ "type": "array", "items": { "type": "string" } },
+				{ "type": "object" }
+			]
+		},
+		"get-apis": {
+			"anyOf": [
+				{ "type": "boolean" },
+				{ "type": "array", "items": { "type": "string" } },
+				{ "type": "object" }
+			]
+		},
+
+		"verbosity-map": {
+			"type": "object",
+			"patternProperties": { "^.*$": { "$ref": "#/types/verbosity-level" } }
+		},
+		"verbosity-level": {
+			"enum": [ "debug", 3, "info", 2, "notice", "warning", 1, "error", 0 ]
+		}
+
+
+	},
+
+	"meta-binding": {
+		"prefix": "",
+		"postfix": "_request_callback",
+		"start": "start_binding",
+		"onevent": null,
+		"init": null,
+		"scope": "extern"
+	}
+}
