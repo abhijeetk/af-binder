@@ -46,9 +46,9 @@
  * config mode
  */
 enum afb_mode {
-       AFB_MODE_LOCAL = 0,     /* run locally */
-       AFB_MODE_REMOTE,        /* run remotely */
-       AFB_MODE_GLOBAL         /* run either remotely or locally (DONT USE! reserved for future) */
+	AFB_MODE_LOCAL = 0,     /* run locally */
+	AFB_MODE_REMOTE,        /* run remotely */
+	AFB_MODE_GLOBAL         /* run either remotely or locally (DONT USE! reserved for future) */
 };
 
 /* declaration of features of libsystemd */
@@ -59,14 +59,14 @@ struct sd_bus;
  * Definition of the facilities provided by the daemon.
  */
 struct afb_daemon_itf {
-       int (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
-       struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
-       struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
-       struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
-       void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
-       struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
-       int (*rootdir_get_fd)(void *closure);
-       int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
+	int (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
+	struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
+	struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
+	struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
+	void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
+	struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
+	int (*rootdir_get_fd)(void *closure);
+	int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
 };
 
 /*
@@ -74,8 +74,8 @@ struct afb_daemon_itf {
  * See also: afb_daemon_get_event_sender, afb_daemon_get_event_loop, afb_daemon_get_user_bus, afb_daemon_get_system_bus
  */
 struct afb_daemon {
-       const struct afb_daemon_itf *itf;       /* the interfacing functions */
-       void *closure;                          /* the closure when calling these functions */
+	const struct afb_daemon_itf *itf;       /* the interfacing functions */
+	void *closure;                          /* the closure when calling these functions */
 };
 
 /*
@@ -83,9 +83,9 @@ struct afb_daemon {
  */
 struct afb_binding_interface
 {
-       struct afb_daemon daemon;       /* access to the daemon facilies */
-       int verbosity;                  /* level of verbosity */
-       enum afb_mode mode;             /* run mode (local or remote) */
+	struct afb_daemon daemon;       /* access to the daemon facilies */
+	int verbosity;                  /* level of verbosity */
+	enum afb_mode mode;             /* run mode (local or remote) */
 };
 
 /*
