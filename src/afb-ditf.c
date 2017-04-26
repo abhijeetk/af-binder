@@ -107,14 +107,11 @@ static void hooked_vverbose_cb(void *closure, int level, const char *file, int l
 	struct afb_ditf *ditf = closure;
 	vverbose_cb(closure, level, file, line, function, fmt, args);
 	afb_hook_ditf_vverbose(ditf, level, file, line, function, fmt, args);
-	vverbose_cb(closure, level, file, line, function, fmt, args);
 }
 
 static void hooked_old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
-	struct afb_ditf *ditf = closure;
-	old_vverbose_cb(closure, level, file, line, fmt, args);
-	afb_hook_ditf_vverbose(ditf, level, file, line, "", fmt, args);
+	hooked_vverbose_cb(closure, level, file, line, "?", fmt, args);
 }
 
 static struct afb_event hooked_event_make_cb(void *closure, const char *name)
