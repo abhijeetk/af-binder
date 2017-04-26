@@ -163,7 +163,7 @@ struct json_object *describe_cb(void *closure)
 		if (verb->session & AFB_SESSION_CHECK)
 			json_object_array_add(a, json_object_new_string("session-check"));
 		if (verb->session & AFB_SESSION_LOA_EQ) {
-			const char *rel;
+			const char *rel = "?";
 			char buffer[80];
 			switch (verb->session & AFB_SESSION_LOA_EQ) {
 			case AFB_SESSION_LOA_GE: rel = ">="; break;
