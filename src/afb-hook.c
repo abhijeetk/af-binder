@@ -32,6 +32,7 @@
 #include "afb-context.h"
 #include "afb-hook.h"
 #include "afb-session.h"
+#include "afb-cred.h"
 #include "afb-xreq.h"
 #include "afb-ditf.h"
 #include "verbose.h"
@@ -95,7 +96,16 @@ static void _hook_xreq_(const struct afb_xreq *xreq, const char *format, ...)
 
 static void hook_xreq_begin_default_cb(void * closure, const struct afb_xreq *xreq)
 {
-	_hook_xreq_(xreq, "BEGIN");
+	if (!xreq->cred)
+		_hook_xreq_(xreq, "BEGIN");
+	else
+		_hook_xreq_(xreq, "BEGIN uid=%d gid=%d pid=%d label=%s id=%s",
+			(int)xreq->cred->uid,
+			(int)xreq->cred->gid,
+			(int)xreq->cred->pid,
+			xreq->cred->label?:"(null)",
+			xreq->cred->id?:"(null)"
+		);
 }
 
 static void hook_xreq_end_default_cb(void * closure, const struct afb_xreq *xreq)
