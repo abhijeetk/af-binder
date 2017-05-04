@@ -34,9 +34,6 @@ extern int afb_session_check_token(struct afb_session *session, const char *toke
 extern void afb_session_new_token(struct afb_session *session);
 extern const char *afb_session_token(struct afb_session *session);
 
-extern unsigned afb_session_get_LOA(struct afb_session *session);
-extern void afb_session_set_LOA (struct afb_session *session, unsigned loa);
-
 extern void *afb_session_get_cookie(struct afb_session *session, const void *key);
 extern int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*));
 

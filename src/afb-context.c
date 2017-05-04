@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "afb-session.h"
 #include "afb-context.h"
@@ -33,7 +34,6 @@ static void init_context(struct afb_context *context, struct afb_session *sessio
 	context->flags = 0;
 	context->super = NULL;
 	context->api_key = NULL;
-	context->loa_in = afb_session_get_LOA(session) & 7;
 
 	/* check the token */
 	if (token != NULL) {
@@ -77,10 +77,6 @@ void afb_context_disconnect(struct afb_context *context)
 		if (context->refreshing && !context->refreshed) {
 			afb_session_new_token (context->session);
 			context->refreshed = 1;
-		}
-		if (context->loa_changing && !context->loa_changed) {
-			afb_session_set_LOA (context->session, context->loa_out);
-			context->loa_changed = 1;
 		}
 		if (context->closing && !context->closed) {
 			afb_session_close(context->session);
@@ -154,32 +150,36 @@ int afb_context_check(struct afb_context *context)
 
 int afb_context_check_loa(struct afb_context *context, unsigned loa)
 {
-	if (context->super)
-		return afb_context_check_loa(context->super, loa);
-	return context->loa_in >= loa;
+	return afb_context_get_loa(context) >= loa;
+}
+
+static inline void *loa_key(struct afb_context *context)
+{
+	return (void*)(1+(intptr_t)(context->api_key));
+}
+
+static inline void *loa2ptr(unsigned loa)
+{
+	return (void*)(intptr_t)loa;
+}
+
+static inline unsigned ptr2loa(void *ptr)
+{
+	return (unsigned)(intptr_t)ptr;
 }
 
 int afb_context_change_loa(struct afb_context *context, unsigned loa)
 {
-	if (context->super)
-		return afb_context_change_loa(context, loa);
-
 	if (!context->validated || loa > 7)
 		return 0;
 
-	if (loa == context->loa_in && !context->loa_changed)
-		context->loa_changing = 0;
-	else {
-		context->loa_out = loa & 7;
-		context->loa_changing = 1;
-		context->loa_changed = 0;
-	}
-	return 1;
+	return 0 <= afb_session_set_cookie(context->session, loa_key(context), loa2ptr(loa), NULL);
 }
 
 unsigned afb_context_get_loa(struct afb_context *context)
 {
-	return context->loa_changing || context->loa_changed ? context->loa_out : context->loa_in;
+	assert(context->session != NULL);
+	return ptr2loa(afb_session_get_cookie(context->session, loa_key(context)));
 }
 
 

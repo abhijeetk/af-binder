@@ -47,7 +47,6 @@ struct cookie
 struct afb_session
 {
 	unsigned refcount;
-	unsigned loa;
 	int timeout;
 	time_t expiration;    // expiration time of the token
 	time_t access;
@@ -381,18 +380,6 @@ const char *afb_session_token (struct afb_session *session)
 {
 	assert(session != NULL);
 	return session->token;
-}
-
-unsigned afb_session_get_LOA (struct afb_session *session)
-{
-	assert(session != NULL);
-	return session->loa;
-}
-
-void afb_session_set_LOA (struct afb_session *session, unsigned loa)
-{
-	assert(session != NULL);
-	session->loa = loa;
 }
 
 void *afb_session_get_cookie(struct afb_session *session, const void *key)

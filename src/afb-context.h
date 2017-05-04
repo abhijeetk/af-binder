@@ -32,10 +32,6 @@ struct afb_context
 			unsigned refreshed: 1;
 			unsigned closing: 1;
 			unsigned closed: 1;
-			unsigned loa_in: 3;
-			unsigned loa_out: 3;
-			unsigned loa_changing: 1;
-			unsigned loa_changed: 1;
 		};
 	};
 	void *api_key;
