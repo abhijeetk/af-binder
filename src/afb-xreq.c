@@ -439,7 +439,7 @@ void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, 
 	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
 }
 
-int xreq_session_check(struct afb_xreq *xreq, int sessionflags)
+static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
 {
 	int loa;
 
@@ -470,11 +470,6 @@ int xreq_session_check(struct afb_xreq *xreq, int sessionflags)
 		}
 	}
 
-	return 0;
-}
-
-void xreq_session_apply(struct afb_xreq *xreq, int sessionflags)
-{
 	if ((sessionflags & AFB_SESSION_RENEW) != 0) {
 		afb_context_refresh(&xreq->context);
 	}
@@ -482,26 +477,26 @@ void xreq_session_apply(struct afb_xreq *xreq, int sessionflags)
 		afb_context_change_loa(&xreq->context, 0);
 		afb_context_close(&xreq->context);
 	}
+
+	return 0;
 }
 
-int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
+void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 *verb)
 {
-	int rc = xreq_session_check(xreq, sessionflags);
-	if (!rc)
-		xreq_session_apply(xreq, sessionflags);
-
-	return rc;
+	if (!verb)
+		afb_xreq_fail_unknown_verb(xreq);
+	else
+		if (!xreq_session_check_apply(xreq, verb->session))
+			verb->callback(to_req(xreq));
 }
 
-void afb_xreq_call(struct afb_xreq *xreq, void (*method)(struct afb_req req))
+void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb)
 {
-	method(to_req(xreq));
-}
-
-void afb_xreq_check_apply_call(struct afb_xreq *xreq, int sessionflags, void (*method)(struct afb_req req))
-{
-	if (!xreq_session_check_apply(xreq, sessionflags))
-		method(to_req(xreq));
+	if (!verb)
+		afb_xreq_fail_unknown_verb(xreq);
+	else
+		if (!xreq_session_check_apply(xreq, verb->session))
+			verb->callback(to_req(xreq));
 }
 
 void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)

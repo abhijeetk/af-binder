@@ -124,10 +124,6 @@ extern void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf
 
 extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);
 
-extern int xreq_session_check(struct afb_xreq *xreq, int sessionflags);
-extern void xreq_session_apply(struct afb_xreq *xreq, int sessionflags);
-extern int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags);
-
-extern void afb_xreq_call(struct afb_xreq *xreq, void (*callback)(struct afb_req req));
-extern void afb_xreq_check_apply_call(struct afb_xreq *xreq, int sessionflags, void (*callback)(struct afb_req req));
+extern void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 *verb);
+extern void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb);
 
