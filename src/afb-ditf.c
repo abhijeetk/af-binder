@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <errno.h>
@@ -199,8 +199,16 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.queue_job = hooked_queue_job_cb
 };
 
-void afb_ditf_init(struct afb_ditf *ditf, const char *prefix)
+void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix)
 {
+	ditf->version = 2;
+	ditf->daemon.closure = ditf;
+	afb_ditf_rename(ditf, prefix);
+}
+
+void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix)
+{
+	ditf->version = 1;
 	ditf->interface.verbosity = verbosity;
 	ditf->interface.mode = AFB_MODE_LOCAL;
 	ditf->interface.daemon.closure = ditf;
@@ -215,9 +223,15 @@ void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix)
 
 void afb_ditf_update_hook(struct afb_ditf *ditf)
 {
-	if (afb_hook_flags_ditf(ditf->prefix))
-		ditf->interface.daemon.itf = &hooked_daemon_itf;
-	else
-		ditf->interface.daemon.itf = &daemon_itf;
+	int hooked = !!afb_hook_flags_ditf(ditf->prefix);
+	switch (ditf->version) {
+	case 1:
+		ditf->interface.daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
+		break;
+	default:
+	case 2:
+		ditf->daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
+		break;
+	}
 }
 

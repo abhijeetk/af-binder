@@ -17,7 +17,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <stdlib.h>
 #include <stdint.h>

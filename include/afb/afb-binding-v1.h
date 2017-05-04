@@ -17,9 +17,10 @@
 
 #pragma once
 
-struct afb_binding_interface;
 struct json_object;
 struct afb_service;
+struct afb_binding_v1;
+struct afb_binding_interface_v1;
 
 /*
  * Function for registering the binding
@@ -44,7 +45,7 @@ struct afb_service;
  * the function 'afbBindingV1ServiceInit' is called, the 'interface'
  * is fully functionnal.
  */
-extern const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *interface);
+extern const struct afb_binding_v1 *afbBindingV1Register (const struct afb_binding_interface_v1 *interface);
 
 /*
  * When a binding have an exported implementation of the
@@ -72,54 +73,13 @@ extern void afbBindingV1ServiceEvent(const char *event, struct json_object *obje
 
 
 /*
- * Enum for Session/Token/Assurance middleware.
- * This enumeration is valid for bindings of type 1
- */
-enum afb_session_v1
-{
-       AFB_SESSION_NONE = 0,   /* nothing required */
-       AFB_SESSION_CREATE = 1, /* Obsolete */
-       AFB_SESSION_CLOSE = 2,  /* After token authentification, closes the session at end */
-       AFB_SESSION_RENEW = 4,  /* After token authentification, refreshes the token at end */
-       AFB_SESSION_CHECK = 8,  /* Requires token authentification */
-
-       AFB_SESSION_LOA_GE = 16, /* check that the LOA is greater or equal to the given value */
-       AFB_SESSION_LOA_LE = 32, /* check that the LOA is lesser or equal to the given value */
-       AFB_SESSION_LOA_EQ = 48, /* check that the LOA is equal to the given value */
-
-       AFB_SESSION_LOA_SHIFT = 6, /* shift for LOA */
-       AFB_SESSION_LOA_MASK = 7,  /* mask for LOA */
-
-       AFB_SESSION_LOA_0 = 0,   /* value for LOA of 0 */
-       AFB_SESSION_LOA_1 = 64,  /* value for LOA of 1 */
-       AFB_SESSION_LOA_2 = 128, /* value for LOA of 2 */
-       AFB_SESSION_LOA_3 = 192, /* value for LOA of 3 */
-       AFB_SESSION_LOA_4 = 256, /* value for LOA of 4 */
-
-       AFB_SESSION_LOA_LE_0 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_0, /* check LOA <= 0 */
-       AFB_SESSION_LOA_LE_1 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_1, /* check LOA <= 1 */
-       AFB_SESSION_LOA_LE_2 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_2, /* check LOA <= 2 */
-       AFB_SESSION_LOA_LE_3 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_3, /* check LOA <= 3 */
-
-       AFB_SESSION_LOA_GE_0 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_0, /* check LOA >= 0 */
-       AFB_SESSION_LOA_GE_1 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_1, /* check LOA >= 1 */
-       AFB_SESSION_LOA_GE_2 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_2, /* check LOA >= 2 */
-       AFB_SESSION_LOA_GE_3 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_3, /* check LOA >= 3 */
-
-       AFB_SESSION_LOA_EQ_0 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_0, /* check LOA == 0 */
-       AFB_SESSION_LOA_EQ_1 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_1, /* check LOA == 1 */
-       AFB_SESSION_LOA_EQ_2 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_2, /* check LOA == 2 */
-       AFB_SESSION_LOA_EQ_3 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_3  /* check LOA == 3 */
-};
-
-/*
  * Description of one verb of the API provided by the binding
  * This enumeration is valid for bindings of type version 1
  */
 struct afb_verb_desc_v1
 {
        const char *name;                       /* name of the verb */
-       enum afb_session_v1 session;            /* authorisation and session requirements of the verb */
+       enum afb_session_flags session;         /* authorisation and session requirements of the verb */
        void (*callback)(struct afb_req req);   /* callback function implementing the verb */
        const char *info;                       /* textual description of the verb */
 };
@@ -138,7 +98,7 @@ struct afb_binding_desc_v1
  * Definition of the type+versions of the binding.
  * The definition uses hashes.
  */
-enum  afb_binding_type
+enum  afb_binding_type_v1
 {
        AFB_BINDING_VERSION_1 = 123456789
 };
@@ -146,11 +106,50 @@ enum  afb_binding_type
 /*
  * Description of a binding
  */
-struct afb_binding
+struct afb_binding_v1
 {
-       enum afb_binding_type type; /* type of the binding */
+       enum afb_binding_type_v1 type; /* type of the binding */
        union {
                struct afb_binding_desc_v1 v1;   /* description of the binding of type 1 */
        };
 };
+
+/*
+ * config mode
+ */
+enum afb_mode_v1 {
+	AFB_MODE_LOCAL = 0,     /* run locally */
+	AFB_MODE_REMOTE,        /* run remotely */
+	AFB_MODE_GLOBAL         /* run either remotely or locally (DONT USE! reserved for future) */
+};
+
+/*
+ * Interface between the daemon and the binding.
+ */
+struct afb_binding_interface_v1
+{
+	struct afb_daemon daemon;       /* access to the daemon facilies */
+	int verbosity;                  /* level of verbosity */
+	enum afb_mode_v1 mode;          /* run mode (local or remote) */
+};
+
+/*
+ * Macros for logging messages
+ */
+#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
+#  define AFB_ERROR_V1(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define AFB_WARNING_V1(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define AFB_NOTICE_V1(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define AFB_INFO_V1(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define AFB_DEBUG_V1(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# else
+#  define AFB_ERROR_V1(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,NULL,0,__VA_ARGS__);}while(0)
+#  define AFB_WARNING_V1(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,NULL,0,__VA_ARGS__);}while(0)
+#  define AFB_NOTICE_V1(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,NULL,0,__VA_ARGS__);}while(0)
+#  define AFB_INFO_V1(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,NULL,0,__VA_ARGS__);}while(0)
+#  define AFB_DEBUG_V1(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,NULL,0,__VA_ARGS__);}while(0)
+# endif
+#endif
+
 

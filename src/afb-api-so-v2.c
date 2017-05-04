@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <dlfcn.h>
@@ -26,6 +26,7 @@
 #include <json-c/json.h>
 
 #include "afb-api.h"
+#include "afb-api-so-v2.h"
 #include "afb-apiset.h"
 #include "afb-svc.h"
 #include "afb-ditf.h"
@@ -41,6 +42,7 @@
  * names of symbols
  */
 static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
+static const char afb_api_so_v2_verbosity[] = "afbBindingV2verbosity";
 
 /**
  * structure for memorizing verbs sorted with permissions
@@ -55,6 +57,7 @@ struct verb_v2 {
  */
 struct api_so_v2 {
 	const struct afb_binding_v2 *binding;	/* descriptor */
+	int *verbosity;				/* verbosity */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
 	struct afb_ditf ditf;		/* daemon interface */
@@ -94,8 +97,8 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
-	int (*start)(const struct afb_binding_interface *interface, struct afb_service service);
-	void (*onevent)(const char *event, struct json_object *object);
+	int (*start)(struct afb_service service);
+	void (*onevent)(struct afb_service service, const char *event, struct json_object *object);
 
 	struct api_so_v2 *desc = closure;
 
@@ -124,7 +127,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 
 	/* get the event handler if any */
 	onevent = desc->binding->onevent;
-	desc->service = afb_svc_create_v2(apiset, share_session, onevent, start, &desc->ditf.interface);
+	desc->service = afb_svc_create_v2(apiset, share_session, start, onevent, &desc->ditf);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->api);
@@ -143,13 +146,13 @@ static void update_hooks_cb(void *closure)
 static int get_verbosity_cb(void *closure)
 {
 	struct api_so_v2 *desc = closure;
-	return desc->ditf.interface.verbosity;
+	return *desc->verbosity;
 }
 
 static void set_verbosity_cb(void *closure, int level)
 {
 	struct api_so_v2 *desc = closure;
-	desc->ditf.interface.verbosity = level;
+	*desc->verbosity = level;
 }
 
 static struct json_object *describe_cb(void *closure)
@@ -168,7 +171,7 @@ static struct afb_api_itf so_v2_api_itf = {
 
 };
 
-int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset)
+int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, int *pver)
 {
 	int rc;
 	struct api_so_v2 *desc;
@@ -193,6 +196,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 		goto error;
 	}
 	desc->binding = binding;
+	desc->verbosity = pver;
 	desc->handle = handle;
 	desc->service = NULL;
 	memset(&desc->ditf, 0, sizeof desc->ditf);
@@ -224,12 +228,12 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	}
 
 	/* init the interface */
-	afb_ditf_init(&desc->ditf, binding->api);
+	afb_ditf_init_v2(&desc->ditf, binding->api);
 
 	/* init the binding */
 	if (binding->init) {
 		INFO("binding %s calling init function", binding->api);
-		rc = binding->init(&desc->ditf.interface);
+		rc = binding->init(desc->ditf.daemon);
 		if (rc < 0) {
 			ERROR("binding %s initialisation function failed...", binding->api);
 			goto error2;
@@ -259,15 +263,21 @@ error:
 int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
 	const struct afb_binding_v2 *binding;
+	int *pver;
 
 	/* retrieves the register function */
 	binding = dlsym(handle, afb_api_so_v2_descriptor);
-	if (!binding)
+	pver = dlsym(handle, afb_api_so_v2_verbosity);
+	if (!binding && !pver)
 		return 0;
 
 	INFO("binding [%s] looks like an AFB binding V2", path);
 
 	/* basic checks */
+	if (!binding || !pver) {
+		ERROR("binding [%s] incomplete symbols...", path);
+		goto error;
+	}
 	if (binding->api == NULL || *binding->api == 0) {
 		ERROR("binding [%s] bad api name...", path);
 		goto error;
@@ -285,7 +295,7 @@ int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 		goto error;
 	}
 
-	return afb_api_so_v2_add_binding(binding, handle, apiset);
+	return afb_api_so_v2_add_binding(binding, handle, apiset, pver);
 
  error:
 	return -1;

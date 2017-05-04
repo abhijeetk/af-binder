@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <dlfcn.h>
@@ -33,15 +33,18 @@
 #include "verbose.h"
 
 
-struct afb_binding_interface;
-
 struct afb_ditf
 {
-	struct afb_binding_interface interface;
+	int version;
 	const char *prefix;
+	union {
+		struct afb_binding_interface_v1 interface;
+		struct afb_daemon daemon;
+	};
 };
 
-extern void afb_ditf_init(struct afb_ditf *ditf, const char *prefix);
+extern void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix);
+extern void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix);
 extern void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix);
 extern void afb_ditf_update_hook(struct afb_ditf *ditf);
 

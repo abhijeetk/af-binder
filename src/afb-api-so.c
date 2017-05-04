@@ -16,7 +16,6 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
 
 #include <stdio.h>
 #include <dlfcn.h>

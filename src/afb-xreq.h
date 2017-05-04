@@ -18,7 +18,7 @@
 #pragma once
 
 
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 #include <afb/afb-binding.h>
 #include "afb-context.h"
 #include "afb-evt.h"

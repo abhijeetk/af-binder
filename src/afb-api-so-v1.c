@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_BINDING_VERBOSE_MACRO
+#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <dlfcn.h>
@@ -27,6 +27,7 @@
 #include <afb/afb-binding.h>
 
 #include "afb-api.h"
+#include "afb-api-so-v1.h"
 #include "afb-apiset.h"
 #include "afb-svc.h"
 #include "afb-evt.h"
@@ -105,7 +106,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 
 	/* get the event handler if any */
 	onevent = dlsym(desc->handle, afb_api_so_v1_service_event);
-	desc->service = afb_svc_create(apiset, share_session, init, onevent);
+	desc->service = afb_svc_create_v1(apiset, share_session, init, onevent);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->v1.prefix);
@@ -204,7 +205,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	desc->handle = handle;
 
 	/* init the interface */
-	afb_ditf_init(&desc->ditf, path);
+	afb_ditf_init_v1(&desc->ditf, path);
 
 	/* init the binding */
 	NOTICE("binding [%s] calling registering function %s", path, afb_api_so_v1_register);
