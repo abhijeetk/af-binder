@@ -36,13 +36,13 @@ static const struct afb_verb_v2 _afb_verbs_v2_[] = {
     {
         .verb = "get",
         .callback = f_get,
-        .permissions = "urn:AGL:permission::platform:monitor:get or urn:AGL:permission::platform:monitor:set",
+        .auth = NULL,
         .session = AFB_SESSION_LOA_GE_0,
     },
     {
         .verb = "set",
         .callback = f_set,
-        .permissions = "urn:AGL:permission::platform:monitor:set",
+        .auth = NULL,
         .session = AFB_SESSION_LOA_GE_0,
     },
     { .verb = NULL }

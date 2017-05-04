@@ -50,6 +50,7 @@
  */
 
 #include "afb-session.h"
+#include "afb-auth.h"
 #include "afb-event-itf.h"
 #include "afb-req-itf.h"
 #include "afb-service-itf.h"

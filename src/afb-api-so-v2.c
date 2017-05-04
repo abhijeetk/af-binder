@@ -35,7 +35,6 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
-#include "afb-perm.h"
 #include "verbose.h"
 
 /*
@@ -43,14 +42,6 @@
  */
 static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
 static const char afb_api_so_v2_verbosity[] = "afbBindingV2verbosity";
-
-/**
- * structure for memorizing verbs sorted with permissions
- */
-struct verb_v2 {
-	const struct afb_verb_v2 *verb;
-	struct afb_perm *perm;
-};
 
 /*
  * Description of a binding
@@ -61,28 +52,16 @@ struct api_so_v2 {
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
 	struct afb_ditf ditf;		/* daemon interface */
-	int count;
-	struct verb_v2 verbs[1];
 };
 
-static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *verb)
+static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *name)
 {
-	const struct afb_verb_v2 *v;
-	int i, l, u, c;
+	const struct afb_verb_v2 *verb;
 
-	l = 0;
-	u = desc->count;
-	while (l < u) {
-		i = (l + u) >> 1;
-		v = desc->verbs[i].verb;
-		c = strcasecmp(v->verb, verb);
-		if (c == 0)
-			return v;
-		if (c < 0)
-			l = i + 1;
-		else
-			u = i;
-	}
+	verb = desc->binding->verbs;
+	while (verb->verb && strcasecmp(verb->verb, name))
+		verb++;
+	return verb->verb ? verb : NULL;
 	return NULL;
 }
 
@@ -176,21 +155,14 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	int rc;
 	struct api_so_v2 *desc;
 	struct afb_api afb_api;
-	const struct afb_verb_v2 *bv;
-	int count, i, j;
 
 	/* basic checks */
 	assert(binding->api);
 	assert(binding->specification);
 	assert(binding->verbs);
 
-	/* count the verbs */
-	count = 0;
-	while (binding->verbs[count].verb)
-		count++;
-
 	/* allocates the description */
-	desc = malloc(sizeof *desc + (count - 1) * sizeof desc->verbs);
+	desc = malloc(sizeof *desc);
 	if (desc == NULL) {
 		ERROR("out of memory");
 		goto error;
@@ -200,32 +172,6 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	desc->handle = handle;
 	desc->service = NULL;
 	memset(&desc->ditf, 0, sizeof desc->ditf);
-	desc->count = count;
-
-	/* fill the verbs sorted */
-	for (i = 0 ; i < count ; i++) {
-		desc->verbs[i].perm = NULL;
-		j = i;
-		bv = &binding->verbs[j];
-		while (j && strcasecmp(bv->verb, desc->verbs[j-1].verb->verb) < 0) {
-			desc->verbs[j].verb = desc->verbs[j-1].verb;
-			j--;
-		}
-		desc->verbs[j].verb = bv;
-	}
-
-	/* makes the permissions */
-	for (i = 0 ; i < count ; i++) {
-		if (desc->verbs[i].verb->permissions) {
-			desc->verbs[i].perm = afb_perm_parse(desc->verbs[i].verb->permissions);
-			if (!desc->verbs[i].perm) {
-				ERROR("Bad permission specification for verb %s of api %s: %s",
-					desc->verbs[i].verb->verb, binding->api,
-					desc->verbs[i].verb->permissions);
-				goto error2;
-			}
-		}
-	}
 
 	/* init the interface */
 	afb_ditf_init_v2(&desc->ditf, binding->api);
@@ -251,10 +197,6 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	return 1;
 
 error2:
-	count = desc->count;
-	while (count)
-		if (desc->verbs[--count].perm)
-			afb_perm_unref(desc->verbs[count].perm);
 	free(desc);
 error:
 	return -1;

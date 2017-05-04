@@ -77,7 +77,6 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-method.c
 	afb-monitor.c
 	afb-msg-json.c
-	afb-perm.c
 	afb-session.c
 	afb-stub-ws.c
 	afb-subcall.c
