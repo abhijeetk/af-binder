@@ -177,4 +177,9 @@ int afb_context_change_loa(struct afb_context *context, unsigned loa)
 	return 1;
 }
 
+unsigned afb_context_get_loa(struct afb_context *context)
+{
+	return context->loa_changing || context->loa_changed ? context->loa_out : context->loa_in;
+}
+
 
