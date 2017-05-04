@@ -443,18 +443,10 @@ int xreq_session_check(struct afb_xreq *xreq, int sessionflags)
 {
 	int loa;
 
-	if ((sessionflags & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
+	if ((sessionflags & (AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(&xreq->context)) {
 			afb_context_close(&xreq->context);
 			afb_xreq_fail_f(xreq, "failed", "invalid token's identity");
-			errno = EINVAL;
-			return -1;
-		}
-	}
-
-	if ((sessionflags & AFB_SESSION_CREATE) != 0) {
-		if (afb_context_check_loa(&xreq->context, 1)) {
-			afb_xreq_fail_f(xreq, "failed", "invalid creation state");
 			errno = EINVAL;
 			return -1;
 		}
@@ -483,7 +475,7 @@ int xreq_session_check(struct afb_xreq *xreq, int sessionflags)
 
 void xreq_session_apply(struct afb_xreq *xreq, int sessionflags)
 {
-	if ((sessionflags & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0) {
+	if ((sessionflags & AFB_SESSION_RENEW) != 0) {
 		afb_context_refresh(&xreq->context);
 	}
 	if ((sessionflags & AFB_SESSION_CLOSE) != 0) {

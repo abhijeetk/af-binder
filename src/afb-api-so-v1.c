@@ -154,8 +154,6 @@ struct json_object *describe_cb(void *closure)
 		a = json_object_new_array();
 		json_object_object_add(f, "name", json_object_new_string(verb->name));
 		json_object_object_add(f, "info", json_object_new_string(verb->info));
-		if (verb->session & AFB_SESSION_CREATE)
-			json_object_array_add(a, json_object_new_string("session-create"));
 		if (verb->session & AFB_SESSION_CLOSE)
 			json_object_array_add(a, json_object_new_string("session-close"));
 		if (verb->session & AFB_SESSION_RENEW)
