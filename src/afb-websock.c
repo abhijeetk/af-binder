@@ -224,7 +224,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 }
 
 static const struct protodef protodefs[] = {
-	{ "x-afb-ws-json1",	afb_ws_json1_create },
+	{ "x-afb-ws-json1",	(void*)afb_ws_json1_create },
 	{ NULL, NULL }
 };
 
