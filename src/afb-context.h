@@ -22,6 +22,8 @@ struct afb_session;
 struct afb_context
 {
 	struct afb_session *session;
+	void *api_key;
+	struct afb_context *super;
 	union {
 		unsigned flags;
 		struct {
@@ -34,8 +36,6 @@ struct afb_context
 			unsigned closed: 1;
 		};
 	};
-	void *api_key;
-	struct afb_context *super;
 };
 
 extern void afb_context_init(struct afb_context *context, struct afb_session *session, const char *token);
@@ -44,6 +44,7 @@ extern int afb_context_connect(struct afb_context *context, const char *uuid, co
 extern void afb_context_disconnect(struct afb_context *context);
 extern const char *afb_context_sent_token(struct afb_context *context);
 extern const char *afb_context_sent_uuid(struct afb_context *context);
+extern const char *afb_context_uuid(struct afb_context *context);
 
 extern void *afb_context_get(struct afb_context *context);
 extern int afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*));

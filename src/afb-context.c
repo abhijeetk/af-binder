@@ -51,8 +51,11 @@ void afb_context_init(struct afb_context *context, struct afb_session *session, 
 
 void afb_context_subinit(struct afb_context *context, struct afb_context *super)
 {
-	*context = *super;
+	context->session = super->session;
+	context->flags = 0;
 	context->super = super;
+	context->api_key = NULL;
+	context->validated = super->validated;
 }
 
 int afb_context_connect(struct afb_context *context, const char *uuid, const char *token)
@@ -99,6 +102,11 @@ const char *afb_context_sent_token(struct afb_context *context)
 		context->refreshed = 1;
 	}
 	return afb_session_token(context->session);
+}
+
+const char *afb_context_uuid(struct afb_context *context)
+{
+	return context->session ? afb_session_uuid(context->session) : "";
 }
 
 const char *afb_context_sent_uuid(struct afb_context *context)
