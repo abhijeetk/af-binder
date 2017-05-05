@@ -79,7 +79,8 @@ void afb_context_disconnect(struct afb_context *context)
 			context->refreshed = 1;
 		}
 		if (context->closing && !context->closed) {
-			afb_session_close(context->session);
+			afb_context_change_loa(context, 0);
+			afb_context_set(context, NULL, NULL);
 			context->closed = 1;
 		}
 		afb_session_unref(context->session);
@@ -131,10 +132,7 @@ void afb_context_set(struct afb_context *context, void *value, void (*free_value
 
 void afb_context_close(struct afb_context *context)
 {
-	if (context->super)
-		afb_context_close(context->super);
-	else
-		context->closing = 1;
+	context->closing = 1;
 }
 
 void afb_context_refresh(struct afb_context *context)
