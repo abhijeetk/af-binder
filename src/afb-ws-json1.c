@@ -130,6 +130,8 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, stru
 		goto error4;
 
 	result->cred = afb_cred_create_for_socket(fd);
+	if (!result->cred)
+		result->cred = afb_cred_current();
 	result->apiset = afb_apiset_addref(apiset);
 	return result;
 

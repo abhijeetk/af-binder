@@ -39,6 +39,7 @@
 #include "afb-hreq.h"
 #include "afb-subcall.h"
 #include "afb-session.h"
+#include "afb-cred.h"
 #include "verbose.h"
 #include "locale-root.h"
 
@@ -319,6 +320,7 @@ static void req_destroy(struct afb_xreq *xreq)
 	json_object_put(hreq->json);
 	free((char*)hreq->xreq.api);
 	free((char*)hreq->xreq.verb);
+	afb_cred_unref(hreq->xreq.cred);
 	free(hreq);
 }
 
@@ -981,6 +983,7 @@ struct afb_hreq *afb_hreq_create()
 	if (hreq) {
 		/* init the request */
 		afb_xreq_init(&hreq->xreq, &afb_hreq_xreq_query_itf);
+		hreq->xreq.cred = afb_cred_current();
 		hreq->reqid = ++global_reqids;
 	}
 	return hreq;
