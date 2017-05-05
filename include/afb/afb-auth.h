@@ -22,19 +22,24 @@
  */
 enum afb_auth_type
 {
-	afb_auth_No = 0,
-	afb_auth_Permission,
-	afb_auth_Or,
-	afb_auth_And,
-	afb_auth_Yes
+	afb_auth_No = 0,	/** never authorized, no data */
+	afb_auth_Token,		/** authorized if token valid, no data */
+	afb_auth_LOA,		/** authorized if LOA greater than data 'loa' */
+	afb_auth_Permission,	/** authorized if permission 'text' is granted */
+	afb_auth_Or,		/** authorized if 'first' or 'next' is authorized */
+	afb_auth_And,		/** authorized if 'first' and 'next' are authorized */
+	afb_auth_Not,		/** authorized if 'first' is not authorized */
+	afb_auth_Yes		/** always authorized, no data */
 };
 
-struct afb_auth_desc
+struct afb_auth
 {
-	enum afb_auth_type type;
+	const enum afb_auth_type type;
 	union {
 		const char *text;
-		struct afb_auth_desc *child[2];
+		const unsigned loa;
+		const struct afb_auth *first;
 	};
+	const struct afb_auth *next;
 };
 

@@ -33,6 +33,7 @@
 #include "afb-hook.h"
 #include "afb-api.h"
 #include "afb-apiset.h"
+#include "afb-auth.h"
 #include "jobs.h"
 #include "verbose.h"
 
@@ -439,14 +440,14 @@ void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, 
 	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
 }
 
-static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
+static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags, const struct afb_auth *auth)
 {
 	int loa;
 
 	if ((sessionflags & (AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(&xreq->context)) {
 			afb_context_close(&xreq->context);
-			afb_xreq_fail_f(xreq, "failed", "invalid token's identity");
+			afb_xreq_fail_f(xreq, "denied", "invalid token's identity");
 			errno = EINVAL;
 			return -1;
 		}
@@ -455,7 +456,7 @@ static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
 	if ((sessionflags & AFB_SESSION_LOA_GE) != 0) {
 		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (!afb_context_check_loa(&xreq->context, loa)) {
-			afb_xreq_fail_f(xreq, "failed", "invalid LOA");
+			afb_xreq_fail_f(xreq, "denied", "invalid LOA");
 			errno = EPERM;
 			return -1;
 		}
@@ -464,10 +465,16 @@ static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags)
 	if ((sessionflags & AFB_SESSION_LOA_LE) != 0) {
 		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (afb_context_check_loa(&xreq->context, loa + 1)) {
-			afb_xreq_fail_f(xreq, "failed", "invalid LOA");
+			afb_xreq_fail_f(xreq, "denied", "invalid LOA");
 			errno = EPERM;
 			return -1;
 		}
+	}
+
+	if (auth && !afb_auth_check(auth, xreq)) {
+		afb_xreq_fail_f(xreq, "denied", "authorisation refused");
+		errno = EPERM;
+		return -1;
 	}
 
 	if ((sessionflags & AFB_SESSION_RENEW) != 0) {
@@ -486,7 +493,7 @@ void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 
 	if (!verb)
 		afb_xreq_fail_unknown_verb(xreq);
 	else
-		if (!xreq_session_check_apply(xreq, verb->session))
+		if (!xreq_session_check_apply(xreq, verb->session, NULL))
 			verb->callback(to_req(xreq));
 }
 
@@ -495,7 +502,7 @@ void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb
 	if (!verb)
 		afb_xreq_fail_unknown_verb(xreq);
 	else
-		if (!xreq_session_check_apply(xreq, verb->session))
+		if (!xreq_session_check_apply(xreq, verb->session, verb->auth))
 			verb->callback(to_req(xreq));
 }
 

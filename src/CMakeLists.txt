@@ -64,6 +64,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-api-so-v2.c
 	afb-api-ws.c
 	afb-apiset.c
+	afb-auth.c
 	afb-common.c
 	afb-config.c
 	afb-context.c
