@@ -51,8 +51,8 @@
 
 #include "afb-session.h"
 #include "afb-auth.h"
-#include "afb-event-itf.h"
 #include "afb-req-itf.h"
+#include "afb-event-itf.h"
 #include "afb-service-itf.h"
 #include "afb-daemon-itf.h"
 #include "afb-binding-v1.h"

@@ -20,6 +20,7 @@
 #define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <signal.h>
 #include <string.h>

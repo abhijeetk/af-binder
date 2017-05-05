@@ -17,17 +17,16 @@
 
 #pragma once
 
-
-#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
-#include <afb/afb-binding.h>
 #include "afb-context.h"
-#include "afb-evt.h"
 
 struct json_object;
 struct afb_evt_listener;
 struct afb_xreq;
 struct afb_cred;
 struct afb_apiset;
+struct afb_event;
+struct afb_verb_desc_v1;
+struct afb_verb_v2;
 
 struct afb_xreq_query_itf {
 	struct json_object *(*json)(struct afb_xreq *xreq);
