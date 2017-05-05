@@ -50,6 +50,7 @@ struct afb_session
 	int timeout;
 	time_t expiration;    // expiration time of the token
 	time_t access;
+	pthread_mutex_t mutex;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
 	struct cookie *cookies[COOKEYCOUNT];
@@ -85,6 +86,16 @@ static void new_uuid(char uuid[37])
 	uuid_unparse_lower(newuuid, uuid);
 }
 
+static inline void lock(struct afb_session *session)
+{
+	pthread_mutex_lock(&session->mutex);
+}
+
+static inline void unlock(struct afb_session *session)
+{
+	pthread_mutex_unlock(&session->mutex);
+}
+
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void free_data (struct afb_session *session)
 {
@@ -110,6 +121,7 @@ void afb_session_init (int max_session_count, int timeout, const char *initok)
 {
 	// let's create as store as hashtable does not have any
 	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct afb_session));
+	pthread_mutex_init(&sessions.mutex, NULL);
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
 	if (initok == NULL)
@@ -224,11 +236,12 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 	struct afb_session *session;
 
 	/* allocates a new one */
-	session = calloc(1, sizeof(struct afb_session));
+	session = calloc(1, sizeof *session);
 	if (session == NULL) {
 		errno = ENOMEM;
 		goto error;
 	}
+	pthread_mutex_init(&session->mutex, NULL);
 
 	/* generate the uuid */
 	if (uuid == NULL) {
@@ -322,6 +335,7 @@ void afb_session_unref(struct afb_session *session)
 		--session->refcount;
 		if (session->refcount == 0 && session->uuid[0] == 0) {
 			destroy (session);
+			pthread_mutex_destroy(&session->mutex);
 			free(session);
 		}
 	}
@@ -382,52 +396,87 @@ const char *afb_session_token (struct afb_session *session)
 	return session->token;
 }
 
-void *afb_session_get_cookie(struct afb_session *session, const void *key)
+static struct cookie *cookie_search(struct afb_session *session, const void *key, int *idx)
 {
 	struct cookie *cookie;
-	int idx;
 
-	idx = cookeyidx(key);
-	cookie = session->cookies[idx];
-	while(cookie != NULL) {
-		if (cookie->key == key)
-			return cookie->value;
+	cookie = session->cookies[*idx = cookeyidx(key)];
+	while(cookie != NULL && cookie->key != key)
 		cookie = cookie->next;
+	return cookie;
+}
+
+static struct cookie *cookie_add(struct afb_session *session, int idx, const void *key, void *value, void (*freecb)(void*))
+{
+	struct cookie *cookie;
+
+	cookie = malloc(sizeof *cookie);
+	if (!cookie)
+		errno = ENOMEM;
+	else {
+		cookie->key = key;
+		cookie->value = value;
+		cookie->freecb = freecb;
+		cookie->next = session->cookies[idx];
+		session->cookies[idx] = cookie;
 	}
-	return NULL;
+	return cookie;
+}
+
+void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void), void (*freecb)(void*))
+{
+	int idx;
+	void *value;
+	struct cookie *cookie;
+
+	lock(session);
+	cookie = cookie_search(session, key, &idx);
+	if (cookie)
+		value = cookie->value;
+	else {
+		value = makecb ? makecb() : NULL;
+		if (makecb || freecb) {
+			cookie = cookie_add(session, idx, key, value, freecb);
+			if (!cookie) {
+				if (makecb && freecb)
+					free(value);
+				value = NULL;
+			}
+		}
+	}
+	unlock(session);
+	return value;
+}
+
+void *afb_session_get_cookie(struct afb_session *session, const void *key)
+{
+	int idx;
+	void *value;
+	struct cookie *cookie;
+
+	lock(session);
+	cookie = cookie_search(session, key, &idx);
+	value = cookie ? cookie->value : NULL;
+	unlock(session);
+	return value;
 }
 
 int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*))
 {
-	struct cookie *cookie;
 	int idx;
+	struct cookie *cookie;
 
-	/* search for a replacement */
-	idx = cookeyidx(key);
-	cookie = session->cookies[idx];
-	while(cookie != NULL) {
-		if (cookie->key == key) {
-			if (cookie->value != value && cookie->freecb)
-				cookie->freecb(cookie->value);
-			cookie->value = value;
-			cookie->freecb = freecb;
-			return 0;
-		}
-		cookie = cookie->next;
+	lock(session);
+	cookie = cookie_search(session, key, &idx);
+	if (!cookie)
+		cookie = cookie_add(session, idx, key, value, freecb);
+	else {
+		if (cookie->value != value && cookie->freecb)
+			cookie->freecb(cookie->value);
+		cookie->value = value;
+		cookie->freecb = freecb;
 	}
-
-	/* allocates */
-	cookie = malloc(sizeof *cookie);
-	if (cookie == NULL) {
-		errno = ENOMEM;
-		return -1;
-	}
-
-	cookie->key = key;
-	cookie->value = value;
-	cookie->freecb = freecb;
-	cookie->next = session->cookies[idx];
-	session->cookies[idx] = cookie;
-	return 0;
+	unlock(session);
+	return -!cookie;
 }
 

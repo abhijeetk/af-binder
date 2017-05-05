@@ -109,6 +109,12 @@ const char *afb_context_sent_uuid(struct afb_context *context)
 	return afb_session_uuid(context->session);
 }
 
+void *afb_context_data(struct afb_context *context, void *(*make_value)(void), void (*free_value)(void*))
+{
+	assert(context->session != NULL);
+	return afb_session_cookie(context->session, context->api_key, make_value, free_value);
+}
+
 void *afb_context_get(struct afb_context *context)
 {
 	assert(context->session != NULL);

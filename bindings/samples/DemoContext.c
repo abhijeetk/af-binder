@@ -67,6 +67,10 @@ static void myAction (struct afb_req request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
 
+    if (!ctx) {
+	afb_req_fail(request, "invalid-state", "Can't perform action");
+	return;
+    }
     // store something in our plugin private client context
     ctx->count++;
     afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Check=[%d]\n", ctx->abcd, ctx->count);
@@ -80,6 +84,10 @@ static void myClose (struct afb_req request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
 
+    if (!ctx) {
+        afb_req_success(request, NULL, NULL);
+	return;
+    }
     // store something in our plugin private client context
     ctx->count++;
     afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Close=[%d]\n", ctx->abcd, ctx->count);
