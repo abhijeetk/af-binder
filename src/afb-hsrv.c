@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -34,11 +35,11 @@
 #include "afb-xreq.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
-#include <afb/afb-req-itf.h>
 #include "verbose.h"
 #include "locale-root.h"
 
 #include "afb-common.h"
+#include "jobs.h"
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
@@ -63,7 +64,6 @@ struct afb_hsrv {
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
 	sd_event_source *evsrc;
-	int in_run;
 	char *cache_to;
 };
 
@@ -235,19 +235,22 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	}
 }
 
+static void do_run(int signum, void *arg)
+{
+	MHD_UNSIGNED_LONG_LONG to;
+
+	struct afb_hsrv *hsrv = arg;
+	if (!signum) {
+		do { MHD_run(hsrv->httpd); } while(MHD_get_timeout(hsrv->httpd, &to) == MHD_YES && !to);
+	}
+	sd_event_source_set_io_events(hsrv->evsrc, EPOLLIN);
+}
+
 void run_micro_httpd(struct afb_hsrv *hsrv)
 {
-	if (hsrv->in_run != 0)
-		hsrv->in_run = 2;
-	else {
-		sd_event_source_set_io_events(hsrv->evsrc, 0);
-		do {
-			hsrv->in_run = 1;
-			MHD_run(hsrv->httpd);
-		} while(hsrv->in_run == 2);
-		hsrv->in_run = 0;
-		sd_event_source_set_io_events(hsrv->evsrc, EPOLLIN);
-	}
+	sd_event_source_set_io_events(hsrv->evsrc, 0);
+	if (jobs_queue(hsrv, 0, do_run, hsrv) < 0)
+		do_run(0, hsrv);
 }
 
 static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *hsrv)
