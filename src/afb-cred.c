@@ -34,9 +34,18 @@ static struct afb_cred *current;
 static struct afb_cred *mkcred(uid_t uid, gid_t gid, pid_t pid, const char *label, size_t size)
 {
 	struct afb_cred *cred;
-	char *dest;
+	char *dest, user[64];
+	size_t i;
+	uid_t u;
 
-	cred = malloc(1 + size + sizeof *cred);
+	i = 0;
+	u = uid;
+	do {
+		user[i++] = (char)('0' + u % 10);
+		u = u / 10;
+	} while(u && i < sizeof user);
+
+	cred = malloc(2 + i + size + sizeof *cred);
 	if (!cred)
 		errno = ENOMEM;
 	else {
@@ -45,12 +54,16 @@ static struct afb_cred *mkcred(uid_t uid, gid_t gid, pid_t pid, const char *labe
 		cred->gid = gid;
 		cred->pid = pid;
 		dest = (char*)(&cred[1]);
-		memcpy(dest, label, size);
-		dest[size] = 0;
+		cred->user = dest;
+		while(i)
+			*dest++ = user[--i];
+		*dest++ = 0;
 		cred->label = dest;
 		cred->id = dest;
+		memcpy(dest, label, size);
+		dest[size] = 0;
 		dest = strrchr(dest, ':');
-		if (dest && dest[1])
+		if (dest)
 			cred->id = &dest[1];
 	}
 	return cred;

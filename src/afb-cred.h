@@ -25,6 +25,7 @@ struct afb_cred
 	uid_t uid;
 	gid_t gid;
 	pid_t pid;
+	const char *user;
 	const char *label;
 	const char *id;
 };

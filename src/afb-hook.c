@@ -99,8 +99,9 @@ static void hook_xreq_begin_default_cb(void * closure, const struct afb_xreq *xr
 	if (!xreq->cred)
 		_hook_xreq_(xreq, "BEGIN");
 	else
-		_hook_xreq_(xreq, "BEGIN uid=%d gid=%d pid=%d label=%s id=%s",
+		_hook_xreq_(xreq, "BEGIN uid=%d=%s gid=%d pid=%d label=%s id=%s",
 			(int)xreq->cred->uid,
+			xreq->cred->user,
 			(int)xreq->cred->gid,
 			(int)xreq->cred->pid,
 			xreq->cred->label?:"(null)",
