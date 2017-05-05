@@ -46,7 +46,7 @@ extern const char *afb_context_sent_token(struct afb_context *context);
 extern const char *afb_context_sent_uuid(struct afb_context *context);
 
 extern void *afb_context_get(struct afb_context *context);
-extern void afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*));
+extern int afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*));
 extern void *afb_context_data(struct afb_context *context, void *(*make_value)(void), void (*free_value)(void*));
 
 extern void afb_context_close(struct afb_context *context);
