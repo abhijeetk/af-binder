@@ -26,6 +26,7 @@
 #include "afb-auth.h"
 #include "afb-context.h"
 #include "afb-xreq.h"
+#include "afb-cred.h"
 #include "verbose.h"
 
 static int check_permission(const char *permission, struct afb_xreq *xreq);
@@ -60,29 +61,44 @@ int afb_auth_check(const struct afb_auth *auth, struct afb_xreq *xreq)
 	}
 }
 
+/*********************************************************************************/
 #ifdef BACKEND_PERMISSION_IS_CYNARA
+
+#include <pthread.h>
 #include <cynara-client.h>
+
+static cynara *handle;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static int check_permission(const char *permission, struct afb_xreq *xreq)
 {
-	static cynara *cynara;
-	char uid[64];
 	int rc;
 
-	if (!cynara) {
-		rc = cynara_initialize(&cynara, NULL);
+	/* cynara isn't reentrant */
+	pthread_mutex_lock(&mutex);
+
+	/* lazy initialisation */
+	if (!handle) {
+		rc = cynara_initialize(&handle, NULL);
 		if (rc != CYNARA_API_SUCCESS) {
-			cynara = NULL;
+			handle = NULL;
 			ERROR("cynara initialisation failed with code %d", rc);
 			return 0;
 		}
 	}
-	rc = cynara_check(cynara, cred->label, afb_context_uuid(&xreq->context), xreq->cred->user, permission);
+
+	/* query cynara permission */
+	rc = cynara_check(handle, xreq->cred->label, afb_context_uuid(&xreq->context), xreq->cred->user, permission);
+
+	pthread_mutex_unlock(&mutex);
 	return rc == CYNARA_API_ACCESS_ALLOWED;
 }
+
+/*********************************************************************************/
 #else
 static int check_permission(const char *permission, struct afb_xreq *xreq)
 {
-	WARNING("Granting permission %s by default", permission);
+	WARNING("Granting permission %s by default of backend", permission);
 	return 1;
 }
 #endif

@@ -44,9 +44,14 @@ ENDIF(NOT HAVE_LIBMAGIC)
 ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
 
 PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)
+PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.54)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
+PKG_CHECK_MODULES(cynara cynara-client)
+
+IF(cynara_FOUND)
+	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
+ENDIF(cynara_FOUND)
 
 INCLUDE_DIRECTORIES(
 	${include_dirs}
@@ -54,6 +59,7 @@ INCLUDE_DIRECTORIES(
 	${libmicrohttpd_INCLUDE_DIRS}
 	${uuid_INCLUDE_DIRS}
 	${openssl_INCLUDE_DIRS}
+	${cynara_INCLUDE_DIRS}
 )
 
 ADD_LIBRARY(afb-lib STATIC
@@ -107,6 +113,7 @@ TARGET_LINK_LIBRARIES(afb-daemon
 	${libmicrohttpd_LIBRARIES}
 	${uuid_LIBRARIES}
 	${openssl_LIBRARIES}
+	${cynara_LIBRARIES}
 	-lmagic
 	-ldl
 	-lrt
