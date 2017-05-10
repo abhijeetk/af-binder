@@ -37,7 +37,7 @@ extern struct afb_apiset *main_apiset;
 int afb_monitor_init()
 {
 	static int v;
-	return afb_api_so_v2_add_binding(&_afb_binding_v2_, NULL, main_apiset, &v);
+	return afb_api_so_v2_add_binding(&_afb_binding_v2_monitor, NULL, main_apiset, &v);
 }
 
 /******************************************************************************

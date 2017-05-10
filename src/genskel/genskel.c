@@ -61,7 +61,9 @@ struct path
 /**
  * root of the JSON being parsed
  */
-struct json_object *root;
+struct json_object *root = NULL;
+struct json_object *d_perms = NULL;
+struct json_object *a_perms = NULL;
 const char *init = NULL;
 const char *start = NULL;
 const char *onevent = NULL;
@@ -164,121 +166,6 @@ struct json_object *expand_$ref(struct path path)
 	return path.object;
 }
 
-char *get_perm_string(struct json_object *o, int *pl)
-{
-	struct json_object *x, *y;
-	char *a, *b, *c;
-	int l, n, i, L;
-
-	/* value for permission */
-	if (json_object_object_get_ex(o, "permission", &x)) {
-		if (!json_object_is_type(x, json_type_string)) {
-			fprintf(stderr, "permission must be a string. Was: %s\n", json_object_get_string(o));
-			exit(1);
-		}
-		a = strdup(json_object_get_string(x));
-		oom(a);
-		*pl = 0;
-		return a;
-	}
-
-	/* value for not */
-	if (json_object_object_get_ex(o, "not", &x)) {
-		a = get_perm_string(x, &l);
-		b = malloc(6 + strlen(a));
-		oom(b);
-		if (l)
-			stpcpy(stpcpy(stpcpy(b,"not("),a),")");
-		else
-			stpcpy(stpcpy(b,"not "),a);
-		free(a);
-		*pl = 0;
-		return b;
-	}
-
-	/* value for and or or */
-	if (json_object_object_get_ex(o, "allOf", &x))
-		L = 1;
-	else if (json_object_object_get_ex(o, "anyOf", &x))
-		L = 2;
-	else {
-		fprintf(stderr, "unrecognized permission. Was: %s\n", json_object_get_string(o));
-		exit(1);
-	}
-
-	/* check the array */
-	if (!json_object_is_type(x, json_type_array)) {
-		fprintf(stderr, "sequence must be an array. Was: %s\n", json_object_get_string(o));
-		exit(1);
-	}
-	n = json_object_array_length(x);
-	if (n == 0) {
-		fprintf(stderr, "invalid empty sequence. Was: %s\n", json_object_get_string(o));
-		exit(1);
-	}
-
-	/* process the array */
-	if (n == 1)
-		return get_perm_string(json_object_array_get_idx(x, 0), pl);
-	b = NULL;
-	i = 0;
-	while (i != n) {
-		y = json_object_array_get_idx(x, i);
-		a = get_perm_string(y, &l);
-		if (l > L) {
-			c = malloc(3 + strlen(a));
-			oom(c);
-			stpcpy(stpcpy(stpcpy(c,"("),a),")");
-			free(a);
-			a = c;
-		}
-		if (!b)
-			b = a;
-		else {
-			c = malloc(6 + strlen(a) + strlen(b));
-			oom(c);
-			stpcpy(stpcpy(stpcpy(c,b),L==2?" or ":" and "),a);
-			free(a);
-			free(b);
-			b = c;
-		}
-		i++;
-	}
-	*pl = L;
-	return b;
-}
-
-struct json_object *make_perm(struct json_object *o)
-{
-	int l;
-	char *permstr = get_perm_string(o, &l);
-	return json_object_new_string(permstr);
-}
-
-void make_permissions(struct path path)
-{
-	struct json_object *o, *x, *y;
-	struct json_object_iterator ji, jn; 
-
-	if (json_object_object_get_ex(path.object, "permissions", &o)) {
-
-		/* expand $refs of permissions */
-		x = expand_$ref((struct path){ .object = o, .upper = &path });
-		if (x != o)
-			json_object_object_add(path.object, "permissions", x);
-
-		/* makes the permissions */
-		ji = json_object_iter_begin(o);
-		jn = json_object_iter_end(o);
-		while (!json_object_iter_equal(&ji, &jn)) {
-			x = json_object_iter_peek_value(&ji);
-			y = make_perm(x);
-			if (x != y)
-				json_object_object_add(o, json_object_iter_peek_name(&ji), y);
-			json_object_iter_next(&ji);
-		}
-	}
-}
 
 char *make_desc(struct json_object *o)
 {
@@ -352,90 +239,293 @@ char *make_desc(struct json_object *o)
 	return desc;
 }
 
-void print_verbs(int real)
+struct json_object *permissions_of_verb(struct json_object *obj)
+{
+	struct json_object *x, *y;
+
+	if (json_object_object_get_ex(obj, "x-permissions", &x))
+		return x;
+
+	if (json_object_object_get_ex(obj, "get", &x))
+		if (json_object_object_get_ex(x, "x-permissions", &y))
+			return y;
+
+	return NULL;
+}
+
+void print_perms()
+{
+	int i, n;
+
+	n = a_perms ? json_object_array_length(a_perms) : 0;
+	if (n) {
+		printf("static const struct afb_auth _afb_auths_v2_%s[] = {\n" , api);
+		i = 0;
+		while (i < n) {
+			printf("\t{ %s }", json_object_get_string(json_object_array_get_idx(a_perms, i)));
+			printf(",\n"+(++i == n));
+		}
+		printf("};\n\n");
+	}
+}
+
+struct json_object *new_perm(struct json_object *obj, const char *desc)
+{
+	const char *tag;
+	char *b;
+	struct json_object *x, *y;
+
+	tag = obj ? json_object_to_json_string_ext(obj, 0) : desc;
+	if (!json_object_object_get_ex(d_perms, tag, &y)) {
+		if (!d_perms) {
+			d_perms = json_object_new_object();
+			a_perms = json_object_new_array();
+		}	
+
+		asprintf(&b, "&_afb_auths_v2_%s[%d]", api, json_object_array_length(a_perms));
+		x = json_object_new_string(desc);
+		y = json_object_new_string(b);
+		json_object_array_add(a_perms, x);
+		json_object_object_add(d_perms, tag, y);
+		free(b);
+	}
+	return y;
+}
+
+struct json_object *decl_perm(struct json_object *obj);
+
+struct json_object *decl_perm_a(const char *op, struct json_object *obj)
+{
+	int i, n;
+	char *a;
+	struct json_object *x, *y;
+
+	x = NULL;
+	i = n = obj ? json_object_array_length(obj) : 0;
+	while (i) {
+		y = decl_perm(json_object_array_get_idx(obj, --i));
+		if (!y)
+			;
+		else if (!x)
+			x = y;
+		else if (x != y) {
+			asprintf(&a, ".type = afb_auth_%s, .first = %s, .next = %s",
+				 op, json_object_get_string(y), json_object_get_string(x));
+			x = new_perm(NULL, a);
+			free(a);
+		}
+	}
+	return x;
+}
+
+struct json_object *decl_perm(struct json_object *obj)
+{
+	char *a;
+	struct json_object *x, *y;
+
+	if (json_object_object_get_ex(d_perms, json_object_to_json_string_ext(obj, 0), &x))
+		return x;
+
+	if (json_object_object_get_ex(obj, "permission", &x)) {
+		asprintf(&a, ".type = afb_auth_Permission, .text = \"%s\"", json_object_get_string(x));
+		y = new_perm(obj, a);
+		free(a);
+	}
+	else if (json_object_object_get_ex(obj, "anyOf", &x)) {
+		y = decl_perm_a("Or", x);
+	}
+	else if (json_object_object_get_ex(obj, "allOf", &x)) {
+		y = decl_perm_a("And", x);
+	}
+	else if (json_object_object_get_ex(obj, "not", &x)) {
+		x = decl_perm(x);
+		asprintf(&a, ".type = afb_auth_Not, .first = %s", json_object_get_string(x));
+		y = new_perm(obj, a);
+		free(a);
+	}
+	else if (json_object_object_get_ex(obj, "LOA", &x))
+		y = NULL;
+	else if (json_object_object_get_ex(obj, "session", &x))
+		y = NULL;
+	else
+		y = NULL;
+
+	return y;
+}
+
+void declare_permissions(const char *name, struct json_object *obj)
+{
+	struct json_object *p;
+
+	p = permissions_of_verb(obj);
+	if (p)
+		decl_perm(p);
+}
+
+
+#define SESSION_CLOSE  0x000001
+#define SESSION_RENEW  0x000010
+#define SESSION_CHECK  0x000100
+#define SESSION_LOA_1  0x001000
+#define SESSION_LOA_2  0x011000
+#define SESSION_LOA_3  0x111000
+#define SESSION_MASK   0x111111
+
+
+int get_session(struct json_object *obj);
+
+int get_session_a(int and, struct json_object *obj)
+{
+	int i, n, x, y;
+
+	n = obj ? json_object_array_length(obj) : 0;
+	if (n == 0)
+		return 0;
+
+	i = n;
+	x = get_session(json_object_array_get_idx(obj, --i));
+	while (i) {
+		y = get_session(json_object_array_get_idx(obj, --i));
+		if (and)
+			x &= y;
+		else
+			x |= y;
+	}
+	return x;
+}
+
+int get_session(struct json_object *obj)
+{
+	int y;
+	const char *a;
+	struct json_object *x;
+
+	y = 0;
+	if (json_object_object_get_ex(obj, "anyOf", &x)) {
+		y = get_session_a(1, x);
+	}
+	else if (json_object_object_get_ex(obj, "allOf", &x)) {
+		y = get_session_a(0, x);
+	}
+	else if (json_object_object_get_ex(obj, "not", &x)) {
+		y = ~get_session(x) & SESSION_MASK;
+	}
+	else if (json_object_object_get_ex(obj, "LOA", &x)) {
+		switch (json_object_get_int(x)) {
+		case 3: y = SESSION_LOA_3; break;
+		case 2: y = SESSION_LOA_2; break;
+		case 1: y = SESSION_LOA_1; break;
+		default: break;
+		}
+	}
+	else if (json_object_object_get_ex(obj, "session", &x)) {
+		a = json_object_get_string(x);
+		if (!strcmp(a, "check"))
+			y = SESSION_CHECK;
+		else if (!strcmp(a, "close"))
+			y = SESSION_CLOSE;
+	}
+	else if (json_object_object_get_ex(obj, "token", &x)) {
+		a = json_object_get_string(x);
+		if (!strcmp(a, "refresh"))
+			y = SESSION_RENEW;
+	}
+
+	return y;
+}
+
+void print_session(struct json_object *p)
+{
+	int s, c, l;
+
+	s = p ? get_session(p) : 0;
+	c = 1;
+	if (s & SESSION_CHECK) {
+		printf("%s", "|AFB_SESSION_CHECK" + c);
+		c = 0;
+	}
+	if (s & SESSION_LOA_3 & ~SESSION_LOA_2)
+		l = 3;
+	else if (s & SESSION_LOA_2 & ~SESSION_LOA_1)
+		l = 2;
+	else if (s & SESSION_LOA_1)
+		l = 1;
+	else
+		l = 0;
+	if (l) {
+		printf("%s%d", "|AFB_SESSION_LOA_GE_" + c, l);
+		c = 0;
+	}
+	if (s & SESSION_CLOSE) {
+		printf("%s", "|AFB_SESSION_CLOSE" + c);
+		c = 0;
+	}
+	if (s & SESSION_RENEW) {
+		printf("%s", "|AFB_SESSION_RENEW" + c);
+		c = 0;
+	}
+	if (c)
+		printf("AFB_SESSION_NONE");
+}
+
+void print_verb(const char *name)
+{
+	printf("%s%s%s" , prefix, name, postfix);
+}
+
+void print_declare_verb(const char *name, struct json_object *obj)
+{
+	printf("%s void ", scope);
+	print_verb(name);
+	printf("(struct afb_req req);\n");
+}
+
+void print_struct_verb(const char *name, struct json_object *obj)
+{
+	struct json_object *p;
+
+	p = permissions_of_verb(obj);
+	printf(
+		"    {\n"
+		"        .verb = \"%s\",\n"
+		"        .callback = "
+		, name
+	);
+	print_verb(name);
+	printf(
+		",\n"
+		"        .auth = %s,\n"
+		"        .session = "
+		, p ? json_object_get_string(decl_perm(p)) : "NULL"
+	);
+	print_session(p);
+	printf(
+		"\n"
+		"    },\n"
+	);
+}
+
+void enum_verbs(void (*func)(const char *name, struct json_object *obj))
 {
 	struct json_object_iterator ji, jn;
-	struct json_object *o, *v, *x, *y;
-	const char *verb, *perm, *loa;
-	int i, n, l;
-	const char **verbs;
+	struct json_object *paths, *obj;
+	const char *name;
 
 	/* search the verbs */
-	o = search("#/verbs");
-	if (!o)
+	paths = search("#/paths");
+	if (!paths)
 		return;
 
 	/* list the verbs and sort it */
-	n = json_object_object_length(o);
-	verbs = malloc(n * sizeof *verbs);
-	oom(verbs);
-	n = 0;
-	ji = json_object_iter_begin(o);
-	jn = json_object_iter_end(o);
+	ji = json_object_iter_begin(paths);
+	jn = json_object_iter_end(paths);
 	while (!json_object_iter_equal(&ji, &jn)) {
-		verb = json_object_iter_peek_name(&ji);
-		i = 0;
-		while (i < n && strcasecmp(verb, verbs[i]) > 0)
-			i++;
-		if (i < n)
-			memmove(verbs + i + 1, verbs + i, (n - i) * sizeof *verbs);
-		verbs[i] = verb;
-		n++;
+		name = json_object_iter_peek_name(&ji);
+		obj = json_object_iter_peek_value(&ji);
+		name += (*name == '/');
+		func(name, obj);
 		json_object_iter_next(&ji);
 	}
-
-	/* emit the verbs */
-	for (i = 0 ; i < n ; i++) {
-		verb = verbs[i];
-		json_object_object_get_ex(o, verb, &v);
-
-		if (real) {
-			if (!json_object_object_get_ex(v, "permissions", &x))
-				perm = "NULL";
-			else {
-				perm = json_object_to_json_string(x);
-			}
-			l = 0;
-			loa = "";
-			if (json_object_object_get_ex(v, "LOA", &x)) {
-				if (json_object_is_type(x, json_type_int)) {
-					loa = "AFB_SESSION_LOA_EQ_";
-					y = x;
-				} else {
-					if (json_object_object_get_ex(x, "minimum", &y))
-						loa = "AFB_SESSION_LOA_GE_";
-					else if (json_object_object_get_ex(x, "maximum", &y))
-						loa = "AFB_SESSION_LOA_LE_";
-					else
-						y = NULL;
-					if (y && !json_object_is_type(y, json_type_int))
-						y = NULL;
-				}
-				l = json_object_get_int(y);
-				if (y == NULL || l < 0 || l > 3) {
-					fprintf(stderr, "invalid LOA spec. Was: %s",  json_object_get_string(x));
-					exit(1);
-				}
-			}
-
-			printf(
-				"    {\n"
-				"        .verb = \"%s\",\n"
-				"        .callback = %s%s%s,\n"
-				"        .permissions = %s,\n"
-				"        .session = %s%d,\n"
-				"    },\n"
-				, verb, prefix, verb, postfix, perm, loa, l
-			);
-		} else {
-			printf(
-				"%s void %s%s%s(struct afb_req req);\n"
-				, scope, prefix, verb, postfix
-			);
-		}
-	}
-
-	free(verbs);
 }
 
 void getvarbool(int *var, const char *path, int defval)
@@ -491,52 +581,62 @@ void process(char *filename)
 	/* create the description */
 	desc = make_desc(root);
 
-	/* generate permissions strings */
-	make_permissions((struct path){ .object = root, .upper = NULL });
-
 	/* expand references */
 	root = expand_$ref((struct path){ .object = root, .upper = NULL });
 
 	/* get some names */
-	getvar(&api, "#/api", "?");
-	getvar(&init, "#/meta-binding/init", NULL);
-	getvar(&start, "#/meta-binding/start", NULL);
-	getvar(&onevent, "#/meta-binding/onevent", NULL);
-	getvar(&scope, "#/meta-binding/scope", "static");
-	getvar(&prefix, "#/meta-binding/prefix", "afb_verb_");
-	getvar(&postfix, "#/meta-binding/postfix", "_cb");
-	getvarbool(&priv, "#/meta-binding/private", 0);
+	getvar(&api, "#/info/x-binding-c-generator/api", NULL);
+	getvar(&init, "#/info/x-binding-c-generator/init", NULL);
+	getvar(&start, "#/info/x-binding-c-generator/start", NULL);
+	getvar(&onevent, "#/info/x-binding-c-generator/onevent", NULL);
+	getvar(&scope, "#/info/x-binding-c-generator/scope", "static");
+	getvar(&prefix, "#/info/x-binding-c-generator/prefix", "afb_verb_");
+	getvar(&postfix, "#/info/x-binding-c-generator/postfix", "_cb");
+	getvarbool(&priv, "#/info/x-binding-c-generator/private", 0);
+	getvar(&api, "#/info/title", "?");
 
 	/* get the API name */
 	printf(
 		"\n"
-		"static const char _afb_description_v2_[] =\n"
+		"static const char _afb_description_v2_%s[] =\n"
 		"%s"
 		";\n"
 		"\n"
-		, desc
+		, api, desc
 	);
-	print_verbs(0);
+	enum_verbs(declare_permissions);
+	print_perms();
+	enum_verbs(print_declare_verb);
 	printf(
 		"\n"
-		"static const struct afb_verb_v2 _afb_verbs_v2_[] = {\n"
+		"static const struct afb_verb_v2 _afb_verbs_v2_%s[] = {\n"
+                , api
 	);
-	print_verbs(1);
+	enum_verbs(print_struct_verb);
 	printf(
 		"    { .verb = NULL }\n"
 		"};\n"
+	);
+	printf(
 		"\n"
-		"%sconst struct afb_binding_v2 %s = {\n"
+		"%sconst struct afb_binding_v2 %s%s = {\n"
 		"    .api = \"%s\",\n"
-		"    .specification = _afb_description_v2_,\n"
-		"    .verbs = _afb_verbs_v2_,\n"
+		"    .specification = _afb_description_v2_%s,\n"
+		"    .verbs = _afb_verbs_v2_%s,\n"
 		"    .init = %s,\n"
 		"    .start = %s,\n"
 		"    .onevent = %s,\n"
 		"};\n"
 		"\n"
-		, priv?"static ":"", priv?"_afb_binding_v2_":"afbBindingV2"
-		, api?:"?", init?:"NULL", start?:"NULL", onevent?:"NULL"
+		, priv ? "static " : ""
+		, priv ? "_afb_binding_v2_" : "afbBindingV2"
+		, priv ? api : ""
+		, api
+		, api
+		, api
+		, init ?: "NULL"
+		, start ?: "NULL"
+		, onevent ?: "NULL"
 	);
 
 	/* clean up */
@@ -554,4 +654,8 @@ int main(int ac, char **av)
 	}	
 	return 0;
 }
+
+
+
+
 
