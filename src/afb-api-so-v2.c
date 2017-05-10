@@ -193,7 +193,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 		ERROR("binding %s can't be registered to set %s...", binding->api, afb_apiset_name(apiset));
 		goto error2;
 	}
-	NOTICE("binding %s added to set %s", binding->api, afb_apiset_name(apiset));
+	INFO("binding %s added to set %s", binding->api, afb_apiset_name(apiset));
 	return 1;
 
 error2:

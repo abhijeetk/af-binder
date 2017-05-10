@@ -208,7 +208,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	afb_ditf_init_v1(&desc->ditf, path);
 
 	/* init the binding */
-	NOTICE("binding [%s] calling registering function %s", path, afb_api_so_v1_register);
+	INFO("binding [%s] calling registering function %s", path, afb_api_so_v1_register);
 	desc->binding = register_function(&desc->ditf.interface);
 	if (desc->binding == NULL) {
 		ERROR("binding [%s] register function failed. continuing...", path);
@@ -245,7 +245,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;
 	}
-	NOTICE("binding %s loaded with API prefix %s", path, desc->binding->v1.prefix);
+	INFO("binding %s loaded with API prefix %s", path, desc->binding->v1.prefix);
 	return 1;
 
 error2:
