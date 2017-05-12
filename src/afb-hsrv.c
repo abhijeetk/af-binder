@@ -238,8 +238,8 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 static void do_run(int signum, void *arg)
 {
 	MHD_UNSIGNED_LONG_LONG to;
-
 	struct afb_hsrv *hsrv = arg;
+
 	if (!signum) {
 		do { MHD_run(hsrv->httpd); } while(MHD_get_timeout(hsrv->httpd, &to) == MHD_YES && !to);
 	}

@@ -28,6 +28,8 @@
 #include "sig-monitor.h"
 #include "verbose.h"
 
+#define SIG_FOR_TIMER   (SIGVTALRM+2)
+
 /* local handler */
 static _Thread_local sigjmp_buf *error_handler;
 
@@ -49,7 +51,7 @@ static inline int timeout_create()
 		rc = 0;
 	else {
 		sevp.sigev_notify = SIGEV_THREAD_ID;
-		sevp.sigev_signo = SIGALRM;
+		sevp.sigev_signo = SIG_FOR_TIMER;
 		sevp.sigev_value.sival_ptr = NULL;
 #if defined(sigev_notify_thread_id)
 		sevp.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
@@ -124,7 +126,7 @@ static void on_signal_error(int signum)
 		sigprocmask(SIG_UNBLOCK, &sigset, 0);
 		longjmp(*error_handler, signum);
 	}
-	if (signum == SIGALRM)
+	if (signum == SIG_FOR_TIMER)
 		return;
 	ERROR("Unmonitored signal %d received: %s", signum, strsignal(signum));
 	exit(2);
@@ -146,7 +148,7 @@ static int install(void (*handler)(int), int *signals)
 
 int sig_monitor_init()
 {
-	static int sigerr[] = { SIGALRM, SIGSEGV, SIGFPE, 0 };
+	static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, 0 };
 	static int sigterm[] = { SIGINT, SIGABRT, 0 };
 
 	return (install(on_signal_error, sigerr) & install(on_signal_terminate, sigterm)) - 1;
