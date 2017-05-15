@@ -28,7 +28,7 @@
 #include "sig-monitor.h"
 #include "verbose.h"
 
-#define SIG_FOR_TIMER   (SIGVTALRM+2)
+#define SIG_FOR_TIMER   SIGVTALRM
 
 /* local handler */
 static _Thread_local sigjmp_buf *error_handler;
