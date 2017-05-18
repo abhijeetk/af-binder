@@ -28,6 +28,7 @@
 #include <afb/afb-event-itf.h>
 
 #include "afb-evt.h"
+#include "verbose.h"
 
 struct afb_evt_watch;
 
@@ -173,10 +174,11 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 	while(watch) {
 		listener = watch->listener;
 		assert(listener->itf->push != NULL);
-		if (watch->activity != 0)
+		if (watch->activity != 0) {
 			listener->itf->push(listener->closure, evt->name, evt->id, json_object_get(obj));
+			result++;
+		}
 		watch = watch->next_by_event;
-		result++;
 	}
 	pthread_mutex_unlock(&evt->mutex);
 	json_object_put(obj);
@@ -480,7 +482,6 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 	watch = listener->watchs;
 	while(watch != NULL) {
 		if (watch->event == evt) {
-			/* found: remove it */
 			if (watch->activity != 0) {
 				watch->activity--;
 				if (watch->activity == 0 && listener->itf->remove != NULL)
