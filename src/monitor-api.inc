@@ -65,8 +65,8 @@ static const struct afb_binding_v2 _afb_binding_v2_monitor = {
     .api = "monitor",
     .specification = _afb_description_v2_monitor,
     .verbs = _afb_verbs_v2_monitor,
+    .preinit = NULL,
     .init = NULL,
-    .start = NULL,
     .onevent = NULL,
 };
 

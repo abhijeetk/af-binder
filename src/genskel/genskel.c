@@ -64,14 +64,15 @@ struct path
 struct json_object *root = NULL;
 struct json_object *d_perms = NULL;
 struct json_object *a_perms = NULL;
+const char *preinit = NULL;
 const char *init = NULL;
-const char *start = NULL;
 const char *onevent = NULL;
 const char *api = NULL;
 const char *scope = NULL;
 const char *prefix = NULL;
 const char *postfix = NULL;
 int priv = -1;
+int conc = -1;
 
 /**
  * Search for a reference of type "#/a/b/c" int the
@@ -586,13 +587,14 @@ void process(char *filename)
 
 	/* get some names */
 	getvar(&api, "#/info/x-binding-c-generator/api", NULL);
+	getvar(&preinit, "#/info/x-binding-c-generator/preinit", NULL);
 	getvar(&init, "#/info/x-binding-c-generator/init", NULL);
-	getvar(&start, "#/info/x-binding-c-generator/start", NULL);
 	getvar(&onevent, "#/info/x-binding-c-generator/onevent", NULL);
 	getvar(&scope, "#/info/x-binding-c-generator/scope", "static");
 	getvar(&prefix, "#/info/x-binding-c-generator/prefix", "afb_verb_");
 	getvar(&postfix, "#/info/x-binding-c-generator/postfix", "_cb");
 	getvarbool(&priv, "#/info/x-binding-c-generator/private", 0);
+	getvarbool(&conc, "#/info/x-binding-c-generator/concurrent", 0);
 	getvar(&api, "#/info/title", "?");
 
 	/* get the API name */
@@ -623,9 +625,10 @@ void process(char *filename)
 		"    .api = \"%s\",\n"
 		"    .specification = _afb_description_v2_%s,\n"
 		"    .verbs = _afb_verbs_v2_%s,\n"
+		"    .preinit = %s,\n"
 		"    .init = %s,\n"
-		"    .start = %s,\n"
 		"    .onevent = %s,\n"
+		"    .concurrent = %d\n"
 		"};\n"
 		"\n"
 		, priv ? "static " : ""
@@ -634,9 +637,10 @@ void process(char *filename)
 		, api
 		, api
 		, api
+		, preinit ?: "NULL"
 		, init ?: "NULL"
-		, start ?: "NULL"
 		, onevent ?: "NULL"
+		, !!conc
 	);
 
 	/* clean up */

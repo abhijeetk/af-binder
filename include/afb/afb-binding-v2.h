@@ -57,8 +57,8 @@ struct afb_binding_v2
 	const char *api;			/* api name for the binding */
 	const char *specification;		/* textual specification of the binding */
 	const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
-	int (*init)(struct afb_daemon daemon);
-	int (*start)(struct afb_service service);
+	int (*preinit)(struct afb_daemon daemon);
+	int (*init)(struct afb_service service);
 	void (*onevent)(struct afb_service service, const char *event, struct json_object *object);
 	unsigned concurrent: 1;			/* allows concurrent requests to verbs */
 };

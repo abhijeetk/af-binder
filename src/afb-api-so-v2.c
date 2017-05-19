@@ -119,7 +119,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* get the initialisation */
-	start = desc->binding->start;
+	start = desc->binding->init;
 	if (start == NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
@@ -211,11 +211,11 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	afb_ditf_init_v2(&desc->ditf, binding->api);
 
 	/* init the binding */
-	if (binding->init) {
-		INFO("binding %s calling init function", binding->api);
-		rc = binding->init(desc->ditf.daemon);
+	if (binding->preinit) {
+		INFO("binding %s calling preinit function", binding->api);
+		rc = binding->preinit(desc->ditf.daemon);
 		if (rc < 0) {
-			ERROR("binding %s initialisation function failed...", binding->api);
+			ERROR("binding %s preinit function failed...", binding->api);
 			goto error2;
 		}
 	}

@@ -9,11 +9,11 @@
       "version": 2,
       "prefix": "f_",
       "postfix": "",
-      "start": null,
-      "onevent": null,
+      "preinit": null,
       "init": null,
+      "onevent": null,
       "scope": "static",
-      "private": true      
+      "private": true
     }
   },
   "servers": [
