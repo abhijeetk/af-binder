@@ -35,6 +35,7 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
+#include "jobs.h"
 #include "verbose.h"
 
 /*
@@ -72,6 +73,31 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 
 	verb = search(desc, xreq->verb);
 	afb_xreq_call_verb_v2(xreq, verb);
+}
+
+struct call_sync
+{
+	struct api_so_v2 *desc;
+	struct afb_xreq *xreq;
+};
+
+static void call_sync_cb_cb(int signum, void *closure)
+{
+	struct call_sync *cs = closure;
+	if (!signum)
+		call_cb(cs->desc, cs->xreq);
+	else  {
+		if (!cs->xreq->replied)
+			afb_xreq_fail(cs->xreq, "aborted", "internal error");
+	}
+}
+
+static void call_sync_cb(void *closure, struct afb_xreq *xreq)
+{
+	struct call_sync cs = { .desc = closure, .xreq = xreq };
+
+	if (jobs_call(closure, 0, call_sync_cb_cb, &cs))
+		call_cb(closure, xreq);
 }
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
@@ -147,7 +173,15 @@ static struct afb_api_itf so_v2_api_itf = {
 	.get_verbosity = get_verbosity_cb,
 	.set_verbosity = set_verbosity_cb,
 	.describe = describe_cb
+};
 
+static struct afb_api_itf so_v2_sync_api_itf = {
+	.call = call_sync_cb,
+	.service_start = service_start_cb,
+	.update_hooks = update_hooks_cb,
+	.get_verbosity = get_verbosity_cb,
+	.set_verbosity = set_verbosity_cb,
+	.describe = describe_cb
 };
 
 int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, int *pver)
@@ -188,7 +222,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 
 	/* records the binding */
 	afb_api.closure = desc;
-	afb_api.itf = &so_v2_api_itf;
+	afb_api.itf = binding->concurrent ? &so_v2_api_itf : &so_v2_sync_api_itf;
 	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
 		ERROR("binding %s can't be registered to set %s...", binding->api, afb_apiset_name(apiset));
 		goto error2;

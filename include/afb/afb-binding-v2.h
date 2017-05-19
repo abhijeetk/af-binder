@@ -60,6 +60,7 @@ struct afb_binding_v2
 	int (*init)(struct afb_daemon daemon);
 	int (*start)(struct afb_service service);
 	void (*onevent)(struct afb_service service, const char *event, struct json_object *object);
+	unsigned concurrent: 1;			/* allows concurrent requests to verbs */
 };
 
 /*
