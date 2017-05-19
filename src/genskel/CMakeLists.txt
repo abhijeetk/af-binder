@@ -17,6 +17,14 @@
 ###########################################################################
 
 ADD_EXECUTABLE(afb-genskel genskel.c)
+ADD_EXECUTABLE(afb-exprefs exprefs.c)
+ADD_EXECUTABLE(afb-json2c json2c.c)
+
 TARGET_LINK_LIBRARIES(afb-genskel ${link_libraries})
+TARGET_LINK_LIBRARIES(afb-exprefs ${link_libraries})
+TARGET_LINK_LIBRARIES(afb-json2c ${link_libraries})
+
 INSTALL(TARGETS afb-genskel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+INSTALL(TARGETS afb-exprefs RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+INSTALL(TARGETS afb-json2c  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
