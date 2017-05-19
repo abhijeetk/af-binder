@@ -128,12 +128,10 @@
           "permission": "urn:AGL:permission:monitor:public:get"
         },
         "get-or-set": {
-"allOf":[{"session":"check"},{"LOA":1},{"token":"refresh"},{
           "anyOf": [
             { "$ref": "#/components/x-permissions/get" },
             { "$ref": "#/components/x-permissions/set" }
           ]
-}]
         }
     }
   },

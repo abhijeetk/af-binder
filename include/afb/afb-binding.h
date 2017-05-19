@@ -32,24 +32,18 @@
  *
  */
 
-#define AFB_BINDING_PRAGMA_KEEP_OBSOLETE_V1
-#define AFB_BINDING_PRAGMA_KEEP_OBSOLETE_V2
-#define AFB_BINDING_PRAGMA_DECLARE_V1
-#define AFB_BINDING_PRAGMA_DECLARE_V2
-
 #define AFB_BINDING_LOWER_VERSION     1
 #define AFB_BINDING_UPPER_VERSION     2
 #define AFB_BINDING_DEFAULT_VERSION   1
 
-#ifndef AFB_BINDING_CURRENT_VERSION
-#define AFB_BINDING_CURRENT_VERSION   AFB_BINDING_DEFAULT_VERSION
+#ifndef AFB_BINDING_VERSION
+#define AFB_BINDING_VERSION   AFB_BINDING_DEFAULT_VERSION
 #endif
 
 /*
  * Some function of the library are exported to afb-daemon.
  */
 
-#include "afb-session.h"
 #include "afb-auth.h"
 #include "afb-req-itf.h"
 #include "afb-event-itf.h"
@@ -57,17 +51,4 @@
 #include "afb-daemon-itf.h"
 #include "afb-binding-v1.h"
 #include "afb-binding-v2.h"
-
-#if AFB_BINDING_CURRENT_VERSION == 1
-#define afb_binding  afb_binding_v1
-#define afb_binding_interface afb_binding_interface_v1
-#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
-#define ERROR   AFB_ERROR_V1
-#define WARNING AFB_WARNING_V1
-#define NOTICE  AFB_NOTICE_V1
-#define INFO    AFB_INFO_V1
-#define DEBUG   AFB_DEBUG_V1
-#endif
-#endif
-
 

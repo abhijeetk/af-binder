@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include "afb-session-v2.h"
+
 struct afb_service;
 struct afb_daemon;
 struct afb_binding_v2;
@@ -43,7 +45,7 @@ struct afb_verb_v2
 {
 	const char *verb;                       /* name of the verb */
 	void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-	const struct afb_auth *auth;			/* required authorisation */
+	const struct afb_auth *auth;		/* required authorisation */
 	uint32_t session;                       /* authorisation and session requirements of the verb */
 };
 
@@ -77,4 +79,34 @@ struct afb_binding_v2
 #  define AFB_INFO_V2(daemon,...)    do{if(afbBindingV2verbosity>=2)afb_daemon_verbose(daemon,6,NULL,0,__VA_ARGS__);}while(0)
 #  define AFB_DEBUG_V2(daemon,...)   do{if(afbBindingV2verbosity>=3)afb_daemon_verbose(daemon,7,NULL,0,__VA_ARGS__);}while(0)
 # endif
+#endif
+
+#if AFB_BINDING_VERSION == 2
+
+# define afb_binding		afb_binding_v2
+# define afb_binding_interface	afb_binding_interface_v2
+
+# define AFB_SESSION_NONE	AFB_SESSION_NONE_V2
+# define AFB_SESSION_CLOSE	AFB_SESSION_CLOSE_V2
+# define AFB_SESSION_RENEW	AFB_SESSION_REFRESH_V2
+# define AFB_SESSION_REFRESH	AFB_SESSION_REFRESH_V2
+# define AFB_SESSION_CHECK	AFB_SESSION_CHECK_V2
+
+# define AFB_SESSION_LOA_MASK	AFB_SESSION_LOA_MASK_V2
+
+# define AFB_SESSION_LOA_0	AFB_SESSION_LOA_0_V2
+# define AFB_SESSION_LOA_1	AFB_SESSION_LOA_1_V2
+# define AFB_SESSION_LOA_2	AFB_SESSION_LOA_2_V2
+# define AFB_SESSION_LOA_3	AFB_SESSION_LOA_3_V2
+
+# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+
+#  define ERROR			AFB_ERROR_V2
+#  define WARNING		AFB_WARNING_V2
+#  define NOTICE		AFB_NOTICE_V2
+#  define INFO			AFB_INFO_V2
+#  define DEBUG			AFB_DEBUG_V2
+
+# endif
+
 #endif

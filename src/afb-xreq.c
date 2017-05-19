@@ -440,11 +440,11 @@ void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, 
 	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
 }
 
-static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags, const struct afb_auth *auth)
+static int xreq_session_check_apply_v1(struct afb_xreq *xreq, int sessionflags)
 {
 	int loa;
 
-	if ((sessionflags & (AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
+	if ((sessionflags & (AFB_SESSION_CLOSE_V1|AFB_SESSION_RENEW_V1|AFB_SESSION_CHECK_V1|AFB_SESSION_LOA_EQ_V1)) != 0) {
 		if (!afb_context_check(&xreq->context)) {
 			afb_context_close(&xreq->context);
 			afb_xreq_fail_f(xreq, "denied", "invalid token's identity");
@@ -453,8 +453,8 @@ static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags, con
 		}
 	}
 
-	if ((sessionflags & AFB_SESSION_LOA_GE) != 0) {
-		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+	if ((sessionflags & AFB_SESSION_LOA_GE_V1) != 0) {
+		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT_V1) & AFB_SESSION_LOA_MASK_V1;
 		if (!afb_context_check_loa(&xreq->context, loa)) {
 			afb_xreq_fail_f(xreq, "denied", "invalid LOA");
 			errno = EPERM;
@@ -462,13 +462,44 @@ static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags, con
 		}
 	}
 
-	if ((sessionflags & AFB_SESSION_LOA_LE) != 0) {
-		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+	if ((sessionflags & AFB_SESSION_LOA_LE_V1) != 0) {
+		loa = (sessionflags >> AFB_SESSION_LOA_SHIFT_V1) & AFB_SESSION_LOA_MASK_V1;
 		if (afb_context_check_loa(&xreq->context, loa + 1)) {
 			afb_xreq_fail_f(xreq, "denied", "invalid LOA");
 			errno = EPERM;
 			return -1;
 		}
+	}
+
+	if ((sessionflags & AFB_SESSION_RENEW_V1) != 0) {
+		afb_context_refresh(&xreq->context);
+	}
+	if ((sessionflags & AFB_SESSION_CLOSE_V1) != 0) {
+		afb_context_change_loa(&xreq->context, 0);
+		afb_context_close(&xreq->context);
+	}
+
+	return 0;
+}
+
+static int xreq_session_check_apply_v2(struct afb_xreq *xreq, uint32_t sessionflags, const struct afb_auth *auth)
+{
+	int loa;
+
+	if (sessionflags != 0) {
+		if (!afb_context_check(&xreq->context)) {
+			afb_context_close(&xreq->context);
+			afb_xreq_fail_f(xreq, "denied", "invalid token's identity");
+			errno = EINVAL;
+			return -1;
+		}
+	}
+
+	loa = (int)(sessionflags & AFB_SESSION_LOA_MASK_V2);
+	if (loa && !afb_context_check_loa(&xreq->context, loa)) {
+		afb_xreq_fail_f(xreq, "denied", "invalid LOA");
+		errno = EPERM;
+		return -1;
 	}
 
 	if (auth && !afb_auth_check(auth, xreq)) {
@@ -477,11 +508,10 @@ static int xreq_session_check_apply(struct afb_xreq *xreq, int sessionflags, con
 		return -1;
 	}
 
-	if ((sessionflags & AFB_SESSION_RENEW) != 0) {
+	if ((sessionflags & AFB_SESSION_REFRESH_V2) != 0) {
 		afb_context_refresh(&xreq->context);
 	}
-	if ((sessionflags & AFB_SESSION_CLOSE) != 0) {
-		afb_context_change_loa(&xreq->context, 0);
+	if ((sessionflags & AFB_SESSION_CLOSE_V2) != 0) {
 		afb_context_close(&xreq->context);
 	}
 
@@ -493,7 +523,7 @@ void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 
 	if (!verb)
 		afb_xreq_fail_unknown_verb(xreq);
 	else
-		if (!xreq_session_check_apply(xreq, verb->session, NULL))
+		if (!xreq_session_check_apply_v1(xreq, verb->session))
 			verb->callback(to_req(xreq));
 }
 
@@ -502,7 +532,7 @@ void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb
 	if (!verb)
 		afb_xreq_fail_unknown_verb(xreq);
 	else
-		if (!xreq_session_check_apply(xreq, verb->session, verb->auth))
+		if (!xreq_session_check_apply_v2(xreq, verb->session, verb->auth))
 			verb->callback(to_req(xreq));
 }
 

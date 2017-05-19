@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "afb-session-v1.h"
+
 struct json_object;
 struct afb_service;
 struct afb_binding_v1;
@@ -79,7 +81,7 @@ extern void afbBindingV1ServiceEvent(const char *event, struct json_object *obje
 struct afb_verb_desc_v1
 {
        const char *name;                       /* name of the verb */
-       enum afb_session_flags session;         /* authorisation and session requirements of the verb */
+       enum afb_session_flags_v1 session;      /* authorisation and session requirements of the verb */
        void (*callback)(struct afb_req req);   /* callback function implementing the verb */
        const char *info;                       /* textual description of the verb */
 };
@@ -151,5 +153,60 @@ struct afb_binding_interface_v1
 #  define AFB_DEBUG_V1(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,NULL,0,__VA_ARGS__);}while(0)
 # endif
 #endif
+
+
+/***************************************************************************************************/
+
+#if AFB_BINDING_VERSION == 1
+
+# define afb_binding		afb_binding_v1
+# define afb_binding_interface	afb_binding_interface_v1
+
+# define AFB_SESSION_NONE	AFB_SESSION_NONE_V1
+# define AFB_SESSION_CREATE	AFB_SESSION_CREATE_V1
+# define AFB_SESSION_CLOSE	AFB_SESSION_CLOSE_V1
+# define AFB_SESSION_RENEW	AFB_SESSION_RENEW_V1
+# define AFB_SESSION_CHECK	AFB_SESSION_CHECK_V1
+
+# define AFB_SESSION_LOA_GE	AFB_SESSION_LOA_GE_V1
+# define AFB_SESSION_LOA_LE	AFB_SESSION_LOA_LE_V1
+# define AFB_SESSION_LOA_EQ	AFB_SESSION_LOA_EQ_V1
+
+# define AFB_SESSION_LOA_SHIFT	AFB_SESSION_LOA_SHIFT_V1
+# define AFB_SESSION_LOA_MASK	AFB_SESSION_LOA_MASK_V1
+
+# define AFB_SESSION_LOA_0	AFB_SESSION_LOA_0_V1
+# define AFB_SESSION_LOA_1	AFB_SESSION_LOA_1_V1
+# define AFB_SESSION_LOA_2	AFB_SESSION_LOA_2_V1
+# define AFB_SESSION_LOA_3	AFB_SESSION_LOA_3_V1
+# define AFB_SESSION_LOA_4	AFB_SESSION_LOA_4_V1
+
+# define AFB_SESSION_LOA_LE_0	AFB_SESSION_LOA_LE_0_V1
+# define AFB_SESSION_LOA_LE_1	AFB_SESSION_LOA_LE_1_V1
+# define AFB_SESSION_LOA_LE_2	AFB_SESSION_LOA_LE_2_V1
+# define AFB_SESSION_LOA_LE_3	AFB_SESSION_LOA_LE_3_V1
+
+# define AFB_SESSION_LOA_EQ_0	AFB_SESSION_LOA_EQ_0_V1
+# define AFB_SESSION_LOA_EQ_1	AFB_SESSION_LOA_EQ_1_V1
+# define AFB_SESSION_LOA_EQ_2	AFB_SESSION_LOA_EQ_2_V1
+# define AFB_SESSION_LOA_EQ_3	AFB_SESSION_LOA_EQ_3_V1
+
+# define AFB_SESSION_LOA_GE_0	AFB_SESSION_LOA_GE_0_V1
+# define AFB_SESSION_LOA_GE_1	AFB_SESSION_LOA_GE_1_V1
+# define AFB_SESSION_LOA_GE_2	AFB_SESSION_LOA_GE_2_V1
+# define AFB_SESSION_LOA_GE_3	AFB_SESSION_LOA_GE_3_V1
+
+# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+
+#  define ERROR			AFB_ERROR_V1
+#  define WARNING		AFB_WARNING_V1
+#  define NOTICE		AFB_NOTICE_V1
+#  define INFO			AFB_INFO_V1
+#  define DEBUG			AFB_DEBUG_V1
+
+# endif
+
+#endif
+
 
 

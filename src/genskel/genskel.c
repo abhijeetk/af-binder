@@ -441,7 +441,7 @@ void print_session(struct json_object *p)
 	s = p ? get_session(p) : 0;
 	c = 1;
 	if (s & SESSION_CHECK) {
-		printf("%s", "|AFB_SESSION_CHECK" + c);
+		printf("%s", "|AFB_SESSION_CHECK_V2" + c);
 		c = 0;
 	}
 	if (s & SESSION_LOA_3 & ~SESSION_LOA_2)
@@ -453,19 +453,19 @@ void print_session(struct json_object *p)
 	else
 		l = 0;
 	if (l) {
-		printf("%s%d", "|AFB_SESSION_LOA_GE_" + c, l);
+		printf("%s%d_V2", "|AFB_SESSION_LOA_" + c, l);
 		c = 0;
 	}
 	if (s & SESSION_CLOSE) {
-		printf("%s", "|AFB_SESSION_CLOSE" + c);
+		printf("%s", "|AFB_SESSION_CLOSE_V2" + c);
 		c = 0;
 	}
 	if (s & SESSION_RENEW) {
-		printf("%s", "|AFB_SESSION_RENEW" + c);
+		printf("%s", "|AFB_SESSION_REFRESH_V2" + c);
 		c = 0;
 	}
 	if (c)
-		printf("AFB_SESSION_NONE");
+		printf("AFB_SESSION_NONE_V2");
 }
 
 void print_verb(const char *name)
