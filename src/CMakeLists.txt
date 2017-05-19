@@ -109,15 +109,16 @@ ADD_EXECUTABLE(afb-daemon main.c)
 TARGET_LINK_LIBRARIES(afb-daemon
 	afb-lib
 	${link_libraries}
-	${libsystemd_LIBRARIES}
-	${libmicrohttpd_LIBRARIES}
-	${uuid_LIBRARIES}
-	${openssl_LIBRARIES}
-	${cynara_LIBRARIES}
+	${libsystemd_LDFLAGS}
+	${libmicrohttpd_LDFLAGS}
+	${uuid_LDFLAGS}
+	${openssl_LDFLAGS}
+	${cynara_LDFLAGS}
 	-lmagic
 	-ldl
 	-lrt
 )
+link_directories( /opt/libmicrohttpd-0.9.54/lib/ )
 INSTALL(TARGETS afb-daemon
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
@@ -129,7 +130,7 @@ SET_TARGET_PROPERTIES(afbwsc PROPERTIES
 	VERSION ${LIBAFBWSC_VERSION}
 	SOVERSION ${LIBAFBWSC_SOVERSION})
 TARGET_LINK_LIBRARIES(afbwsc
-	${libsystemd_LIBRARIES}
+	${libsystemd_LDFLAGS}
 	-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-afbwsc.map
 	-Wl,--as-needed
 	-Wl,--gc-sections
@@ -144,7 +145,7 @@ ADD_EXECUTABLE(afb-client-demo afb-client-demo.c)
 TARGET_LINK_LIBRARIES(afb-client-demo
 	afbwsc
 	${link_libraries}
-	${libsystemd_LIBRARIES}
+	${libsystemd_LDFLAGS}
 )
 INSTALL(TARGETS afb-client-demo
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

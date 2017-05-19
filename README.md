@@ -1,10 +1,12 @@
 ### Application Framework Binder
-This is an undergoing work, publication is only intended for developers to review and provide feedback.
+This is an undergoing work, publication is only intended for developers to review and provide feedback. 
 
 ### License
-As of today, the code is licensed under GLPv3. While no decision as been taken yet, it will certainly switch to a different licence: GPLv2, Apache or MIT e.g..
+As of today, the code is licensed under GLPv3. While no decision as been taken yet, 
+it will certainly switch to a different licence: GPLv2, Apache or MIT e.g.. 
 
-Final goal is to keep the engine publicly accessible and modifiable, still allowing people to load non open-source plugins. The code itself already leverages open-source libraries, including libmicrohttpd & libjson.
+Final goal is to keep the engine publicly accessible and modifiable, still allowing people to load non open-source plugins. 
+The code itself already leverages open-source libraries, including libmicrohttpd & libjson. 
 
 Finally, whatever license is chosen, it should be compatible with dependencies and automotive industry requirements - as the primary target for this code is AGL. 
 
@@ -17,16 +19,14 @@ Building Application Framework Binder has been tested under **Ubuntu 16.04 LTS (
  * openssl ("libssl-dev/openssl-devel");
  * systemd >= 222 ("libsystemd-dev/systemd-devel");
 
-optionally, for plugins :
+Optionally, for plugins :
  * alsa ("libasound2-dev/alsa-devel");
  * pulseaudio ("libpulse-dev/libpulse-devel");
  * rtl-sdr >= 0.5.0 ("librtlsdr-dev", or fetch and build from "git://git.osmocom.org/rtl-sdr" under Fedora);
  * GUPnP ("libglib2.0-dev libgupnp-av-1.0-dev/glib2-devel libgupnp-av-devel");
 
-Libmicrohttpd should be v49 patched or higher version including patch 5583
- * Prepatched v49 for AGL is avaliable at http://iot.bzh/download/public/2016/afb-demos/libmicrohttpd-0.9.49-agl.tgz
- * Bug is described at https://gerrit.automotivelinux.org/gerrit/#/c/5583/
-
+Libmicrohttpd :
+ * version >= 0.9.54
 
 and the following tools:
  * gcc;
@@ -48,18 +48,20 @@ $ dnf install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # 
 
  To build, move to your HOME directory and type:
 ```
-$ export LIBMICRODEST= /opt/libmicrohttpd-0.9.49-agl
-$ wget http://iot.bzh/download/public/2016/afb-demos/libmicrohttpd-0.9.49-agl.tgz
-$ tar -xzf libmicrohttpd-0.9.49-agl.tgz
-$ cd libmicrohttpd-0.9.49-agl
-$ ./configure --prefix=$LIBMICRODEST
+$ LIB_MH_VERSION=0.9.54
+$ export LIBMICRODEST=/opt/libmicrohttpd-${LIB_MH_VERSION}
+$ wget https://ftp.gnu.org/gnu/libmicrohttpd/libmicrohttpd-${LIB_MH_VERSION}.tar.gz
+$ tar -xzf libmicrohttpd-${LIB_MH_VERSION}.tar.gz
+$ cd libmicrohttpd-${LIB_MH_VERSION}
+$ ./configure --prefix=${LIBMICRODEST}
 $ make
 $ sudo make install-strip
 
-$ git clone https://github.com/iotbzh/afb-daemon.git
-$ cd afb-daemon
-$ mkdir build; cd build<br />
-$ export PKG_CONFIG_PATH=$LIBMICRODEST/lib/pkgconfig 
+$ AFB_DAEMON_DIR=$HOME/app-framework-binder
+$ git clone https://gerrit.automotivelinux.org/gerrit/src/app-framework-binder ${AFB_DAEMON_DIR}
+$ cd ${AFB_DAEMON_DIR}
+$ mkdir -p build; cd build<br />
+$ export PKG_CONFIG_PATH=${LIBMICRODEST}/lib/pkgconfig 
 $ cmake ..<br />
 $ make; 
 $ sudo make install<br />
@@ -67,9 +69,8 @@ $ sudo make install<br />
 
 ### Testing/Debug
 ```
-$ AFB_DAEMON_DIR=$HOME/afb-daemon
-$ $AFB_DAEMON_DIR/build/src/afb-daemon --help
-$ $AFB_DAEMON_DIR/build/src/afb-daemon --port=1234 --token='' --ldpaths=$AFB_DAEMON_DIR/build --sessiondir=/tmp --rootdir=$AFB_DAEMON_DIR/test 
+$ ${AFB_DAEMON_DIR}/build/src/afb-daemon --help
+$ ${AFB_DAEMON_DIR}/build/src/afb-daemon --port=1234 --token='' --ldpaths=${AFB_DAEMON_DIR}/build --sessiondir=/tmp --rootdir=${AFB_DAEMON_DIR}/test 
 ```
 
 ### Starting
@@ -89,7 +90,9 @@ Default behaviour is to locate ROOTDIR in $HOME/.AFB
 ### REST API
 
 Developers are intended to provide a structure containing : API name, corresponding methods/callbacks, and optionally a context and a handle.
-A handle is a void* structure automatically passed to API callbacks. Callbacks also receive HTTP GET data as well as HTTP POST data, in case a POST method was used. Every method should return a JSON object or NULL in case of error.
+A handle is a void* structure automatically passed to API callbacks. 
+Callbacks also receive HTTP GET data as well as HTTP POST data, in case a POST method was used. 
+Every method should return a JSON object or NULL in case of error.
 
 API plugins can be protected from timeout and other errors. By default this behaviour is deactivated, use --apitimeout to activate it.
         
@@ -111,15 +114,20 @@ API plugins can be protected from timeout and other errors. By default this beha
 
 ### HTML5 and AngularJS Redirects
 
-Binder supports HTML5 redirect mode even with an application baseurl. Default value for application base URL is /opa.
+Binder supports HTML5 redirect mode even with an application baseurl. 
+Default value for application base URL is /opa. 
 See Application Framework HTML5 Client template at https://github.com/iotbzh/afb-client-sample
 
-If the Binder receives something like _http://myopa/sample_ when sample is not the homepage of the AngularJS OPA, it will redirect to _http://myopa/#!sample_. This redirect will return the _index.html_ OPA file and will notify AngularJS not to display the homepage, but the sample page.
+If the Binder receives something like _http://myopa/sample_ when sample is not the homepage of the AngularJS OPA, 
+it will redirect to _http://myopa/#!sample_. 
+This redirect will return the _index.html_ OPA file and will notify AngularJS not to display the homepage, but the sample page.
 
-Warning: in order for AngularJS applications to be able to work with both BASEURL="/" and BASEURL="/MyApp/", all page references have to be relative.
+Warning: in order for AngularJS applications to be able to work with both BASEURL="/" and BASEURL="/MyApp/", all page references have to be relative. 
+
 Recommended model is to develop with a BASEURL="/opa" as any application working with a BASEURL will work without, while the opposite is not true.
 
-Note: If a resource is not accessible from ROOTDIR then the "--alias" switch should be used, as in: --alias=/icons:/usr/share/icons. Only use alias for external support static files. This should not be used for API and OPA.
+Note: If a resource is not accessible from ROOTDIR then the "--alias" switch should be used, as in: --alias=/icons:/usr/share/icons. 
+Only use alias for external support static files. This should not be used for API and OPA.
 
 
 ### Ongoing work

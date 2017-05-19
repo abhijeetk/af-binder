@@ -70,7 +70,7 @@ SET(include_dirs
 
 SET(link_libraries
 	${CMAKE_THREAD_LIBS_INIT}
-	${json-c_LIBRARIES}
+	${json-c_LDFLAGS}
 	)
 
 SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
