@@ -16,14 +16,14 @@
  */
 
 #define _GNU_SOURCE
-#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <errno.h>
 
 #include <json-c/json.h>
 
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v1.h>
+#include <afb/afb-binding-v2.h>
 
 #include "afb-ditf.h"
 #include "afb-evt.h"
@@ -176,7 +176,8 @@ static int hooked_queue_job_cb(void *closure, void (*callback)(int signum, void 
 }
 
 static const struct afb_daemon_itf daemon_itf = {
-	.vverbose = old_vverbose_cb,
+	.vverbose_v1 = old_vverbose_cb,
+	.vverbose_v2 = vverbose_cb,
 	.event_make = event_make_cb,
 	.event_broadcast = event_broadcast_cb,
 	.get_event_loop = afb_common_get_event_loop,
@@ -188,7 +189,8 @@ static const struct afb_daemon_itf daemon_itf = {
 };
 
 static const struct afb_daemon_itf hooked_daemon_itf = {
-	.vverbose = hooked_old_vverbose_cb,
+	.vverbose_v1 = hooked_old_vverbose_cb,
+	.vverbose_v2 = hooked_vverbose_cb,
 	.event_make = hooked_event_make_cb,
 	.event_broadcast = hooked_event_broadcast_cb,
 	.get_event_loop = hooked_get_event_loop,
@@ -199,19 +201,21 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.queue_job = hooked_queue_job_cb
 };
 
-void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix)
+void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix, struct afb_binding_data_v2 *data)
 {
 	ditf->version = 2;
-	ditf->daemon.closure = ditf;
+	ditf->v2 = data;
+	data->daemon.closure = ditf;
 	afb_ditf_rename(ditf, prefix);
 }
 
-void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix)
+void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix, struct afb_binding_interface_v1 *itf)
 {
 	ditf->version = 1;
-	ditf->interface.verbosity = verbosity;
-	ditf->interface.mode = AFB_MODE_LOCAL;
-	ditf->interface.daemon.closure = ditf;
+	ditf->v1 = itf;
+	itf->verbosity = verbosity;
+	itf->mode = AFB_MODE_LOCAL;
+	itf->daemon.closure = ditf;
 	afb_ditf_rename(ditf, prefix);
 }
 
@@ -226,11 +230,11 @@ void afb_ditf_update_hook(struct afb_ditf *ditf)
 	int hooked = !!afb_hook_flags_ditf(ditf->prefix);
 	switch (ditf->version) {
 	case 1:
-		ditf->interface.daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
+		ditf->v1->daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
 		break;
 	default:
 	case 2:
-		ditf->daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
+		ditf->v2->daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;
 		break;
 	}
 }

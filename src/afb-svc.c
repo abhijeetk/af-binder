@@ -22,8 +22,8 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-req-itf.h>
-#include <afb/afb-service-itf.h>
+#include <afb/afb-binding-v1.h>
+#include <afb/afb-binding-v2.h>
 
 #include "afb-session.h"
 #include "afb-context.h"
@@ -33,7 +33,6 @@
 #include "afb-xreq.h"
 #include "afb-cred.h"
 #include "afb-apiset.h"
-#include "afb-ditf.h"
 #include "verbose.h"
 
 /*
@@ -51,13 +50,9 @@ struct afb_svc
 	struct afb_evt_listener *listener;
 
 	/* on event callback for the service */
-	union {
-		void (*on_event_v1)(const char *event, struct json_object *object);
-		void (*on_event_v2)(struct afb_service service, const char *event, struct json_object *object);
-	};
+	void (*on_event)(const char *event, struct json_object *object);
 
-	/* the daemon interface */
-	struct afb_ditf *ditf;
+	struct afb_binding_data_v2 *v2;
 };
 
 /*
@@ -73,8 +68,7 @@ struct svc_req
 };
 
 /* functions for services */
-static void svc_on_event_v1(void *closure, const char *event, int eventid, struct json_object *object);
-static void svc_on_event_v2(void *closure, const char *event, int eventid, struct json_object *object);
+static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object);
 static void svc_call(void *closure, const char *api, const char *verb, struct json_object *args,
 				void (*callback)(void*, int, struct json_object*), void *cbclosure);
 
@@ -84,13 +78,9 @@ static const struct afb_service_itf service_itf = {
 };
 
 /* the interface for events */
-static const struct afb_evt_itf evt_itf_v1 = {
-	.broadcast = svc_on_event_v1,
-	.push = svc_on_event_v1
-};
-static const struct afb_evt_itf evt_itf_v2 = {
-	.broadcast = svc_on_event_v2,
-	.push = svc_on_event_v2
+static const struct afb_evt_itf evt_itf = {
+	.broadcast = svc_on_event,
+	.push = svc_on_event
 };
 
 /* functions for requests of services */
@@ -192,8 +182,8 @@ struct afb_svc *afb_svc_create_v1(
 
 	/* initialises the listener if needed */
 	if (on_event) {
-		svc->on_event_v1 = on_event;
-		svc->listener = afb_evt_listener_create(&evt_itf_v1, svc);
+		svc->on_event = on_event;
+		svc->listener = afb_evt_listener_create(&evt_itf, svc);
 		if (svc->listener == NULL)
 			goto error;
 	}
@@ -216,9 +206,9 @@ error:
 struct afb_svc *afb_svc_create_v2(
 			struct afb_apiset *apiset,
 			int share_session,
-			int (*start)(struct afb_service service),
-			void (*on_event)(struct afb_service service, const char *event, struct json_object *object),
-			struct afb_ditf *ditf
+			int (*start)(),
+			void (*on_event)(const char *event, struct json_object *object),
+			struct afb_binding_data_v2 *data
 )
 {
 	int rc;
@@ -228,20 +218,23 @@ struct afb_svc *afb_svc_create_v2(
 	svc = afb_svc_alloc(apiset, share_session);
 	if (svc == NULL)
 		goto error;
-	svc->ditf = ditf;
+	svc->v2 = data;
+	data->service = to_afb_service_v2(svc);
 
 	/* initialises the listener if needed */
 	if (on_event) {
-		svc->on_event_v2 = on_event;
-		svc->listener = afb_evt_listener_create(&evt_itf_v2, svc);
+		svc->on_event = on_event;
+		svc->listener = afb_evt_listener_create(&evt_itf, svc);
 		if (svc->listener == NULL)
 			goto error;
 	}
 
-	/* initialises the svc now */
-	rc = start(to_afb_service_v2(svc));
-	if (rc < 0)
-		goto error;
+	/* starts the svc if needed */
+	if (start) {
+		rc = start();
+		if (rc < 0)
+			goto error;
+	}
 
 	return svc;
 
@@ -253,20 +246,10 @@ error:
 /*
  * Propagates the event to the service
  */
-static void svc_on_event_v1(void *closure, const char *event, int eventid, struct json_object *object)
+static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	struct afb_svc *svc = closure;
-	svc->on_event_v1(event, object);
-	json_object_put(object);
-}
-
-/*
- * Propagates the event to the service
- */
-static void svc_on_event_v2(void *closure, const char *event, int eventid, struct json_object *object)
-{
-	struct afb_svc *svc = closure;
-	svc->on_event_v2(to_afb_service_v2(svc), event, object);
+	svc->on_event(event, object);
 	json_object_put(object);
 }
 

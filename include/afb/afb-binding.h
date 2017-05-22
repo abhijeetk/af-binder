@@ -40,15 +40,16 @@
 #define AFB_BINDING_VERSION   AFB_BINDING_DEFAULT_VERSION
 #endif
 
+#if AFB_BINDING_VERSION != 0
+# if AFB_BINDING_VERSION < AFB_BINDING_LOWER_VERSION || AFB_BINDING_VERSION > AFB_BINDING_UPPER_VERSION
+#  error "Unsupported binding version AFB_BINDING_VERSION " #AFB_BINDING_VERSION
+# endif
+#endif
+
 /*
  * Some function of the library are exported to afb-daemon.
  */
 
-#include "afb-auth.h"
-#include "afb-req-itf.h"
-#include "afb-event-itf.h"
-#include "afb-service-itf.h"
-#include "afb-daemon-itf.h"
 #include "afb-binding-v1.h"
 #include "afb-binding-v2.h"
 

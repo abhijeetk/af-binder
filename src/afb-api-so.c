@@ -45,26 +45,29 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 		goto error;
 	}
 
-	/* retrieves the register function */
+	/* try the version 2 */
 	rc = afb_api_so_v2_add(path, handle, apiset);
 	if (rc < 0) {
 		/* error when loading a valid v2 binding */
 		goto error2;
 	}
+	if (rc)
+		return 0; /* yes version 2 */
+
+	/* try the version 1 */
 	rc = afb_api_so_v1_add(path, handle, apiset);
 	if (rc < 0) {
 		/* error when loading a valid v1 binding */
 		goto error2;
 	}
-	if (rc == 0) {
-		/* not a v1 binding */
-		if (force)
-			ERROR("binding [%s] is not an AFB binding", path);
-		else
-			INFO("binding [%s] is not an AFB binding", path);
-		goto error2;
-	}
-	return 0;
+	if (rc)
+		return 0; /* yes version 1 */
+
+	/* not a valid binding */
+	if (force)
+		ERROR("binding [%s] is not an AFB binding", path);
+	else
+		INFO("binding [%s] is not an AFB binding", path);
 
 error2:
 	dlclose(handle);

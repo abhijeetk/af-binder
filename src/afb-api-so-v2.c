@@ -22,7 +22,7 @@
 #include <dlfcn.h>
 #include <assert.h>
 
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v2.h>
 #include <json-c/json.h>
 
 #include "afb-api.h"
@@ -42,14 +42,14 @@
  * names of symbols
  */
 static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
-static const char afb_api_so_v2_verbosity[] = "afbBindingV2verbosity";
+static const char afb_api_so_v2_data[] = "afbBindingV2data";
 
 /*
  * Description of a binding
  */
 struct api_so_v2 {
 	const struct afb_binding_v2 *binding;	/* descriptor */
-	int *verbosity;				/* verbosity */
+	struct afb_binding_data_v2 *data;	/* data */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
 	struct afb_ditf ditf;		/* daemon interface */
@@ -102,8 +102,8 @@ static void call_sync_cb(void *closure, struct afb_xreq *xreq)
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
-	int (*start)(struct afb_service service);
-	void (*onevent)(struct afb_service service, const char *event, struct json_object *object);
+	int (*start)();
+	void (*onevent)(const char *event, struct json_object *object);
 
 	struct api_so_v2 *desc = closure;
 
@@ -120,7 +120,8 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 
 	/* get the initialisation */
 	start = desc->binding->init;
-	if (start == NULL) {
+	onevent = desc->binding->onevent;
+	if (start == NULL && onevent == NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
 			return 0;
@@ -131,8 +132,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* get the event handler if any */
-	onevent = desc->binding->onevent;
-	desc->service = afb_svc_create_v2(apiset, share_session, start, onevent, &desc->ditf);
+	desc->service = afb_svc_create_v2(apiset, share_session, start, onevent, desc->data);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->api);
@@ -151,19 +151,108 @@ static void update_hooks_cb(void *closure)
 static int get_verbosity_cb(void *closure)
 {
 	struct api_so_v2 *desc = closure;
-	return *desc->verbosity;
+	return desc->data->verbosity;
 }
 
 static void set_verbosity_cb(void *closure, int level)
 {
 	struct api_so_v2 *desc = closure;
-	*desc->verbosity = level;
+	desc->data->verbosity = level;
+}
+
+static struct json_object *addperm(struct json_object *o, struct json_object *x)
+{
+	struct json_object *a;
+
+	if (!o)
+		return x;
+
+	if (!json_object_object_get_ex(o, "allOf", &a)) {
+		a = json_object_new_array();
+		json_object_array_add(a, o);
+		o = json_object_new_object();
+		json_object_object_add(o, "allOf", a);
+	}
+	json_object_array_add(a, x);
+	return o;
+}
+
+static struct json_object *addperm_key_val(struct json_object *o, const char *key, struct json_object *val)
+{
+	struct json_object *x = json_object_new_object();
+	json_object_object_add(x, key, val);
+	return addperm(o, x);
+}
+
+static struct json_object *addperm_key_valstr(struct json_object *o, const char *key, const char *val)
+{
+	return addperm_key_val(o, key, json_object_new_string(val));
+}
+
+static struct json_object *addperm_key_valint(struct json_object *o, const char *key, int val)
+{
+	return addperm_key_val(o, key, json_object_new_int(val));
+}
+
+static struct json_object *make_description(struct api_so_v2 *desc)
+{
+	char buffer[256];
+	const struct afb_verb_v2 *verb;
+	struct json_object *r, *f, *a, *i, *p, *g;
+
+	r = json_object_new_object();
+	json_object_object_add(r, "openapi", json_object_new_string("3.0.0"));
+
+	i = json_object_new_object();
+	json_object_object_add(r, "info", i);
+	json_object_object_add(i, "title", json_object_new_string(desc->binding->api));
+	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
+
+	p = json_object_new_object();
+	json_object_object_add(r, "paths", p);
+	verb = desc->binding->verbs;
+	while (verb->verb) {
+		buffer[0] = '/';
+		strncpy(buffer + 1, verb->verb, sizeof buffer - 1);
+		buffer[sizeof buffer - 1] = 0;
+		f = json_object_new_object();
+		json_object_object_add(p, buffer, f);
+		g = json_object_new_object();
+		json_object_object_add(f, "get", g);
+
+		a = NULL;
+		if (verb->session & AFB_SESSION_CLOSE_V2)
+			a = addperm_key_valstr(a, "session", "close");
+		if (verb->session & AFB_SESSION_CHECK_V2)
+			a = addperm_key_valstr(a, "session", "check");
+		if (verb->session & AFB_SESSION_REFRESH_V2)
+			a = addperm_key_valstr(a, "token", "refresh");
+		if (verb->session & AFB_SESSION_LOA_MASK_V2)
+			a = addperm_key_valint(a, "LOA", verb->session & AFB_SESSION_LOA_MASK_V2);
+#if 0
+		if (verb->auth)
+			a = 
+#endif
+		if (a)
+			json_object_object_add(g, "x-permissions", a);
+
+		a = json_object_new_object();
+		json_object_object_add(g, "responses", a);
+		f = json_object_new_object();
+		json_object_object_add(a, "200", f);
+		json_object_object_add(f, "description", json_object_new_string(verb->verb));
+		verb++;
+	}
+	return r;
 }
 
 static struct json_object *describe_cb(void *closure)
 {
 	struct api_so_v2 *desc = closure;
-	return desc->binding->specification ? json_tokener_parse(desc->binding->specification) : NULL;
+	struct json_object *r = desc->binding->specification ? json_tokener_parse(desc->binding->specification) : NULL;
+	if (!r)
+		r = make_description(desc);
+	return r;
 }
 
 static struct afb_api_itf so_v2_api_itf = {
@@ -184,36 +273,37 @@ static struct afb_api_itf so_v2_sync_api_itf = {
 	.describe = describe_cb
 };
 
-int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, int *pver)
+int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, struct afb_binding_data_v2 *data)
 {
 	int rc;
 	struct api_so_v2 *desc;
 	struct afb_api afb_api;
 
 	/* basic checks */
+	assert(binding);
 	assert(binding->api);
-	assert(binding->specification);
 	assert(binding->verbs);
+	assert(data);
 
 	/* allocates the description */
-	desc = malloc(sizeof *desc);
+	desc = calloc(1, sizeof *desc);
 	if (desc == NULL) {
 		ERROR("out of memory");
 		goto error;
 	}
 	desc->binding = binding;
-	desc->verbosity = pver;
+	desc->data = data;
 	desc->handle = handle;
 	desc->service = NULL;
-	memset(&desc->ditf, 0, sizeof desc->ditf);
 
 	/* init the interface */
-	afb_ditf_init_v2(&desc->ditf, binding->api);
+	desc->data->verbosity = verbosity;
+	afb_ditf_init_v2(&desc->ditf, binding->api, data);
 
 	/* init the binding */
 	if (binding->preinit) {
 		INFO("binding %s calling preinit function", binding->api);
-		rc = binding->preinit(desc->ditf.daemon);
+		rc = binding->preinit();
 		if (rc < 0) {
 			ERROR("binding %s preinit function failed...", binding->api);
 			goto error2;
@@ -222,7 +312,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 
 	/* records the binding */
 	afb_api.closure = desc;
-	afb_api.itf = binding->concurrent ? &so_v2_api_itf : &so_v2_sync_api_itf;
+	afb_api.itf = binding->noconcurrency ? &so_v2_sync_api_itf : &so_v2_api_itf;
 	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
 		ERROR("binding %s can't be registered to set %s...", binding->api, afb_apiset_name(apiset));
 		goto error2;
@@ -239,19 +329,20 @@ error:
 int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
 	const struct afb_binding_v2 *binding;
-	int *pver;
+	struct afb_binding_data_v2 *data;
 
 	/* retrieves the register function */
 	binding = dlsym(handle, afb_api_so_v2_descriptor);
-	pver = dlsym(handle, afb_api_so_v2_verbosity);
-	if (!binding && !pver)
+	data = dlsym(handle, afb_api_so_v2_data);
+	if (!binding && !data)
 		return 0;
 
 	INFO("binding [%s] looks like an AFB binding V2", path);
 
 	/* basic checks */
-	if (!binding || !pver) {
-		ERROR("binding [%s] incomplete symbols...", path);
+	if (!binding || !data) {
+		ERROR("binding [%s] incomplete symbol set: %s is missing",
+			path, binding ? afb_api_so_v2_data : afb_api_so_v2_descriptor);
 		goto error;
 	}
 	if (binding->api == NULL || *binding->api == 0) {
@@ -262,16 +353,18 @@ int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 		ERROR("binding [%s] invalid api name...", path);
 		goto error;
 	}
+#if 0
 	if (binding->specification == NULL || *binding->specification == 0) {
 		ERROR("binding [%s] bad specification...", path);
 		goto error;
 	}
+#endif
 	if (binding->verbs == NULL) {
 		ERROR("binding [%s] no verbs...", path);
 		goto error;
 	}
 
-	return afb_api_so_v2_add_binding(binding, handle, apiset, pver);
+	return afb_api_so_v2_add_binding(binding, handle, apiset, data);
 
  error:
 	return -1;

@@ -24,7 +24,7 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v1.h>
 
 #include "afb-api.h"
 #include "afb-api-so-v1.h"
@@ -49,9 +49,10 @@ static const char afb_api_so_v1_service_event[] = "afbBindingV1ServiceEvent";
  * Description of a binding
  */
 struct api_so_v1 {
-	struct afb_binding *binding;	/* descriptor */
+	struct afb_binding_v1 *binding;	/* descriptor */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
+	struct afb_binding_interface_v1 interface;
 	struct afb_ditf ditf;		/* daemon interface */
 };
 
@@ -125,13 +126,13 @@ static void update_hooks_cb(void *closure)
 static int get_verbosity_cb(void *closure)
 {
 	struct api_so_v1 *desc = closure;
-	return desc->ditf.interface.verbosity;
+	return desc->interface.verbosity;
 }
 
 static void set_verbosity_cb(void *closure, int level)
 {
 	struct api_so_v1 *desc = closure;
-	desc->ditf.interface.verbosity = level;
+	desc->interface.verbosity = level;
 }
 
 struct json_object *describe_cb(void *closure)
@@ -151,21 +152,21 @@ struct json_object *describe_cb(void *closure)
 		a = json_object_new_array();
 		json_object_object_add(f, "name", json_object_new_string(verb->name));
 		json_object_object_add(f, "info", json_object_new_string(verb->info));
-		if (verb->session & AFB_SESSION_CLOSE)
+		if (verb->session & AFB_SESSION_CLOSE_V1)
 			json_object_array_add(a, json_object_new_string("session-close"));
-		if (verb->session & AFB_SESSION_RENEW)
+		if (verb->session & AFB_SESSION_RENEW_V1)
 			json_object_array_add(a, json_object_new_string("session-renew"));
-		if (verb->session & AFB_SESSION_CHECK)
+		if (verb->session & AFB_SESSION_CHECK_V1)
 			json_object_array_add(a, json_object_new_string("session-check"));
-		if (verb->session & AFB_SESSION_LOA_EQ) {
+		if (verb->session & AFB_SESSION_LOA_EQ_V1) {
 			const char *rel = "?";
 			char buffer[80];
-			switch (verb->session & AFB_SESSION_LOA_EQ) {
-			case AFB_SESSION_LOA_GE: rel = ">="; break;
-			case AFB_SESSION_LOA_LE: rel = "<="; break;
-			case AFB_SESSION_LOA_EQ: rel = "=="; break;
+			switch (verb->session & AFB_SESSION_LOA_EQ_V1) {
+			case AFB_SESSION_LOA_GE_V1: rel = ">="; break;
+			case AFB_SESSION_LOA_LE_V1: rel = "<="; break;
+			case AFB_SESSION_LOA_EQ_V1: rel = "=="; break;
 			}
-			snprintf(buffer, sizeof buffer, "LOA%s%d", rel, (int)((verb->session >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK));
+			snprintf(buffer, sizeof buffer, "LOA%s%d", rel, (int)((verb->session >> AFB_SESSION_LOA_SHIFT_V1) & AFB_SESSION_LOA_MASK_V1));
 			json_object_array_add(a, json_object_new_string(buffer));
 		}
 		json_object_object_add(f, "flags", a);
@@ -187,7 +188,7 @@ static struct afb_api_itf so_v1_api_itf = {
 int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
 	struct api_so_v1 *desc;
-	struct afb_binding *(*register_function) (const struct afb_binding_interface *interface);
+	struct afb_binding_v1 *(*register_function) (const struct afb_binding_interface_v1 *interface);
 	struct afb_api afb_api;
 
 	/* retrieves the register function */
@@ -205,11 +206,11 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	desc->handle = handle;
 
 	/* init the interface */
-	afb_ditf_init_v1(&desc->ditf, path);
+	afb_ditf_init_v1(&desc->ditf, path, &desc->interface);
 
 	/* init the binding */
 	INFO("binding [%s] calling registering function %s", path, afb_api_so_v1_register);
-	desc->binding = register_function(&desc->ditf.interface);
+	desc->binding = register_function(&desc->interface);
 	if (desc->binding == NULL) {
 		ERROR("binding [%s] register function failed. continuing...", path);
 		goto error2;

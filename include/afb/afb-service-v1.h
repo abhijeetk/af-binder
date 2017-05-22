@@ -17,32 +17,6 @@
 
 #pragma once
 
-/* avoid inclusion of <json-c/json.h> */
-struct json_object;
-
-/*
- * Interface for internal of services
- * It records the functions to be called for the request.
- * Don't use this structure directly.
- * Use the helper functions documented below.
- */
-struct afb_service_itf
-{
-	/* CAUTION: respect the order, add at the end */
-
-	void (*call)(void *closure, const char *api, const char *verb, struct json_object *args,
-	             void (*callback)(void*, int, struct json_object*), void *callback_closure);
-};
-
-/*
- * Object that encapsulate accesses to service items
- */
-struct afb_service
-{
-	const struct afb_service_itf *itf;
-	void *closure;
-};
-
 /**
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * The result of the call is delivered to the 'callback' function with the 'callback_closure'.
@@ -63,7 +37,7 @@ struct afb_service
  *
  * @see also 'afb_req_subcall'
  */
-static inline void afb_service_call(
+static inline void afb_service_call_v1(
 	struct afb_service service,
 	const char *api,
 	const char *verb,

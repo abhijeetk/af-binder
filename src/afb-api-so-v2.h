@@ -20,6 +20,7 @@
 
 struct afb_apiset;
 struct afb_binding_v2;
+struct afb_binding_data_v2;
 
 extern int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset);
-extern int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, int *verbosity);
+extern int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *apiset, struct afb_binding_data_v2 *data);

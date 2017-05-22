@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include <json-c/json.h>
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v2.h>
 
 #include "afb-api.h"
 #include "afb-apiset.h"
@@ -34,10 +34,11 @@
 
 extern struct afb_apiset *main_apiset;
 
+static struct afb_binding_data_v2 datav2;
+
 int afb_monitor_init()
 {
-	static int v;
-	return afb_api_so_v2_add_binding(&_afb_binding_v2_monitor, NULL, main_apiset, &v);
+	return afb_api_so_v2_add_binding(&_afb_binding_v2_monitor, NULL, main_apiset, &datav2);
 }
 
 /******************************************************************************
@@ -213,6 +214,8 @@ static void get_verbosity(struct json_object *resu, struct json_object *spec)
 		n = json_object_array_length(spec);
 		for (i = 0 ; i < n ; i++)
 			get_verbosity_of(resu, json_object_get_string(json_object_array_get_idx(spec, i)));
+	} else if (json_object_is_type(spec, json_type_string)) {
+		get_verbosity_of(resu, json_object_get_string(spec));
 	} else if (json_object_get_boolean(spec)) {
 		get_verbosity_of(resu, "");
 		get_verbosity_of(resu, "*");
@@ -274,6 +277,8 @@ static void get_apis(struct json_object *resu, struct json_object *spec)
 		n = json_object_array_length(spec);
 		for (i = 0 ; i < n ; i++)
 			get_one_api(resu, json_object_get_string(json_object_array_get_idx(spec, i)), NULL);
+	} else if (json_object_is_type(spec, json_type_string)) {
+		get_one_api(resu, json_object_get_string(spec), NULL);
 	} else if (json_object_get_boolean(spec)) {
 		afb_apiset_enum(main_apiset, get_apis_of_all_cb, resu);
 	}

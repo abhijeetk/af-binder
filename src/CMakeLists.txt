@@ -118,7 +118,6 @@ TARGET_LINK_LIBRARIES(afb-daemon
 	-ldl
 	-lrt
 )
-link_directories( /opt/libmicrohttpd-0.9.54/lib/ )
 INSTALL(TARGETS afb-daemon
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

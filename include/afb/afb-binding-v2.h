@@ -19,23 +19,15 @@
 
 #include <stdint.h>
 
+#include "afb-auth.h"
+#include "afb-req-itf.h"
+#include "afb-event-itf.h"
+#include "afb-service-common.h"
+#include "afb-daemon-common.h"
+
 #include "afb-session-v2.h"
 
-struct afb_service;
-struct afb_daemon;
-struct afb_binding_v2;
-
 struct json_object;
-
-/*
- * A binding V2 MUST have two exported symbols of name:
- *
- *            -  afbBindingV2
- *            -  afbBindingV2verbosity
- *
- */
-extern const struct afb_binding_v2 afbBindingV2;
-extern int afbBindingV2verbosity;
 
 /*
  * Description of one verb of the API provided by the binding
@@ -57,30 +49,72 @@ struct afb_binding_v2
 	const char *api;			/* api name for the binding */
 	const char *specification;		/* textual specification of the binding */
 	const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
-	int (*preinit)(struct afb_daemon daemon);
-	int (*init)(struct afb_service service);
-	void (*onevent)(struct afb_service service, const char *event, struct json_object *object);
-	unsigned concurrent: 1;			/* allows concurrent requests to verbs */
+	int (*preinit)();
+	int (*init)();
+	void (*onevent)(const char *event, struct json_object *object);
+	unsigned noconcurrency: 1;		/* avoids concurrent requests to verbs */
 };
+
+struct afb_binding_data_v2
+{
+	int verbosity;			/* level of verbosity */
+	struct afb_daemon daemon;	/* access to daemon APIs */
+	struct afb_service service;	/* access to service APIs */
+};
+
+/*
+ * A binding V2 MUST have two exported symbols of name:
+ *
+ *            -  afbBindingV2
+ *            -  afbBindingV2data
+ *
+ */
+#if !defined(AFB_BINDING_MAIN_NAME_V2)
+extern const struct afb_binding_v2 afbBindingV2;
+#endif
+
+#if !defined(AFB_BINDING_DATA_NAME_V2)
+#define AFB_BINDING_DATA_NAME_V2 afbBindingV2data
+#endif
+
+#if AFB_BINDING_VERSION == 2
+struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2  __attribute__ ((weak));
+#else
+extern struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2;
+#endif
+
+#define afb_get_verbosity_v2()	(AFB_BINDING_DATA_NAME_V2.verbosity)
+#define afb_get_daemon_v2()	(AFB_BINDING_DATA_NAME_V2.daemon)
+#define afb_get_service_v2()	(AFB_BINDING_DATA_NAME_V2.service)
 
 /*
  * Macros for logging messages
  */
 #if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
 # if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
-#  define AFB_ERROR_V2(daemon,...)   do{if(afbBindingV2verbosity>=0)afb_daemon_verbose(daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-#  define AFB_WARNING_V2(daemon,...) do{if(afbBindingV2verbosity>=1)afb_daemon_verbose(daemon,4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-#  define AFB_NOTICE_V2(daemon,...)  do{if(afbBindingV2verbosity>=1)afb_daemon_verbose(daemon,5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-#  define AFB_INFO_V2(daemon,...)    do{if(afbBindingV2verbosity>=2)afb_daemon_verbose(daemon,6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-#  define AFB_DEBUG_V2(daemon,...)   do{if(afbBindingV2verbosity>=3)afb_daemon_verbose(daemon,7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define _AFB_LOGGING_V2_(vlevel,llevel,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
+			afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
 # else
-#  define AFB_ERROR_V2(daemon,...)   do{if(afbBindingV2verbosity>=0)afb_daemon_verbose(daemon,3,NULL,0,__VA_ARGS__);}while(0)
-#  define AFB_WARNING_V2(daemon,...) do{if(afbBindingV2verbosity>=1)afb_daemon_verbose(daemon,4,NULL,0,__VA_ARGS__);}while(0)
-#  define AFB_NOTICE_V2(daemon,...)  do{if(afbBindingV2verbosity>=1)afb_daemon_verbose(daemon,5,NULL,0,__VA_ARGS__);}while(0)
-#  define AFB_INFO_V2(daemon,...)    do{if(afbBindingV2verbosity>=2)afb_daemon_verbose(daemon,6,NULL,0,__VA_ARGS__);}while(0)
-#  define AFB_DEBUG_V2(daemon,...)   do{if(afbBindingV2verbosity>=3)afb_daemon_verbose(daemon,7,NULL,0,__VA_ARGS__);}while(0)
+#  define _AFB_LOGGING_V2_(vlevel,llevel,...) \
+	do{ \
+		if(afbBindingV2data.verbosity>=vlevel) \
+			afb_daemon_verbose_v2(llevel,NULL,0,NULL,__VA_ARGS__); \
+	}while(0)
 # endif
+# define AFB_ERROR_V2(...)   _AFB_LOGGING_V2_(0,3,__VA_ARGS__)
+# define AFB_WARNING_V2(...) _AFB_LOGGING_V2_(1,4,__VA_ARGS__)
+# define AFB_NOTICE_V2(...)  _AFB_LOGGING_V2_(1,5,__VA_ARGS__)
+# define AFB_INFO_V2(...)    _AFB_LOGGING_V2_(2,6,__VA_ARGS__)
+# define AFB_DEBUG_V2(...)   _AFB_LOGGING_V2_(3,7,__VA_ARGS__)
 #endif
+
+#include "afb-daemon-v2.h"
+#include "afb-service-v2.h"
+
+/***************************************************************************************************/
 
 #if AFB_BINDING_VERSION == 2
 
@@ -109,5 +143,17 @@ struct afb_binding_v2
 #  define DEBUG			AFB_DEBUG_V2
 
 # endif
+
+#define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v2
+#define afb_daemon_get_user_bus		afb_daemon_get_user_bus_v2
+#define afb_daemon_get_system_bus	afb_daemon_get_system_bus_v2
+#define afb_daemon_broadcast_event	afb_daemon_broadcast_event_v2
+#define afb_daemon_make_event		afb_daemon_make_event_v2
+#define afb_daemon_verbose		afb_daemon_verbose_v2
+#define afb_daemon_rootdir_get_fd	afb_daemon_rootdir_get_fd_v2
+#define afb_daemon_rootdir_open_locale	afb_daemon_rootdir_open_locale_v2
+#define afb_daemon_queue_job		afb_daemon_queue_job_v2
+
+#define afb_service_call		afb_service_call_v2
 
 #endif

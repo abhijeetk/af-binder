@@ -15,36 +15,23 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
-#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
+#pragma once
 
-#include <string.h>
-#include <dlfcn.h>
-#include <assert.h>
-
-#include <afb/afb-binding.h>
-
-#include "afb-svc.h"
-#include "afb-evt.h"
-#include "afb-common.h"
-#include "afb-context.h"
-#include "afb-api-so.h"
-#include "afb-xreq.h"
-#include "verbose.h"
-
+struct afb_binding_interface_v1;
+struct afb_binding_data_v2;
 
 struct afb_ditf
 {
 	int version;
 	const char *prefix;
 	union {
-		struct afb_binding_interface_v1 interface;
-		struct afb_daemon daemon;
+		struct afb_binding_interface_v1 *v1;
+		struct afb_binding_data_v2 *v2;
 	};
 };
 
-extern void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix);
-extern void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix);
+extern void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix, struct afb_binding_interface_v1 *itf);
+extern void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix, struct afb_binding_data_v2 *data);
 extern void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix);
 extern void afb_ditf_update_hook(struct afb_ditf *ditf);
 

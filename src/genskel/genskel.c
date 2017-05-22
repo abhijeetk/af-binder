@@ -72,7 +72,7 @@ const char *scope = NULL;
 const char *prefix = NULL;
 const char *postfix = NULL;
 int priv = -1;
-int conc = -1;
+int noconc = -1;
 
 /**
  * Search for a reference of type "#/a/b/c" int the
@@ -594,7 +594,7 @@ void process(char *filename)
 	getvar(&prefix, "#/info/x-binding-c-generator/prefix", "afb_verb_");
 	getvar(&postfix, "#/info/x-binding-c-generator/postfix", "_cb");
 	getvarbool(&priv, "#/info/x-binding-c-generator/private", 0);
-	getvarbool(&conc, "#/info/x-binding-c-generator/concurrent", 0);
+	getvarbool(&noconc, "#/info/x-binding-c-generator/noconcurrency", 0);
 	getvar(&api, "#/info/title", "?");
 
 	/* get the API name */
@@ -628,7 +628,7 @@ void process(char *filename)
 		"    .preinit = %s,\n"
 		"    .init = %s,\n"
 		"    .onevent = %s,\n"
-		"    .concurrent = %d\n"
+		"    .noconcurrency = %d\n"
 		"};\n"
 		"\n"
 		, priv ? "static " : ""
@@ -640,7 +640,7 @@ void process(char *filename)
 		, preinit ?: "NULL"
 		, init ?: "NULL"
 		, onevent ?: "NULL"
-		, !!conc
+		, !!noconc
 	);
 
 	/* clean up */

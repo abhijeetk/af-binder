@@ -19,39 +19,11 @@
 
 #include <stdarg.h>
 
-/* declaration of features of libsystemd */
-struct sd_event;
-struct sd_bus;
-
-/*
- * Definition of the facilities provided by the daemon.
- */
-struct afb_daemon_itf {
-	int (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
-	struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
-	struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
-	struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
-	void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
-	struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
-	int (*rootdir_get_fd)(void *closure);
-	int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
-	int (*queue_job)(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout);
-};
-
-/*
- * Structure for accessing daemon.
- * See also: afb_daemon_get_event_sender, afb_daemon_get_event_loop, afb_daemon_get_user_bus, afb_daemon_get_system_bus
- */
-struct afb_daemon {
-	const struct afb_daemon_itf *itf;       /* the interfacing functions */
-	void *closure;                          /* the closure when calling these functions */
-};
-
 /*
  * Retrieves the common systemd's event loop of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_event *afb_daemon_get_event_loop(struct afb_daemon daemon)
+static inline struct sd_event *afb_daemon_get_event_loop_v1(struct afb_daemon daemon)
 {
 	return daemon.itf->get_event_loop(daemon.closure);
 }
@@ -60,7 +32,7 @@ static inline struct sd_event *afb_daemon_get_event_loop(struct afb_daemon daemo
  * Retrieves the common systemd's user/session d-bus of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_bus *afb_daemon_get_user_bus(struct afb_daemon daemon)
+static inline struct sd_bus *afb_daemon_get_user_bus_v1(struct afb_daemon daemon)
 {
 	return daemon.itf->get_user_bus(daemon.closure);
 }
@@ -69,7 +41,7 @@ static inline struct sd_bus *afb_daemon_get_user_bus(struct afb_daemon daemon)
  * Retrieves the common systemd's system d-bus of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
+static inline struct sd_bus *afb_daemon_get_system_bus_v1(struct afb_daemon daemon)
 {
 	return daemon.itf->get_system_bus(daemon.closure);
 }
@@ -85,7 +57,7 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
+static inline int afb_daemon_broadcast_event_v1(struct afb_daemon daemon, const char *name, struct json_object *object)
 {
 	return daemon.itf->event_broadcast(daemon.closure, name, object);
 }
@@ -94,7 +66,7 @@ static inline int afb_daemon_broadcast_event(struct afb_daemon daemon, const cha
  * Creates an event of 'name' and returns it.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct afb_event afb_daemon_make_event(struct afb_daemon daemon, const char *name)
+static inline struct afb_event afb_daemon_make_event_v1(struct afb_daemon daemon, const char *name)
 {
 	return daemon.itf->event_make(daemon.closure, name);
 }
@@ -105,12 +77,12 @@ static inline struct afb_event afb_daemon_make_event(struct afb_daemon daemon, c
  * 'file' and 'line' are indicators of position of the code in source files.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
-static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
+static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
+static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	daemon.itf->vverbose(daemon.closure, level, file, line, fmt, args);
+	daemon.itf->vverbose_v1(daemon.closure, level, file, line, fmt, args);
 	va_end(args);
 }
 
@@ -118,7 +90,7 @@ static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const
  * Get the root directory file descriptor. This file descriptor can
  * be used with functions 'openat', 'fstatat', ...
  */
-static inline int afb_daemon_rootdir_get_fd(struct afb_daemon daemon)
+static inline int afb_daemon_rootdir_get_fd_v1(struct afb_daemon daemon)
 {
 	return daemon.itf->rootdir_get_fd(daemon.closure);
 }
@@ -128,7 +100,7 @@ static inline int afb_daemon_rootdir_get_fd(struct afb_daemon daemon)
  * using the 'locale' definition (example: "jp,en-US") that can be NULL.
  * Returns the file descriptor or -1 in case of error.
  */
-static inline int afb_daemon_rootdir_open_locale(struct afb_daemon daemon, const char *filename, int flags, const char *locale)
+static inline int afb_daemon_rootdir_open_locale_v1(struct afb_daemon daemon, const char *filename, int flags, const char *locale)
 {
 	return daemon.itf->rootdir_open_locale(daemon.closure, filename, flags, locale);
 }
@@ -146,7 +118,7 @@ static inline int afb_daemon_rootdir_open_locale(struct afb_daemon daemon, const
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-static inline int afb_daemon_queue_job(struct afb_daemon daemon, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+static inline int afb_daemon_queue_job_v1(struct afb_daemon daemon, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
 {
 	return daemon.itf->queue_job(daemon.closure, callback, argument, group, timeout);
 }

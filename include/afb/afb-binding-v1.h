@@ -17,10 +17,17 @@
 
 #pragma once
 
-#include "afb-session-v1.h"
-
 struct json_object;
-struct afb_service;
+
+#include "afb-req-itf.h"
+#include "afb-event-itf.h"
+#include "afb-service-common.h"
+#include "afb-daemon-common.h"
+
+#include "afb-session-v1.h"
+#include "afb-daemon-v1.h"
+#include "afb-daemon-v1.h"
+
 struct afb_binding_v1;
 struct afb_binding_interface_v1;
 
@@ -43,7 +50,7 @@ struct afb_binding_interface_v1;
  * Be aware that the given 'interface' is not fully functionnal
  * because no provision is given to the name and description
  * of the binding. Check the function 'afbBindingV1ServiceInit'
- * defined in the file <afb/afb-service-itf.h> because when
+ * defined in the file <afb/afb-service-v1.h> because when
  * the function 'afbBindingV1ServiceInit' is called, the 'interface'
  * is fully functionnal.
  */
@@ -205,6 +212,18 @@ struct afb_binding_interface_v1
 #  define DEBUG			AFB_DEBUG_V1
 
 # endif
+
+#define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v1
+#define afb_daemon_get_user_bus		afb_daemon_get_user_bus_v1
+#define afb_daemon_get_system_bus	afb_daemon_get_system_bus_v1
+#define afb_daemon_broadcast_event	afb_daemon_broadcast_event_v1
+#define afb_daemon_make_event		afb_daemon_make_event_v1
+#define afb_daemon_verbose		afb_daemon_verbose_v1
+#define afb_daemon_rootdir_get_fd	afb_daemon_rootdir_get_fd_v1
+#define afb_daemon_rootdir_open_locale	afb_daemon_rootdir_open_locale_v1
+#define afb_daemon_queue_job		afb_daemon_queue_job_v1
+
+#define afb_service_call		afb_service_call_v1
 
 #endif
 

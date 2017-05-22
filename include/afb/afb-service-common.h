@@ -17,20 +17,29 @@
 
 #pragma once
 
-struct afb_svc;
-struct afb_service;
-struct afb_apiset;
-struct afb_binding_data_v2;
+/* avoid inclusion of <json-c/json.h> */
+struct json_object;
 
-extern struct afb_svc *afb_svc_create_v1(
-			struct afb_apiset *apiset,
-			int share_session,
-			int (*start)(struct afb_service service),
-			void (*on_event)(const char *event, struct json_object *object));
+/*
+ * Interface for internal of services
+ * It records the functions to be called for the request.
+ * Don't use this structure directly.
+ * Use the helper functions documented below.
+ */
+struct afb_service_itf
+{
+	/* CAUTION: respect the order, add at the end */
 
-extern struct afb_svc *afb_svc_create_v2(
-			struct afb_apiset *apiset,
-			int share_session,
-			int (*start)(),
-			void (*on_event)(const char *event, struct json_object *object),
-			struct afb_binding_data_v2 *data);
+	void (*call)(void *closure, const char *api, const char *verb, struct json_object *args,
+	             void (*callback)(void*, int, struct json_object*), void *callback_closure);
+};
+
+/*
+ * Object that encapsulate accesses to service items
+ */
+struct afb_service
+{
+	const struct afb_service_itf *itf;
+	void *closure;
+};
+

@@ -99,7 +99,7 @@ void vverbose(int level, const char *file, int line, const char *function, const
 
 	fprintf(stderr, "%s: ", prefixes[LEVEL(level)] + (tty ? 4 : 0));
 	vfprintf(stderr, fmt, args);
-	if (file != NULL && (!tty || verbosity >5))
+	if (file != NULL && (!tty || verbosity > 2))
 		fprintf(stderr, " [%s:%d,%s]\n", file, line, function);
 	else
 		fprintf(stderr, "\n");
