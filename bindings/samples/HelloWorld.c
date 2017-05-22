@@ -21,6 +21,7 @@
 
 #include <json-c/json.h>
 
+#define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
 
 const struct afb_binding_interface *interface;
@@ -79,7 +80,7 @@ static int event_add(const char *tag, const char *name)
 	strcpy(e->tag, tag);
 
 	/* make the event */
-	e->event = afb_daemon_make_event(interface->daemon, name);
+	e->event = afb_daemon_make_event(name);
 	if (!e->event.closure) { free(e); return -1; }
 
 	/* link */
@@ -140,7 +141,7 @@ static void pingBug (struct afb_req request)
 static void pingEvent(struct afb_req request)
 {
 	json_object *query = afb_req_json(request);
-	afb_daemon_broadcast_event(interface->daemon, "event", json_object_get(query));
+	afb_daemon_broadcast_event("event", json_object_get(query));
 	ping(request, json_object_get(query), "event");
 }
 
@@ -288,38 +289,43 @@ static void exitnow (struct afb_req request)
 	exit(0);
 }
 
+static int preinit()
+{
+	NOTICE("hello binding comes to live");
+	return 0;
+}
+
+static int init()
+{
+	NOTICE("hello binding starting");
+	return 0;
+}
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const struct afb_verb_desc_v1 verbs[]= {
-  {"ping"     , AFB_SESSION_NONE, pingSample  , "Ping Application Framework"},
-  {"pingfail" , AFB_SESSION_NONE, pingFail    , "Fails"},
-  {"pingnull" , AFB_SESSION_NONE, pingNull    , "Return NULL"},
-  {"pingbug"  , AFB_SESSION_NONE, pingBug     , "Do a Memory Violation"},
-  {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
-  {"pingevent", AFB_SESSION_NONE, pingEvent   , "Send an event"},
-  {"subcall",   AFB_SESSION_NONE, subcall     , "Call api/verb(args)"},
-  {"subcallsync",   AFB_SESSION_NONE, subcallsync     , "Call api/verb(args)"},
-  {"eventadd",  AFB_SESSION_NONE, eventadd    , "adds the event of 'name' for the 'tag'"},
-  {"eventdel",  AFB_SESSION_NONE, eventdel    , "deletes the event of 'tag'"},
-  {"eventsub",  AFB_SESSION_NONE, eventsub    , "subscribes to the event of 'tag'"},
-  {"eventunsub",AFB_SESSION_NONE, eventunsub  , "unsubscribes to the event of 'tag'"},
-  {"eventpush", AFB_SESSION_NONE, eventpush   , "pushs the event of 'tag' with the 'data'"},
-  {"exit",      AFB_SESSION_NONE, exitnow     , "exits from afb-daemon"},
-  {NULL}
+static const struct afb_verb_v2 verbs[]= {
+  { "ping"     ,    pingSample , NULL, AFB_SESSION_NONE },
+  { "pingfail" ,    pingFail   , NULL, AFB_SESSION_NONE },
+  { "pingnull" ,    pingNull   , NULL, AFB_SESSION_NONE },
+  { "pingbug"  ,    pingBug    , NULL, AFB_SESSION_NONE },
+  { "pingJson" ,    pingJson   , NULL, AFB_SESSION_NONE },
+  { "pingevent",    pingEvent  , NULL, AFB_SESSION_NONE },
+  { "subcall",      subcall    , NULL, AFB_SESSION_NONE },
+  { "subcallsync",  subcallsync, NULL, AFB_SESSION_NONE },
+  { "eventadd",     eventadd   , NULL, AFB_SESSION_NONE },
+  { "eventdel",     eventdel   , NULL, AFB_SESSION_NONE },
+  { "eventsub",     eventsub   , NULL, AFB_SESSION_NONE },
+  { "eventunsub",   eventunsub , NULL, AFB_SESSION_NONE },
+  { "eventpush",    eventpush  , NULL, AFB_SESSION_NONE },
+  { "exit",         exitnow    , NULL, AFB_SESSION_NONE },
+  { NULL}
 };
 
-static const struct afb_binding plugin_desc = {
-	.type = AFB_BINDING_VERSION_1,
-	.v1 = {
-		.info = "Minimal Hello World Sample",
-		.prefix = "hello",
-		.verbs = verbs
-	}
+const struct afb_binding_v2 afbBindingV2 = {
+	.api = "hello",
+	.specification = NULL,
+	.verbs = verbs,
+	.preinit = preinit,
+	.init = init
 };
 
-const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
-{
-	interface = itf;
-	NOTICE(interface, "hello plugin comes to live");
-	return &plugin_desc;
-}
