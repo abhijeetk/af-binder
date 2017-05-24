@@ -28,10 +28,3 @@ extern void afb_subcall(
 		void (*callback)(void*, int, struct json_object*),
 		void *closure);
 
-extern int afb_subcall_sync(
-		struct afb_xreq *caller,
-		const char *api,
-		const char *verb,
-		struct json_object *args,
-		struct json_object **result);
-

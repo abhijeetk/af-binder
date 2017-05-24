@@ -30,21 +30,6 @@
 #include "afb-xreq.h"
 #include "afb-cred.h"
 #include "verbose.h"
-#include "jobs.h"
-
-struct subcall;
-
-static void subcall_destroy(struct afb_xreq *xreq);
-static void subcall_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj);
-static int subcall_subscribe(struct afb_xreq *xreq, struct afb_event event);
-static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
-
-const struct afb_xreq_query_itf afb_subcall_xreq_itf = {
-	.reply = subcall_reply,
-	.unref = subcall_destroy,
-	.subscribe = subcall_subscribe,
-	.unsubscribe = subcall_unsubscribe
-};
 
 struct subcall
 {
@@ -86,35 +71,12 @@ static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 	return afb_xreq_unsubscribe(subcall->caller, event);
 }
 
-static struct subcall *create_subcall(struct afb_xreq *caller, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
-{
-	struct subcall *subcall;
-	size_t lenapi, lenverb;
-	char *copy;
-
-	lenapi = 1 + strlen(api);
-	lenverb = 1 + strlen(verb);
-	subcall = malloc(lenapi + lenverb + sizeof *subcall);
-	if (subcall == NULL) {
-		return NULL;
-	}
-	afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
-	afb_context_subinit(&subcall->xreq.context, &caller->context);
-	subcall->xreq.cred = afb_cred_addref(caller->cred);
-	subcall->xreq.json = args;
-	copy = (char*)&subcall[1];
-	memcpy(copy, api, lenapi);
-	subcall->xreq.api = copy;
-	copy = &copy[lenapi];
-	memcpy(copy, verb, lenverb);
-	subcall->xreq.verb = copy;
-	subcall->caller = caller;
-	subcall->callback = callback;
-	subcall->closure = closure;
-	afb_xreq_addref(caller);
-	json_object_get(args);
-	return subcall;
-}
+const struct afb_xreq_query_itf afb_subcall_xreq_itf = {
+	.reply = subcall_reply,
+	.unref = subcall_destroy,
+	.subscribe = subcall_subscribe,
+	.unsubscribe = subcall_unsubscribe
+};
 
 void afb_subcall(
 		struct afb_xreq *caller,
@@ -126,86 +88,31 @@ void afb_subcall(
 )
 {
 	struct subcall *subcall;
+	size_t lenapi, lenverb;
+	char *copy;
 
-	subcall = create_subcall(caller, api, verb, args, callback, closure);
-	if (subcall == NULL) {
+	lenapi = 1 + strlen(api);
+	lenverb = 1 + strlen(verb);
+	subcall = malloc(lenapi + lenverb + sizeof *subcall);
+	if (subcall == NULL)
 		callback(closure, 1, afb_msg_json_internal_error());
-		return;
-	}
-
-	afb_xreq_process(&subcall->xreq, caller->apiset);
-}
-
-struct subcall_sync
-{
-	struct afb_xreq *caller;
-	const char *api;
-	const char *verb;
-	struct json_object *args;
-	struct jobloop *jobloop;
-	struct json_object *result;
-	int iserror;
-};
-
-static void subcall_sync_leave(struct subcall_sync *sync)
-{
-	struct jobloop *jobloop = sync->jobloop;
-	sync->jobloop = NULL;
-	if (jobloop)
-		jobs_leave(jobloop);
-}
-
-static void subcall_sync_reply(void *closure, int iserror, struct json_object *obj)
-{
-	struct subcall_sync *sync = closure;
-
-	sync->iserror = iserror;
-	sync->result = obj;
-	json_object_get(obj);
-	subcall_sync_leave(sync);
-}
-
-static void subcall_sync_enter(int signum, void *closure, struct jobloop *jobloop)
-{
-	struct subcall_sync *sync = closure;
-
-	if (!signum) {
-		sync->jobloop = jobloop;
-		afb_xreq_unhooked_subcall(sync->caller, sync->api, sync->verb, sync->args, subcall_sync_reply, sync);
-	} else {
-		sync->result = json_object_get(afb_msg_json_internal_error());
-		sync->iserror = 1;
-		subcall_sync_leave(sync);
+	else {
+		afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
+		afb_context_subinit(&subcall->xreq.context, &caller->context);
+		subcall->xreq.cred = afb_cred_addref(caller->cred);
+		subcall->xreq.json = args;
+		copy = (char*)&subcall[1];
+		memcpy(copy, api, lenapi);
+		subcall->xreq.api = copy;
+		copy = &copy[lenapi];
+		memcpy(copy, verb, lenverb);
+		subcall->xreq.verb = copy;
+		subcall->caller = caller;
+		subcall->callback = callback;
+		subcall->closure = closure;
+		afb_xreq_addref(caller);
+		json_object_get(args); /* keep args existing */
+		afb_xreq_process(&subcall->xreq, caller->apiset);
 	}
 }
-
-int afb_subcall_sync(
-		struct afb_xreq *caller,
-		const char *api,
-		const char *verb,
-		struct json_object *args,
-		struct json_object **result
-)
-{
-	int rc;
-	struct subcall_sync sync;
-
-	sync.caller = caller;
-	sync.api = api;
-	sync.verb = verb;
-	sync.args = args;
-	sync.jobloop = NULL;
-	sync.result = NULL;
-	sync.iserror = 1;
-
-	rc = jobs_enter(NULL, 0, subcall_sync_enter, &sync);
-	if (rc < 0) {
-		sync.result = json_object_get(afb_msg_json_internal_error());
-		sync.iserror = 1;
-	}
-	rc = !sync.iserror;
-	*result = sync.result;
-	return rc;
-}
-
 

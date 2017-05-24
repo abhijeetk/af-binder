@@ -37,6 +37,7 @@
 #include "jobs.h"
 #include "verbose.h"
 
+/******************************************************************************/
 
 static struct json_object *xreq_json_cb(void *closure)
 {
@@ -184,11 +185,72 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 		afb_subcall(xreq, api, verb, args, callback, cb_closure);
 }
 
+struct xreq_sync
+{
+	struct afb_xreq *caller;
+	const char *api;
+	const char *verb;
+	struct json_object *args;
+	struct jobloop *jobloop;
+	struct json_object *result;
+	int iserror;
+};
+
+static void xreq_sync_leave(struct xreq_sync *sync)
+{
+	struct jobloop *jobloop = sync->jobloop;
+	if (jobloop) {
+		sync->jobloop = NULL;
+		jobs_leave(jobloop);
+	}
+}
+
+static void xreq_sync_reply(void *closure, int iserror, struct json_object *obj)
+{
+	struct xreq_sync *sync = closure;
+
+	sync->iserror = iserror;
+	sync->result = json_object_get(obj);
+	xreq_sync_leave(sync);
+}
+
+static void xreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
+{
+	struct xreq_sync *sync = closure;
+
+	if (!signum) {
+		sync->jobloop = jobloop;
+		xreq_subcall_cb(sync->caller, sync->api, sync->verb, sync->args, xreq_sync_reply, sync);
+	} else {
+		sync->iserror = 1;
+		xreq_sync_leave(sync);
+	}
+}
+
 static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
+	int rc;
+	struct xreq_sync sync;
 	struct afb_xreq *xreq = closure;
-	return afb_subcall_sync(xreq, api, verb, args, result);
+
+	sync.caller = xreq;
+	sync.api = api;
+	sync.verb = verb;
+	sync.args = args;
+	sync.jobloop = NULL;
+	sync.result = NULL;
+	sync.iserror = 1;
+
+	rc = jobs_enter(NULL, 0, xreq_sync_enter, &sync);
+	if (rc < 0 || sync.iserror) {
+		*result = sync.result ? : afb_msg_json_internal_error();
+		return 0;
+	}
+	*result = sync.result;
+	return 1;
 }
+
+/******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
 {
@@ -333,6 +395,8 @@ static int xreq_hooked_subcallsync_cb(void *closure, const char *api, const char
 	return afb_hook_xreq_subcallsync_result(xreq, r, *result);
 }
 
+/******************************************************************************/
+
 const struct afb_req_itf xreq_itf = {
 	.json = xreq_json_cb,
 	.get = xreq_get_cb,
@@ -375,6 +439,8 @@ static inline struct afb_req to_req(struct afb_xreq *xreq)
 {
 	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
 }
+
+/******************************************************************************/
 
 struct json_object *afb_xreq_json(struct afb_xreq *xreq)
 {
@@ -438,6 +504,16 @@ void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const cha
 void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
 	afb_req_subcall(to_req(xreq), api, verb, args, callback, cb_closure);
+}
+
+int afb_xreq_unhooked_subcall_sync(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, struct json_object **result)
+{
+	return xreq_subcallsync_cb(xreq, api, verb, args, result);
+}
+
+int afb_xreq_subcall_sync(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, struct json_object **result)
+{
+	return afb_req_subcall_sync(to_req(xreq), api, verb, args, result);
 }
 
 static int xreq_session_check_apply_v1(struct afb_xreq *xreq, int sessionflags)
@@ -553,26 +629,32 @@ void afb_xreq_fail_unknown_verb(struct afb_xreq *xreq)
 	afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, xreq->api);
 }
 
+static void process_sync(struct afb_xreq *xreq)
+{
+	struct afb_api api;
+
+	/* init hooking */
+	afb_hook_init_xreq(xreq);
+	if (xreq->hookflags)
+		afb_hook_xreq_begin(xreq);
+
+	/* search the api */
+	if (afb_apiset_get(xreq->apiset, xreq->api, &api) < 0) {
+		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+	} else {
+		xreq->context.api_key = api.closure;
+		api.itf->call(api.closure, xreq);
+	}
+}
+
 static void process_async(int signum, void *arg)
 {
 	struct afb_xreq *xreq = arg;
-	struct afb_api api;
 
 	if (signum != 0) {
 		afb_xreq_fail_f(xreq, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
 	} else {
-		/* init hooking */
-		afb_hook_init_xreq(xreq);
-		if (xreq->hookflags)
-			afb_hook_xreq_begin(xreq);
-
-		/* search the api */
-		if (afb_apiset_get(xreq->apiset, xreq->api, &api) < 0) {
-			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
-		} else {
-			xreq->context.api_key = api.closure;
-			api.itf->call(api.closure, xreq);
-		}
+		process_sync(xreq);
 	}
 	afb_xreq_unref(xreq);
 }

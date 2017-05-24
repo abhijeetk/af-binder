@@ -118,6 +118,19 @@ extern void afb_xreq_unhooked_subcall(
 		void (*callback)(void*, int, struct json_object*),
 		void *cb_closure);
 
+extern int afb_xreq_unhooked_subcall_sync(
+		struct afb_xreq *xreq,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		struct json_object **result);
+extern int afb_xreq_subcall_sync(
+		struct afb_xreq *xreq,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		struct json_object **result);
+
 /* initialisation and processing of xreq */
 extern void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf);
 
