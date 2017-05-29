@@ -39,7 +39,7 @@ INCLUDE(CTest)
 
 ###########################################################################
 
-link_libraries(-Wl,--as-needed -Wl,--gc-sections)
+link_libraries(-Wl,--as-needed -Wl,--gc-sections -Wl,--no-undefined)
 
 add_compile_options(-Wall -Wextra -Wconversion)
 add_compile_options(-Wno-unused-parameter) # frankly not using a parameter does it care?
