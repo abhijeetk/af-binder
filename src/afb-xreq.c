@@ -85,24 +85,6 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 	}
 }
 
-static const char *xreq_raw_cb(void *closure, size_t *size)
-{
-	struct afb_xreq *xreq = closure;
-	const char *result = json_object_to_json_string(xreq_json_cb(xreq));
-	if (size != NULL)
-		*size = strlen(result);
-	return result;
-}
-
-static void xreq_send_cb(void *closure, const char *buffer, size_t size)
-{
-	struct json_object *obj = json_tokener_parse(buffer);
-	if (!obj == !buffer)
-		xreq_success_cb(closure, obj, "fake send");
-	else
-		xreq_fail_cb(closure, "fake-send-failed", "fake send");
-}
-
 static void *xreq_context_get_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
@@ -283,21 +265,6 @@ static void xreq_hooked_fail_cb(void *closure, const char *status, const char *i
 	xreq_fail_cb(closure, status, info);
 }
 
-static const char *xreq_hooked_raw_cb(void *closure, size_t *size)
-{
-	size_t s;
-	const char *r = xreq_raw_cb(closure, size ? : &s);
-	struct afb_xreq *xreq = closure;
-	return afb_hook_xreq_raw(xreq, r, *(size ? : &s));
-}
-
-static void xreq_hooked_send_cb(void *closure, const char *buffer, size_t size)
-{
-	struct afb_xreq *xreq = closure;
-	afb_hook_xreq_send(xreq, buffer, size);
-	xreq_send_cb(closure, buffer, size);
-}
-
 static void *xreq_hooked_context_get_cb(void *closure)
 {
 	void *r = xreq_context_get_cb(closure);
@@ -405,8 +372,6 @@ const struct afb_req_itf xreq_itf = {
 	.get = xreq_get_cb,
 	.success = xreq_success_cb,
 	.fail = xreq_fail_cb,
-	.raw = xreq_raw_cb,
-	.send = xreq_send_cb,
 	.context_get = xreq_context_get_cb,
 	.context_set = xreq_context_set_cb,
 	.addref = xreq_addref_cb,
@@ -424,8 +389,6 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.get = xreq_hooked_get_cb,
 	.success = xreq_hooked_success_cb,
 	.fail = xreq_hooked_fail_cb,
-	.raw = xreq_hooked_raw_cb,
-	.send = xreq_hooked_send_cb,
 	.context_get = xreq_hooked_context_get_cb,
 	.context_set = xreq_hooked_context_set_cb,
 	.addref = xreq_hooked_addref_cb,
@@ -486,7 +449,11 @@ void afb_xreq_fail_f(struct afb_xreq *xreq, const char *status, const char *info
 
 const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size)
 {
-	return afb_req_raw(to_req(xreq), size);
+	struct json_object *obj = xreq_json_cb(xreq);
+	const char *result = json_object_to_json_string(obj);
+	if (size != NULL)
+		*size = strlen(result);
+	return result;
 }
 
 void afb_xreq_addref(struct afb_xreq *xreq)

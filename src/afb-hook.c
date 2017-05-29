@@ -134,16 +134,6 @@ static void hook_xreq_fail_default_cb(void * closure, const struct afb_xreq *xre
 	_hook_xreq_(xreq, "fail(%s, %s)", status, info);
 }
 
-static void hook_xreq_raw_default_cb(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size)
-{
-	_hook_xreq_(xreq, "raw() -> %.*s", (int)size, buffer);
-}
-
-static void hook_xreq_send_default_cb(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size)
-{
-	_hook_xreq_(xreq, "send(%.*s)", (int)size, buffer);
-}
-
 static void hook_xreq_context_get_default_cb(void * closure, const struct afb_xreq *xreq, void *value)
 {
 	_hook_xreq_(xreq, "context_get() -> %p", value);
@@ -211,8 +201,6 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_get = hook_xreq_get_default_cb,
 	.hook_xreq_success = hook_xreq_success_default_cb,
 	.hook_xreq_fail = hook_xreq_fail_default_cb,
-	.hook_xreq_raw = hook_xreq_raw_default_cb,
-	.hook_xreq_send = hook_xreq_send_default_cb,
 	.hook_xreq_context_get = hook_xreq_context_get_default_cb,
 	.hook_xreq_context_set = hook_xreq_context_set_default_cb,
 	.hook_xreq_addref = hook_xreq_addref_default_cb,
@@ -278,17 +266,6 @@ void afb_hook_xreq_success(const struct afb_xreq *xreq, struct json_object *obj,
 void afb_hook_xreq_fail(const struct afb_xreq *xreq, const char *status, const char *info)
 {
 	_HOOK_XREQ_(fail, xreq, status, info);
-}
-
-const char *afb_hook_xreq_raw(const struct afb_xreq *xreq, const char *buffer, size_t size)
-{
-	_HOOK_XREQ_(raw, xreq, buffer, size);
-	return buffer;
-}
-
-void afb_hook_xreq_send(const struct afb_xreq *xreq, const char *buffer, size_t size)
-{
-	_HOOK_XREQ_(send, xreq, buffer, size);
 }
 
 void *afb_hook_xreq_context_get(const struct afb_xreq *xreq, void *value)

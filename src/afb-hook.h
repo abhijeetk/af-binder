@@ -40,20 +40,18 @@ struct afb_hook_xreq;
 #define afb_hook_flag_req_get			0x000008
 #define afb_hook_flag_req_success		0x000010
 #define afb_hook_flag_req_fail			0x000020
-#define afb_hook_flag_req_raw			0x000040
-#define afb_hook_flag_req_send			0x000080
-#define afb_hook_flag_req_context_get		0x000100
-#define afb_hook_flag_req_context_set		0x000200
-#define afb_hook_flag_req_addref		0x000400
-#define afb_hook_flag_req_unref			0x000800
-#define afb_hook_flag_req_session_close		0x001000
-#define afb_hook_flag_req_session_set_LOA	0x002000
-#define afb_hook_flag_req_subscribe		0x004000
-#define afb_hook_flag_req_unsubscribe		0x010800
-#define afb_hook_flag_req_subcall		0x020000
-#define afb_hook_flag_req_subcall_result	0x040000
-#define afb_hook_flag_req_subcallsync		0x080000
-#define afb_hook_flag_req_subcallsync_result	0x100000
+#define afb_hook_flag_req_context_get		0x000040
+#define afb_hook_flag_req_context_set		0x000080
+#define afb_hook_flag_req_addref		0x000100
+#define afb_hook_flag_req_unref			0x000200
+#define afb_hook_flag_req_session_close		0x000400
+#define afb_hook_flag_req_session_set_LOA	0x000800
+#define afb_hook_flag_req_subscribe		0x001000
+#define afb_hook_flag_req_unsubscribe		0x002000
+#define afb_hook_flag_req_subcall		0x004000
+#define afb_hook_flag_req_subcall_result	0x010800
+#define afb_hook_flag_req_subcallsync		0x020000
+#define afb_hook_flag_req_subcallsync_result	0x040000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -68,14 +66,11 @@ struct afb_hook_xreq;
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
 #define afb_hook_flags_req_context	(afb_hook_flag_req_context_get|afb_hook_flag_req_context_set)
 
-/* internal flags */
-#define afb_hook_flags_req_internal	(afb_hook_flag_req_raw|afb_hook_flag_req_send)
-
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
 					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcall)
 #define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context)
-#define afb_hook_flags_req_all		(afb_hook_flags_req_extra|afb_hook_flags_req_internal)
+#define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
 
 struct afb_hook_xreq_itf {
 	void (*hook_xreq_begin)(void * closure, const struct afb_xreq *xreq);
@@ -84,8 +79,6 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_get)(void * closure, const struct afb_xreq *xreq, const char *name, struct afb_arg arg);
 	void (*hook_xreq_success)(void * closure, const struct afb_xreq *xreq, struct json_object *obj, const char *info);
 	void (*hook_xreq_fail)(void * closure, const struct afb_xreq *xreq, const char *status, const char *info);
-	void (*hook_xreq_raw)(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size);
-	void (*hook_xreq_send)(void * closure, const struct afb_xreq *xreq, const char *buffer, size_t size);
 	void (*hook_xreq_context_get)(void * closure, const struct afb_xreq *xreq, void *value);
 	void (*hook_xreq_context_set)(void * closure, const struct afb_xreq *xreq, void *value, void (*free_value)(void*));
 	void (*hook_xreq_addref)(void * closure, const struct afb_xreq *xreq);
@@ -113,8 +106,6 @@ extern struct json_object *afb_hook_xreq_json(const struct afb_xreq *xreq, struc
 extern struct afb_arg afb_hook_xreq_get(const struct afb_xreq *xreq, const char *name, struct afb_arg arg);
 extern void afb_hook_xreq_success(const struct afb_xreq *xreq, struct json_object *obj, const char *info);
 extern void afb_hook_xreq_fail(const struct afb_xreq *xreq, const char *status, const char *info);
-extern const char *afb_hook_xreq_raw(const struct afb_xreq *xreq, const char *buffer, size_t size);
-extern void afb_hook_xreq_send(const struct afb_xreq *xreq, const char *buffer, size_t size);
 extern void *afb_hook_xreq_context_get(const struct afb_xreq *xreq, void *value);
 extern void afb_hook_xreq_context_set(const struct afb_xreq *xreq, void *value, void (*free_value)(void*));
 extern void afb_hook_xreq_addref(const struct afb_xreq *xreq);

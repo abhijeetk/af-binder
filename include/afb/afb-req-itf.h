@@ -56,8 +56,8 @@ struct afb_req_itf {
 	void (*success)(void *closure, struct json_object *obj, const char *info);
 	void (*fail)(void *closure, const char *status, const char *info);
 
-	const char *(*raw)(void *closure, size_t *size);
-	void (*send)(void *closure, const char *buffer, size_t size);
+	/*legacy raw */void (*spare1)(void *closure);
+	/*legacy send*/void (*spare2)(void *closure);
 
 	void *(*context_get)(void *closure);
 	void (*context_set)(void *closure, void *value, void (*free_value)(void*));
@@ -386,17 +386,5 @@ static inline void afb_req_subcall(struct afb_req req, const char *api, const ch
 static inline int afb_req_subcall_sync(struct afb_req req, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
 	return req.itf->subcallsync(req.closure, api, verb, args, result);
-}
-
-/* internal use */
-static inline const char *afb_req_raw(struct afb_req req, size_t *size)
-{
-	return req.itf->raw(req.closure, size);
-}
-
-/* internal use */
-static inline void afb_req_send(struct afb_req req, const char *buffer, size_t size)
-{
-	req.itf->send(req.closure, buffer, size);
 }
 
