@@ -17,13 +17,7 @@
 
 #pragma once
 
-#if !defined(_GNU_SOURCE)
-# error "_GNU_SOURCE must be defined for using vasprintf"
-#endif
-
-#include <stdlib.h>
 #include <stdarg.h>
-#include <stdio.h>
 
 #include "afb-event-itf.h"
 
@@ -56,8 +50,8 @@ struct afb_req_itf {
 	void (*success)(void *closure, struct json_object *obj, const char *info);
 	void (*fail)(void *closure, const char *status, const char *info);
 
-	/*legacy raw */void (*spare1)(void *closure);
-	/*legacy send*/void (*spare2)(void *closure);
+	void (*vsuccess)(void *closure, struct json_object *obj, const char *fmt, va_list args);
+	void (*vfail)(void *closure, const char *status, const char *fmt, va_list args);
 
 	void *(*context_get)(void *closure);
 	void (*context_set)(void *closure, void *value, void (*free_value)(void*));
@@ -166,16 +160,26 @@ static inline void afb_req_success(struct afb_req req, struct json_object *obj, 
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
+static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...) __attribute__((format(printf, 3, 4)));
 static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
 {
-	char *message;
 	va_list args;
 	va_start(args, info);
-	if (info == NULL || vasprintf(&message, info, args) < 0)
-		message = NULL;
+	req.itf->vsuccess(req.closure, obj, info, args);
 	va_end(args);
-	afb_req_success(req, obj, message);
-	free(message);
+}
+
+/*
+ * Same as 'afb_req_success_f' but the arguments to the format 'info'
+ * are given as a variable argument list instance.
+ *
+ * For convenience, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+static inline void afb_req_success_v(struct afb_req req, struct json_object *obj, const char *info, va_list args)
+{
+	req.itf->vsuccess(req.closure, obj, info, args);
 }
 
 /*
@@ -186,10 +190,6 @@ static inline void afb_req_success_f(struct afb_req req, struct json_object *obj
  * Note that calling afb_req_fail("success", info) is equivalent
  * to call afb_req_success(NULL, info). Thus even if possible it
  * is strongly recommanded to NEVER use "success" for status.
- *
- * For convenience, the function calls 'json_object_put' for 'obj'.
- * Thus, in the case where 'obj' should remain available after
- * the function returns, the function 'json_object_get' shall be used.
  */
 static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
 {
@@ -199,21 +199,23 @@ static inline void afb_req_fail(struct afb_req req, const char *status, const ch
 /*
  * Same as 'afb_req_fail' but the 'info' is a formatting
  * string followed by arguments.
- *
- * For convenience, the function calls 'json_object_put' for 'obj'.
- * Thus, in the case where 'obj' should remain available after
- * the function returns, the function 'json_object_get' shall be used.
  */
+static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...) __attribute__((format(printf, 3, 4)));
 static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
 {
-	char *message;
 	va_list args;
 	va_start(args, info);
-	if (info == NULL || vasprintf(&message, info, args) < 0)
-		message = NULL;
+	req.itf->vfail(req.closure, status, info, args);
 	va_end(args);
-	afb_req_fail(req, status, message);
-	free(message);
+}
+
+/*
+ * Same as 'afb_req_fail_f' but the arguments to the format 'info'
+ * are given as a variable argument list instance.
+ */
+static inline void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args)
+{
+	req.itf->vfail(req.closure, status, info, args);
 }
 
 /*

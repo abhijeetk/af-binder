@@ -19,6 +19,7 @@
 #define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
@@ -36,6 +37,17 @@
 #include "afb-auth.h"
 #include "jobs.h"
 #include "verbose.h"
+
+/******************************************************************************/
+
+static void vinfo(void *first, void *second, const char *fmt, va_list args, void (*fun)(void*,void*,const char*))
+{
+	char *info;
+	if (fmt == NULL || vasprintf(&info, fmt, args) < 0)
+		info = NULL;
+	fun(first, second, info);
+	free(info);
+}
 
 /******************************************************************************/
 
@@ -83,6 +95,16 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 		else
 			xreq->queryitf->reply(xreq, 1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
 	}
+}
+
+static void xreq_vsuccess_cb(void *closure, struct json_object *obj, const char *fmt, va_list args)
+{
+	vinfo(closure, obj, fmt, args, (void*)xreq_success_cb);
+}
+
+static void xreq_vfail_cb(void *closure, const char *status, const char *fmt, va_list args)
+{
+	vinfo(closure, (void*)status, fmt, args, (void*)xreq_fail_cb);
 }
 
 static void *xreq_context_get_cb(void *closure)
@@ -265,6 +287,16 @@ static void xreq_hooked_fail_cb(void *closure, const char *status, const char *i
 	xreq_fail_cb(closure, status, info);
 }
 
+static void xreq_hooked_vsuccess_cb(void *closure, struct json_object *obj, const char *fmt, va_list args)
+{
+	vinfo(closure, obj, fmt, args, (void*)xreq_hooked_success_cb);
+}
+
+static void xreq_hooked_vfail_cb(void *closure, const char *status, const char *fmt, va_list args)
+{
+	vinfo(closure, (void*)status, fmt, args, (void*)xreq_hooked_fail_cb);
+}
+
 static void *xreq_hooked_context_get_cb(void *closure)
 {
 	void *r = xreq_context_get_cb(closure);
@@ -372,6 +404,8 @@ const struct afb_req_itf xreq_itf = {
 	.get = xreq_get_cb,
 	.success = xreq_success_cb,
 	.fail = xreq_fail_cb,
+	.vsuccess = xreq_vsuccess_cb,
+	.vfail = xreq_vfail_cb,
 	.context_get = xreq_context_get_cb,
 	.context_set = xreq_context_set_cb,
 	.addref = xreq_addref_cb,
@@ -389,6 +423,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.get = xreq_hooked_get_cb,
 	.success = xreq_hooked_success_cb,
 	.fail = xreq_hooked_fail_cb,
+	.vsuccess = xreq_hooked_vsuccess_cb,
+	.vfail = xreq_hooked_vfail_cb,
 	.context_get = xreq_hooked_context_get_cb,
 	.context_set = xreq_hooked_context_set_cb,
 	.addref = xreq_hooked_addref_cb,

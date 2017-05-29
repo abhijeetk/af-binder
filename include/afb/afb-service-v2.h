@@ -56,7 +56,6 @@ static inline void afb_service_call_v2(
  * Thus, in the case where 'args' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  *
- * @param service  The service as received during initialisation
  * @param api      The api name of the method to call
  * @param verb     The verb name of the method to call
  * @param args     The arguments to pass to the method

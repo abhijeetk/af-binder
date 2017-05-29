@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdarg.h>
+
 /* declaration of features of libsystemd */
 struct sd_event;
 struct sd_bus;

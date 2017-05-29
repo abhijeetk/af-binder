@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 #define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
+#include <stdio.h>
 #include <string.h>
 #include <dlfcn.h>
 #include <assert.h>
