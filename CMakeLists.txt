@@ -57,20 +57,57 @@ set(CMAKE_C_FLAGS_CCOV         "-g -O2 --coverage")
 
 ###########################################################################
 
-PKG_CHECK_MODULES(json-c REQUIRED json-c)
-
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
-SET(include_dirs
+PKG_CHECK_MODULES(json-c REQUIRED json-c)
+
+CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
+CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
+IF(HAVE_MAGIC_H)
+  IF(HAVE_LIBMAGIC_SO)
+    SET(HAVE_LIBMAGIC "1")
+  ENDIF(HAVE_LIBMAGIC_SO)
+ENDIF(HAVE_MAGIC_H)
+
+IF(NOT HAVE_LIBMAGIC)
+  MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
+    Please install the \"file-devel\" or \"libmagic-dev\" package !")
+ENDIF(NOT HAVE_LIBMAGIC)
+ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
+
+PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
+PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.54)
+PKG_CHECK_MODULES(openssl REQUIRED openssl)
+PKG_CHECK_MODULES(uuid REQUIRED uuid)
+PKG_CHECK_MODULES(cynara cynara-client)
+
+IF(cynara_FOUND)
+	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
+ENDIF(cynara_FOUND)
+
+INCLUDE_DIRECTORIES(
 	${INCLUDE_DIRS}
 	${CMAKE_SOURCE_DIR}/include
 	${json-c_INCLUDE_DIRS}
-	)
+	${libsystemd_INCLUDE_DIRS}
+	${libmicrohttpd_INCLUDE_DIRS}
+	${uuid_INCLUDE_DIRS}
+	${openssl_INCLUDE_DIRS}
+	${cynara_INCLUDE_DIRS}
+)
 
 SET(link_libraries
 	${CMAKE_THREAD_LIBS_INIT}
 	${json-c_LDFLAGS}
+	${libsystemd_LDFLAGS}
+	${libmicrohttpd_LDFLAGS}
+	${uuid_LDFLAGS}
+	${openssl_LDFLAGS}
+	${cynara_LDFLAGS}
+	-lmagic
+	-ldl
+	-lrt
 	)
 
 SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)

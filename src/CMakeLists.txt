@@ -29,39 +29,6 @@ ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 # Always add INFER_EXTENSION (more details in afb-hreq.c)
 ADD_DEFINITIONS(-DINFER_EXTENSION)
 
-CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
-CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
-IF(HAVE_MAGIC_H)
-  IF(HAVE_LIBMAGIC_SO)
-    SET(HAVE_LIBMAGIC "1")
-  ENDIF(HAVE_LIBMAGIC_SO)
-ENDIF(HAVE_MAGIC_H)
-
-IF(NOT HAVE_LIBMAGIC)
-  MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
-    Please install the \"file-devel\" or \"libmagic-dev\" package !")
-ENDIF(NOT HAVE_LIBMAGIC)
-ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
-
-PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.54)
-PKG_CHECK_MODULES(openssl REQUIRED openssl)
-PKG_CHECK_MODULES(uuid REQUIRED uuid)
-PKG_CHECK_MODULES(cynara cynara-client)
-
-IF(cynara_FOUND)
-	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
-ENDIF(cynara_FOUND)
-
-INCLUDE_DIRECTORIES(
-	${include_dirs}
-	${libsystemd_INCLUDE_DIRS}
-	${libmicrohttpd_INCLUDE_DIRS}
-	${uuid_INCLUDE_DIRS}
-	${openssl_INCLUDE_DIRS}
-	${cynara_INCLUDE_DIRS}
-)
-
 ADD_LIBRARY(afb-lib STATIC
 	afb-api.c
 	afb-api-dbus.c
@@ -109,14 +76,6 @@ ADD_EXECUTABLE(afb-daemon main.c)
 TARGET_LINK_LIBRARIES(afb-daemon
 	afb-lib
 	${link_libraries}
-	${libsystemd_LDFLAGS}
-	${libmicrohttpd_LDFLAGS}
-	${uuid_LDFLAGS}
-	${openssl_LDFLAGS}
-	${cynara_LDFLAGS}
-	-lmagic
-	-ldl
-	-lrt
 )
 INSTALL(TARGETS afb-daemon
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -130,6 +89,7 @@ SET_TARGET_PROPERTIES(afbwsc PROPERTIES
 	SOVERSION ${LIBAFBWSC_SOVERSION})
 TARGET_LINK_LIBRARIES(afbwsc
 	${libsystemd_LDFLAGS}
+	${json-c_LDFLAGS}
 	-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-afbwsc.map
 	-Wl,--as-needed
 	-Wl,--gc-sections
