@@ -94,9 +94,10 @@ void afb_subcall(
 	lenapi = 1 + strlen(api);
 	lenverb = 1 + strlen(verb);
 	subcall = malloc(lenapi + lenverb + sizeof *subcall);
-	if (subcall == NULL)
+	if (subcall == NULL) {
+		json_object_put(args); /* keep args existing */
 		callback(closure, 1, afb_msg_json_internal_error());
-	else {
+	} else {
 		afb_xreq_init(&subcall->xreq, &afb_subcall_xreq_itf);
 		afb_context_subinit(&subcall->xreq.context, &caller->context);
 		subcall->xreq.cred = afb_cred_addref(caller->cred);
@@ -111,7 +112,6 @@ void afb_subcall(
 		subcall->callback = callback;
 		subcall->closure = closure;
 		afb_xreq_addref(caller);
-		json_object_get(args); /* keep args existing */
 		afb_xreq_process(&subcall->xreq, caller->apiset);
 	}
 }

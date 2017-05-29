@@ -32,6 +32,9 @@ struct afb_service_itf
 
 	void (*call)(void *closure, const char *api, const char *verb, struct json_object *args,
 	             void (*callback)(void*, int, struct json_object*), void *callback_closure);
+
+	int (*call_sync)(void *closure, const char *api, const char *verb, struct json_object *args,
+	                 struct json_object **result);
 };
 
 /*

@@ -37,7 +37,6 @@
 #include "afb-xreq.h"
 #include "afb-context.h"
 #include "afb-evt.h"
-#include "afb-subcall.h"
 #include "verbose.h"
 
 /* predeclaration of structures */

@@ -359,7 +359,12 @@ static inline int afb_req_unsubscribe(struct afb_req req, struct afb_event event
  * On completion, the function 'callback' is invoked with the
  * 'closure' given at call and two other parameters: 'iserror' and 'result'.
  * 'iserror' is a boolean that indicates if the reply is an error reply.
- * 'result' is the json object of the reply.
+ * 'result' is the json object of the reply, you must not call json_object_put
+ * on the result.
+ *
+ * For convenience, the function calls 'json_object_put' for 'args'.
+ * Thus, in the case where 'args' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 static inline void afb_req_subcall(struct afb_req req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result), void *closure)
 {
@@ -373,6 +378,10 @@ static inline void afb_req_subcall(struct afb_req req, const char *api, const ch
  * It returns 0 on an error answer and returns 1 when no error was detected.
  * The object pointed by 'result' is filled and must be released by the caller
  * after its use by calling 'json_object_put'.
+ *
+ * For convenience, the function calls 'json_object_put' for 'args'.
+ * Thus, in the case where 'args' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 static inline int afb_req_subcall_sync(struct afb_req req, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {

@@ -179,10 +179,12 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 {
 	struct afb_xreq *xreq = closure;
 
-	if (xreq->queryitf->subcall)
+	if (xreq->queryitf->subcall) {
 		xreq->queryitf->subcall(xreq, api, verb, args, callback, cb_closure);
-	else
+		json_object_put(args);
+	} else {
 		afb_subcall(xreq, api, verb, args, callback, cb_closure);
+	}
 }
 
 struct xreq_sync
@@ -220,7 +222,7 @@ static void xreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
 
 	if (!signum) {
 		sync->jobloop = jobloop;
-		xreq_subcall_cb(sync->caller, sync->api, sync->verb, sync->args, xreq_sync_reply, sync);
+		xreq_subcall_cb(sync->caller, sync->api, sync->verb, json_object_get(sync->args), xreq_sync_reply, sync);
 	} else {
 		sync->iserror = 1;
 		xreq_sync_leave(sync);
@@ -242,6 +244,7 @@ static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb,
 	sync.iserror = 1;
 
 	rc = jobs_enter(NULL, 0, xreq_sync_enter, &sync);
+	json_object_put(args);
 	if (rc < 0 || sync.iserror) {
 		*result = sync.result ? : afb_msg_json_internal_error();
 		return 0;

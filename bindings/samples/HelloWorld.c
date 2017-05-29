@@ -182,10 +182,8 @@ static void subcall (struct afb_req request)
 
 	if (object == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
-	else {
+	else
 		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
-		json_object_put(object);
-	}
 }
 
 static void subcallsync (struct afb_req request)
@@ -200,13 +198,12 @@ static void subcallsync (struct afb_req request)
 		afb_req_fail(request, "failed", "bad arguments");
 	else {
 		rc = afb_req_subcall_sync(request, api, verb, object, &result);
-		if (rc) {
+		if (rc)
 			afb_req_success(request, result, NULL);
-		} else {
+		else {
 			afb_req_fail(request, "failed", json_object_to_json_string(result));
 			json_object_put(result);
 		}
-		json_object_put(object);
 	}
 }
 
@@ -284,6 +281,50 @@ static void eventpush (struct afb_req request)
 	json_object_put(object);
 }
 
+static void callcb (void *prequest, int iserror, json_object *object)
+{
+	struct afb_req request = afb_req_unstore(prequest);
+	if (iserror)
+		afb_req_fail(request, "failed", json_object_to_json_string(object));
+	else
+		afb_req_success(request, json_object_get(object), NULL);
+	afb_req_unref(request);
+}
+
+static void call (struct afb_req request)
+{
+	const char *api = afb_req_value(request, "api");
+	const char *verb = afb_req_value(request, "verb");
+	const char *args = afb_req_value(request, "args");
+	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
+
+	if (object == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else
+		afb_service_call(api, verb, object, callcb, afb_req_store(request));
+}
+
+static void callsync (struct afb_req request)
+{
+	int rc;
+	const char *api = afb_req_value(request, "api");
+	const char *verb = afb_req_value(request, "verb");
+	const char *args = afb_req_value(request, "args");
+	json_object *result, *object = api && verb && args ? json_tokener_parse(args) : NULL;
+
+	if (object == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else {
+		rc = afb_service_call_sync(api, verb, object, &result);
+		if (rc)
+			afb_req_success(request, result, NULL);
+		else {
+			afb_req_fail(request, "failed", json_object_to_json_string(result));
+			json_object_put(result);
+		}
+	}
+}
+
 static void exitnow (struct afb_req request)
 {
 	exit(0);
@@ -317,6 +358,8 @@ static const struct afb_verb_v2 verbs[]= {
   { "eventsub",     eventsub   , NULL, AFB_SESSION_NONE },
   { "eventunsub",   eventunsub , NULL, AFB_SESSION_NONE },
   { "eventpush",    eventpush  , NULL, AFB_SESSION_NONE },
+  { "call",         call       , NULL, AFB_SESSION_NONE },
+  { "callsync",     callsync   , NULL, AFB_SESSION_NONE },
   { "exit",         exitnow    , NULL, AFB_SESSION_NONE },
   { NULL}
 };

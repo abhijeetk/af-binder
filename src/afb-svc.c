@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 #include <json-c/json.h>
@@ -33,6 +34,7 @@
 #include "afb-xreq.h"
 #include "afb-cred.h"
 #include "afb-apiset.h"
+#include "jobs.h"
 #include "verbose.h"
 
 /*
@@ -51,8 +53,6 @@ struct afb_svc
 
 	/* on event callback for the service */
 	void (*on_event)(const char *event, struct json_object *object);
-
-	struct afb_binding_data_v2 *v2;
 };
 
 /*
@@ -62,19 +62,29 @@ struct svc_req
 {
 	struct afb_xreq xreq;
 
+	struct afb_svc *svc;
+
 	/* the args */
 	void (*callback)(void*, int, struct json_object*);
 	void *closure;
+
+	/* sync */
+	struct jobloop *jobloop;
+	struct json_object *result;
+	int iserror;
 };
 
 /* functions for services */
 static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object);
 static void svc_call(void *closure, const char *api, const char *verb, struct json_object *args,
 				void (*callback)(void*, int, struct json_object*), void *cbclosure);
+static int svc_call_sync(void *closure, const char *api, const char *verb, struct json_object *args,
+				struct json_object **result);
 
 /* the interface for services */
 static const struct afb_service_itf service_itf = {
-	.call = svc_call
+	.call = svc_call,
+	.call_sync = svc_call_sync
 };
 
 /* the interface for events */
@@ -96,12 +106,7 @@ const struct afb_xreq_query_itf afb_svc_xreq_itf = {
 /* the common session for services sharing their session */
 static struct afb_session *common_session;
 
-static inline struct afb_service to_afb_service_v1(struct afb_svc *svc)
-{
-	return (struct afb_service){ .itf = &service_itf, .closure = svc };
-}
-
-static inline struct afb_service to_afb_service_v2(struct afb_svc *svc)
+static inline struct afb_service to_afb_service(struct afb_svc *svc)
 {
 	return (struct afb_service){ .itf = &service_itf, .closure = svc };
 }
@@ -189,7 +194,7 @@ struct afb_svc *afb_svc_create_v1(
 	}
 
 	/* initialises the svc now */
-	rc = start(to_afb_service_v1(svc));
+	rc = start(to_afb_service(svc));
 	if (rc < 0)
 		goto error;
 
@@ -218,8 +223,7 @@ struct afb_svc *afb_svc_create_v2(
 	svc = afb_svc_alloc(apiset, share_session);
 	if (svc == NULL)
 		goto error;
-	svc->v2 = data;
-	data->service = to_afb_service_v2(svc);
+	data->service = to_afb_service(svc);
 
 	/* initialises the listener if needed */
 	if (on_event) {
@@ -254,31 +258,109 @@ static void svc_on_event(void *closure, const char *event, int eventid, struct j
 }
 
 /*
+ * create an svc_req
+ */
+static struct svc_req *svcreq_create(struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+{
+	struct svc_req *svcreq;
+	size_t lenapi, lenverb;
+	char *copy;
+
+	/* allocates the request */
+	lenapi = 1 + strlen(api);
+	lenverb = 1 + strlen(verb);
+	svcreq = malloc(lenapi + lenverb + sizeof *svcreq);
+	if (svcreq != NULL) {
+		/* initialises the request */
+		afb_xreq_init(&svcreq->xreq, &afb_svc_xreq_itf);
+		afb_context_init(&svcreq->xreq.context, svc->session, NULL);
+		svcreq->xreq.context.validated = 1;
+		svcreq->xreq.cred = afb_cred_current();
+		copy = (char*)&svcreq[1];
+		memcpy(copy, api, lenapi);
+		svcreq->xreq.api = copy;
+		copy = &copy[lenapi];
+		memcpy(copy, verb, lenverb);
+		svcreq->xreq.verb = copy;
+		svcreq->xreq.listener = svc->listener;
+		svcreq->xreq.json = args;
+		svcreq->svc = svc;
+	}
+	return svcreq;
+}
+
+/*
+ * destroys the svc_req
+ */
+static void svcreq_destroy(struct afb_xreq *xreq)
+{
+	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
+
+	afb_context_disconnect(&svcreq->xreq.context);
+	json_object_put(svcreq->xreq.json);
+	afb_cred_unref(svcreq->xreq.cred);
+	free(svcreq);
+}
+
+static void svcreq_sync_leave(struct svc_req *svcreq)
+{
+	struct jobloop *jobloop = svcreq->jobloop;
+
+	if (jobloop) {
+		svcreq->jobloop = NULL;
+		jobs_leave(jobloop);
+	}
+}
+
+static void svcreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
+{
+	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
+	if (svcreq->callback) {
+		svcreq->callback(svcreq->closure, iserror, obj);
+		json_object_put(obj);
+	} else {
+		svcreq->iserror = iserror;
+		svcreq->result = obj;
+		svcreq_sync_leave(svcreq);
+	}
+}
+
+static void svcreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
+{
+	struct svc_req *svcreq = closure;
+
+	if (!signum) {
+		svcreq->jobloop = jobloop;
+		afb_xreq_process(&svcreq->xreq, svcreq->svc->apiset);
+	} else {
+		svcreq->result = afb_msg_json_internal_error();
+		svcreq->iserror = 1;
+		svcreq_sync_leave(svcreq);
+	}
+}
+
+/*
  * Initiates a call for the service
  */
 static void svc_call(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cbclosure)
 {
 	struct afb_svc *svc = closure;
 	struct svc_req *svcreq;
+	struct json_object *ierr;
 
 	/* allocates the request */
-	svcreq = calloc(1, sizeof *svcreq);
+	svcreq = svcreq_create(svc, api, verb, args);
 	if (svcreq == NULL) {
 		ERROR("out of memory");
 		json_object_put(args);
-		callback(cbclosure, 1, afb_msg_json_internal_error());
+		ierr = afb_msg_json_internal_error();
+		callback(cbclosure, 1, ierr);
+		json_object_put(ierr);
 		return;
 	}
 
 	/* initialises the request */
-	afb_xreq_init(&svcreq->xreq, &afb_svc_xreq_itf);
-	afb_context_init(&svcreq->xreq.context, svc->session, NULL);
-	svcreq->xreq.context.validated = 1;
-	svcreq->xreq.cred = afb_cred_current();
-	svcreq->xreq.api = api;
-	svcreq->xreq.verb = verb;
-	svcreq->xreq.listener = svc->listener;
-	svcreq->xreq.json = args;
+	svcreq->jobloop = NULL;
 	svcreq->callback = callback;
 	svcreq->closure = cbclosure;
 
@@ -286,19 +368,33 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	afb_xreq_process(&svcreq->xreq, svc->apiset);
 }
 
-static void svcreq_destroy(struct afb_xreq *xreq)
+static int svc_call_sync(void *closure, const char *api, const char *verb, struct json_object *args,
+				struct json_object **result)
 {
-	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
-	afb_context_disconnect(&svcreq->xreq.context);
-	json_object_put(svcreq->xreq.json);
-	afb_cred_unref(svcreq->xreq.cred);
-	free(svcreq);
-}
+	struct afb_svc *svc = closure;
+	struct svc_req *svcreq;
+	int rc;
 
-static void svcreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
-{
-	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
-	svcreq->callback(svcreq->closure, iserror, obj);
-	json_object_put(obj);
+	/* allocates the request */
+	svcreq = svcreq_create(svc, api, verb, args);
+	if (svcreq == NULL) {
+		ERROR("out of memory");
+		errno = ENOMEM;
+		json_object_put(args);
+		*result = afb_msg_json_internal_error();
+		return -1;
+	}
+
+	/* initialises the request */
+	svcreq->jobloop = NULL;
+	svcreq->callback = NULL;
+	svcreq->result = NULL;
+	svcreq->iserror = 1;
+	afb_xreq_addref(&svcreq->xreq);
+	rc = jobs_enter(NULL, 0, svcreq_sync_enter, svcreq);
+	rc = rc >= 0 && !svcreq->iserror;
+	*result = (rc || svcreq->result) ? svcreq->result : afb_msg_json_internal_error();
+	afb_xreq_unref(&svcreq->xreq);
+	return rc;
 }
 

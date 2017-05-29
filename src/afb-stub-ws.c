@@ -354,7 +354,7 @@ static void server_req_subcall_cb(struct afb_xreq *xreq, const char *api, const 
 
 	sc = malloc(sizeof *sc);
 	if (!sc) {
-
+		callback(cb_closure, 1, afb_msg_json_internal_error());
 	} else {
 		sc->callback = callback;
 		sc->closure = cb_closure;

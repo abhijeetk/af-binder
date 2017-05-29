@@ -77,11 +77,10 @@ extern const struct afb_binding_v2 afbBindingV2;
 #define AFB_BINDING_DATA_NAME_V2 afbBindingV2data
 #endif
 
-#if AFB_BINDING_VERSION == 2
-struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2  __attribute__ ((weak));
-#else
-extern struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2;
+#if AFB_BINDING_VERSION != 2
+extern
 #endif
+struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2  __attribute__ ((weak));
 
 #define afb_get_verbosity_v2()	(AFB_BINDING_DATA_NAME_V2.verbosity)
 #define afb_get_daemon_v2()	(AFB_BINDING_DATA_NAME_V2.daemon)
@@ -114,46 +113,3 @@ extern struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2;
 #include "afb-daemon-v2.h"
 #include "afb-service-v2.h"
 
-/***************************************************************************************************/
-
-#if AFB_BINDING_VERSION == 2
-
-# define afb_binding		afb_binding_v2
-# define afb_binding_interface	afb_binding_interface_v2
-
-# define AFB_SESSION_NONE	AFB_SESSION_NONE_V2
-# define AFB_SESSION_CLOSE	AFB_SESSION_CLOSE_V2
-# define AFB_SESSION_RENEW	AFB_SESSION_REFRESH_V2
-# define AFB_SESSION_REFRESH	AFB_SESSION_REFRESH_V2
-# define AFB_SESSION_CHECK	AFB_SESSION_CHECK_V2
-
-# define AFB_SESSION_LOA_MASK	AFB_SESSION_LOA_MASK_V2
-
-# define AFB_SESSION_LOA_0	AFB_SESSION_LOA_0_V2
-# define AFB_SESSION_LOA_1	AFB_SESSION_LOA_1_V2
-# define AFB_SESSION_LOA_2	AFB_SESSION_LOA_2_V2
-# define AFB_SESSION_LOA_3	AFB_SESSION_LOA_3_V2
-
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
-
-#  define ERROR			AFB_ERROR_V2
-#  define WARNING		AFB_WARNING_V2
-#  define NOTICE		AFB_NOTICE_V2
-#  define INFO			AFB_INFO_V2
-#  define DEBUG			AFB_DEBUG_V2
-
-# endif
-
-#define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v2
-#define afb_daemon_get_user_bus		afb_daemon_get_user_bus_v2
-#define afb_daemon_get_system_bus	afb_daemon_get_system_bus_v2
-#define afb_daemon_broadcast_event	afb_daemon_broadcast_event_v2
-#define afb_daemon_make_event		afb_daemon_make_event_v2
-#define afb_daemon_verbose		afb_daemon_verbose_v2
-#define afb_daemon_rootdir_get_fd	afb_daemon_rootdir_get_fd_v2
-#define afb_daemon_rootdir_open_locale	afb_daemon_rootdir_open_locale_v2
-#define afb_daemon_queue_job		afb_daemon_queue_job_v2
-
-#define afb_service_call		afb_service_call_v2
-
-#endif
