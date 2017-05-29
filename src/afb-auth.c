@@ -45,7 +45,10 @@ int afb_auth_check(const struct afb_auth *auth, struct afb_xreq *xreq)
 		return afb_context_check_loa(&xreq->context, auth->loa);
 
 	case afb_auth_Permission:
-		return xreq->cred && auth->text && check_permission(auth->text, xreq);
+		if (xreq->cred && auth->text)
+			return check_permission(auth->text, xreq);
+		/* TODO: handle case of self permission */
+		return 1;
 
 	case afb_auth_Or:
 		return afb_auth_check(auth->first, xreq) || afb_auth_check(auth->next, xreq);

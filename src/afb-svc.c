@@ -275,7 +275,6 @@ static struct svc_req *svcreq_create(struct afb_svc *svc, const char *api, const
 		afb_xreq_init(&svcreq->xreq, &afb_svc_xreq_itf);
 		afb_context_init(&svcreq->xreq.context, svc->session, NULL);
 		svcreq->xreq.context.validated = 1;
-		svcreq->xreq.cred = afb_cred_current();
 		copy = (char*)&svcreq[1];
 		memcpy(copy, api, lenapi);
 		svcreq->xreq.api = copy;

@@ -982,7 +982,6 @@ struct afb_hreq *afb_hreq_create()
 	if (hreq) {
 		/* init the request */
 		afb_xreq_init(&hreq->xreq, &afb_hreq_xreq_query_itf);
-		hreq->xreq.cred = afb_cred_current();
 		hreq->reqid = ++global_reqids;
 	}
 	return hreq;
