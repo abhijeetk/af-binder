@@ -29,6 +29,7 @@
 #include <errno.h>
 
 #include <systemd/sd-event.h>
+#include <json-c/json.h>
 
 #include "afb-wsj1.h"
 #include "afb-ws-client.h"
@@ -51,6 +52,8 @@ static struct afb_wsj1_itf itf = {
 static struct afb_wsj1 *wsj1;
 static int exonrep;
 static int callcount;
+static int human;
+static int raw;
 static sd_event_source *evsrc;
 
 /* print usage of the program */
@@ -58,7 +61,7 @@ static void usage(int status, char *arg0)
 {
 	char *name = strrchr(arg0, '/');
 	name = name ? name + 1 : arg0;
-	fprintf(status ? stderr : stdout, "usage: %s uri [api verb [data]]\n", name);
+	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] uri [api verb [data]]\n", name);
 	exit(status);
 }
 
@@ -66,15 +69,46 @@ static void usage(int status, char *arg0)
 int main(int ac, char **av, char **env)
 {
 	int rc;
+	char *a0;
 	sd_event *loop;
+
+	/* get the program name */
+	a0 = av[0];
+
+	/* check options */
+	while (ac > 1 && av[1][0] == '-') {
+		if (av[1][1] == '-') {
+			/* long option */
+
+			if (!strcmp(av[1], "--human")) /* request for human output */
+				human = 1;
+
+			else if (!strcmp(av[1], "--raw")) /* request for raw output */
+				raw = 1;
+		
+			/* emit usage and exit */
+			else
+				usage(!!strcmp(av[1], "--help"), a0);
+		} else {
+			/* short option(s) */
+			for (rc = 1 ; av[1][rc] ; rc++)
+				switch (av[1][rc]) {
+				case 'H': human = 1; break;
+				case 'r': raw = 1; break;
+				default: usage(av[1][rc] != 'h', a0);
+				}
+		}
+		av++;
+		ac--;
+	}
 
 	/* check the argument count */
 	if (ac != 2 && ac != 4 && ac != 5)
-		usage(1, av[0]);
+		usage(1, a0);
 
-	/* emit error and exit if requested */
-	if (!strcmp(av[1], "-h") || !strcmp(av[1], "--help"))
-		usage(0, av[0]);
+	/* set raw by default */
+	if (!human)
+		raw = 1;
 
 	/* get the default event loop */
 	rc = sd_event_default(&loop);
@@ -119,7 +153,12 @@ static void on_hangup(void *closure, struct afb_wsj1 *wsj1)
 static void on_call(void *closure, const char *api, const char *verb, struct afb_wsj1_msg *msg)
 {
 	int rc;
-	printf("ON-CALL %s/%s(%s)\n", api, verb, afb_wsj1_msg_object_s(msg));
+	if (raw)
+		printf("ON-CALL %s/%s(%s)\n", api, verb, afb_wsj1_msg_object_s(msg));
+	if (human)
+		printf("ON-CALL %s/%s:\n%s\n", api, verb,
+				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
+							JSON_C_TO_STRING_PRETTY));
 	fflush(stdout);
 	rc = afb_wsj1_reply_error_s(msg, "\"unimplemented\"", NULL);
 	if (rc < 0)
@@ -129,14 +168,25 @@ static void on_call(void *closure, const char *api, const char *verb, struct afb
 /* called when wsj1 receives an event */
 static void on_event(void *closure, const char *event, struct afb_wsj1_msg *msg)
 {
-	printf("ON-EVENT %s(%s)\n", event, afb_wsj1_msg_object_s(msg));
+	if (raw)
+		printf("ON-EVENT %s(%s)\n", event, afb_wsj1_msg_object_s(msg));
+	if (human)
+		printf("ON-EVENT %s:\n%s\n", event,
+				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
+							JSON_C_TO_STRING_PRETTY));
 	fflush(stdout);
 }
 
 /* called when wsj1 receives a reply */
 static void on_reply(void *closure, struct afb_wsj1_msg *msg)
 {
-	printf("ON-REPLY %s: %s\n", (char*)closure, afb_wsj1_msg_object_s(msg));
+	if (raw)
+		printf("ON-REPLY %s: %s\n", (char*)closure, afb_wsj1_msg_object_s(msg));
+	if (human)
+		printf("ON-REPLY %s: %s\n%s\n", (char*)closure,
+				afb_wsj1_msg_is_reply_ok(msg) ? "OK" : "ERROR",
+				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
+							JSON_C_TO_STRING_PRETTY));
 	fflush(stdout);
 	free(closure);
 	callcount--;
