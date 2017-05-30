@@ -197,7 +197,7 @@ static struct json_object *addperm_key_valint(struct json_object *o, const char 
 	return addperm_key_val(o, key, json_object_new_int(val));
 }
 
-static struct json_object *make_description(struct api_so_v2 *desc)
+static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 {
 	char buffer[256];
 	const struct afb_verb_v2 *verb;
@@ -254,7 +254,7 @@ static struct json_object *describe_cb(void *closure)
 	struct api_so_v2 *desc = closure;
 	struct json_object *r = desc->binding->specification ? json_tokener_parse(desc->binding->specification) : NULL;
 	if (!r)
-		r = make_description(desc);
+		r = make_description_openAPIv3(desc);
 	return r;
 }
 

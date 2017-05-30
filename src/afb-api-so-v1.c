@@ -138,45 +138,93 @@ static void set_verbosity_cb(void *closure, int level)
 	desc->interface.verbosity = level;
 }
 
-struct json_object *describe_cb(void *closure)
+static struct json_object *addperm(struct json_object *o, struct json_object *x)
 {
-	struct api_so_v1 *desc = closure;
+	struct json_object *a;
+
+	if (!o)
+		return x;
+
+	if (!json_object_object_get_ex(o, "allOf", &a)) {
+		a = json_object_new_array();
+		json_object_array_add(a, o);
+		o = json_object_new_object();
+		json_object_object_add(o, "allOf", a);
+	}
+	json_object_array_add(a, x);
+	return o;
+}
+
+static struct json_object *addperm_key_val(struct json_object *o, const char *key, struct json_object *val)
+{
+	struct json_object *x = json_object_new_object();
+	json_object_object_add(x, key, val);
+	return addperm(o, x);
+}
+
+static struct json_object *addperm_key_valstr(struct json_object *o, const char *key, const char *val)
+{
+	return addperm_key_val(o, key, json_object_new_string(val));
+}
+
+static struct json_object *addperm_key_valint(struct json_object *o, const char *key, int val)
+{
+	return addperm_key_val(o, key, json_object_new_int(val));
+}
+
+static struct json_object *make_description_openAPIv3(struct api_so_v1 *desc)
+{
+	char buffer[256];
 	const struct afb_verb_desc_v1 *verb;
-	struct json_object *r, *v, *f, *a;
+	struct json_object *r, *f, *a, *i, *p, *g;
 
 	r = json_object_new_object();
-	json_object_object_add(r, "version", json_object_new_int(1));
-	json_object_object_add(r, "info", json_object_new_string(desc->binding->v1.info));
-	v = json_object_new_object();
-	json_object_object_add(r, "verbs", v);
+	json_object_object_add(r, "openapi", json_object_new_string("3.0.0"));
+
+	i = json_object_new_object();
+	json_object_object_add(r, "info", i);
+	json_object_object_add(i, "title", json_object_new_string(desc->binding->v1.info));
+	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
+
+	p = json_object_new_object();
+	json_object_object_add(r, "paths", p);
 	verb = desc->binding->v1.verbs;
 	while (verb->name) {
+		buffer[0] = '/';
+		strncpy(buffer + 1, verb->name, sizeof buffer - 1);
+		buffer[sizeof buffer - 1] = 0;
 		f = json_object_new_object();
-		a = json_object_new_array();
-		json_object_object_add(f, "name", json_object_new_string(verb->name));
-		json_object_object_add(f, "info", json_object_new_string(verb->info));
+		json_object_object_add(p, buffer, f);
+		g = json_object_new_object();
+		json_object_object_add(f, "get", g);
+
+		a = NULL;
 		if (verb->session & AFB_SESSION_CLOSE_V1)
-			json_object_array_add(a, json_object_new_string("session-close"));
-		if (verb->session & AFB_SESSION_RENEW_V1)
-			json_object_array_add(a, json_object_new_string("session-renew"));
+			a = addperm_key_valstr(a, "session", "close");
 		if (verb->session & AFB_SESSION_CHECK_V1)
-			json_object_array_add(a, json_object_new_string("session-check"));
-		if (verb->session & AFB_SESSION_LOA_EQ_V1) {
-			const char *rel = "?";
-			char buffer[80];
-			switch (verb->session & AFB_SESSION_LOA_EQ_V1) {
-			case AFB_SESSION_LOA_GE_V1: rel = ">="; break;
-			case AFB_SESSION_LOA_LE_V1: rel = "<="; break;
-			case AFB_SESSION_LOA_EQ_V1: rel = "=="; break;
-			}
-			snprintf(buffer, sizeof buffer, "LOA%s%d", rel, (int)((verb->session >> AFB_SESSION_LOA_SHIFT_V1) & AFB_SESSION_LOA_MASK_V1));
-			json_object_array_add(a, json_object_new_string(buffer));
-		}
-		json_object_object_add(f, "flags", a);
-		json_object_object_add(v, verb->name, f);
+			a = addperm_key_valstr(a, "session", "check");
+		if (verb->session & AFB_SESSION_RENEW_V1)
+			a = addperm_key_valstr(a, "token", "refresh");
+		if (verb->session & AFB_SESSION_LOA_MASK_V1)
+			a = addperm_key_valint(a, "LOA", (verb->session >> AFB_SESSION_LOA_SHIFT_V1) & AFB_SESSION_LOA_MASK_V1);
+		if (a)
+			json_object_object_add(g, "x-permissions", a);
+
+		a = json_object_new_object();
+		json_object_object_add(g, "responses", a);
+		f = json_object_new_object();
+		json_object_object_add(a, "200", f);
+		json_object_object_add(f, "description", json_object_new_string(verb->info));
 		verb++;
 	}
 	return r;
+}
+
+static struct json_object *describe_cb(void *closure)
+{
+	struct api_so_v1 *desc = closure;
+
+	return make_description_openAPIv3(desc);
 }
 
 static struct afb_api_itf so_v1_api_itf = {
