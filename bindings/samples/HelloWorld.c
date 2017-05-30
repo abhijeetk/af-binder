@@ -342,6 +342,11 @@ static int init()
 	return 0;
 }
 
+static void onevent(const char *event, struct json_object *object)
+{
+	NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
+}
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const struct afb_verb_v2 verbs[]= {
@@ -369,6 +374,7 @@ const struct afb_binding_v2 afbBindingV2 = {
 	.specification = NULL,
 	.verbs = verbs,
 	.preinit = preinit,
-	.init = init
+	.init = init,
+	.onevent = onevent
 };
 
