@@ -106,8 +106,11 @@ static int queue_job_cb(void *closure, void (*callback)(int signum, void *arg), 
 static void hooked_vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	struct afb_ditf *ditf = closure;
+	va_list ap;
+	va_copy(ap, args);
 	vverbose_cb(closure, level, file, line, function, fmt, args);
-	afb_hook_ditf_vverbose(ditf, level, file, line, function, fmt, args);
+	afb_hook_ditf_vverbose(ditf, level, file, line, function, fmt, ap);
+	va_end(ap);
 }
 
 static void hooked_old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
