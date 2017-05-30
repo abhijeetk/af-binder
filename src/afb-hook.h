@@ -120,7 +120,7 @@ extern void afb_hook_xreq_subcallsync(const struct afb_xreq *xreq, const char *a
 extern int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 
 /*********************************************************
-* section hooking ditf
+* section hooking ditf (daemon interface)
 *********************************************************/
 
 #define afb_hook_flag_ditf_vverbose			0x000001

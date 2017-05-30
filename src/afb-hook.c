@@ -334,7 +334,7 @@ int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, st
 }
 
 /******************************************************************************
- * section: 
+ * section: hooking xreqs
  *****************************************************************************/
 
 void afb_hook_init_xreq(struct afb_xreq *xreq)
@@ -561,7 +561,7 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 };
 
 /******************************************************************************
- * section: hooks for tracing requests
+ * section: hooks for tracing daemon interface (ditf)
  *****************************************************************************/
 
 #define _HOOK_DITF_(what,...)   \
@@ -637,7 +637,7 @@ int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int si
 }
 
 /******************************************************************************
- * section: 
+ * section: hooking ditf
  *****************************************************************************/
 
 int afb_hook_flags_ditf(const char *api)
