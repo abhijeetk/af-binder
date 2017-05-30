@@ -194,9 +194,11 @@ struct afb_svc *afb_svc_create_v1(
 	}
 
 	/* initialises the svc now */
-	rc = start(to_afb_service(svc));
-	if (rc < 0)
-		goto error;
+	if (start) {
+		rc = start(to_afb_service(svc));
+		if (rc < 0)
+			goto error;
+	}
 
 	return svc;
 

@@ -96,7 +96,8 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 
 	/* get the initialisation */
 	init = dlsym(desc->handle, afb_api_so_v1_service_init);
-	if (init == NULL) {
+	onevent = dlsym(desc->handle, afb_api_so_v1_service_event);
+	if (init == NULL && onevent == NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
 			return 0;
@@ -107,7 +108,6 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* get the event handler if any */
-	onevent = dlsym(desc->handle, afb_api_so_v1_service_event);
 	desc->service = afb_svc_create_v1(apiset, share_session, init, onevent);
 	if (desc->service == NULL) {
 		/* starting error */
