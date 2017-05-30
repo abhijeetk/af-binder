@@ -19,8 +19,36 @@
 
 struct afb_svc;
 struct afb_service;
+struct afb_session;
 struct afb_apiset;
+struct afb_evt_listener;
 struct afb_binding_data_v2;
+
+struct json_object;
+
+/*
+ * Structure for recording service
+ */
+struct afb_svc
+{
+	/* api/prefix */
+	const char *api;
+
+	/* session of the service */
+	struct afb_session *session;
+
+	/* the apiset for the service */
+	struct afb_apiset *apiset;
+
+	/* event listener of the service or NULL */
+	struct afb_evt_listener *listener;
+
+	/* on event callback for the service */
+	void (*on_event)(const char *event, struct json_object *object);
+
+	/* hooking flags */
+	int hookflags;
+};
 
 extern struct afb_svc *afb_svc_create_v1(
 			const char *api,
@@ -36,3 +64,6 @@ extern struct afb_svc *afb_svc_create_v2(
 			int (*start)(),
 			void (*on_event)(const char *event, struct json_object *object),
 			struct afb_binding_data_v2 *data);
+
+extern void afb_svc_update_hook(struct afb_svc *svc);
+

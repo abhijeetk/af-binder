@@ -122,6 +122,8 @@ static void update_hooks_cb(void *closure)
 {
 	struct api_so_v1 *desc = closure;
 	afb_ditf_update_hook(&desc->ditf);
+	if (desc->service)
+		afb_svc_update_hook(desc->service);
 }
 
 static int get_verbosity_cb(void *closure)

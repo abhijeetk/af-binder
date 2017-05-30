@@ -572,6 +572,8 @@ static void start()
 		afb_hook_create_xreq(NULL, NULL, NULL, config->tracereq, NULL, NULL);
 	if (config->traceditf)
 		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
+	if (config->tracesvc)
+		afb_hook_create_svc(NULL, config->tracesvc, NULL, NULL);
 
 	/* load bindings */
 	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");

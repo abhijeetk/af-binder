@@ -34,29 +34,12 @@
 #include "afb-xreq.h"
 #include "afb-cred.h"
 #include "afb-apiset.h"
+#include "afb-hook.h"
 #include "jobs.h"
 #include "verbose.h"
 
-/*
- * Structure for recording service
- */
-struct afb_svc
-{
-	/* api/prefix */
-	const char *api;
 
-	/* session of the service */
-	struct afb_session *session;
-
-	/* the apiset for the service */
-	struct afb_apiset *apiset;
-
-	/* event listener of the service or NULL */
-	struct afb_evt_listener *listener;
-
-	/* on event callback for the service */
-	void (*on_event)(const char *event, struct json_object *object);
-};
+#define HOOK(x,...) if((svc)->hookflags & afb_hook_flag_svc_##x) afb_hook_svc_##x(__VA_ARGS__)
 
 /*
  * Structure for requests initiated by the service
@@ -165,6 +148,7 @@ static struct afb_svc *afb_svc_alloc(
 			goto error;
 	}
 
+	svc->hookflags = afb_hook_flags_svc(svc->api);
 	return svc;
 
 error:
@@ -201,7 +185,9 @@ struct afb_svc *afb_svc_create_v1(
 
 	/* initialises the svc now */
 	if (start) {
+		HOOK(start_before, svc);
 		rc = start(to_afb_service(svc));
+		HOOK(start_after, svc, rc);
 		if (rc < 0)
 			goto error;
 	}
@@ -244,7 +230,9 @@ struct afb_svc *afb_svc_create_v2(
 
 	/* starts the svc if needed */
 	if (start) {
+		HOOK(start_before, svc);
 		rc = start();
+		HOOK(start_after, svc, rc);
 		if (rc < 0)
 			goto error;
 	}
@@ -256,13 +244,21 @@ error:
 	return NULL;
 }
 
+void afb_svc_update_hook(struct afb_svc *svc)
+{
+	svc->hookflags = afb_hook_flags_svc(svc->api);
+}
+
 /*
  * Propagates the event to the service
  */
 static void svc_on_event(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	struct afb_svc *svc = closure;
+
+	HOOK(on_event_before, svc, event, eventid, object);
 	svc->on_event(event, object);
+	HOOK(on_event_after, svc, event, eventid, object);
 	json_object_put(object);
 }
 
@@ -324,7 +320,9 @@ static void svcreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
 {
 	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
 	if (svcreq->callback) {
+		struct afb_svc *svc = svcreq->svc;
 		svcreq->callback(svcreq->closure, iserror, obj);
+		HOOK(call_result, svc, iserror, obj);
 		json_object_put(obj);
 	} else {
 		svcreq->iserror = iserror;
@@ -356,6 +354,8 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	struct svc_req *svcreq;
 	struct json_object *ierr;
 
+	HOOK(call, svc, api, verb, args);
+
 	/* allocates the request */
 	svcreq = svcreq_create(svc, api, verb, args);
 	if (svcreq == NULL) {
@@ -363,6 +363,7 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 		json_object_put(args);
 		ierr = afb_msg_json_internal_error();
 		callback(cbclosure, 1, ierr);
+		HOOK(call_result, svc, 1, ierr);
 		json_object_put(ierr);
 		return;
 	}
@@ -383,6 +384,8 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 	struct svc_req *svcreq;
 	int rc;
 
+	HOOK(callsync, svc, api, verb, args);
+
 	/* allocates the request */
 	svcreq = svcreq_create(svc, api, verb, args);
 	if (svcreq == NULL) {
@@ -390,19 +393,20 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 		errno = ENOMEM;
 		json_object_put(args);
 		*result = afb_msg_json_internal_error();
-		return -1;
+		rc = 0;
+	} else {
+		/* initialises the request */
+		svcreq->jobloop = NULL;
+		svcreq->callback = NULL;
+		svcreq->result = NULL;
+		svcreq->iserror = 1;
+		afb_xreq_addref(&svcreq->xreq);
+		rc = jobs_enter(NULL, 0, svcreq_sync_enter, svcreq);
+		rc = rc >= 0 && !svcreq->iserror;
+		*result = (rc || svcreq->result) ? svcreq->result : afb_msg_json_internal_error();
+		afb_xreq_unref(&svcreq->xreq);
 	}
-
-	/* initialises the request */
-	svcreq->jobloop = NULL;
-	svcreq->callback = NULL;
-	svcreq->result = NULL;
-	svcreq->iserror = 1;
-	afb_xreq_addref(&svcreq->xreq);
-	rc = jobs_enter(NULL, 0, svcreq_sync_enter, svcreq);
-	rc = rc >= 0 && !svcreq->iserror;
-	*result = (rc || svcreq->result) ? svcreq->result : afb_msg_json_internal_error();
-	afb_xreq_unref(&svcreq->xreq);
+	HOOK(callsync_result, svc, rc, *result);
 	return rc;
 }
 

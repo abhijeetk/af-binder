@@ -91,6 +91,7 @@
 #define DISPLAY_HELP       'h'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
+#define SET_TRACESVC       'S'
 #define SET_TRACEREQ       'T'
 #define SET_AUTH_TOKEN     't'
 #define SET_UPLOAD_DIR     'u'
@@ -152,6 +153,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
 	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
+	{SET_TRACESVC,      1, "tracesvc",    "Log the requests: no, all"},
 	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
@@ -181,6 +183,12 @@ static struct enumdesc traceditf_desc[] = {
 	{ "common", afb_hook_flags_ditf_common },
 	{ "extra",  afb_hook_flags_ditf_extra },
 	{ "all",    afb_hook_flags_ditf_all },
+	{ NULL, 0 }
+};
+
+static struct enumdesc tracesvc_desc[] = {
+	{ "no",     0 },
+	{ "all",    afb_hook_flags_svc_all },
 	{ NULL, 0 }
 };
 
@@ -504,6 +512,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 		case SET_TRACEDITF:
 			config->traceditf = argvalenum(optc, traceditf_desc);
+			break;
+
+		case SET_TRACESVC:
+			config->tracesvc = argvalenum(optc, tracesvc_desc);
 			break;
 
 		case SET_NO_HTTPD:

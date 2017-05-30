@@ -56,6 +56,7 @@ struct afb_config {
 	int mode;		// mode of listening
 	int tracereq;
 	int traceditf;
+	int tracesvc;
 	int noHttpd;
 };
 

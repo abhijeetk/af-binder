@@ -35,6 +35,7 @@
 #include "afb-cred.h"
 #include "afb-xreq.h"
 #include "afb-ditf.h"
+#include "afb-svc.h"
 #include "verbose.h"
 
 /**
@@ -63,6 +64,18 @@ struct afb_hook_ditf {
 	void *closure; /**< closure for callbacks */
 };
 
+/**
+ * Definition of a hook for svc
+ */
+struct afb_hook_svc {
+	struct afb_hook_svc *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	char *api; /**< api hooked or NULL for any */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_svc_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
+};
+
 /* synchronisation across threads */
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -71,6 +84,9 @@ static struct afb_hook_xreq *list_of_xreq_hooks = NULL;
 
 /* list of hooks for ditf */
 static struct afb_hook_ditf *list_of_ditf_hooks = NULL;
+
+/* list of hooks for svc */
+static struct afb_hook_svc *list_of_svc_hooks = NULL;
 
 /******************************************************************************
  * section: default callbacks for tracing requests
@@ -708,6 +724,225 @@ void afb_hook_unref_ditf(struct afb_hook_ditf *hook)
 		else {
 			/* unlink */
 			prv = &list_of_ditf_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook->api);
+			free(hook);
+		}
+	}
+}
+
+/******************************************************************************
+ * section: default callbacks for tracing service interface (svc)
+ *****************************************************************************/
+
+static void _hook_svc_(const struct afb_svc *svc, const char *format, ...)
+{
+	int len;
+	char *buffer;
+	va_list ap;
+
+	va_start(ap, format);
+	len = vasprintf(&buffer, format, ap);
+	va_end(ap);
+
+	if (len < 0)
+		NOTICE("hook svc-%s allocation error for %s", svc->api, format);
+	else {
+		NOTICE("hook svc-%s %s", svc->api, buffer);
+		free(buffer);
+	}
+}
+
+static void hook_svc_start_before_default_cb(void *closure, const struct afb_svc *svc)
+{
+	_hook_svc_(svc, "start.before");
+}
+
+static void hook_svc_start_after_default_cb(void *closure, const struct afb_svc *svc, int status)
+{
+	_hook_svc_(svc, "start.after -> %d", status);
+}
+
+static void hook_svc_on_event_before_default_cb(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+{
+	_hook_svc_(svc, "on_event.before(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
+}
+
+static void hook_svc_on_event_after_default_cb(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+{
+	_hook_svc_(svc, "on_event.after(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
+}
+
+static void hook_svc_call_default_cb(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+{
+	_hook_svc_(svc, "call(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+}
+
+static void hook_svc_call_result_default_cb(void *closure, const struct afb_svc *svc, int status, struct json_object *result)
+{
+	_hook_svc_(svc, "    ...call... -> %d: %s", status, json_object_to_json_string(result));
+}
+
+static void hook_svc_callsync_default_cb(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+{
+	_hook_svc_(svc, "callsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+}
+
+static void hook_svc_callsync_result_default_cb(void *closure, const struct afb_svc *svc, int status, struct json_object *result)
+{
+	_hook_svc_(svc, "    ...callsync... -> %d: %s", status, json_object_to_json_string(result));
+}
+
+static struct afb_hook_svc_itf hook_svc_default_itf = {
+	.hook_svc_start_before = hook_svc_start_before_default_cb,
+	.hook_svc_start_after = hook_svc_start_after_default_cb,
+	.hook_svc_on_event_before = hook_svc_on_event_before_default_cb,
+	.hook_svc_on_event_after = hook_svc_on_event_after_default_cb,
+	.hook_svc_call = hook_svc_call_default_cb,
+	.hook_svc_call_result = hook_svc_call_result_default_cb,
+	.hook_svc_callsync = hook_svc_callsync_default_cb,
+	.hook_svc_callsync_result = hook_svc_callsync_result_default_cb
+};
+
+/******************************************************************************
+ * section: hooks for tracing service interface (svc)
+ *****************************************************************************/
+
+#define _HOOK_SVC_(what,...)   \
+	struct afb_hook_svc *hook; \
+	pthread_rwlock_rdlock(&rwlock); \
+	hook = list_of_svc_hooks; \
+	while (hook) { \
+		if (hook->itf->hook_svc_##what \
+		 && (hook->flags & afb_hook_flag_svc_##what) != 0 \
+		 && (!hook->api || !strcasecmp(hook->api, svc->api))) { \
+			hook->itf->hook_svc_##what(hook->closure, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
+
+void afb_hook_svc_start_before(const struct afb_svc *svc)
+{
+	_HOOK_SVC_(start_before, svc);
+}
+
+int afb_hook_svc_start_after(const struct afb_svc *svc, int status)
+{
+	_HOOK_SVC_(start_after, svc, status);
+	return status;
+}
+
+void afb_hook_svc_on_event_before(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+{
+	_HOOK_SVC_(on_event_before, svc, event, eventid, object);
+}
+
+void afb_hook_svc_on_event_after(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+{
+	_HOOK_SVC_(on_event_after, svc, event, eventid, object);
+}
+
+void afb_hook_svc_call(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+{
+	_HOOK_SVC_(call, svc, api, verb, args);
+}
+
+void afb_hook_svc_call_result(const struct afb_svc *svc, int status, struct json_object *result)
+{
+	_HOOK_SVC_(call_result, svc, status, result);
+}
+
+void afb_hook_svc_callsync(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+{
+	_HOOK_SVC_(callsync, svc, api, verb, args);
+}
+
+int afb_hook_svc_callsync_result(const struct afb_svc *svc, int status, struct json_object *result)
+{
+	_HOOK_SVC_(callsync_result, svc, status, result);
+	return status;
+}
+
+/******************************************************************************
+ * section: hooking services (svc)
+ *****************************************************************************/
+
+int afb_hook_flags_svc(const char *api)
+{
+	int flags;
+	struct afb_hook_svc *hook;
+
+	pthread_rwlock_rdlock(&rwlock);
+	flags = 0;
+	hook = list_of_svc_hooks;
+	while (hook) {
+		if (!api || !hook->api || !strcasecmp(hook->api, api))
+			flags |= hook->flags;
+		hook = hook->next;
+	}
+	pthread_rwlock_unlock(&rwlock);
+	return flags;
+}
+
+struct afb_hook_svc *afb_hook_create_svc(const char *api, int flags, struct afb_hook_svc_itf *itf, void *closure)
+{
+	struct afb_hook_svc *hook;
+
+	/* alloc the result */
+	hook = calloc(1, sizeof *hook);
+	if (hook == NULL)
+		return NULL;
+
+	/* get a copy of the names */
+	hook->api = api ? strdup(api) : NULL;
+	if (api && !hook->api) {
+		free(hook);
+		return NULL;
+	}
+
+	/* initialise the rest */
+	hook->refcount = 1;
+	hook->flags = flags;
+	hook->itf = itf ? itf : &hook_svc_default_itf;
+	hook->closure = closure;
+
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
+	hook->next = list_of_svc_hooks;
+	list_of_svc_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* returns it */
+	return hook;
+}
+
+struct afb_hook_svc *afb_hook_addref_svc(struct afb_hook_svc *hook)
+{
+	pthread_rwlock_wrlock(&rwlock);
+	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
+	return hook;
+}
+
+void afb_hook_unref_svc(struct afb_hook_svc *hook)
+{
+	struct afb_hook_svc **prv;
+
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_svc_hooks;
 			while (*prv && *prv != hook)
 				prv = &(*prv)->next;
 			if(*prv)

@@ -25,6 +25,7 @@ struct afb_event;
 struct afb_session;
 struct afb_xreq;
 struct afb_ditf;
+struct afb_svc;
 struct sd_bus;
 struct sd_event;
 
@@ -175,4 +176,47 @@ extern int afb_hook_flags_ditf(const char *api);
 extern struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure);
 extern struct afb_hook_ditf *afb_hook_addref_ditf(struct afb_hook_ditf *hook);
 extern void afb_hook_unref_ditf(struct afb_hook_ditf *hook);
+
+/*********************************************************
+* section hooking svc (service interface)
+*********************************************************/
+
+#define afb_hook_flag_svc_start_before		0x000001
+#define afb_hook_flag_svc_start_after		0x000002
+#define afb_hook_flag_svc_on_event_before	0x000004
+#define afb_hook_flag_svc_on_event_after	0x000008
+#define afb_hook_flag_svc_call			0x000010
+#define afb_hook_flag_svc_call_result		0x000020
+#define afb_hook_flag_svc_callsync		0x000040
+#define afb_hook_flag_svc_callsync_result	0x000080
+
+#define afb_hook_flags_svc_all		(afb_hook_flag_svc_start_before|afb_hook_flag_svc_start_after\
+					|afb_hook_flag_svc_on_event_before|afb_hook_flag_svc_on_event_after\
+					|afb_hook_flag_svc_call|afb_hook_flag_svc_call_result\
+					|afb_hook_flag_svc_callsync|afb_hook_flag_svc_callsync_result)
+
+struct afb_hook_svc_itf {
+	void (*hook_svc_start_before)(void *closure, const struct afb_svc *svc);
+	void (*hook_svc_start_after)(void *closure, const struct afb_svc *svc, int status);
+	void (*hook_svc_on_event_before)(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_on_event_after)(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_call)(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_call_result)(void *closure, const struct afb_svc *svc, int status, struct json_object *result);
+	void (*hook_svc_callsync)(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_callsync_result)(void *closure, const struct afb_svc *svc, int status, struct json_object *result);
+};
+
+extern void afb_hook_svc_start_before(const struct afb_svc *svc);
+extern int afb_hook_svc_start_after(const struct afb_svc *svc, int status);
+extern void afb_hook_svc_on_event_before(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+extern void afb_hook_svc_on_event_after(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+extern void afb_hook_svc_call(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+extern void afb_hook_svc_call_result(const struct afb_svc *svc, int status, struct json_object *result);
+extern void afb_hook_svc_callsync(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+extern int afb_hook_svc_callsync_result(const struct afb_svc *svc, int status, struct json_object *result);
+
+extern int afb_hook_flags_svc(const char *api);
+extern struct afb_hook_svc *afb_hook_create_svc(const char *api, int flags, struct afb_hook_svc_itf *itf, void *closure);
+extern struct afb_hook_svc *afb_hook_addref_svc(struct afb_hook_svc *hook);
+extern void afb_hook_unref_svc(struct afb_hook_svc *hook);
 
