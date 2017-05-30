@@ -108,7 +108,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* get the event handler if any */
-	desc->service = afb_svc_create_v1(apiset, share_session, init, onevent);
+	desc->service = afb_svc_create_v1(desc->binding->v1.prefix, apiset, share_session, init, onevent);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->v1.prefix);

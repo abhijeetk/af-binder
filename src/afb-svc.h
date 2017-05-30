@@ -23,12 +23,14 @@ struct afb_apiset;
 struct afb_binding_data_v2;
 
 extern struct afb_svc *afb_svc_create_v1(
+			const char *api,
 			struct afb_apiset *apiset,
 			int share_session,
 			int (*start)(struct afb_service service),
 			void (*on_event)(const char *event, struct json_object *object));
 
 extern struct afb_svc *afb_svc_create_v2(
+			const char *api,
 			struct afb_apiset *apiset,
 			int share_session,
 			int (*start)(),

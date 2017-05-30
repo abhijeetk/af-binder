@@ -42,6 +42,9 @@
  */
 struct afb_svc
 {
+	/* api/prefix */
+	const char *api;
+
 	/* session of the service */
 	struct afb_session *session;
 
@@ -128,6 +131,7 @@ static void svc_free(struct afb_svc *svc)
  * Allocates a new service
  */
 static struct afb_svc *afb_svc_alloc(
+			const char *api,
 			struct afb_apiset *apiset,
 			int share_session
 )
@@ -142,6 +146,7 @@ static struct afb_svc *afb_svc_alloc(
 	}
 
 	/* instanciate the apiset */
+	svc->api = api;
 	svc->apiset = afb_apiset_addref(apiset);
 
 	/* instanciate the session */
@@ -171,17 +176,18 @@ error:
  * Creates a new service
  */
 struct afb_svc *afb_svc_create_v1(
-		struct afb_apiset *apiset,
-		int share_session,
-		int (*start)(struct afb_service service),
-		void (*on_event)(const char *event, struct json_object *object)
+			const char *api,
+			struct afb_apiset *apiset,
+			int share_session,
+			int (*start)(struct afb_service service),
+			void (*on_event)(const char *event, struct json_object *object)
 )
 {
 	int rc;
 	struct afb_svc *svc;
 
 	/* allocates the svc handler */
-	svc = afb_svc_alloc(apiset, share_session);
+	svc = afb_svc_alloc(api, apiset, share_session);
 	if (svc == NULL)
 		goto error;
 
@@ -211,6 +217,7 @@ error:
  * Creates a new service
  */
 struct afb_svc *afb_svc_create_v2(
+			const char *api,
 			struct afb_apiset *apiset,
 			int share_session,
 			int (*start)(),
@@ -222,7 +229,7 @@ struct afb_svc *afb_svc_create_v2(
 	struct afb_svc *svc;
 
 	/* allocates the svc handler */
-	svc = afb_svc_alloc(apiset, share_session);
+	svc = afb_svc_alloc(api, apiset, share_session);
 	if (svc == NULL)
 		goto error;
 	data->service = to_afb_service(svc);
