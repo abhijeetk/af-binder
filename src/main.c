@@ -113,7 +113,6 @@ static void exit_handler()
 		killpg(0, SIGTERM);
 	else if (childpid > 0)
 		killpg(childpid, SIGTERM);
-	exit(0);
 }
 
 static void on_sigterm(int signum, siginfo_t *info, void *uctx)
