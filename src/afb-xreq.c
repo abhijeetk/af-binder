@@ -24,7 +24,8 @@
 #include <errno.h>
 
 #include <json-c/json.h>
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v1.h>
+#include <afb/afb-binding-v2.h>
 
 #include "afb-context.h"
 #include "afb-xreq.h"

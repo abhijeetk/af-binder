@@ -26,18 +26,33 @@
  *
  * Functions of bindings of afb-daemon are accessible by authorized clients
  * through the apis module of afb-daemon.
- *
- * A binding is a shared library. This shared library must have at least one
- * exported symbol for being registered in afb-daemon.
- *
  */
 
 #define AFB_BINDING_LOWER_VERSION     1
 #define AFB_BINDING_UPPER_VERSION     2
-#define AFB_BINDING_DEFAULT_VERSION   1
 
 #ifndef AFB_BINDING_VERSION
-#define AFB_BINDING_VERSION   AFB_BINDING_DEFAULT_VERSION
+#define AFB_BINDING_VERSION   1
+#pragma GCC warning "\
+\n\
+\n\
+  AFB_BINDING_VERSION should be defined before including <afb/afb-binding.h>\n\
+  AFB_BINDING_VERSION defines the version of binding that you use.\n\
+  Currently, known versions are 1 or 2.\n\
+  Setting now AFB_BINDING_VERSION to 1 (version 1 by default)\n\
+  NOTE THAT VERSION 2 IS NOW RECOMMENDED!\n\
+  Consider to add one of the following define before including <afb/afb-binding.h>:\n\
+\n\
+    #define AFB_BINDING_VERSION 1\n\
+    #define AFB_BINDING_VERSION 2\n\
+\n\
+  Note that in some case it will enforce you to include <stdio.h>\n\
+"
+#include <stdio.h> /* old version side effect */
+#else
+#  if AFB_BINDING_VERSION == 1
+#    pragma GCC warning "Using binding version 1, consider to switch to version 2"
+#  endif
 #endif
 
 #if AFB_BINDING_VERSION != 0

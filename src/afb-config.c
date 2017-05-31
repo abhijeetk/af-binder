@@ -31,7 +31,7 @@
 #include "afb-config.h"
 #include "afb-hook.h"
 
-#include <afb/afb-binding.h>
+#include <afb/afb-binding-v1.h>
 
 #if !defined(BINDING_INSTALL_DIR)
 #error "you should define BINDING_INSTALL_DIR"

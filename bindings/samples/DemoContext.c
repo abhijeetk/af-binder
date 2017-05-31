@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
+#define AFB_BINDING_VERSION 1
 #include <afb/afb-binding.h>
 
 typedef struct {

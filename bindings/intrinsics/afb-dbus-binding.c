@@ -23,6 +23,7 @@
 #include <systemd/sd-bus.h>
 #include <systemd/sd-bus-protocol.h>
 
+#define AFB_BINDING_VERSION 1
 #include <afb/afb-binding.h>
 
 /*
