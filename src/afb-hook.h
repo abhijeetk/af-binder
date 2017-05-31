@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdarg.h>
+
 struct req;
 struct afb_context;
 struct json_object;
@@ -53,6 +55,7 @@ struct afb_hook_xreq;
 #define afb_hook_flag_req_subcall_result	0x010800
 #define afb_hook_flag_req_subcallsync		0x020000
 #define afb_hook_flag_req_subcallsync_result	0x040000
+#define afb_hook_flag_req_vverbose		0x080000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -69,7 +72,8 @@ struct afb_hook_xreq;
 
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
-					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcall)
+					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcall\
+					|afb_hook_flag_req_vverbose)
 #define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context)
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
 
@@ -92,6 +96,7 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_subcall_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
 	void (*hook_xreq_subcallsync)(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 	void (*hook_xreq_subcallsync_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_vverbose)(void * closure, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -119,6 +124,7 @@ extern void afb_hook_xreq_subcall(const struct afb_xreq *xreq, const char *api, 
 extern void afb_hook_xreq_subcall_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 extern void afb_hook_xreq_subcallsync(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 extern int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, struct json_object *result);
+extern void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
 
 /*********************************************************
 * section hooking ditf (daemon interface)

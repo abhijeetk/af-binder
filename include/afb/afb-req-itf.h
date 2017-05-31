@@ -67,6 +67,8 @@ struct afb_req_itf {
 
 	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 	int (*subcallsync)(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result);
+
+	void (*vverbose)(void*closure, int level, const char *file, int line, const char * func, const char *fmt, va_list args);
 };
 
 /*
@@ -390,3 +392,35 @@ static inline int afb_req_subcall_sync(struct afb_req req, const char *api, cons
 	return req.itf->subcallsync(req.closure, api, verb, args, result);
 }
 
+/*
+ * Send associated to 'req' a message described by 'fmt' and following parameters
+ * to the journal for the verbosity 'level'.
+ *
+ * 'file', 'line' and 'func' are indicators of position of the code in source files
+ * (see macros __FILE__, __LINE__ and __func__).
+ *
+ * 'level' is defined by syslog standard:
+ *      EMERGENCY         0        System is unusable
+ *      ALERT             1        Action must be taken immediately
+ *      CRITICAL          2        Critical conditions
+ *      ERROR             3        Error conditions
+ *      WARNING           4        Warning conditions
+ *      NOTICE            5        Normal but significant condition
+ *      INFO              6        Informational
+ *      DEBUG             7        Debug-level messages
+ */
+static inline void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...) __attribute__((format(printf, 6, 7)));
+static inline void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	req.itf->vverbose(req.closure, level, file, line, func, fmt, args);
+	va_end(args);
+}
+
+/* macro for setting file, line and function automatically */
+# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
+#define AFB_REQ_VERBOSE(req,level,...) afb_req_verbose(req,level,__FILE__,__LINE__,__func__,__VA_ARGS__)
+#else
+#define AFB_REQ_VERBOSE(req,level,...) afb_req_verbose(req,level,NULL,0,NULL,__VA_ARGS__)
+#endif

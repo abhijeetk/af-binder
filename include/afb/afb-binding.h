@@ -102,6 +102,12 @@
 #  define INFO			AFB_INFO_V1
 #  define DEBUG			AFB_DEBUG_V1
 
+#  define REQ_ERROR		AFB_REQ_ERROR_V1
+#  define REQ_WARNING		AFB_REQ_WARNING_V1
+#  define REQ_NOTICE		AFB_REQ_NOTICE_V1
+#  define REQ_INFO		AFB_REQ_INFO_V1
+#  define REQ_DEBUG		AFB_REQ_DEBUG_V1
+
 # endif
 
 #define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v1
@@ -146,6 +152,12 @@
 #  define NOTICE		AFB_NOTICE_V2
 #  define INFO			AFB_INFO_V2
 #  define DEBUG			AFB_DEBUG_V2
+
+#  define REQ_ERROR		AFB_REQ_ERROR_V2
+#  define REQ_WARNING		AFB_REQ_WARNING_V2
+#  define REQ_NOTICE		AFB_REQ_NOTICE_V2
+#  define REQ_INFO		AFB_REQ_INFO_V2
+#  define REQ_DEBUG		AFB_REQ_DEBUG_V2
 
 # endif
 

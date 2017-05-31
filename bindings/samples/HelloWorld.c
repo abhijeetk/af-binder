@@ -325,9 +325,39 @@ static void callsync (struct afb_req request)
 	}
 }
 
+static void verbose (struct afb_req request)
+{
+	int level = 5;
+	json_object *query = afb_req_json(request), *l;
+
+	if (json_object_is_type(query,json_type_int))
+		level = json_object_get_int(query);
+	else if (json_object_object_get_ex(query, "level", &l) && json_object_is_type(l, json_type_int))
+		level = json_object_get_int(l);
+
+	if (!json_object_object_get_ex(query,"message",&l))
+		l = query;
+
+	AFB_REQ_VERBOSE(request, level, "verbose called for %s", json_object_get_string(l));
+	afb_req_success(request, NULL, NULL);
+}
+
 static void exitnow (struct afb_req request)
 {
-	exit(0);
+	int code = 0;
+	json_object *query = afb_req_json(request), *l;
+
+	if (json_object_is_type(query,json_type_int))
+		code = json_object_get_int(query);
+	else if (json_object_object_get_ex(query, "code", &l) && json_object_is_type(l, json_type_int))
+		code = json_object_get_int(l);
+
+	if (!json_object_object_get_ex(query,"reason",&l))
+		l = NULL;
+
+	REQ_NOTICE(request, "in phase of exiting with code %d, reason: %s", code, l ? json_object_get_string(l) : "unknown");
+	afb_req_success(request, NULL, NULL);
+	exit(code);
 }
 
 static int preinit()
@@ -365,6 +395,7 @@ static const struct afb_verb_v2 verbs[]= {
   { "eventpush",    eventpush  , NULL, AFB_SESSION_NONE },
   { "call",         call       , NULL, AFB_SESSION_NONE },
   { "callsync",     callsync   , NULL, AFB_SESSION_NONE },
+  { "verbose",      verbose    , NULL, AFB_SESSION_NONE },
   { "exit",         exitnow    , NULL, AFB_SESSION_NONE },
   { NULL}
 };

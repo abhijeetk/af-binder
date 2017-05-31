@@ -96,18 +96,33 @@ struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2  __attribute__ ((weak));
 		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
 			afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
 	}while(0)
+#  define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
+			afb_req_verbose(req,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
 # else
 #  define _AFB_LOGGING_V2_(vlevel,llevel,...) \
 	do{ \
 		if(afbBindingV2data.verbosity>=vlevel) \
 			afb_daemon_verbose_v2(llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
+#  define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
+			afb_req_verbose(req,llevel,NULL,0,NULL,__VA_ARGS__); \
+	}while(0)
 # endif
-# define AFB_ERROR_V2(...)   _AFB_LOGGING_V2_(0,3,__VA_ARGS__)
-# define AFB_WARNING_V2(...) _AFB_LOGGING_V2_(1,4,__VA_ARGS__)
-# define AFB_NOTICE_V2(...)  _AFB_LOGGING_V2_(1,5,__VA_ARGS__)
-# define AFB_INFO_V2(...)    _AFB_LOGGING_V2_(2,6,__VA_ARGS__)
-# define AFB_DEBUG_V2(...)   _AFB_LOGGING_V2_(3,7,__VA_ARGS__)
+# define AFB_ERROR_V2(...)       _AFB_LOGGING_V2_(0,3,__VA_ARGS__)
+# define AFB_WARNING_V2(...)     _AFB_LOGGING_V2_(1,4,__VA_ARGS__)
+# define AFB_NOTICE_V2(...)      _AFB_LOGGING_V2_(1,5,__VA_ARGS__)
+# define AFB_INFO_V2(...)        _AFB_LOGGING_V2_(2,6,__VA_ARGS__)
+# define AFB_DEBUG_V2(...)       _AFB_LOGGING_V2_(3,7,__VA_ARGS__)
+# define AFB_REQ_ERROR_V2(...)   _AFB_REQ_LOGGING_V2_(0,3,__VA_ARGS__)
+# define AFB_REQ_WARNING_V2(...) _AFB_REQ_LOGGING_V2_(1,4,__VA_ARGS__)
+# define AFB_REQ_NOTICE_V2(...)  _AFB_REQ_LOGGING_V2_(1,5,__VA_ARGS__)
+# define AFB_REQ_INFO_V2(...)    _AFB_REQ_LOGGING_V2_(2,6,__VA_ARGS__)
+# define AFB_REQ_DEBUG_V2(...)   _AFB_REQ_LOGGING_V2_(3,7,__VA_ARGS__)
 #endif
 
 #include "afb-daemon-v2.h"

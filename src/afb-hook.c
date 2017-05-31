@@ -210,6 +210,24 @@ static void hook_xreq_subcallsync_result_default_cb(void * closure, const struct
 	_hook_xreq_(xreq, "    ...subcallsync... -> %d: %s", status, json_object_to_json_string(result));
 }
 
+static void hook_xreq_vverbose_default_cb(void * closure, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	int len;
+	char *msg;
+	va_list ap;
+
+	va_copy(ap, args);
+	len = vasprintf(&msg, fmt, ap);
+	va_end(ap);
+
+	if (len < 0)
+		_hook_xreq_(xreq, "vverbose(%d, %s, %d, %s) -> %s ? ? ?", level, file, line, func, fmt);
+	else {
+		_hook_xreq_(xreq, "vverbose(%d, %s, %d, %s) -> %s", level, file, line, func, msg);
+		free(msg);
+	}
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -229,6 +247,7 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_subcall_result = hook_xreq_subcall_result_default_cb,
 	.hook_xreq_subcallsync = hook_xreq_subcallsync_default_cb,
 	.hook_xreq_subcallsync_result = hook_xreq_subcallsync_result_default_cb,
+	.hook_xreq_vverbose = hook_xreq_vverbose_default_cb
 };
 
 /******************************************************************************
@@ -347,6 +366,11 @@ int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, st
 {
 	_HOOK_XREQ_(subcallsync_result, xreq, status, result);
 	return status;
+}
+
+void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	_HOOK_XREQ_(vverbose, xreq, level, file ?: "?", line, func ?: "?", fmt, args);
 }
 
 /******************************************************************************

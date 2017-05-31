@@ -257,6 +257,12 @@ static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb,
 	return 1;
 }
 
+static void xreq_vverbose_cb(void*closure, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	/* TODO: improves the implementation. example: on condition make a list of log messages that will be returned */
+	vverbose(level, file, line, func, fmt, args);
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
@@ -397,6 +403,16 @@ static int xreq_hooked_subcallsync_cb(void *closure, const char *api, const char
 	return afb_hook_xreq_subcallsync_result(xreq, r, *result);
 }
 
+static void xreq_hooked_vverbose_cb(void*closure, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	struct afb_xreq *xreq = closure;
+	va_list ap;
+	va_copy(ap, args);
+	xreq_vverbose_cb(closure, level, file, line, func, fmt, args);
+	afb_hook_xreq_vverbose(xreq, level, file, line, func, fmt, ap);
+	va_end(ap);
+}
+
 /******************************************************************************/
 
 const struct afb_req_itf xreq_itf = {
@@ -415,7 +431,8 @@ const struct afb_req_itf xreq_itf = {
 	.subscribe = xreq_subscribe_cb,
 	.unsubscribe = xreq_unsubscribe_cb,
 	.subcall = xreq_subcall_cb,
-	.subcallsync = xreq_subcallsync_cb
+	.subcallsync = xreq_subcallsync_cb,
+	.vverbose = xreq_vverbose_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -434,7 +451,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.subscribe = xreq_hooked_subscribe_cb,
 	.unsubscribe = xreq_hooked_unsubscribe_cb,
 	.subcall = xreq_hooked_subcall_cb,
-	.subcallsync = xreq_hooked_subcallsync_cb
+	.subcallsync = xreq_hooked_subcallsync_cb,
+	.vverbose = xreq_hooked_vverbose_cb
 };
 
 static inline struct afb_req to_req(struct afb_xreq *xreq)

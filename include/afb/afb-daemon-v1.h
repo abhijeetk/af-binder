@@ -74,8 +74,21 @@ static inline struct afb_event afb_daemon_make_event_v1(struct afb_daemon daemon
 /*
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
- * 'file' and 'line' are indicators of position of the code in source files.
+ *
+ * 'file' and 'line' are indicators of position of the code in source files
+ * (see macros __FILE__ and __LINE__).
+ *
  * 'daemon' MUST be the daemon given in interface when activating the binding.
+ *
+ * 'level' is defined by syslog standard:
+ *      EMERGENCY         0        System is unusable
+ *      ALERT             1        Action must be taken immediately
+ *      CRITICAL          2        Critical conditions
+ *      ERROR             3        Error conditions
+ *      WARNING           4        Warning conditions
+ *      NOTICE            5        Normal but significant condition
+ *      INFO              6        Informational
+ *      DEBUG             7        Debug-level messages
  */
 static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
@@ -83,6 +96,34 @@ static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, co
 	va_list args;
 	va_start(args, fmt);
 	daemon.itf->vverbose_v1(daemon.closure, level, file, line, fmt, args);
+	va_end(args);
+}
+
+/*
+ * Send a message described by 'fmt' and following parameters
+ * to the journal for the verbosity 'level'.
+ *
+ * 'file', 'line' and 'func' are indicators of position of the code in source files
+ * (see macros __FILE__, __LINE__ and __func__).
+ *
+ * 'daemon' MUST be the daemon given in interface when activating the binding.
+ *
+ * 'level' is defined by syslog standard:
+ *      EMERGENCY         0        System is unusable
+ *      ALERT             1        Action must be taken immediately
+ *      CRITICAL          2        Critical conditions
+ *      ERROR             3        Error conditions
+ *      WARNING           4        Warning conditions
+ *      NOTICE            5        Normal but significant condition
+ *      INFO              6        Informational
+ *      DEBUG             7        Debug-level messages
+ */
+static inline void afb_daemon_verbose2_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *func, const char *fmt, ...) __attribute__((format(printf, 6, 7)));
+static inline void afb_daemon_verbose2_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *func, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	daemon.itf->vverbose_v2(daemon.closure, level, file, line, func, fmt, args);
 	va_end(args);
 }
 

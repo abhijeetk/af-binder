@@ -69,7 +69,19 @@ static inline struct afb_event afb_daemon_make_event_v2(const char *name)
 /*
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
- * 'file' and 'line' are indicators of position of the code in source files.
+ *
+ * 'file', 'line' and 'func' are indicators of position of the code in source files
+ * (see macros __FILE__, __LINE__ and __func__).
+ *
+ * 'level' is defined by syslog standard:
+ *      EMERGENCY         0        System is unusable
+ *      ALERT             1        Action must be taken immediately
+ *      CRITICAL          2        Critical conditions
+ *      ERROR             3        Error conditions
+ *      WARNING           4        Warning conditions
+ *      NOTICE            5        Normal but significant condition
+ *      INFO              6        Informational
+ *      DEBUG             7        Debug-level messages
  */
 static inline void afb_daemon_verbose_v2(int level, const char *file, int line, const char * func, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 static inline void afb_daemon_verbose_v2(int level, const char *file, int line, const char * func, const char *fmt, ...)
