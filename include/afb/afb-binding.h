@@ -53,6 +53,35 @@
 #include "afb-binding-v1.h"
 #include "afb-binding-v2.h"
 
+typedef struct afb_verb_desc_v1         afb_verb_desc_v1;
+typedef struct afb_binding_desc_v1      afb_binding_desc_v1;
+typedef struct afb_binding_v1           afb_binding_v1;
+typedef struct afb_binding_interface_v1 afb_binding_interface_v1;
+
+typedef struct afb_verb_v2              afb_verb_v2;
+typedef struct afb_binding_v2           afb_binding_v2;
+
+typedef enum   afb_auth_type            afb_auth_type;
+typedef struct afb_auth                 afb_auth;
+typedef struct afb_daemon               afb_daemon;
+typedef struct afb_event                afb_event;
+typedef struct afb_arg                  afb_arg;
+typedef struct afb_req                  afb_req;
+typedef struct afb_service              afb_service;
+
+#if 0
+/* these typedef's shouldn't be needed */
+typedef enum   afb_binding_type_v1      afb_binding_type_v1;
+typedef enum   afb_mode_v1              afb_mode_v1;
+typedef enum   afb_session_flags_v1     afb_session_flags_v1;
+typedef enum   afb_session_flags_v2     afb_session_flags_v2;
+typedef struct afb_binding_data_v2      afb_binding_data_v2;
+typedef struct afb_daemon_itf           afb_daemon_itf;
+typedef struct afb_event_itf            afb_event_itf;
+typedef struct afb_req_itf              afb_req_itf;
+typedef struct afb_service_itf          afb_service_itf;
+#endif
+
 /***************************************************************************************************/
 
 #if AFB_BINDING_VERSION == 1
@@ -130,7 +159,6 @@
 #if AFB_BINDING_VERSION == 2
 
 # define afb_binding		afb_binding_v2
-# define afb_binding_interface	afb_binding_interface_v2
 
 # define AFB_SESSION_NONE	AFB_SESSION_NONE_V2
 # define AFB_SESSION_CLOSE	AFB_SESSION_CLOSE_V2
@@ -175,3 +203,4 @@
 #define afb_service_call_sync		afb_service_call_sync_v2
 
 #endif
+
