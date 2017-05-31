@@ -27,7 +27,8 @@ struct json_object;
 /*
  * Describes an argument (or parameter) of a request
  */
-struct afb_arg {
+struct afb_arg
+{
 	const char *name;	/* name of the argument or NULL if invalid */
 	const char *value;	/* string representation of the value of the argument */
 				/* original filename of the argument if path != NULL */
@@ -41,7 +42,8 @@ struct afb_arg {
  * Don't use this structure directly.
  * Use the helper functions documented below.
  */
-struct afb_req_itf {
+struct afb_req_itf
+{
 	/* CAUTION: respect the order, add at the end */
 
 	struct json_object *(*json)(void *closure);
@@ -74,7 +76,8 @@ struct afb_req_itf {
 /*
  * Describes the request by bindings from afb-daemon
  */
-struct afb_req {
+struct afb_req
+{
 	const struct afb_req_itf *itf;	/* the interface to use */
 	void *closure;			/* the closure argument for functions of 'itf' */
 };

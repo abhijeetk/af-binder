@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <stdarg.h>
-
 /*
  * Retrieves the common systemd's event loop of AFB
  */

@@ -26,7 +26,8 @@ struct sd_bus;
 /*
  * Definition of the facilities provided by the daemon.
  */
-struct afb_daemon_itf {
+struct afb_daemon_itf
+{
 	int (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
 	struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
 	struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
@@ -43,7 +44,8 @@ struct afb_daemon_itf {
  * Structure for accessing daemon.
  * See also: afb_daemon_get_event_sender, afb_daemon_get_event_loop, afb_daemon_get_user_bus, afb_daemon_get_system_bus
  */
-struct afb_daemon {
+struct afb_daemon
+{
 	const struct afb_daemon_itf *itf;       /* the interfacing functions */
 	void *closure;                          /* the closure when calling these functions */
 };

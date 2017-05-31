@@ -26,7 +26,8 @@ struct json_object;
  * Don't use this structure directly.
  * Use the helper functions documented below.
  */
-struct afb_event_itf {
+struct afb_event_itf
+{
 	/* CAUTION: respect the order, add at the end */
 
 	int (*broadcast)(void *closure, struct json_object *obj);
@@ -38,7 +39,8 @@ struct afb_event_itf {
 /*
  * Describes the request of afb-daemon for bindings
  */
-struct afb_event {
+struct afb_event
+{
 	const struct afb_event_itf *itf;	/* the interface to use */
 	void *closure;				/* the closure argument for functions of 'itf' */
 };

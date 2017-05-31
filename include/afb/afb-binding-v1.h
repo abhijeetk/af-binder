@@ -126,7 +126,8 @@ struct afb_binding_v1
 /*
  * config mode
  */
-enum afb_mode_v1 {
+enum afb_mode_v1
+{
 	AFB_MODE_LOCAL = 0,     /* run locally */
 	AFB_MODE_REMOTE,        /* run remotely */
 	AFB_MODE_GLOBAL         /* run either remotely or locally (DONT USE! reserved for future) */
