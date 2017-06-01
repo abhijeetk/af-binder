@@ -664,8 +664,11 @@ static void process_sync(struct afb_xreq *xreq)
 		afb_hook_xreq_begin(xreq);
 
 	/* search the api */
-	if (afb_apiset_get(xreq->apiset, xreq->api, &api) < 0) {
-		afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+	if (afb_apiset_get_started(xreq->apiset, xreq->api, &api) < 0) {
+		if (errno == ENOENT)
+			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
+		else
+			afb_xreq_fail_f(xreq, "bad-api-state", "api %s not started correctly: %m", xreq->api);
 	} else {
 		xreq->context.api_key = api.closure;
 		api.itf->call(api.closure, xreq);

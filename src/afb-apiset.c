@@ -38,7 +38,9 @@
 /**
  * Internal description of an api
  */
-struct api_desc {
+struct api_desc
+{
+	int status;
 	const char *name;	/**< name of the api */
 	struct afb_api api;	/**< handler of the api */
 };
@@ -50,7 +52,6 @@ struct afb_apiset
 {
 	struct api_desc *apis;		/**< description of apis */
 	struct afb_apiset *subset;	/**< subset if any */
-	struct afb_api defapi;		/**< default api if any */
 	int count;			/**< count of apis in the set */
 	int timeout;			/**< the timeout in second for the apiset */
 	int refcount;			/**< reference count for freeing resources */
@@ -63,10 +64,10 @@ struct afb_apiset
  * @param name the api name to search
  * @return the descriptor if found or NULL otherwise
  */
-static const struct api_desc *search(struct afb_apiset *set, const char *name)
+static struct api_desc *search(struct afb_apiset *set, const char *name)
 {
 	int i, c, up, lo;
-	const struct api_desc *a;
+	struct api_desc *a;
 
 	/* dichotomic search of the api */
 	/* initial slice */
@@ -137,7 +138,6 @@ struct afb_apiset *afb_apiset_create(const char *name, int timeout)
 		set->timeout = timeout;
 		set->refcount = 1;
 		set->subset = NULL;
-		set->defapi.itf = NULL;
 		if (name)
 			strcpy(set->name, name);
 		else
@@ -204,51 +204,6 @@ void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
 }
 
 /**
- * Check if the apiset has a default api
- * @param set the api set
- * @return 1 if the set has a default api or 0 otherwise
- */
-int afb_apiset_default_api_exist(struct afb_apiset *set)
-{
-	return !!set->defapi.itf;
-}
-
-/**
- * Get the default api of the api set.
- * @param set the api set
- * @param api where to store the default api
- * @return 0 in case of success or -1 when no default api is set
- */
-int afb_apiset_default_api_get(struct afb_apiset *set, struct afb_api *api)
-{
-	if (set->defapi.itf) {
-		*api = set->defapi;
-		return 0;
-	}
-	errno = ENOENT;
-	return -1;
-}
-
-/**
- * Set the default api of the api set
- * @param set the api set
- * @param subset the subset to set
- */
-void afb_apiset_default_api_set(struct afb_apiset *set, struct afb_api api)
-{
-	set->defapi = api;
-}
-
-/**
- * Set the default api of the api set
- * @param set the api set
- */
-void afb_apiset_default_api_drop(struct afb_apiset *set)
-{
-	set->defapi.itf = NULL;
-}
-
-/**
  * Adds the api of 'name' described by 'api'.
  * @param set the api set
  * @param name the name of the api to add (have to survive, not copied!)
@@ -291,6 +246,7 @@ int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api)
 		memmove(apis + 1, apis, ((unsigned)(set->count - i)) * sizeof *apis);
 
 	/* record the plugin */
+	apis->status = -1;
 	apis->api = api;
 	apis->name = name;
 	set->count++;
@@ -359,26 +315,86 @@ int afb_apiset_lookup(struct afb_apiset *set, const char *name, struct afb_api *
  * @param api the structure where to store data about the API of name
  * @return 0 in case of success or -1 in case of error
  */
+static struct api_desc *get_api(struct afb_apiset *set, const char *name)
+{
+	struct api_desc *i = search(set, name);
+	return i || !set->subset ? i : get_api(set->subset, name);
+}
+
+/**
+ * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @param api the structure where to store data about the API of name
+ * @return 0 in case of success or -1 in case of error
+ */
 int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api)
 {
 	const struct api_desc *i;
 
-	i = search(set, name);
-	if (i) {
-		*api = i->api;
+	i = get_api(set, name);
+	if (!i) {
+		errno = ENOENT;
+		return -1;
+	}
+	*api = i->api;
+	return 0;
+}
+
+/**
+ * Starts the service 'api'.
+ * @param api the api
+ * @param share_session if true start the servic"e in a shared session
+ *                      if false start it in its own session
+ * @param onneed if true start the service if possible, if false the api
+ *               must be a service
+ * @return a positive number on success
+ */
+static int start_api(struct afb_apiset *set, struct api_desc *api, int share_session, int onneed)
+{
+	if (api->status == 0)
 		return 0;
+	else if (api->status > 0) {
+		errno = api->status;
+		return -1;
 	}
 
-	if (set->subset && 0 == afb_apiset_get(set->subset, name, api))
-		return 0;
-
-	if (set->defapi.itf) {
-		*api = set->defapi;
-		return 0;
+	if (api->api.itf->service_start) {
+		api->status = EBUSY;
+		if (api->api.itf->service_start(api->api.closure, share_session, onneed, set) >= 0)
+			api->status = 0;
+		else if (errno)
+			api->status = errno ?: ECANCELED;
+	} else {
+		if (onneed)
+			api->status = 0;
+		else {
+			/* already started: it is an error */
+			ERROR("The api %s is not a startable service", api->name);
+			api->status = EINVAL;
+		}
 	}
+	return -!!api->status;
+}
 
-	errno = ENOENT;
-	return -1;
+/**
+ * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @param api the structure where to store data about the API of name
+ * @return 0 in case of success or -1 in case of error
+ */
+int afb_apiset_get_started(struct afb_apiset *set, const char *name, struct afb_api *api)
+{
+	struct api_desc *i;
+
+	i = get_api(set, name);
+	if (!i) {
+		errno = ENOENT;
+		return -1;
+	}
+	*api = i->api;
+	return i->status ? start_api(set, i, 1, 1) : 0;
 }
 
 /**
@@ -393,7 +409,7 @@ int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api
  */
 int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share_session, int onneed)
 {
-	const struct api_desc *a;
+	struct api_desc *a;
 
 	a = search(set, name);
 	if (!a) {
@@ -402,16 +418,7 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
 		return -1;
 	}
 
-	if (a->api.itf->service_start)
-		return a->api.itf->service_start(a->api.closure, share_session, onneed, set);
-
-	if (onneed)
-		return 0;
-
-	/* already started: it is an error */
-	ERROR("The api %s is not a startable service", name);
-	errno = EINVAL;
-	return -1;
+	return start_api(set, a, share_session, onneed);
 }
 
 /**
@@ -424,19 +431,18 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
 int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
 {
 	int rc;
-	const struct api_desc *i, *e;
+	struct api_desc *i, *e;
 
 	i = set->apis;
 	e = &set->apis[set->count];
 	while (i != e) {
-		if (i->api.itf->service_start) {
-			rc = i->api.itf->service_start(i->api.closure, share_session, 1, set);
-			if (rc < 0)
-				return rc;
-		}
+		rc = start_api(set, i, share_session, 1);
+		if (rc < 0)
+			return rc;
 		i++;
 	}
-	return 0;
+	
+	return set->subset ? afb_apiset_start_all_services(set->subset, share_session) : 0;
 }
 
 /**
