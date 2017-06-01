@@ -44,7 +44,7 @@ static void vverbose_cb(void *closure, int level, const char *file, int line, co
 	if (vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, function, fmt, args);
 	else {
-		verbose(level, file, line, function, "%s {binding %s}", p, ditf->prefix);
+		verbose(level, file, line, function, "[API %s] %s", ditf->api, p);
 		free(p);
 	}
 }
@@ -61,10 +61,10 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 	struct afb_ditf *ditf = closure;
 
 	/* makes the event name */
-	plen = strlen(ditf->prefix);
+	plen = strlen(ditf->api);
 	nlen = strlen(name);
 	event = alloca(nlen + plen + 2);
-	memcpy(event, ditf->prefix, plen);
+	memcpy(event, ditf->api, plen);
 	event[plen] = '/';
 	memcpy(event + plen + 1, name, nlen + 1);
 
@@ -79,10 +79,10 @@ static int event_broadcast_cb(void *closure, const char *name, struct json_objec
 	struct afb_ditf *ditf = closure;
 
 	/* makes the event name */
-	plen = strlen(ditf->prefix);
+	plen = strlen(ditf->api);
 	nlen = strlen(name);
 	event = alloca(nlen + plen + 2);
-	memcpy(event, ditf->prefix, plen);
+	memcpy(event, ditf->api, plen);
 	event[plen] = '/';
 	memcpy(event + plen + 1, name, nlen + 1);
 
@@ -205,33 +205,33 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.queue_job = hooked_queue_job_cb
 };
 
-void afb_ditf_init_v2(struct afb_ditf *ditf, const char *prefix, struct afb_binding_data_v2 *data)
+void afb_ditf_init_v2(struct afb_ditf *ditf, const char *api, struct afb_binding_data_v2 *data)
 {
 	ditf->version = 2;
 	ditf->v2 = data;
 	data->daemon.closure = ditf;
-	afb_ditf_rename(ditf, prefix);
+	afb_ditf_rename(ditf, api);
 }
 
-void afb_ditf_init_v1(struct afb_ditf *ditf, const char *prefix, struct afb_binding_interface_v1 *itf)
+void afb_ditf_init_v1(struct afb_ditf *ditf, const char *api, struct afb_binding_interface_v1 *itf)
 {
 	ditf->version = 1;
 	ditf->v1 = itf;
 	itf->verbosity = verbosity;
 	itf->mode = AFB_MODE_LOCAL;
 	itf->daemon.closure = ditf;
-	afb_ditf_rename(ditf, prefix);
+	afb_ditf_rename(ditf, api);
 }
 
-void afb_ditf_rename(struct afb_ditf *ditf, const char *prefix)
+void afb_ditf_rename(struct afb_ditf *ditf, const char *api)
 {
-	ditf->prefix = prefix;
+	ditf->api = api;
 	afb_ditf_update_hook(ditf);
 }
 
 void afb_ditf_update_hook(struct afb_ditf *ditf)
 {
-	int hooked = !!afb_hook_flags_ditf(ditf->prefix);
+	int hooked = !!afb_hook_flags_ditf(ditf->api);
 	switch (ditf->version) {
 	case 1:
 		ditf->v1->daemon.itf = hooked ? &hooked_daemon_itf : &daemon_itf;

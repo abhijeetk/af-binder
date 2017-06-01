@@ -78,6 +78,18 @@ struct afb_hook_svc {
 	void *closure; /**< closure for callbacks */
 };
 
+/**
+ * Definition of a hook for evt
+ */
+struct afb_hook_evt {
+	struct afb_hook_evt *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	char *pattern; /**< event pattern name hooked or NULL for any */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_evt_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
+};
+
 /* synchronisation across threads */
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -90,26 +102,55 @@ static struct afb_hook_ditf *list_of_ditf_hooks = NULL;
 /* list of hooks for svc */
 static struct afb_hook_svc *list_of_svc_hooks = NULL;
 
+/* list of hooks for evt */
+static struct afb_hook_evt *list_of_evt_hooks = NULL;
+
 /******************************************************************************
  * section: default callbacks for tracing requests
  *****************************************************************************/
 
+static char *_pbuf_(const char *fmt, va_list args, char **palloc, char *sbuf, size_t szsbuf)
+{
+	int rc;
+	va_list cp;
+
+	*palloc = NULL;
+	va_copy(cp, args);
+	rc = vsnprintf(sbuf, szsbuf, fmt, args);
+	if ((size_t)rc >= szsbuf) {
+		sbuf[szsbuf-1] = 0;
+		sbuf[szsbuf-2] = sbuf[szsbuf-3] = sbuf[szsbuf-4] = '.';
+		rc = vasprintf(palloc, fmt, cp);
+		if (rc >= 0)
+			sbuf = *palloc;
+	}
+	va_end(cp);
+	return sbuf;
+}
+
+static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
+{
+	char *tag, *data, *mem1, *mem2, buf1[256], buf2[2000];
+	va_list arg1;
+
+	data = _pbuf_(fmt2, arg2, &mem2, buf2, sizeof buf2);
+
+	va_start(arg1, arg2);
+	tag = _pbuf_(fmt1, arg1, &mem1, buf1, sizeof buf1);
+	va_end(arg1);
+
+	NOTICE("[HOOK %s] %s", tag, data);
+
+	free(mem1);
+	free(mem2);
+}
+
 static void _hook_xreq_(const struct afb_xreq *xreq, const char *format, ...)
 {
-	int len;
-	char *buffer;
 	va_list ap;
-
 	va_start(ap, format);
-	len = vasprintf(&buffer, format, ap);
+	_hook_("xreq-%06d:%s/%s", format, ap, xreq->hookindex, xreq->api, xreq->verb);
 	va_end(ap);
-
-	if (len < 0)
-		NOTICE("hook xreq-%06d:%s/%s allocation error", xreq->hookindex, xreq->api, xreq->verb);
-	else {
-		NOTICE("hook xreq-%06d:%s/%s %s", xreq->hookindex, xreq->api, xreq->verb, buffer);
-		free(buffer);
-	}
 }
 
 static void hook_xreq_begin_default_cb(void * closure, const struct afb_xreq *xreq)
@@ -494,20 +535,10 @@ void afb_hook_unref_xreq(struct afb_hook_xreq *hook)
 
 static void _hook_ditf_(const struct afb_ditf *ditf, const char *format, ...)
 {
-	int len;
-	char *buffer;
 	va_list ap;
-
 	va_start(ap, format);
-	len = vasprintf(&buffer, format, ap);
+	_hook_("ditf-%s", format, ap, ditf->api);
 	va_end(ap);
-
-	if (len < 0)
-		NOTICE("hook ditf-%s allocation error for %s", ditf->prefix, format);
-	else {
-		NOTICE("hook ditf-%s %s", ditf->prefix, buffer);
-		free(buffer);
-	}
 }
 
 static void hook_ditf_event_broadcast_before_cb(void *closure, const struct afb_ditf *ditf, const char *name, struct json_object *object)
@@ -613,7 +644,7 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	while (hook) { \
 		if (hook->itf->hook_ditf_##what \
 		 && (hook->flags & afb_hook_flag_ditf_##what) != 0 \
-		 && (!hook->api || !strcasecmp(hook->api, ditf->prefix))) { \
+		 && (!hook->api || !strcasecmp(hook->api, ditf->api))) { \
 			hook->itf->hook_ditf_##what(hook->closure, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
@@ -770,20 +801,10 @@ void afb_hook_unref_ditf(struct afb_hook_ditf *hook)
 
 static void _hook_svc_(const struct afb_svc *svc, const char *format, ...)
 {
-	int len;
-	char *buffer;
 	va_list ap;
-
 	va_start(ap, format);
-	len = vasprintf(&buffer, format, ap);
+	_hook_("svc-%s", format, ap, svc->api);
 	va_end(ap);
-
-	if (len < 0)
-		NOTICE("hook svc-%s allocation error for %s", svc->api, format);
-	else {
-		NOTICE("hook svc-%s %s", svc->api, buffer);
-		free(buffer);
-	}
 }
 
 static void hook_svc_start_before_default_cb(void *closure, const struct afb_svc *svc)
@@ -983,86 +1004,16 @@ void afb_hook_unref_svc(struct afb_hook_svc *hook)
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*********************************************************
-* section hooking evt (event interface)
-*********************************************************/
-
-/**
- * Definition of a hook for evt
- */
-struct afb_hook_evt {
-	struct afb_hook_evt *next; /**< next hook */
-	unsigned refcount; /**< reference count */
-	char *pattern; /**< event pattern name hooked or NULL for any */
-	unsigned flags; /**< hook flags */
-	struct afb_hook_evt_itf *itf; /**< interface of hook */
-	void *closure; /**< closure for callbacks */
-};
-
-/* list of hooks for evt */
-static struct afb_hook_evt *list_of_evt_hooks = NULL;
-
-
 /******************************************************************************
  * section: default callbacks for tracing service interface (evt)
  *****************************************************************************/
 
 static void _hook_evt_(const char *evt, int id, const char *format, ...)
 {
-	int len;
-	char *buffer;
 	va_list ap;
-
 	va_start(ap, format);
-	len = vasprintf(&buffer, format, ap);
+	_hook_("evt-%s:%d", format, ap, evt, id);
 	va_end(ap);
-
-	if (len < 0)
-		NOTICE("hook evt-%s:%d allocation error for %s", evt, id, format);
-	else {
-		NOTICE("hook evt-%s:%d %s", evt, id, buffer);
-		free(buffer);
-	}
 }
 
 static void hook_evt_create_default_cb(void *closure, const char *evt, int id)
@@ -1251,36 +1202,3 @@ void afb_hook_unref_evt(struct afb_hook_evt *hook)
 		}
 	}
 }
-
-#if 0
-#define afb_hook_flag_evt_create			0x000001
-#define afb_hook_flag_evt_push_before			0x000002
-#define afb_hook_flag_evt_push_after			0x000004
-#define afb_hook_flag_evt_broadcast_before		0x000008
-#define afb_hook_flag_evt_broadcast_after		0x000010
-#define afb_hook_flag_evt_drop				0x000020
-#define afb_hook_flag_evt_name				0x000040
-
-struct afb_hook_evt_itf {
-	void (*hook_evt_create)(void *closure, const char *evt);
-	void (*hook_evt_push_before)(void *closure, const char *evt);
-	void (*hook_evt_push_after)(void *closure, const char *evt, int result);
-	void (*hook_evt_broadcast_before)(void *closure, const char *evt);
-	void (*hook_evt_broadcast_after)(void *closure, const char *evt, int result);
-	void (*hook_evt_drop)(void *closure, const char *evt);
-	void (*hook_evt_name)(void *closure, const char *evt);
-};
-
-extern void afb_hook_evt_create(const char *evt);
-extern void afb_hook_evt_push_before(const char *evt);
-extern int afb_hook_evt_push_after(const char *evt, int result);
-extern void afb_hook_evt_broadcast_before(const char *evt);
-extern int afb_hook_evt_broadcast_after(const char *evt, int result);
-extern void afb_hook_evt_drop(const char *evt);
-extern void afb_hook_evt_name(const char *evt);
-
-extern int afb_hook_flags_evt(const char *name);
-extern struct afb_hook_evt *afb_hook_create_evt(const char *name, int flags, struct afb_hook_evt_itf *itf, void *closure);
-extern struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook);
-extern void afb_hook_unref_evt(struct afb_hook_evt *hook);
-#endif
