@@ -45,7 +45,7 @@
 #define FRAME_SET_RSV3(BYTE)        (((BYTE) & 0x01) << 4)
 #define FRAME_SET_OPCODE(BYTE)      ((BYTE) & 0x0F)
 #define FRAME_SET_MASK(BYTE)        (((BYTE) & 0x01) << 7)
-#define FRAME_SET_LENGTH(X64, IDX)  (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
+#define FRAME_SET_LENGTH(X64, IDX)  (unsigned char)((sizeof(X64)) <= (IDX) ? 0 : (((X64) >> ((IDX)*8)) & 0xFF))
 
 #define OPCODE_CONTINUATION 0x0
 #define OPCODE_TEXT         0x1
