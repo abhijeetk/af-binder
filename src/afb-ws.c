@@ -395,12 +395,12 @@ static int aws_read(struct afb_ws *ws, size_t size)
 	ssize_t sz;
 	char *buffer;
 
-	if (size != 0) {
+	if (size != 0 || ws->buffer.buffer == NULL) {
 		buffer = realloc(ws->buffer.buffer, ws->buffer.size + size + 1);
 		if (buffer == NULL)
 			return 0;
 		ws->buffer.buffer = buffer;
-		do {
+		while (size != 0) {
 			sz = websock_read(ws->ws, &buffer[ws->buffer.size], size);
 			if (sz < 0) {
 				if (errno != EAGAIN)
@@ -412,7 +412,7 @@ static int aws_read(struct afb_ws *ws, size_t size)
 				ws->buffer.size += (size_t)sz;
 				size -= (size_t)sz;
 			}
-		} while (size != 0);
+		}
 	}
 	return 1;
 }
