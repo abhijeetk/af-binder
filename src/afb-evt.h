@@ -44,3 +44,4 @@ extern int afb_evt_event_id(struct afb_event event);
 extern int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event);
 extern int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event);
 
+extern void afb_evt_update_hooks();

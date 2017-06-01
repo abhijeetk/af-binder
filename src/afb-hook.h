@@ -187,14 +187,14 @@ extern void afb_hook_unref_ditf(struct afb_hook_ditf *hook);
 * section hooking svc (service interface)
 *********************************************************/
 
-#define afb_hook_flag_svc_start_before		0x000001
-#define afb_hook_flag_svc_start_after		0x000002
-#define afb_hook_flag_svc_on_event_before	0x000004
-#define afb_hook_flag_svc_on_event_after	0x000008
-#define afb_hook_flag_svc_call			0x000010
-#define afb_hook_flag_svc_call_result		0x000020
-#define afb_hook_flag_svc_callsync		0x000040
-#define afb_hook_flag_svc_callsync_result	0x000080
+#define afb_hook_flag_svc_start_before			0x000001
+#define afb_hook_flag_svc_start_after			0x000002
+#define afb_hook_flag_svc_on_event_before		0x000004
+#define afb_hook_flag_svc_on_event_after		0x000008
+#define afb_hook_flag_svc_call				0x000010
+#define afb_hook_flag_svc_call_result			0x000020
+#define afb_hook_flag_svc_callsync			0x000040
+#define afb_hook_flag_svc_callsync_result		0x000080
 
 #define afb_hook_flags_svc_all		(afb_hook_flag_svc_start_before|afb_hook_flag_svc_start_after\
 					|afb_hook_flag_svc_on_event_before|afb_hook_flag_svc_on_event_after\
@@ -225,4 +225,45 @@ extern int afb_hook_flags_svc(const char *api);
 extern struct afb_hook_svc *afb_hook_create_svc(const char *api, int flags, struct afb_hook_svc_itf *itf, void *closure);
 extern struct afb_hook_svc *afb_hook_addref_svc(struct afb_hook_svc *hook);
 extern void afb_hook_unref_svc(struct afb_hook_svc *hook);
+
+/*********************************************************
+* section hooking evt (event interface)
+*********************************************************/
+
+#define afb_hook_flag_evt_create			0x000001
+#define afb_hook_flag_evt_push_before			0x000002
+#define afb_hook_flag_evt_push_after			0x000004
+#define afb_hook_flag_evt_broadcast_before		0x000008
+#define afb_hook_flag_evt_broadcast_after		0x000010
+#define afb_hook_flag_evt_name				0x000020
+#define afb_hook_flag_evt_drop				0x000040
+
+#define afb_hook_flags_evt_common	(afb_hook_flag_evt_push_before|afb_hook_flag_evt_broadcast_before)
+#define afb_hook_flags_evt_extra	(afb_hook_flags_evt_common\
+					|afb_hook_flag_evt_push_after|afb_hook_flag_evt_broadcast_after\
+					|afb_hook_flag_evt_create|afb_hook_flag_evt_drop)
+#define afb_hook_flags_evt_all		(afb_hook_flags_evt_extra|afb_hook_flag_evt_name)
+
+struct afb_hook_evt_itf {
+	void (*hook_evt_create)(void *closure, const char *evt, int id);
+	void (*hook_evt_push_before)(void *closure, const char *evt, int id, struct json_object *obj);
+	void (*hook_evt_push_after)(void *closure, const char *evt, int id, struct json_object *obj, int result);
+	void (*hook_evt_broadcast_before)(void *closure, const char *evt, int id, struct json_object *obj);
+	void (*hook_evt_broadcast_after)(void *closure, const char *evt, int id, struct json_object *obj, int result);
+	void (*hook_evt_name)(void *closure, const char *evt, int id);
+	void (*hook_evt_drop)(void *closure, const char *evt, int id);
+};
+
+extern void afb_hook_evt_create(const char *evt, int id);
+extern void afb_hook_evt_push_before(const char *evt, int id, struct json_object *obj);
+extern int afb_hook_evt_push_after(const char *evt, int id, struct json_object *obj, int result);
+extern void afb_hook_evt_broadcast_before(const char *evt, int id, struct json_object *obj);
+extern int afb_hook_evt_broadcast_after(const char *evt, int id, struct json_object *obj, int result);
+extern void afb_hook_evt_name(const char *evt, int id);
+extern void afb_hook_evt_drop(const char *evt, int id);
+
+extern int afb_hook_flags_evt(const char *name);
+extern struct afb_hook_evt *afb_hook_create_evt(const char *name, int flags, struct afb_hook_evt_itf *itf, void *closure);
+extern struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook);
+extern void afb_hook_unref_evt(struct afb_hook_evt *hook);
 

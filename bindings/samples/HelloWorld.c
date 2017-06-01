@@ -109,6 +109,13 @@ static int event_push(struct json_object *args, const char *tag)
 	return e ? afb_event_push(e->event, json_object_get(args)) : -1;
 }
 
+static int event_broadcast(struct json_object *args, const char *tag)
+{
+	struct event *e;
+	e = event_get(tag);
+	return e ? afb_event_broadcast(e->event, json_object_get(args)) : -1;
+}
+
 // Sample Generic Ping Debug API
 static void ping(afb_req request, json_object *jresp, const char *tag)
 {
@@ -359,6 +366,31 @@ static void exitnow (afb_req request)
 	exit(code);
 }
 
+static void broadcast(afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+	const char *name = afb_req_value(request, "name");
+	const char *data = afb_req_value(request, "data");
+	json_object *object = data ? json_tokener_parse(data) : NULL;
+
+	if (tag != NULL) {
+		pthread_mutex_lock(&mutex);
+		if (0 > event_broadcast(object, tag))
+			afb_req_fail(request, "failed", "broadcast error");
+		else
+			afb_req_success(request, NULL, NULL);
+		pthread_mutex_unlock(&mutex);
+	} else if (name != NULL) {
+		if (0 > afb_daemon_broadcast_event(name, object))
+			afb_req_fail(request, "failed", "broadcast error");
+		else
+			afb_req_success(request, NULL, NULL);
+	} else {
+		afb_req_fail(request, "failed", "bad arguments");
+	}
+	json_object_put(object);
+}
+
 static int preinit()
 {
 	NOTICE("hello binding comes to live");
@@ -395,6 +427,7 @@ static const afb_verb_v2 verbs[]= {
   { "call",         call       , NULL, AFB_SESSION_NONE },
   { "callsync",     callsync   , NULL, AFB_SESSION_NONE },
   { "verbose",      verbose    , NULL, AFB_SESSION_NONE },
+  { "broadcast",    broadcast  , NULL, AFB_SESSION_NONE },
   { "exit",         exitnow    , NULL, AFB_SESSION_NONE },
   { NULL}
 };

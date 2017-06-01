@@ -57,6 +57,7 @@ struct afb_config {
 	int tracereq;
 	int traceditf;
 	int tracesvc;
+	int traceevt;
 	int noHttpd;
 };
 

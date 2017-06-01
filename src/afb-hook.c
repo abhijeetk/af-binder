@@ -23,6 +23,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fnmatch.h>
 
 #include <json-c/json.h>
 
@@ -36,6 +37,7 @@
 #include "afb-xreq.h"
 #include "afb-ditf.h"
 #include "afb-svc.h"
+#include "afb-evt.h"
 #include "verbose.h"
 
 /**
@@ -182,12 +184,12 @@ static void hook_xreq_session_set_LOA_default_cb(void * closure, const struct af
 
 static void hook_xreq_subscribe_default_cb(void * closure, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	_hook_xreq_(xreq, "subscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
+	_hook_xreq_(xreq, "subscribe(%s:%d) -> %d", afb_evt_event_name(event), afb_evt_event_id(event), result);
 }
 
 static void hook_xreq_unsubscribe_default_cb(void * closure, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	_hook_xreq_(xreq, "unsubscribe(%s:%p) -> %d", afb_event_name(event), event.closure, result);
+	_hook_xreq_(xreq, "unsubscribe(%s:%d) -> %d", afb_evt_event_name(event), afb_evt_event_id(event), result);
 }
 
 static void hook_xreq_subcall_default_cb(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
@@ -553,7 +555,7 @@ static void hook_ditf_vverbose_cb(void*closure, const struct afb_ditf *ditf, int
 
 static void hook_ditf_event_make_cb(void *closure, const struct afb_ditf *ditf, const char *name, struct afb_event result)
 {
-	_hook_ditf_(ditf, "event_make(%s) -> %s:%p", name, afb_event_name(result), result.closure);
+	_hook_ditf_(ditf, "event_make(%s) -> %s:%d", name, afb_evt_event_name(result), afb_evt_event_id(result));
 }
 
 static void hook_ditf_rootdir_get_fd_cb(void *closure, const struct afb_ditf *ditf, int result)
@@ -981,3 +983,304 @@ void afb_hook_unref_svc(struct afb_hook_svc *hook)
 	}
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*********************************************************
+* section hooking evt (event interface)
+*********************************************************/
+
+/**
+ * Definition of a hook for evt
+ */
+struct afb_hook_evt {
+	struct afb_hook_evt *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	char *pattern; /**< event pattern name hooked or NULL for any */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_evt_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
+};
+
+/* list of hooks for evt */
+static struct afb_hook_evt *list_of_evt_hooks = NULL;
+
+
+/******************************************************************************
+ * section: default callbacks for tracing service interface (evt)
+ *****************************************************************************/
+
+static void _hook_evt_(const char *evt, int id, const char *format, ...)
+{
+	int len;
+	char *buffer;
+	va_list ap;
+
+	va_start(ap, format);
+	len = vasprintf(&buffer, format, ap);
+	va_end(ap);
+
+	if (len < 0)
+		NOTICE("hook evt-%s:%d allocation error for %s", evt, id, format);
+	else {
+		NOTICE("hook evt-%s:%d %s", evt, id, buffer);
+		free(buffer);
+	}
+}
+
+static void hook_evt_create_default_cb(void *closure, const char *evt, int id)
+{
+	_hook_evt_(evt, id, "create");
+}
+
+static void hook_evt_push_before_default_cb(void *closure, const char *evt, int id, struct json_object *obj)
+{
+	_hook_evt_(evt, id, "push.before(%s)", json_object_to_json_string(obj));
+}
+
+
+static void hook_evt_push_after_default_cb(void *closure, const char *evt, int id, struct json_object *obj, int result)
+{
+	_hook_evt_(evt, id, "push.after(%s) -> %d", json_object_to_json_string(obj), result);
+}
+
+static void hook_evt_broadcast_before_default_cb(void *closure, const char *evt, int id, struct json_object *obj)
+{
+	_hook_evt_(evt, id, "broadcast.before(%s)", json_object_to_json_string(obj));
+}
+
+static void hook_evt_broadcast_after_default_cb(void *closure, const char *evt, int id, struct json_object *obj, int result)
+{
+	_hook_evt_(evt, id, "broadcast.after(%s) -> %d", json_object_to_json_string(obj), result);
+}
+
+static void hook_evt_name_default_cb(void *closure, const char *evt, int id)
+{
+	_hook_evt_(evt, id, "name");
+}
+
+static void hook_evt_drop_default_cb(void *closure, const char *evt, int id)
+{
+	_hook_evt_(evt, id, "drop");
+}
+
+static struct afb_hook_evt_itf hook_evt_default_itf = {
+	.hook_evt_create = hook_evt_create_default_cb,
+	.hook_evt_push_before = hook_evt_push_before_default_cb,
+	.hook_evt_push_after = hook_evt_push_after_default_cb,
+	.hook_evt_broadcast_before = hook_evt_broadcast_before_default_cb,
+	.hook_evt_broadcast_after = hook_evt_broadcast_after_default_cb,
+	.hook_evt_name = hook_evt_name_default_cb,
+	.hook_evt_drop = hook_evt_drop_default_cb
+};
+
+/******************************************************************************
+ * section: hooks for tracing service interface (evt)
+ *****************************************************************************/
+
+#define _HOOK_EVT_(what,...)   \
+	struct afb_hook_evt *hook; \
+	pthread_rwlock_rdlock(&rwlock); \
+	hook = list_of_evt_hooks; \
+	while (hook) { \
+		if (hook->itf->hook_evt_##what \
+		 && (hook->flags & afb_hook_flag_evt_##what) != 0 \
+		 && (!hook->pattern || !fnmatch(hook->pattern, evt, FNM_CASEFOLD))) { \
+			hook->itf->hook_evt_##what(hook->closure, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
+
+void afb_hook_evt_create(const char *evt, int id)
+{
+	_HOOK_EVT_(create, evt, id);
+}
+
+void afb_hook_evt_push_before(const char *evt, int id, struct json_object *obj)
+{
+	_HOOK_EVT_(push_before, evt, id, obj);
+}
+
+int afb_hook_evt_push_after(const char *evt, int id, struct json_object *obj, int result)
+{
+	_HOOK_EVT_(push_after, evt, id, obj, result);
+	return result;
+}
+
+void afb_hook_evt_broadcast_before(const char *evt, int id, struct json_object *obj)
+{
+	_HOOK_EVT_(broadcast_before, evt, id, obj);
+}
+
+int afb_hook_evt_broadcast_after(const char *evt, int id, struct json_object *obj, int result)
+{
+	_HOOK_EVT_(broadcast_after, evt, id, obj, result);
+	return result;
+}
+
+void afb_hook_evt_name(const char *evt, int id)
+{
+	_HOOK_EVT_(name, evt, id);
+}
+
+void afb_hook_evt_drop(const char *evt, int id)
+{
+	_HOOK_EVT_(drop, evt, id);
+}
+
+/******************************************************************************
+ * section: hooking services (evt)
+ *****************************************************************************/
+
+int afb_hook_flags_evt(const char *name)
+{
+	int flags;
+	struct afb_hook_evt *hook;
+
+	pthread_rwlock_rdlock(&rwlock);
+	flags = 0;
+	hook = list_of_evt_hooks;
+	while (hook) {
+		if (!name || !hook->pattern || !fnmatch(hook->pattern, name, FNM_CASEFOLD))
+			flags |= hook->flags;
+		hook = hook->next;
+	}
+	pthread_rwlock_unlock(&rwlock);
+	return flags;
+}
+
+struct afb_hook_evt *afb_hook_create_evt(const char *pattern, int flags, struct afb_hook_evt_itf *itf, void *closure)
+{
+	struct afb_hook_evt *hook;
+
+	/* alloc the result */
+	hook = calloc(1, sizeof *hook);
+	if (hook == NULL)
+		return NULL;
+
+	/* get a copy of the names */
+	hook->pattern = pattern ? strdup(pattern) : NULL;
+	if (pattern && !hook->pattern) {
+		free(hook);
+		return NULL;
+	}
+
+	/* initialise the rest */
+	hook->refcount = 1;
+	hook->flags = flags;
+	hook->itf = itf ? itf : &hook_evt_default_itf;
+	hook->closure = closure;
+
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
+	hook->next = list_of_evt_hooks;
+	list_of_evt_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* returns it */
+	return hook;
+}
+
+struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook)
+{
+	pthread_rwlock_wrlock(&rwlock);
+	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
+	return hook;
+}
+
+void afb_hook_unref_evt(struct afb_hook_evt *hook)
+{
+	struct afb_hook_evt **prv;
+
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_evt_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook->pattern);
+			free(hook);
+		}
+	}
+}
+
+#if 0
+#define afb_hook_flag_evt_create			0x000001
+#define afb_hook_flag_evt_push_before			0x000002
+#define afb_hook_flag_evt_push_after			0x000004
+#define afb_hook_flag_evt_broadcast_before		0x000008
+#define afb_hook_flag_evt_broadcast_after		0x000010
+#define afb_hook_flag_evt_drop				0x000020
+#define afb_hook_flag_evt_name				0x000040
+
+struct afb_hook_evt_itf {
+	void (*hook_evt_create)(void *closure, const char *evt);
+	void (*hook_evt_push_before)(void *closure, const char *evt);
+	void (*hook_evt_push_after)(void *closure, const char *evt, int result);
+	void (*hook_evt_broadcast_before)(void *closure, const char *evt);
+	void (*hook_evt_broadcast_after)(void *closure, const char *evt, int result);
+	void (*hook_evt_drop)(void *closure, const char *evt);
+	void (*hook_evt_name)(void *closure, const char *evt);
+};
+
+extern void afb_hook_evt_create(const char *evt);
+extern void afb_hook_evt_push_before(const char *evt);
+extern int afb_hook_evt_push_after(const char *evt, int result);
+extern void afb_hook_evt_broadcast_before(const char *evt);
+extern int afb_hook_evt_broadcast_after(const char *evt, int result);
+extern void afb_hook_evt_drop(const char *evt);
+extern void afb_hook_evt_name(const char *evt);
+
+extern int afb_hook_flags_evt(const char *name);
+extern struct afb_hook_evt *afb_hook_create_evt(const char *name, int flags, struct afb_hook_evt_itf *itf, void *closure);
+extern struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook);
+extern void afb_hook_unref_evt(struct afb_hook_evt *hook);
+#endif

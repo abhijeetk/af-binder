@@ -87,6 +87,7 @@
 
 #define ADD_CALL           'c'
 #define SET_TRACEDITF      'D'
+#define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
 #define SET_QUIET          'q'
@@ -99,7 +100,7 @@
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
 
-#define SHORTOPTS	"c:D:ehqrT:t:u:Vvw:"
+#define SHORTOPTS	"c:D:E:ehqrT:t:u:Vvw:"
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -154,6 +155,8 @@ static AFB_options cliOptions[] = {
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
 	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
 	{SET_TRACESVC,      1, "tracesvc",    "Log the requests: no, all"},
+	{SET_TRACEEVT,      1, "traceevt",    "Log the requests: no, common, extra, all"},
+
 	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
@@ -189,6 +192,14 @@ static struct enumdesc traceditf_desc[] = {
 static struct enumdesc tracesvc_desc[] = {
 	{ "no",     0 },
 	{ "all",    afb_hook_flags_svc_all },
+	{ NULL, 0 }
+};
+
+static struct enumdesc traceevt_desc[] = {
+	{ "no",     0 },
+	{ "common", afb_hook_flags_evt_common },
+	{ "extra",  afb_hook_flags_evt_extra },
+	{ "all",    afb_hook_flags_evt_all },
 	{ NULL, 0 }
 };
 
@@ -516,6 +527,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 		case SET_TRACESVC:
 			config->tracesvc = argvalenum(optc, tracesvc_desc);
+			break;
+
+		case SET_TRACEEVT:
+			config->traceevt = argvalenum(optc, traceevt_desc);
 			break;
 
 		case SET_NO_HTTPD:

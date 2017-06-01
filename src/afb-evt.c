@@ -28,6 +28,7 @@
 #include <afb/afb-event-itf.h>
 
 #include "afb-evt.h"
+#include "afb-hook.h"
 #include "verbose.h"
 
 struct afb_evt_watch;
@@ -69,6 +70,9 @@ struct afb_evt_event {
 
 	/* id of the event */
 	int id;
+
+	/* hooking */
+	int hookflags;
 
 	/* mutex of the event */
 	pthread_mutex_t mutex;
@@ -123,13 +127,43 @@ static int event_id_counter = 0;
 static int event_id_wrapped = 0;
 
 /*
+ * Broadcasts the 'event' of 'id' with its 'obj'
+ * 'obj' is released (like json_object_put)
+ * calls hooks if hookflags isn't 0
+ * Returns the count of listener having receive the event.
+ */
+static int broadcast(const char *event, struct json_object *obj, int id, int hookflags)
+{
+	int result;
+	struct afb_evt_listener *listener;
+
+	if (hookflags & afb_hook_flag_evt_broadcast_before)
+		afb_hook_evt_broadcast_before(event, id, obj);
+	result = 0;
+	pthread_mutex_lock(&listeners_mutex);
+	listener = listeners;
+	while(listener) {
+		if (listener->itf->broadcast != NULL) {
+			listener->itf->broadcast(listener->closure, event, id, json_object_get(obj));
+			result++;
+		}
+		listener = listener->next;
+	}
+	pthread_mutex_unlock(&listeners_mutex);
+	if (hookflags & afb_hook_flag_evt_broadcast_after)
+		afb_hook_evt_broadcast_after(event, id, obj, result);
+	json_object_put(obj);
+	return result;
+}
+
+/*
  * Broadcasts the event 'evt' with its 'object'
  * 'object' is released (like json_object_put)
  * Returns the count of listener that received the event.
  */
 static int evt_broadcast(struct afb_evt_event *evt, struct json_object *object)
 {
-	return afb_evt_broadcast(evt->name, object);
+	return broadcast(evt->name, object, evt->id, evt->hookflags);
 }
 
 /*
@@ -139,22 +173,7 @@ static int evt_broadcast(struct afb_evt_event *evt, struct json_object *object)
  */
 int afb_evt_broadcast(const char *event, struct json_object *object)
 {
-	int result;
-	struct afb_evt_listener *listener;
-
-	result = 0;
-	pthread_mutex_lock(&listeners_mutex);
-	listener = listeners;
-	while(listener) {
-		if (listener->itf->broadcast != NULL) {
-			listener->itf->broadcast(listener->closure, event, 0, json_object_get(object));
-			result++;
-		}
-		listener = listener->next;
-	}
-	pthread_mutex_unlock(&listeners_mutex);
-	json_object_put(object);
-	return result;
+	return broadcast(event, object, 0, -1);
 }
 
 /*
@@ -170,6 +189,8 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 
 	result = 0;
 	pthread_mutex_lock(&evt->mutex);
+	if (evt->hookflags & afb_hook_flag_evt_push_before)
+		afb_hook_evt_push_before(evt->name, evt->id, obj);
 	watch = evt->watchs;
 	while(watch) {
 		listener = watch->listener;
@@ -180,6 +201,8 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 		}
 		watch = watch->next_by_event;
 	}
+	if (evt->hookflags & afb_hook_flag_evt_push_after)
+		afb_hook_evt_push_after(evt->name, evt->id, obj, result);
 	pthread_mutex_unlock(&evt->mutex);
 	json_object_put(obj);
 	return result;
@@ -190,6 +213,8 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
  */
 static const char *evt_name(struct afb_evt_event *evt)
 {
+	if (evt->hookflags & afb_hook_flag_evt_name)
+		afb_hook_evt_name(evt->name, evt->id);
 	return evt->name;
 }
 
@@ -256,6 +281,10 @@ static void evt_destroy(struct afb_evt_event *evt)
 				pthread_mutex_unlock(&listener->mutex);
 			}
 
+			/* hook */
+			if (evt->hookflags & afb_hook_flag_evt_drop)
+				afb_hook_evt_drop(evt->name, evt->id);
+
 			/* free */
 			pthread_mutex_destroy(&evt->mutex);
 			free(evt);
@@ -303,6 +332,9 @@ struct afb_event afb_evt_create_event(const char *name)
 	evt->id = event_id_counter;
 	pthread_mutex_init(&evt->mutex, NULL);
 	events = evt;
+	evt->hookflags = afb_hook_flags_evt(evt->name);
+	if (evt->hookflags & afb_hook_flag_evt_create)
+		afb_hook_evt_create(evt->name, evt->id);
 	pthread_mutex_unlock(&events_mutex);
 
 	/* returns the event */
@@ -495,5 +527,18 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 	pthread_mutex_unlock(&listener->mutex);
 	errno = ENOENT;
 	return -1;
+}
+
+/*
+ * update the hooks for events
+ */
+void afb_evt_update_hooks()
+{
+	struct afb_evt_event *evt;
+
+	pthread_mutex_lock(&events_mutex);
+	for (evt = events ; evt ; evt = evt->next)
+		evt->hookflags = afb_hook_flags_evt(evt->name);
+	pthread_mutex_unlock(&events_mutex);
 }
 

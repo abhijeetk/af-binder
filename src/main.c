@@ -573,6 +573,8 @@ static void start()
 		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
 	if (config->tracesvc)
 		afb_hook_create_svc(NULL, config->tracesvc, NULL, NULL);
+	if (config->traceevt)
+		afb_hook_create_evt(NULL, config->traceevt, NULL, NULL);
 
 	/* load bindings */
 	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
