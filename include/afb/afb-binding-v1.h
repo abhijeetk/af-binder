@@ -25,7 +25,7 @@ struct json_object;
 #include "afb-daemon-common.h"
 
 #include "afb-session-v1.h"
-#include "afb-daemon-v1.h"
+#include "afb-service-v1.h"
 #include "afb-daemon-v1.h"
 
 struct afb_binding_v1;
