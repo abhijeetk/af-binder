@@ -63,10 +63,23 @@ static struct json_object *xreq_json_cb(void *closure)
 static struct afb_arg xreq_get_cb(void *closure, const char *name)
 {
 	struct afb_xreq *xreq = closure;
+	struct afb_arg arg;
+	struct json_object *object, *value;
+
 	if (xreq->queryitf->get)
-		return xreq->queryitf->get(xreq, name);
-	else
-		return afb_msg_json_get_arg(xreq_json_cb(closure), name);
+		arg = xreq->queryitf->get(xreq, name);
+	else {
+		object = xreq_json_cb(closure);
+		if (json_object_object_get_ex(object, name, &value)) {
+			arg.name = name;
+			arg.value = json_object_get_string(value);
+		} else {
+			arg.name = NULL;
+			arg.value = NULL;
+		}
+		arg.path = NULL;
+	}
+	return arg;
 }
 
 static void xreq_success_cb(void *closure, struct json_object *obj, const char *info)
