@@ -141,3 +141,12 @@ static inline struct afb_req afb_daemon_unstore_req_v2(struct afb_stored_req *sr
 	return afb_get_daemon_v2().itf->unstore_req(afb_get_daemon_v2().closure, sreq);
 }
 
+/*
+ * Tells that it requires the API of "name" to exist
+ * and if 'initialized' is not null to be initialized.
+ * Returns 0 in case of success or -1 in case of error.
+ */
+static inline int afb_daemon_require_api_v2(const char *name, int initialized)
+{
+	return afb_get_daemon_v2().itf->require_api(afb_get_daemon_v2().closure, name, initialized);
+}

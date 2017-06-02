@@ -163,3 +163,13 @@ static inline int afb_daemon_queue_job_v1(struct afb_daemon daemon, void (*callb
 {
 	return daemon.itf->queue_job(daemon.closure, callback, argument, group, timeout);
 }
+
+/*
+ * Tells that it requires the API of "name" to exist
+ * and if 'initialized' is not null to be initialized.
+ * Returns 0 in case of success or -1 in case of error.
+ */
+static inline int afb_daemon_require_api_v1(struct afb_daemon daemon, const char *name, int initialized)
+{
+	return daemon.itf->require_api(daemon.closure, name, initialized);
+}

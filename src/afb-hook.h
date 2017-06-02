@@ -150,6 +150,8 @@ extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
 #define afb_hook_flag_ditf_rootdir_open_locale		0x000100
 #define afb_hook_flag_ditf_queue_job			0x000200
 #define afb_hook_flag_ditf_unstore_req			0x000400
+#define afb_hook_flag_ditf_require_api			0x000800
+#define afb_hook_flag_ditf_require_api_result		0x001000
 
 #define afb_hook_flags_ditf_common	(afb_hook_flag_ditf_vverbose\
 					|afb_hook_flag_ditf_event_make\
@@ -161,7 +163,9 @@ extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
 					|afb_hook_flag_ditf_rootdir_get_fd\
 					|afb_hook_flag_ditf_rootdir_open_locale\
 					|afb_hook_flag_ditf_queue_job\
-					|afb_hook_flag_ditf_unstore_req)
+					|afb_hook_flag_ditf_unstore_req\
+					|afb_hook_flag_ditf_require_api\
+					|afb_hook_flag_ditf_require_api_result)
 
 #define afb_hook_flags_ditf_all		(afb_hook_flags_ditf_common|afb_hook_flags_ditf_extra)
 
@@ -177,6 +181,8 @@ struct afb_hook_ditf_itf {
 	void (*hook_ditf_rootdir_open_locale)(void *closure, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
 	void (*hook_ditf_queue_job)(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
 	void (*hook_ditf_unstore_req)(void *closure, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
+	void (*hook_ditf_require_api)(void *closure, const struct afb_ditf *ditf, const char *name, int initialized);
+	void (*hook_ditf_require_api_result)(void *closure, const struct afb_ditf *ditf, const char *name, int initialized, int result);
 };
 
 extern void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object);
@@ -190,6 +196,8 @@ extern int afb_hook_ditf_rootdir_get_fd(const struct afb_ditf *ditf, int result)
 extern int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
 extern int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
 extern void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq);
+extern void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, int initialized);
+extern int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result);
 
 extern int afb_hook_flags_ditf(const char *api);
 extern struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure);

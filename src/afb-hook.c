@@ -647,6 +647,16 @@ static void hook_ditf_unstore_req_cb(void * closure,  const struct afb_ditf *dit
 	_hook_ditf_(ditf, "unstore_req(%p)", sreq);
 }
 
+static void hook_ditf_require_api_cb(void *closure, const struct afb_ditf *ditf, const char *name, int initialized)
+{
+	_hook_ditf_(ditf, "require_api(%s, %d)...", name, initialized);
+}
+
+static void hook_ditf_require_api_result_cb(void *closure, const struct afb_ditf *ditf, const char *name, int initialized, int result)
+{
+	_hook_ditf_(ditf, "...require_api(%s, %d) -> %d", name, initialized, result);
+}
+
 static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_event_broadcast_before = hook_ditf_event_broadcast_before_cb,
 	.hook_ditf_event_broadcast_after = hook_ditf_event_broadcast_after_cb,
@@ -658,7 +668,9 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_rootdir_get_fd = hook_ditf_rootdir_get_fd_cb,
 	.hook_ditf_rootdir_open_locale = hook_ditf_rootdir_open_locale_cb,
 	.hook_ditf_queue_job = hook_ditf_queue_job_cb,
-	.hook_ditf_unstore_req = hook_ditf_unstore_req_cb
+	.hook_ditf_unstore_req = hook_ditf_unstore_req_cb,
+	.hook_ditf_require_api = hook_ditf_require_api_cb,
+	.hook_ditf_require_api_result = hook_ditf_require_api_result_cb
 };
 
 /******************************************************************************
@@ -740,6 +752,17 @@ int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int si
 void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq)
 {
 	_HOOK_DITF_(unstore_req, ditf, sreq);
+}
+
+void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, int initialized)
+{
+	_HOOK_DITF_(require_api, ditf, name, initialized);
+}
+
+int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result)
+{
+	_HOOK_DITF_(require_api_result, ditf, name, initialized, result);
+	return result;
 }
 
 /******************************************************************************
