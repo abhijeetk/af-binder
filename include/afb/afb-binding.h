@@ -82,6 +82,7 @@ typedef struct afb_daemon               afb_daemon;
 typedef struct afb_event                afb_event;
 typedef struct afb_arg                  afb_arg;
 typedef struct afb_req                  afb_req;
+typedef struct afb_stored_req           afb_stored_req;
 typedef struct afb_service              afb_service;
 
 #if 0
