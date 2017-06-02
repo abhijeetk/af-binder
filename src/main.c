@@ -529,9 +529,14 @@ static void run_startup_calls()
  | job for starting the daemon
  +--------------------------------------------------------- */
 
-static void start()
+static void start(int signum)
 {
 	struct afb_hsrv *hsrv;
+
+	if (signum) {
+		ERROR("start aborted: received signal %s", strsignal(signum));
+		exit(1);
+	}
 
 	// ------------------ sanity check ----------------------------------------
 	if (config->httpdPort <= 0) {

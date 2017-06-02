@@ -689,7 +689,7 @@ struct sd_event *jobs_get_sd_event()
  * @param start         The start routine to activate (can't be NULL)
  * @return 0 in case of success or -1 in case of error.
  */
-int jobs_start(int allowed_count, int start_count, int waiter_count, void (*start)())
+int jobs_start(int allowed_count, int start_count, int waiter_count, void (*start)(int signum))
 {
 	int rc, launched;
 	struct thread me;

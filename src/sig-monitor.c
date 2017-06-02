@@ -187,6 +187,3 @@ void sig_monitor(int timeout, void (*function)(int sig, void*), void *arg)
 }
 
 
-
-
-
