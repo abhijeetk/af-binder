@@ -17,10 +17,16 @@
 
 #pragma once
 
-#pragma GCC warning "\n\n\
-    This header file <afb/afb-req-itf.h> is OBSOLETE.\n\
-    It is provided for COMPATIBILITY ONLY.\n\n\
-    Please USE <afb/afb-binding.h> and ADAPT YOUR CODE to new names.\n"
+#include "afb-req-common.h"
 
-#include "afb-binding.h"
+/*
+ * Stores 'req' on heap for asynchrnous use.
+ * Returns a handler to the stored 'req' or NULL on memory depletion.
+ * The count of reference to 'req' is incremented on success
+ * (see afb_req_addref).
+ */
+static inline struct afb_stored_req *afb_req_store_v2(struct afb_req req)
+{
+	return req.itf->store(req.closure);
+}
 

@@ -28,6 +28,7 @@ struct afb_session;
 struct afb_xreq;
 struct afb_ditf;
 struct afb_svc;
+struct afb_stored_req;
 struct sd_bus;
 struct sd_event;
 
@@ -56,6 +57,8 @@ struct afb_hook_xreq;
 #define afb_hook_flag_req_subcallsync		0x020000
 #define afb_hook_flag_req_subcallsync_result	0x040000
 #define afb_hook_flag_req_vverbose		0x080000
+#define afb_hook_flag_req_store			0x100000
+#define afb_hook_flag_req_unstore		0x200000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -69,12 +72,14 @@ struct afb_hook_xreq;
 /* extra flags */
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
 #define afb_hook_flags_req_context	(afb_hook_flag_req_context_get|afb_hook_flag_req_context_set)
+#define afb_hook_flags_req_store	(afb_hook_flag_req_store|afb_hook_flag_req_unstore)
 
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
 					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcall\
 					|afb_hook_flag_req_vverbose)
-#define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context)
+#define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context\
+					|afb_hook_flags_req_store)
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
 
 struct afb_hook_xreq_itf {
@@ -97,6 +102,8 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_subcallsync)(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 	void (*hook_xreq_subcallsync_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
 	void (*hook_xreq_vverbose)(void * closure, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
+	void (*hook_xreq_store)(void * closure, const struct afb_xreq *xreq, struct afb_stored_req *sreq);
+	void (*hook_xreq_unstore)(void * closure, const struct afb_xreq *xreq);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -125,6 +132,8 @@ extern void afb_hook_xreq_subcall_result(const struct afb_xreq *xreq, int status
 extern void afb_hook_xreq_subcallsync(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 extern int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 extern void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
+extern void afb_hook_xreq_store(const struct afb_xreq *xreq, struct afb_stored_req *sreq);
+extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
 
 /*********************************************************
 * section hooking ditf (daemon interface)
@@ -140,6 +149,7 @@ extern void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const
 #define afb_hook_flag_ditf_rootdir_get_fd		0x000080
 #define afb_hook_flag_ditf_rootdir_open_locale		0x000100
 #define afb_hook_flag_ditf_queue_job			0x000200
+#define afb_hook_flag_ditf_unstore_req			0x000400
 
 #define afb_hook_flags_ditf_common	(afb_hook_flag_ditf_vverbose\
 					|afb_hook_flag_ditf_event_make\
@@ -150,7 +160,8 @@ extern void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const
 					|afb_hook_flag_ditf_get_system_bus\
 					|afb_hook_flag_ditf_rootdir_get_fd\
 					|afb_hook_flag_ditf_rootdir_open_locale\
-					|afb_hook_flag_ditf_queue_job)
+					|afb_hook_flag_ditf_queue_job\
+					|afb_hook_flag_ditf_unstore_req)
 
 #define afb_hook_flags_ditf_all		(afb_hook_flags_ditf_common|afb_hook_flags_ditf_extra)
 
@@ -165,6 +176,7 @@ struct afb_hook_ditf_itf {
 	void (*hook_ditf_rootdir_get_fd)(void *closure, const struct afb_ditf *ditf, int result);
 	void (*hook_ditf_rootdir_open_locale)(void *closure, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
 	void (*hook_ditf_queue_job)(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
+	void (*hook_ditf_unstore_req)(void *closure, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
 };
 
 extern void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object);
@@ -177,6 +189,7 @@ extern struct afb_event afb_hook_ditf_event_make(const struct afb_ditf *ditf, co
 extern int afb_hook_ditf_rootdir_get_fd(const struct afb_ditf *ditf, int result);
 extern int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
 extern int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
+extern void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq);
 
 extern int afb_hook_flags_ditf(const char *api);
 extern struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure);

@@ -29,6 +29,7 @@
 #include "afb-ditf.h"
 #include "afb-evt.h"
 #include "afb-common.h"
+#include "afb-xreq.h"
 #include "afb-hook.h"
 #include "jobs.h"
 #include "verbose.h"
@@ -98,6 +99,11 @@ static int rootdir_open_locale_cb(void *closure, const char *filename, int flags
 static int queue_job_cb(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
 {
 	return jobs_queue(group, timeout, callback, argument);
+}
+
+static struct afb_req unstore_req_cb(void *closure, struct afb_stored_req *sreq)
+{
+	return afb_xreq_unstore(sreq);
 }
 
 /**********************************************
@@ -179,6 +185,16 @@ static int hooked_queue_job_cb(void *closure, void (*callback)(int signum, void 
 	return afb_hook_ditf_queue_job(ditf, callback, argument, group, timeout, r);
 }
 
+static struct afb_req hooked_unstore_req_cb(void *closure, struct afb_stored_req *sreq)
+{
+	struct afb_ditf *ditf = closure;
+	afb_hook_ditf_unstore_req(ditf, sreq);
+	return unstore_req_cb(closure, sreq);
+}
+
+/**********************************************
+* vectors
+**********************************************/
 static const struct afb_daemon_itf daemon_itf = {
 	.vverbose_v1 = old_vverbose_cb,
 	.vverbose_v2 = vverbose_cb,
@@ -189,7 +205,8 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_system_bus = afb_common_get_system_bus,
 	.rootdir_get_fd = afb_common_rootdir_get_fd,
 	.rootdir_open_locale = rootdir_open_locale_cb,
-	.queue_job = queue_job_cb
+	.queue_job = queue_job_cb,
+	.unstore_req = unstore_req_cb
 };
 
 static const struct afb_daemon_itf hooked_daemon_itf = {
@@ -202,7 +219,8 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.get_system_bus = hooked_get_system_bus,
 	.rootdir_get_fd = hooked_rootdir_get_fd,
 	.rootdir_open_locale = hooked_rootdir_open_locale_cb,
-	.queue_job = hooked_queue_job_cb
+	.queue_job = hooked_queue_job_cb,
+	.unstore_req = hooked_unstore_req_cb
 };
 
 void afb_ditf_init_v2(struct afb_ditf *ditf, const char *api, struct afb_binding_data_v2 *data)

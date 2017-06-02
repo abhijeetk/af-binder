@@ -31,8 +31,6 @@
 #include "afb-xreq.h"
 #include "jobs.h"
 
-#include <afb/afb-req-itf.h>
-
 #define INCR 8		/* CAUTION: must be a power of 2 */
 
 /**

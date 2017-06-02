@@ -25,7 +25,7 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-req-itf.h>
+#include <afb/afb-event-itf.h>
 
 #include "afb-wsj1.h"
 #include "afb-ws-json1.h"

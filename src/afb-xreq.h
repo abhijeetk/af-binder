@@ -27,6 +27,8 @@ struct afb_apiset;
 struct afb_event;
 struct afb_verb_desc_v1;
 struct afb_verb_v2;
+struct afb_req;
+struct afb_stored_req;
 
 struct afb_xreq_query_itf {
 	struct json_object *(*json)(struct afb_xreq *xreq);
@@ -85,6 +87,7 @@ struct afb_xreq
 #define CONTAINER_OF_XREQ(type,x) CONTAINER_OF(type,xreq,x)
 
 /* req wrappers for xreq */
+extern struct afb_req afb_xreq_unstore(struct afb_stored_req *sreq);
 extern void afb_xreq_addref(struct afb_xreq *xreq);
 extern void afb_xreq_unref(struct afb_xreq *xreq);
 

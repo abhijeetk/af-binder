@@ -35,7 +35,7 @@
 #include <json-c/json.h>
 #include <systemd/sd-event.h>
 
-#include <afb/afb-req-itf.h>
+#include <afb/afb-event-itf.h>
 
 #include "afb-common.h"
 

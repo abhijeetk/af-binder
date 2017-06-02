@@ -23,7 +23,6 @@
 
 #include <microhttpd.h>
 
-#include <afb/afb-req-itf.h>
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-apiset.h"

@@ -27,7 +27,7 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-req-itf.h>
+#include <afb/afb-req-common.h>
 #include <afb/afb-event-itf.h>
 
 #include "afb-context.h"
@@ -271,6 +271,16 @@ static void hook_xreq_vverbose_default_cb(void * closure, const struct afb_xreq 
 	}
 }
 
+static void hook_xreq_store_default_cb(void * closure, const struct afb_xreq *xreq, struct afb_stored_req *sreq)
+{
+	_hook_xreq_(xreq, "store() -> %p", sreq);
+}
+
+static void hook_xreq_unstore_default_cb(void * closure, const struct afb_xreq *xreq)
+{
+	_hook_xreq_(xreq, "unstore()");
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -290,7 +300,9 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_subcall_result = hook_xreq_subcall_result_default_cb,
 	.hook_xreq_subcallsync = hook_xreq_subcallsync_default_cb,
 	.hook_xreq_subcallsync_result = hook_xreq_subcallsync_result_default_cb,
-	.hook_xreq_vverbose = hook_xreq_vverbose_default_cb
+	.hook_xreq_vverbose = hook_xreq_vverbose_default_cb,
+	.hook_xreq_store = hook_xreq_store_default_cb,
+	.hook_xreq_unstore = hook_xreq_unstore_default_cb
 };
 
 /******************************************************************************
@@ -414,6 +426,16 @@ int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int status, st
 void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
 	_HOOK_XREQ_(vverbose, xreq, level, file ?: "?", line, func ?: "?", fmt, args);
+}
+
+void afb_hook_xreq_store(const struct afb_xreq *xreq, struct afb_stored_req *sreq)
+{
+	_HOOK_XREQ_(store, xreq, sreq);
+}
+
+void afb_hook_xreq_unstore(const struct afb_xreq *xreq)
+{
+	_HOOK_XREQ_(unstore, xreq);
 }
 
 /******************************************************************************
@@ -615,9 +637,14 @@ static void hook_ditf_rootdir_open_locale_cb(void *closure, const struct afb_dit
 	}
 }
 
-static void hook_ditf_queue_job(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+static void hook_ditf_queue_job_cb(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
 {
 	_hook_ditf_(ditf, "queue_job(%p, %p, %p, %d) -> %d", callback, argument, group, timeout, result);
+}
+
+static void hook_ditf_unstore_req_cb(void * closure,  const struct afb_ditf *ditf, struct afb_stored_req *sreq)
+{
+	_hook_ditf_(ditf, "unstore_req(%p)", sreq);
 }
 
 static struct afb_hook_ditf_itf hook_ditf_default_itf = {
@@ -630,7 +657,8 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_event_make = hook_ditf_event_make_cb,
 	.hook_ditf_rootdir_get_fd = hook_ditf_rootdir_get_fd_cb,
 	.hook_ditf_rootdir_open_locale = hook_ditf_rootdir_open_locale_cb,
-	.hook_ditf_queue_job = hook_ditf_queue_job
+	.hook_ditf_queue_job = hook_ditf_queue_job_cb,
+	.hook_ditf_unstore_req = hook_ditf_unstore_req_cb
 };
 
 /******************************************************************************
@@ -707,6 +735,11 @@ int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int si
 {
 	_HOOK_DITF_(queue_job, ditf, callback, argument, group, timeout, result);
 	return result;
+}
+
+void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq)
+{
+	_HOOK_DITF_(unstore_req, ditf, sreq);
 }
 
 /******************************************************************************

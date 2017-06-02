@@ -279,6 +279,12 @@ static void xreq_vverbose_cb(void*closure, int level, const char *file, int line
 	vverbose(level, file, line, func, fmt, args);
 }
 
+static struct afb_stored_req *xreq_store_cb(void *closure)
+{
+	xreq_addref_cb(closure);
+	return closure;
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
@@ -429,6 +435,14 @@ static void xreq_hooked_vverbose_cb(void*closure, int level, const char *file, i
 	va_end(ap);
 }
 
+static struct afb_stored_req *xreq_hooked_store_cb(void *closure)
+{
+	struct afb_xreq *xreq = closure;
+	struct afb_stored_req *r = xreq_store_cb(closure);
+	afb_hook_xreq_store(xreq, r);
+	return r;
+}
+
 /******************************************************************************/
 
 const struct afb_req_itf xreq_itf = {
@@ -448,7 +462,8 @@ const struct afb_req_itf xreq_itf = {
 	.unsubscribe = xreq_unsubscribe_cb,
 	.subcall = xreq_subcall_cb,
 	.subcallsync = xreq_subcallsync_cb,
-	.vverbose = xreq_vverbose_cb
+	.vverbose = xreq_vverbose_cb,
+	.store = xreq_store_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -468,7 +483,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.unsubscribe = xreq_hooked_unsubscribe_cb,
 	.subcall = xreq_hooked_subcall_cb,
 	.subcallsync = xreq_hooked_subcallsync_cb,
-	.vverbose = xreq_hooked_vverbose_cb
+	.vverbose = xreq_hooked_vverbose_cb,
+	.store = xreq_hooked_store_cb
 };
 
 static inline struct afb_req to_req(struct afb_xreq *xreq)
@@ -477,6 +493,14 @@ static inline struct afb_req to_req(struct afb_xreq *xreq)
 }
 
 /******************************************************************************/
+
+struct afb_req afb_xreq_unstore(struct afb_stored_req *sreq)
+{
+	struct afb_xreq *xreq = (struct afb_xreq *)sreq;
+	if (xreq->hookflags)
+		afb_hook_xreq_unstore(xreq);
+	return to_req(xreq);
+}
 
 struct json_object *afb_xreq_json(struct afb_xreq *xreq)
 {

@@ -128,3 +128,16 @@ static inline int afb_daemon_queue_job_v2(void (*callback)(int signum, void *arg
 {
 	return afb_get_daemon_v2().itf->queue_job(afb_get_daemon_v2().closure, callback, argument, group, timeout);
 }
+
+/*
+ * Retrieves the afb_req stored at 'sreq'.
+ * Returns the stored request.
+ * The count of reference is UNCHANGED, thus, the
+ * function 'afb_req_unref' should be called on the result
+ * after that the asynchronous reply if sent.
+ */
+static inline struct afb_req afb_daemon_unstore_req_v2(struct afb_stored_req *sreq)
+{
+	return afb_get_daemon_v2().itf->unstore_req(afb_get_daemon_v2().closure, sreq);
+}
+

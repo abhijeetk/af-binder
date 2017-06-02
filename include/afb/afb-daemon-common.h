@@ -22,6 +22,8 @@
 /* declaration of features of libsystemd */
 struct sd_event;
 struct sd_bus;
+struct afb_stored_req;
+struct afb_req;
 
 /*
  * Definition of the facilities provided by the daemon.
@@ -38,6 +40,7 @@ struct afb_daemon_itf
 	int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
 	int (*queue_job)(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout);
 	void (*vverbose_v2)(void*closure, int level, const char *file, int line, const char * func, const char *fmt, va_list args);
+	struct afb_req (*unstore_req)(void*closure, struct afb_stored_req *sreq);
 };
 
 /*

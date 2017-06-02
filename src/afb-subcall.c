@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include <json-c/json.h>
-#include <afb/afb-req-itf.h>
+#include <afb/afb-event-itf.h>
 
 #include "afb-subcall.h"
 #include "afb-msg-json.h"
