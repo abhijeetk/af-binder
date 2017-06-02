@@ -55,7 +55,9 @@ static void vinfo(void *first, void *second, const char *fmt, va_list args, void
 static struct json_object *xreq_json_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	return xreq->json ? : (xreq->json = xreq->queryitf->json(xreq));
+	if (!xreq->json && xreq->queryitf->json)
+		xreq->json = xreq->queryitf->json(xreq);
+	return xreq->json;
 }
 
 static struct afb_arg xreq_get_cb(void *closure, const char *name)
