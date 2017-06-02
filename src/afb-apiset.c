@@ -352,6 +352,8 @@ int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api
  */
 static int start_api(struct afb_apiset *set, struct api_desc *api, int share_session, int onneed)
 {
+	int rc;
+
 	if (api->status == 0)
 		return 0;
 	else if (api->status > 0) {
@@ -359,22 +361,24 @@ static int start_api(struct afb_apiset *set, struct api_desc *api, int share_ses
 		return -1;
 	}
 
+	NOTICE("API %s starting...", api->name);
 	if (api->api.itf->service_start) {
 		api->status = EBUSY;
-		if (api->api.itf->service_start(api->api.closure, share_session, onneed, set) >= 0)
-			api->status = 0;
-		else if (errno)
+		rc = api->api.itf->service_start(api->api.closure, share_session, onneed, set);
+		if (rc < 0) {
 			api->status = errno ?: ECANCELED;
-	} else {
-		if (onneed)
-			api->status = 0;
-		else {
-			/* already started: it is an error */
-			ERROR("The api %s is not a startable service", api->name);
-			api->status = EINVAL;
+			ERROR("The api %s failed to start (%d)", api->name, rc);
+			return -1;
 		}
+	} else if (!onneed) {
+		/* already started: it is an error */
+		ERROR("The api %s is not a startable service", api->name);
+		api->status = EINVAL;
+		return -1;
 	}
-	return -!!api->status;
+	NOTICE("API %s started", api->name);
+	api->status = 0;
+	return 0;
 }
 
 /**
