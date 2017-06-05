@@ -141,17 +141,17 @@ typedef struct afb_service_itf          afb_service_itf;
 
 # if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
 
-#  define ERROR			AFB_ERROR_V1
-#  define WARNING		AFB_WARNING_V1
-#  define NOTICE		AFB_NOTICE_V1
-#  define INFO			AFB_INFO_V1
-#  define DEBUG			AFB_DEBUG_V1
+#  define AFB_ERROR		AFB_ERROR_V1
+#  define AFB_WARNING		AFB_WARNING_V1
+#  define AFB_NOTICE		AFB_NOTICE_V1
+#  define AFB_INFO		AFB_INFO_V1
+#  define AFB_DEBUG		AFB_DEBUG_V1
 
-#  define REQ_ERROR		AFB_REQ_ERROR_V1
-#  define REQ_WARNING		AFB_REQ_WARNING_V1
-#  define REQ_NOTICE		AFB_REQ_NOTICE_V1
-#  define REQ_INFO		AFB_REQ_INFO_V1
-#  define REQ_DEBUG		AFB_REQ_DEBUG_V1
+#  define AFB_REQ_ERROR		AFB_REQ_ERROR_V1
+#  define AFB_REQ_WARNING	AFB_REQ_WARNING_V1
+#  define AFB_REQ_NOTICE	AFB_REQ_NOTICE_V1
+#  define AFB_REQ_INFO		AFB_REQ_INFO_V1
+#  define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V1
 
 # endif
 
@@ -195,17 +195,17 @@ typedef struct afb_service_itf          afb_service_itf;
 
 # if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
 
-#  define ERROR			AFB_ERROR_V2
-#  define WARNING		AFB_WARNING_V2
-#  define NOTICE		AFB_NOTICE_V2
-#  define INFO			AFB_INFO_V2
-#  define DEBUG			AFB_DEBUG_V2
+#  define AFB_ERROR		AFB_ERROR_V2
+#  define AFB_WARNING		AFB_WARNING_V2
+#  define AFB_NOTICE		AFB_NOTICE_V2
+#  define AFB_INFO		AFB_INFO_V2
+#  define AFB_DEBUG		AFB_DEBUG_V2
 
-#  define REQ_ERROR		AFB_REQ_ERROR_V2
-#  define REQ_WARNING		AFB_REQ_WARNING_V2
-#  define REQ_NOTICE		AFB_REQ_NOTICE_V2
-#  define REQ_INFO		AFB_REQ_INFO_V2
-#  define REQ_DEBUG		AFB_REQ_DEBUG_V2
+#  define AFB_REQ_ERROR		AFB_REQ_ERROR_V2
+#  define AFB_REQ_WARNING	AFB_REQ_WARNING_V2
+#  define AFB_REQ_NOTICE	AFB_REQ_NOTICE_V2
+#  define AFB_REQ_INFO		AFB_REQ_INFO_V2
+#  define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V2
 
 # endif
 
@@ -227,5 +227,21 @@ typedef struct afb_service_itf          afb_service_itf;
 #define afb_req_store			afb_req_store_v2
 #define afb_req_unstore			afb_daemon_unstore_req_v2
 
+#endif
+
+#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX)
+# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+#  define ERROR			AFB_ERROR
+#  define WARNING		AFB_WARNING
+#  define NOTICE		AFB_NOTICE
+#  define INFO			AFB_INFO
+#  define DEBUG			AFB_DEBUG
+
+#  define REQ_ERROR		AFB_REQ_ERROR
+#  define REQ_WARNING		AFB_REQ_WARNING
+#  define REQ_NOTICE		AFB_REQ_NOTICE
+#  define REQ_INFO		AFB_REQ_INFO
+#  define REQ_DEBUG		AFB_REQ_DEBUG
+# endif
 #endif
 
