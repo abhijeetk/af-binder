@@ -1,0 +1,25 @@
+Priority: optional
+Maintainer: unknown <unknown@debian.org>
+Source: app-framework-binder
+Build-Depends: debhelper (>= 5),	
+ libmicrohttpd-dev ,
+ cmake,
+ libsystemd-dev,
+ libssl-dev,
+ uuid-dev,
+ libgcrypt20-dev,
+ libjson-c-dev,
+ libmagic-dev
+Standards-Version: 3.8.2
+Homepage: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/app-framework-binder
+
+Package: app-framework-binder-bin
+Section: libs
+Architecture: any
+Description: app-framework-binder
+
+Package: app-framework-binder-dev
+Section: libs
+Architecture: any
+Description: app-framework-binder-devel
+
