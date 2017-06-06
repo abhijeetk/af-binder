@@ -67,6 +67,15 @@ $ make;
 $ sudo make install<br />
 ```
 
+### Archive
+
+```
+VERSION=2.0
+GIT_TAG=master
+PKG_NAME=app-framework-binder
+git archive --format=tar.gz --prefix=${PKG_NAME}-${VERSION}/ ${GIT_TAG} -o ${PKG_NAME}_${VERSION}.orig.tar.gz
+```
+
 ### Testing/Debug
 ```
 $ ${AFB_DAEMON_DIR}/build/src/afb-daemon --help
