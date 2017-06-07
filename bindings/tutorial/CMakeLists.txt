@@ -16,6 +16,17 @@
 # limitations under the License.
 ###########################################################################
 
-ADD_SUBDIRECTORY(intrinsics)
-ADD_SUBDIRECTORY(samples)
-ADD_SUBDIRECTORY(tutorial)
+
+#INCLUDE_DIRECTORIES(${include_dirs})
+
+MACRO(tuto num)
+  ADD_LIBRARY(tuto-${num} MODULE tuto-${num}.c)
+  SET_TARGET_PROPERTIES(tuto-${num} PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
+  )
+  TARGET_LINK_LIBRARIES(tuto-${num} ${link_libraries})
+ENDMACRO(tuto)
+
+tuto(1)
+tuto(2)

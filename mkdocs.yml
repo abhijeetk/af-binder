@@ -1,11 +1,15 @@
 site_name: AGL Application Framework Binder
 theme: readthedocs
-docs_dir: doc
+docs_dir: docs
 pages:
   - 'Overview' : 'index.md'
-  - 'Binder daemon vocabulary' : 'afb-daemon-vocabulary.md'
+  - 'How to write a binding ?': 'afb-binding-writing.md'
+  - 'Binding references': 'afb-binding-references.md'
+  - 'Migration from v1 to v2' : 'afb-migration-v1-to-v2.md'
   - 'Binder events guide' : 'afb-events-guide.md'
   - 'Binder Application writing guide' : 'afb-application-writing.md'
-  - 'Binding writing guide' : 'afb-bindings-writing.md'
-  - 'Binder tests overview' : 'afb-tests-overview.md'
-  - 'Bindings samples' : 'afb-bindings-overview.md'
+  - 'Binder daemon vocabulary' : 'afb-daemon-vocabulary.md'
+  - 'Annexes':
+    - 'Installing the binder on a desktop': 'afb-desktop-package.md'
+    - 'Options of afb-daemon' : 'afb-daemon-options.md'
+
