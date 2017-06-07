@@ -324,7 +324,7 @@ struct afb_session *afb_session_get (const char *uuid, int *created)
 struct afb_session *afb_session_addref(struct afb_session *session)
 {
 	if (session != NULL)
-		session->refcount++;
+		__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
 	return session;
 }
 
@@ -332,11 +332,12 @@ void afb_session_unref(struct afb_session *session)
 {
 	if (session != NULL) {
 		assert(session->refcount != 0);
-		--session->refcount;
-		if (session->refcount == 0 && session->uuid[0] == 0) {
-			destroy (session);
-			pthread_mutex_destroy(&session->mutex);
-			free(session);
+		if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
+			if (session->uuid[0] == 0) {
+				destroy (session);
+				pthread_mutex_destroy(&session->mutex);
+				free(session);
+			}
 		}
 	}
 }

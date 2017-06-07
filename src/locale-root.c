@@ -331,7 +331,7 @@ struct locale_root *locale_root_create_at(int dirfd, const char *path)
  */
 struct locale_root *locale_root_addref(struct locale_root *root)
 {
-	root->refcount++;
+	__atomic_add_fetch(&root->refcount, 1, __ATOMIC_RELAXED);
 	return root;
 }
 
@@ -341,7 +341,7 @@ struct locale_root *locale_root_addref(struct locale_root *root)
  */
 static void internal_unref(struct locale_root *root)
 {
-	if (!--root->intcount) {
+	if (!__atomic_sub_fetch(&root->intcount, 1, __ATOMIC_RELAXED)) {
 		clear_container(&root->container);
 		close(root->rootfd);
 		free(root);
@@ -356,7 +356,7 @@ void locale_root_unref(struct locale_root *root)
 {
 	size_t i;
 
-	if (root != NULL && !--root->refcount) {
+	if (root && !__atomic_sub_fetch(&root->refcount, 1, __ATOMIC_RELAXED)) {
 		/* clear circular references through searchs */
 		for (i = 0 ; i < LRU_COUNT ; i++)
 			locale_search_unref(root->lru[i]);
@@ -420,7 +420,7 @@ static struct locale_search *create_search(struct locale_root *root, const char 
 		errno = ENOMEM;
 	} else {
 		/* init */
-		root->intcount++;
+		__atomic_add_fetch(&root->intcount, 1, __ATOMIC_RELAXED);
 		search->root = root;
 		search->head = NULL;
 		search->refcount = 1;
@@ -541,7 +541,7 @@ struct locale_search *locale_root_search(struct locale_root *root, const char *d
  */
 struct locale_search *locale_search_addref(struct locale_search *search)
 {
-	search->refcount++;
+	__atomic_add_fetch(&search->refcount, 1, __ATOMIC_RELAXED);
 	return search;
 }
 
@@ -552,7 +552,7 @@ void locale_search_unref(struct locale_search *search)
 {
 	struct locale_search_node *it, *nx;
 
-	if (search && !--search->refcount) {
+	if (search && !__atomic_sub_fetch(&search->refcount, 1, __ATOMIC_RELAXED)) {
 		it = search->head;
 		while(it != NULL) {
 			nx = it->next;

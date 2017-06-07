@@ -145,13 +145,13 @@ error:
 
 static struct afb_ws_json1 *aws_addref(struct afb_ws_json1 *ws)
 {
-	ws->refcount++;
+	__atomic_add_fetch(&ws->refcount, 1, __ATOMIC_RELAXED);
 	return ws;
 }
 
 static void aws_unref(struct afb_ws_json1 *ws)
 {
-	if (--ws->refcount == 0) {
+	if (!__atomic_sub_fetch(&ws->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_evt_listener_unref(ws->listener);
 		afb_wsj1_unref(ws->wsj1);
 		if (ws->cleanup != NULL)
