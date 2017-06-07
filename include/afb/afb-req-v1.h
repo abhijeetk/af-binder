@@ -29,7 +29,7 @@
 static inline struct afb_req *afb_req_store_v1(struct afb_req req)
 {
 	struct afb_req *result = (struct afb_req*)malloc(sizeof *result);
-	if (result != NULL) {
+	if (result) {
 		*result = req;
 		afb_req_addref(req);
 	}

@@ -52,7 +52,7 @@ struct afb_event
  */
 static inline int afb_event_is_valid(struct afb_event event)
 {
-	return event.itf != NULL;
+	return !!event.itf;
 }
 
 /*

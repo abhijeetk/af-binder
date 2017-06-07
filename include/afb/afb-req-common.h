@@ -90,7 +90,7 @@ struct afb_req
  */
 static inline int afb_req_is_valid(struct afb_req req)
 {
-	return req.itf != NULL;
+	return !!req.itf;
 }
 
 /*
@@ -253,7 +253,7 @@ static inline void afb_req_context_set(struct afb_req req, void *context, void (
 static inline void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*))
 {
 	void *result = afb_req_context_get(req);
-	if (result == NULL) {
+	if (!result) {
 		result = create_context();
 		afb_req_context_set(req, result, free_context);
 	}
@@ -268,7 +268,7 @@ static inline void *afb_req_context(struct afb_req req, void *(*create_context)(
  */
 static inline void afb_req_context_clear(struct afb_req req)
 {
-	afb_req_context_set(req, NULL, NULL);
+	afb_req_context_set(req, 0, 0);
 }
 
 /*
