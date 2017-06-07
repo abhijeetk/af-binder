@@ -20,13 +20,8 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 1
+#define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
-
-/*
- * the interface to afb-daemon
- */
-const struct afb_binding_interface *afbitf;
 
 /*
  * definition of waiters
@@ -300,7 +295,7 @@ static void changed(struct board *board, const char *reason)
 		waiter = next;
 	}
 
-	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
+	afb_daemon_broadcast_event(reason, description);
 }
 
 /*
@@ -320,7 +315,7 @@ static void new(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'new' called for boardid %d", board->id);
+	INFO("method 'new' called for boardid %d", board->id);
 
 	/* reset the game */
 	memset(board->board, ' ', sizeof board->board);
@@ -343,7 +338,7 @@ static void board(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'board' called for boardid %d", board->id);
+	INFO("method 'board' called for boardid %d", board->id);
 
 	/* describe the board */
 	description = describe(board);
@@ -363,7 +358,7 @@ static void move(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'move' called for boardid %d", board->id);
+	INFO("method 'move' called for boardid %d", board->id);
 
 	/* retrieves the arguments of the move */
 	index = afb_req_value(req, "index");
@@ -371,27 +366,27 @@ static void move(struct afb_req req)
 
 	/* checks validity of arguments */
 	if (i < 0 || i > 8) {
-		WARNING(afbitf, "can't move to %s: %s", index?:"?", index?"wrong value":"not set");
+		WARNING("can't move to %s: %s", index?:"?", index?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0) {
-		WARNING(afbitf, "can't move to %s: game is terminated", index);
+		WARNING("can't move to %s: game is terminated", index);
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
 
 	/* checks validity of the move */
 	if (board->board[i] != ' ') {
-		WARNING(afbitf, "can't move to %s: room occupied", index);
+		WARNING("can't move to %s: room occupied", index);
 		afb_req_fail(req, "error", "occupied");
 		return;
 	}
 
 	/* applies the move */
-	INFO(afbitf, "method 'move' for boardid %d, index=%s", board->id, index);
+	INFO("method 'move' for boardid %d, index=%s", board->id, index);
 	add_move(board, i);
 
 	/* replies */
@@ -412,7 +407,7 @@ static void level(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'level' called for boardid %d", board->id);
+	INFO("method 'level' called for boardid %d", board->id);
 
 	/* retrieves the arguments */
 	level = afb_req_value(req, "level");
@@ -420,13 +415,13 @@ static void level(struct afb_req req)
 
 	/* check validity of arguments */
 	if (l < 1 || l > 10) {
-		WARNING(afbitf, "can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
+		WARNING("can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
 
 	/* set the level */
-	INFO(afbitf, "method 'level' for boardid %d, level=%d", board->id, l);
+	INFO("method 'level' for boardid %d, level=%d", board->id, l);
 	board->level = l;
 
 	/* replies */
@@ -446,7 +441,7 @@ static void join(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'join' called for boardid %d", board->id);
+	INFO("method 'join' called for boardid %d", board->id);
 
 	/* retrieves the arguments */
 	id = afb_req_value(req, "boardid");
@@ -483,7 +478,7 @@ success:
 	return;
 
 bad_request:
-	WARNING(afbitf, "can't join boardid %s: %s", id ? : "?", !id ? "no boardid" : atoi(id) ? "not found" : "bad boardid");
+	WARNING("can't join boardid %s: %s", id ? : "?", !id ? "no boardid" : atoi(id) ? "not found" : "bad boardid");
 	afb_req_fail(req, "error", "bad request");
 	return;
 }
@@ -498,11 +493,11 @@ static void undo(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'undo' called for boardid %d", board->id);
+	INFO("method 'undo' called for boardid %d", board->id);
 
 	/* checks the state */
 	if (board->moves == 0) {
-		WARNING(afbitf, "can't undo");
+		WARNING("can't undo");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
@@ -528,11 +523,11 @@ static void play(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'play' called for boardid %d", board->id);
+	INFO("method 'play' called for boardid %d", board->id);
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0 || board->moves == 9) {
-		WARNING(afbitf, "can't play: game terminated (%s)", winner(board->board) ? "has winner" : "no room left");
+		WARNING("can't play: game terminated (%s)", winner(board->board) ? "has winner" : "no room left");
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
@@ -555,7 +550,7 @@ static void wait(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO(afbitf, "method 'wait' called for boardid %d", board->id);
+	INFO("method 'wait' called for boardid %d", board->id);
 
 	/* creates the waiter and enqueues it */
 	waiter = calloc(1, sizeof *waiter);
@@ -568,39 +563,26 @@ static void wait(struct afb_req req)
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct afb_verb_desc_v1 binding_verbs[] = {
+static const struct afb_verb_v2 verbs[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
-   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
-   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
-   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
-   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
-   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
-   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
-   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
-   { .name= NULL } /* marker for end of the array */
+   { "new",   new,   NULL, AFB_SESSION_NONE },
+   { "play",  play,  NULL, AFB_SESSION_NONE },
+   { "move",  move,  NULL, AFB_SESSION_NONE },
+   { "board", board, NULL, AFB_SESSION_NONE },
+   { "level", level, NULL, AFB_SESSION_NONE },
+   { "join",  join,  NULL, AFB_SESSION_NONE },
+   { "undo",  undo,  NULL, AFB_SESSION_NONE },
+   { "wait",  wait,  NULL, AFB_SESSION_NONE },
+   { NULL,    NULL,  NULL, AFB_SESSION_NONE } /* marker for end of the array */
 };
 
 /*
  * description of the binding for afb-daemon
  */
-static const struct afb_binding binding_description =
-{
-   /* description conforms to VERSION 1 */
-   .type= AFB_BINDING_VERSION_1,
-   .v1= {				/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
-      .prefix= "tictactoe",		/* the API name (or binding name or prefix) */
-      .info= "Sample tac-tac-toe game",	/* short description of of the binding */
-      .verbs = binding_verbs		/* the array describing the verbs of the API */
-   }
+const afb_binding_v2 afbBindingV2 = {
+	.api = "tictactoe",
+	.specification = NULL,
+	.verbs = verbs
 };
 
-/*
- * activation function for registering the binding called by afb-daemon
- */
-const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
-{
-   afbitf = itf;         // records the interface for accessing afb-daemon
-   return &binding_description;  // returns the description of the binding
-}
 
