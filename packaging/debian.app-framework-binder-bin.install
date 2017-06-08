@@ -1,0 +1,13 @@
+/usr/lib/*/libafbwsc.so.1.0
+/usr/lib/*/libafbwsc.so.1
+/usr/lib/*/afb/authLogin.so
+/usr/lib/*/afb/demoPost.so
+/usr/lib/*/afb/afb-dbus-binding.so
+/usr/lib/*/afb/tic-tac-toe.so
+/usr/lib/*/afb/helloWorld.so
+/usr/lib/*/afb/demoContext.so
+/usr/bin/afb-json2c
+/usr/bin/afb-daemon
+/usr/bin/afb-exprefs
+/usr/bin/afb-client-demo
+/usr/bin/afb-genskel
