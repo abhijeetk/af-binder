@@ -18,7 +18,7 @@
 
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
-PROJECT(afb-daemon C)
+PROJECT(afb-daemon C CXX)
 
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")

@@ -19,8 +19,8 @@
 
 #INCLUDE_DIRECTORIES(${include_dirs})
 
-MACRO(tuto num)
-  ADD_LIBRARY(tuto-${num} MODULE tuto-${num}.c)
+MACRO(tuto num ext)
+  ADD_LIBRARY(tuto-${num} MODULE tuto-${num}.${ext})
   SET_TARGET_PROPERTIES(tuto-${num} PROPERTIES
 	PREFIX ""
 	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
@@ -28,5 +28,7 @@ MACRO(tuto num)
   TARGET_LINK_LIBRARIES(tuto-${num} ${link_libraries})
 ENDMACRO(tuto)
 
-tuto(1)
-tuto(2)
+
+tuto(1 c)
+tuto(2 c)
+tuto(3 cpp)
