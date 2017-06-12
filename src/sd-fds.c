@@ -37,9 +37,9 @@ int sd_fds_init()
 	else {
 		init_done = 1;
 		rc = sd_listen_fds_with_names(1, &names);
-		if (rc < 0) {
+		if (rc <= 0) {
 			errno = -rc;
-			rc = -1;
+			rc = -!!rc;
 			names = &null;
 		}
 	}
