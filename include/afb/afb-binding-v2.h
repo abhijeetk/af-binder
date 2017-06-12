@@ -50,9 +50,9 @@ struct afb_binding_v2
 	const char *api;			/* api name for the binding */
 	const char *specification;		/* textual specification of the binding */
 	const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
-	int (*preinit)();
-	int (*init)();
-	void (*onevent)(const char *event, struct json_object *object);
+	int (*preinit)();                       /* callback at load of the binding */
+	int (*init)();                          /* callback for starting the service */
+	void (*onevent)(const char *event, struct json_object *object); /* callback for handling events */
 	unsigned noconcurrency: 1;		/* avoids concurrent requests to verbs */
 };
 
