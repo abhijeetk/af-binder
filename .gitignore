@@ -1,6 +1,6 @@
 amixer
 autom4te.cache
-config.log 
+config.log
 build/*
 dist/*
 !.gitignore
@@ -13,3 +13,5 @@ cmake_install.cmake
 *.so
 .vscode
 stress-out*
+node_modules/
+_book/
