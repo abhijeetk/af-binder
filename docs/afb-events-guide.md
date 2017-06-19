@@ -107,7 +107,7 @@ event and/or an associated tag to its client in the reply of the
 subscription. This is part of the step 5 above.
 
 The framework only uses the event (not its name) for subscription,
-unsubscription and pushing.
+un-subscription and pushing.
 
 When the requested data is already generated and the event used for
 pushing it already exists, the signaling agent must not instantiate a
@@ -243,8 +243,8 @@ The function ***afb\_daemon\_make\_event*** that is defined as below:
 struct afb_event afb_daemon_make_event(const char *name);
 ```
 
-The correct way to create the event at initialisation is to call the function
-***afb\_daemon\_make\_event*** within the initialisation
+The correct way to create the event at initialization is to call the function
+***afb\_daemon\_make\_event*** within the initialization
 function referenced by the field ***init*** of the structure ***afbBindingV2***.
 
 ### Function afb\_event\_push
@@ -307,12 +307,12 @@ below:
 /*
  * Revokes the subscription established to the 'event' for the client
  * link identified by 'req'.
- * Returns 0 in case of successful unsubscription or -1 in case of error.
+ * Returns 0 in case of successful un-subscription or -1 in case of error.
  */
 int afb_req_unsubscribe(struct afb_req req, struct afb_event event);
 ```
 
-The unsubscription removes the client of the request of the list of subscribers
+The un-subscription removes the client of the request of the list of subscribers
 to the event.
 When the list of subscribers to the event becomes empty,
 the function ***afb\_event\_push*** will return zero.
@@ -359,7 +359,7 @@ int afb_daemon_broadcast_event(const char *name, struct json_object *object);
 
 The name is given here explicitly. The name is automatically prefixed
 with the name of the binding. For example, a binding of prefix "xxx"
-would broadcat the event "xxx/name".
+would broadcast the event "xxx/name".
 
 ### Function onevent (field of afbBindingV2)
 

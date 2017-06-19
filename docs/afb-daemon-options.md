@@ -40,7 +40,7 @@ The launch options for binder **afb-daemon** are:
 	  --roothttp=xxxx
 
 		Directory of HTTP served files. If not set, files are not served
-		but apis are still accessibles.
+		but apis are still accessible.
 
 	  --rootbase=xxxx
 

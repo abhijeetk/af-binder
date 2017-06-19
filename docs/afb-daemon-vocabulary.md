@@ -8,7 +8,7 @@ A shared library object intended to add a functionality to an afb-daemon
 instance. It implements an API and may provide a service.
 
 Binding made for services can have specific entry point called after
-initialisation and before serving.
+initialization and before serving.
 
 ## Event
 

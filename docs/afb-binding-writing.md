@@ -19,21 +19,19 @@ It is convenient to install the ***binder*** on the
 desktop used for writing the binding. It allows easy
 debug and test.
 
-Nature of a binding
--------------------
+## Nature of a binding
 
 A ***binding*** is an independent piece of software compiled as a shared
 library and dynamically loaded by a ***binder***.
-
 It is intended to provide one **API** (**A**pplication **P**rogramming
 **I**nterface).
 
 The **API** is designated and accessed through its name.
 It contains several **verbs** that implement the ***binding***
-functionnalities.  Each of these **verbs** is a **method** that
+functionalities.  Each of these **verbs** is a **method** that
 processes requests of applications and sends result.
 
-The ***binding***'s methods is invoqued by HTTP or websocket
+The ***binding***'s methods are invoked by HTTP or websocket
 requests.
 
 The **methods** of the ***bindings*** are noted **api/verb**
@@ -50,21 +48,19 @@ The name of an **API** can be made of any characters except:
 
 The names if the **verbs** can be any character.
 
-The binder mkes no distinctions between upper case and lower case
+The binder makes no distinctions between upper case and lower case
 latin letters. So **API/VERB** matches **Api/Verb** or **api/verb**.
 
 Actually it exists 2 ways of writing ***bindings***.
 You can either write:
 
- - a binding version 1 (not recommanded);
- - a binding version 2 (RECOMMANDED).
+ - a binding version 1 (not recommended);
+ - a binding version 2 (RECOMMENDED).
 
-A ***binder*** loads and runs any of these version
-in any combination.
-
+A ***binder*** loads and runs any of these version in any combination.
 This document explain how to write bindings version 2.
 
-
+<!-- pagebreak -->
 Sample binding: tuto-1
 ======================
 
@@ -73,18 +69,18 @@ This is the code of the binding **tuto-1.c**:
 ```C
   1 #define AFB_BINDING_VERSION 2
   2 #include <afb/afb-binding.h>
-  3 
+  3
   4 void hello(afb_req req)
   5 {
   6         AFB_REQ_DEBUG(req, "hello world");
   7         afb_req_success(req, NULL, "hello world");
   8 }
-  9 
+  9
  10 const afb_verb_v2 verbs[] = {
  11         { .verb="hello", .callback=hello },
  12         { .verb=NULL }
  13 };
- 14 
+ 14
  15 const afb_binding_v2 afbBindingV2 = {
  16         .api = "tuto-1",
  17         .verbs = verbs
@@ -151,8 +147,8 @@ temporarily and enables to continue to use previously written
 ***binding*** without change but it will change in some future when
 ***bindings*** V1 will become obsoletes.
 
-To include **afb-binding.h** successfuly, the include search path
-should be set correctly if needed (not needed only if installed in 
+To include **afb-binding.h** successfully, the include search path
+should be set correctly if needed (not needed only if installed in
 /usr/include/afb directory that is the default).
 
 Setting the include path is easy using **pkg-config**:
@@ -190,7 +186,7 @@ a structure of type **afb_binding_v2**.
  11         { .verb="hello", .callback=hello },
  12         { .verb=NULL }
  13 };
- 14 
+ 14
  15 const afb_binding_v2 afbBindingV2 = {
  16         .api = "tuto-1",
  17         .verbs = verbs
@@ -209,7 +205,7 @@ The only defined verb here (line 11) is named **hello** (field **.verb**)
 and the function that handle the related request is **hello**
 (field **.callback**).
 
-Note that you can explicitely mark the fact that these are
+Note that you can explicitly mark the fact that these are
 struct by typing the **struct** as below:
 
 ```C
@@ -217,7 +213,7 @@ struct by typing the **struct** as below:
  11         { .verb="hello", .callback=hello },
  12         { .verb=NULL }
  13 };
- 14 
+ 14
  15 const struct afb_binding_v2 afbBindingV2 = {
  16         .api = "tuto-1",
  17         .verbs = verbs
@@ -238,30 +234,30 @@ the AGL stuff is installed.
 ```
 
 When the ***binder*** receives a request for the verb **hello** of
-of the api **tuto-1**, it invoque the callback **hello** of the **binding**
+of the api **tuto-1**, it invoke the callback **hello** of the **binding**
 with the argument **req** that handles the client request.
 
 The callback has to treat synchronously or asynchronously the request and
 should at the end emit a reply for the request.
 
 Here, the callback for **tuto-1/hello** replies a successful answer
-(ligne 7) to the request **req**. The second parameter (here NULL)
+(line 7) to the request **req**. The second parameter (here NULL)
 is a json object that is sent to the client with the reply.
 The third parameter is also sent with the reply and is a string
 called info that can be used as some meta data.
 
-Here again, you can explicitely mark the fact that 
+Here again, you can explicitly mark the fact that
 **afb_req** is a structure by declaring **hello** as below:
 
 ```C
   4 void hello(struct afb_req req)
 ```
 
+<!-- pagebreak -->
 Sample binding: tuto-2
 ======================
-
 The second tutorial shows many important feature that can
-commonly be used when writting a ***binding***: initialisation,
+commonly be used when writing a ***binding***: initialization,
 getting arguments, sending replies, pushing events.
 
 This is the code of the binding **tuto-2.c**:
@@ -269,17 +265,17 @@ This is the code of the binding **tuto-2.c**:
 ```C
       1 #include <string.h>
       2 #include <json-c/json.h>
-      3 
+      3
       4 #define AFB_BINDING_VERSION 2
       5 #include <afb/afb-binding.h>
-      6 
+      6
       7 afb_event event_login, event_logout;
-      8 
+      8
       9 void login(afb_req req)
      10 {
      11         json_object *args, *user, *passwd;
      12         char *usr;
-     13 
+     13
      14         args = afb_req_json(req);
      15         if (!json_object_object_get_ex(args, "user", &user)
      16          || !json_object_object_get_ex(args, "password", &passwd)) {
@@ -300,12 +296,12 @@ This is the code of the binding **tuto-2.c**:
      31                 afb_event_push(event_login, json_object_new_string(usr));
      32         }
      33 }
-     34 
+     34
      35 void action(afb_req req)
      36 {
      37         json_object *args, *val;
      38         char *usr;
-     39 
+     39
      40         args = afb_req_json(req);
      41         usr = afb_req_context_get(req);
      42         AFB_REQ_NOTICE(req, "action for user %s: %s", usr, json_object_get_string(args));
@@ -322,11 +318,11 @@ This is the code of the binding **tuto-2.c**:
      53         }
      54         afb_req_success(req, json_object_get(args), NULL);
      55 }
-     56 
+     56
      57 void logout(afb_req req)
      58 {
      59         char *usr;
-     60 
+     60
      61         usr = afb_req_context_get(req);
      62         AFB_REQ_NOTICE(req, "login user %s out", usr);
      63         afb_event_push(event_logout, json_object_new_string(usr));
@@ -334,13 +330,13 @@ This is the code of the binding **tuto-2.c**:
      65         afb_req_context_clear(req);
      66         afb_req_success(req, NULL, NULL);
      67 }
-     68 
+     68
      69 int preinit()
      70 {
      71         AFB_NOTICE("preinit");
      72         return 0;
      73 }
-     74 
+     74
      75 int init()
      76 {
      77         AFB_NOTICE("init");
@@ -351,14 +347,14 @@ This is the code of the binding **tuto-2.c**:
      82         AFB_ERROR("Can't create events");
      83         return -1;
      84 }
-     85 
+     85
      86 const afb_verb_v2 verbs[] = {
      87         { .verb="login", .callback=login },
      88         { .verb="action", .callback=action, .session=AFB_SESSION_LOA_1 },
      89         { .verb="logout", .callback=logout, .session=AFB_SESSION_LOA_1 },
      90         { .verb=NULL }
      91 };
-     92 
+     92
      93 const afb_binding_v2 afbBindingV2 = {
      94         .api = "tuto-2",
      95         .specification = NULL,

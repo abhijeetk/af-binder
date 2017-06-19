@@ -1,13 +1,13 @@
 
-Overview of the binder
-======================
+Binder Overview
+===============
 
 The ***binder*** provides the way to connect applications to
 the services that it needs. It provides a fast way
 to securely offer APIs to applications written in
 any language and running almost anywhere.
 
-The ***binder*** is developped for AGL.
+The ***binder*** is developed for AGL.
 
 The ***binder*** is the usual name.
 The binary is named **afb-daemon**.
@@ -21,7 +21,7 @@ the term of daemon denotes background process but not here).
 Each ***binder*** **afb-daemon** is in charge to bind
 one instance of an application or service to the rest
 of the system, applications and services.
-Within AGL, the connexion between services and/or
+Within AGL, the connection between services and/or
 applications is tuned by the AGL framework and
 the AGL system.
 
@@ -58,7 +58,7 @@ The shown elements are:
 
   An **API** is a set of **verbs** that can be called
   using either REST over HTTP or a kind of JSON RPC.
-  
+
   ***bindings*** are either:
 
    - dynamically loaded libraries in the ***binder*** process
@@ -66,7 +66,7 @@ The shown elements are:
    - remote service running on other hosts
 
   When acting as an HTTP server, the binder treats the language
-  settings of the HTTP resquests to provide internationalized
+  settings of the HTTP requests to provide internationalized
   content as specified by
   [widget specifications](https://www.w3.org/TR/widgets/#internationalization-and-localization).
 
@@ -75,6 +75,8 @@ The shown elements are:
   An ***application*** connects to the binder to get access to
   the **API** that it provides or to get its HTTP services to access
   resources.
+
+<!-- pagebreak -->
 
 Interconnection of binders
 ==========================
@@ -91,8 +93,7 @@ The figure shows 4 several **application/service**: **A**, **B**,
 **C** and **D**.
 
 The application **A** might use an **API** that is shown as a
-local ***binbing*** but that in reality runs within the context
+local ***binding*** but that in reality runs within the context
 of **D**.
 
 The framework AGL takes care of making the plumbing working.
-

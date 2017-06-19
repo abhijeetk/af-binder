@@ -41,8 +41,8 @@ struct afb_verb_v2
 {
         const char *verb;                       /* name of the verb */
         void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-        const struct afb_auth *auth;		/* required authorisation */
-        uint32_t session;                       /* authorisation and session requirements of the verb */
+        const struct afb_auth *auth;		    /* required authorization */
+        uint32_t session;                       /* authorization and session requirements of the verb */
 };
 ```
 
@@ -155,7 +155,7 @@ struct afb_event afb_daemon_make_event(const char *name);
 ```
 
 The following function is used by logging macros and should normally
-not be used. Instead, you should use the macros 
+not be used. Instead, you should use the macros
 **AFB\_ERROR**, **AFB\_WARNING**, **AFB\_NOTICE**,
 **AFB\_INFO**, **AFB\_DEBUG**
 
@@ -208,7 +208,7 @@ The following function is used to queue jobs.
  * If 'timeout' is not 0, it represent the maximum execution time for the job in seconds.
  * At first, the job is called with 0 as signum and the given argument.
  * The job is executed with the monitoring of its time and some signals like SIGSEGV and
- * SIGFPE. When a such signal is catched, the job is terminated and reexecuted but with
+ * SIGFPE. When a such signal is catched, the job is terminated and re-executed but with
  * signum being the signal number (SIGALRM when timeout expired).
  *
  * Returns 0 in case of success or -1 in case of error.
@@ -217,7 +217,7 @@ int afb_daemon_queue_job(void (*callback)(int signum, void *arg), void *argument
 ```
 
 The following function must be used when a binding depends on other
-bindings at its initialisation.
+bindings at its initialization.
 
 ```C
 /*
@@ -449,7 +449,7 @@ void afb_req_success_v(struct afb_req req, struct json_object *obj, const char *
  *
  * Note that calling afb_req_fail("success", info) is equivalent
  * to call afb_req_success(NULL, info). Thus even if possible it
- * is strongly recommanded to NEVER use "success" for status.
+ * is strongly recommended to NEVER use "success" for status.
  */
 void afb_req_fail(struct afb_req req, const char *status, const char *info);
 
@@ -533,7 +533,7 @@ void afb_req_addref(struct afb_req req);
 void afb_req_unref(struct afb_req req);
 
 /*
- * Stores 'req' on heap for asynchrnous use.
+ * Stores 'req' on heap for asynchronous use.
  * Returns a handler to the stored 'req' or NULL on memory depletion.
  * The count of reference to 'req' is incremented on success
  * (see afb_req_addref).
@@ -615,7 +615,7 @@ int afb_req_subcall_sync(
 ```
 
 The following function is used by logging macros and should normally
-not be used. Instead, you should use the macros 
+not be used. Instead, you should use the macros
 **AFB_REQ_ERROR**, **AFB_REQ_WARNING**, **AFB_REQ_NOTICE**,
 **AFB_REQ_INFO**, **AFB_REQ_DEBUG**
 
@@ -666,7 +666,3 @@ AFB_REQ_DEBUG(req,fmt,...)
 
 By default, the logging macros add file, line and function
 indication.
-
-Some definitions can be used to 
-
-

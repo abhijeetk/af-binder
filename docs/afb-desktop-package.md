@@ -1,5 +1,5 @@
 
-Desktop packages for binder developement
+Desktop packages for binder development
 ========================================
 
 It exists packages of the ***binder*** (afb-daemon)
@@ -10,13 +10,13 @@ for common desktop linux distributions.
  - Debian
  - Suse
 
-Installing the developement package of the ***binder***
-allows to write ***bindings*** that runs on the destop
-computer of the developper.
+Installing the development package of the ***binder***
+allows to write ***bindings*** that runs on the desktop
+computer of the developer.
 
 It is very convenient to quickly write and debug a binding.
 
-Retriving compiling option with pkg-config
+Retrieving compiling option with pkg-config
 ==========================================
 
 The ***binder*** afb-daemon provides a configuration
