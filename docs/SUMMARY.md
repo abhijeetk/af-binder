@@ -1,6 +1,7 @@
 # Summary
 
-* [Binder Overview](README.md)
+* [Document revisions](README.md)
+* [Binder Overview](afb-introduction.md)
 * [How to write a binding ?](afb-binding-writing.md)
 * [Binding references](afb-binding-references.md)
 * [Migration from v1 to v2](afb-migration-v1-to-v2.md)
