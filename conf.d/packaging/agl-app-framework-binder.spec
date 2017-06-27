@@ -2,7 +2,10 @@
 # spec file for package app-framework-binder
 #
 
-Name:           app-framework-binder
+%define _prefix /opt/AGL
+%define __cmake cmake
+
+Name:           agl-app-framework-binder
 Version:        2.0
 Release:        0
 License:        GPL-2.0
@@ -14,7 +17,7 @@ Source:         %{name}_%{version}.orig.tar.gz
 BuildRequires:  pkgconfig(libmicrohttpd) >= 0.9.54
 BuildRequires:  make
 BuildRequires:  cmake
-BuildRequires:  pkgconfig(libsystemd)
+BuildRequires:  pkgconfig(libsystemd) >= 222
 BuildRequires:  pkgconfig(openssl)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  libgcrypt-devel
@@ -31,6 +34,7 @@ app-framework-binder
 Summary:        app-framework-binder-devel
 Group:          Development/Libraries/C and C++
 Requires:       %{name} = %{version}
+Provides:       pkgconfig(%{name}) = %{version}
 
 %description devel
 app-framework-binder-devel
@@ -39,6 +43,7 @@ app-framework-binder-devel
 %setup -q
 
 %build
+export PKG_CONFIG_PATH=%{_libdir}/pkgconfig
 %cmake
 %__make %{?_smp_mflags}
 
@@ -47,18 +52,31 @@ app-framework-binder-devel
 [ -d build ] && cd build
 %make_install
 
+mkdir -p %{buildroot}%{_sysconfdir}/profile.d
+cat << EOF > %{buildroot}%{_sysconfdir}/profile.d/AGL_%{name}.sh
+#----------  AGL %{name} options Start ---------" 
+# Object: AGL cmake option for  binder/bindings
+export LD_LIBRARY_PATH=%{_libdir}:\${LD_LIBRARY_PATH}
+export LIBRARY_PATH=%{_libdir}:\${LIBRARY_PATH}
+export PKG_CONFIG_PATH=%{_libdir}/pkgconfig:\${PKG_CONFIG_PATH}
+export PATH=%{_bindir}:\$PATH
+#----------  AGL options End ---------
+EOF
+
 %post
 
 %postun
 
 %files
 %defattr(-,root,root)
+%dir %{_bindir}
 %{_bindir}/afb-client-demo
 %{_bindir}/afb-daemon
 %{_bindir}/afb-genskel
 %{_bindir}/afb-exprefs
 %{_bindir}/afb-json2c
 
+%dir %{_libdir}
 %dir %{_libdir}/afb
 %{_libdir}/afb/afb-dbus-binding.so
 %{_libdir}/afb/authLogin.so
@@ -71,9 +89,14 @@ app-framework-binder-devel
 %{_libdir}/afb/helloWorld.so
 %{_libdir}/afb/tic-tac-toe.so
 
+%{_sysconfdir}/profile.d/AGL_%{name}.sh
+
 %files devel
 %defattr(-,root,root)
+%dir %{_prefix}
 %{_libdir}/libafbwsc.so
+%dir %{_includedir}
 %dir %{_includedir}/afb
 %{_includedir}/afb/*.h
+%dir %{_libdir}/pkgconfig
 %{_libdir}/pkgconfig/*.pc

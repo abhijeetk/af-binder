@@ -1,0 +1,14 @@
+/opt/AGL/lib/*/libafbwsc.so.1.0
+/opt/AGL/lib/*/libafbwsc.so.1
+/opt/AGL/lib/*/afb/authLogin.so
+/opt/AGL/lib/*/afb/demoPost.so
+/opt/AGL/lib/*/afb/afb-dbus-binding.so
+/opt/AGL/lib/*/afb/tic-tac-toe.so
+/opt/AGL/lib/*/afb/helloWorld.so
+/opt/AGL/lib/*/afb/demoContext.so
+/opt/AGL/bin/afb-json2c
+/opt/AGL/bin/afb-daemon
+/opt/AGL/bin/afb-exprefs
+/opt/AGL/bin/afb-client-demo
+/opt/AGL/bin/afb-genskel
+/etc/profile.d/AGL_app-framework-binder.sh
