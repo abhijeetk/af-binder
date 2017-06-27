@@ -1,0 +1,3 @@
+/opt/AGL/include/afb/*.h
+/opt/AGL/lib/*/pkgconfig/*.pc
+/opt/AGL/lib/*/libafbwsc.so

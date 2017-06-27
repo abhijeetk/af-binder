@@ -73,7 +73,7 @@ $ sudo make install<br />
 VERSION=2.0
 GIT_TAG=master
 PKG_NAME=app-framework-binder
-git archive --format=tar.gz --prefix=${PKG_NAME}-${VERSION}/ ${GIT_TAG} -o ${PKG_NAME}_${VERSION}.orig.tar.gz
+git archive --format=tar.gz --prefix=agl-${PKG_NAME}-${VERSION}/ ${GIT_TAG} -o agl-${PKG_NAME}_${VERSION}.orig.tar.gz
 ```
 
 ### Testing/Debug
