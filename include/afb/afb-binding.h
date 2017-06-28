@@ -179,6 +179,10 @@ typedef struct afb_service_itf          afb_service_itf;
 #if AFB_BINDING_VERSION == 2
 
 # define afb_binding		afb_binding_v2
+# define afb_get_verbosity	afb_get_verbosity_v2
+# define afb_get_daemon		afb_get_daemon_v2
+# define afb_get_service	afb_get_service_v2
+
 
 # define AFB_SESSION_NONE	AFB_SESSION_NONE_V2
 # define AFB_SESSION_CLOSE	AFB_SESSION_CLOSE_V2
@@ -228,6 +232,20 @@ typedef struct afb_service_itf          afb_service_itf;
 #define afb_req_unstore			afb_daemon_unstore_req_v2
 
 #endif
+
+/***************************************************************************************************/
+
+#if AFB_BINDING_VERSION >= 2
+
+# define afb_verbose_error()	(afb_get_verbosity() >= 0)
+# define afb_verbose_warning()	(afb_get_verbosity() >= 1)
+# define afb_verbose_notice()	(afb_get_verbosity() >= 1)
+# define afb_verbose_info()	(afb_get_verbosity() >= 2)
+# define afb_verbose_debug()	(afb_get_verbosity() >= 3)
+
+#endif
+
+/***************************************************************************************************/
 
 #if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX)
 # if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
