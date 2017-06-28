@@ -411,25 +411,25 @@ static void onevent(const char *event, struct json_object *object)
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const afb_verb_v2 verbs[]= {
-  { "ping"     ,    pingSample , NULL, AFB_SESSION_NONE },
-  { "pingfail" ,    pingFail   , NULL, AFB_SESSION_NONE },
-  { "pingnull" ,    pingNull   , NULL, AFB_SESSION_NONE },
-  { "pingbug"  ,    pingBug    , NULL, AFB_SESSION_NONE },
-  { "pingJson" ,    pingJson   , NULL, AFB_SESSION_NONE },
-  { "pingevent",    pingEvent  , NULL, AFB_SESSION_NONE },
-  { "subcall",      subcall    , NULL, AFB_SESSION_NONE },
-  { "subcallsync",  subcallsync, NULL, AFB_SESSION_NONE },
-  { "eventadd",     eventadd   , NULL, AFB_SESSION_NONE },
-  { "eventdel",     eventdel   , NULL, AFB_SESSION_NONE },
-  { "eventsub",     eventsub   , NULL, AFB_SESSION_NONE },
-  { "eventunsub",   eventunsub , NULL, AFB_SESSION_NONE },
-  { "eventpush",    eventpush  , NULL, AFB_SESSION_NONE },
-  { "call",         call       , NULL, AFB_SESSION_NONE },
-  { "callsync",     callsync   , NULL, AFB_SESSION_NONE },
-  { "verbose",      verbose    , NULL, AFB_SESSION_NONE },
-  { "broadcast",    broadcast  , NULL, AFB_SESSION_NONE },
-  { "exit",         exitnow    , NULL, AFB_SESSION_NONE },
-  { NULL}
+  { .verb="ping",        .callback=pingSample },
+  { .verb="pingfail",    .callback=pingFail },
+  { .verb="pingnull",    .callback=pingNull },
+  { .verb="pingbug",     .callback=pingBug },
+  { .verb="pingJson",    .callback=pingJson },
+  { .verb="pingevent",   .callback=pingEvent },
+  { .verb="subcall",     .callback=subcall },
+  { .verb="subcallsync", .callback=subcallsync },
+  { .verb="eventadd",    .callback=eventadd },
+  { .verb="eventdel",    .callback=eventdel },
+  { .verb="eventsub",    .callback=eventsub },
+  { .verb="eventunsub",  .callback=eventunsub },
+  { .verb="eventpush",   .callback=eventpush },
+  { .verb="call",        .callback=call },
+  { .verb="callsync",    .callback=callsync },
+  { .verb="verbose",     .callback=verbose },
+  { .verb="broadcast",   .callback=broadcast },
+  { .verb="exit",        .callback=exitnow },
+  { .verb=NULL}
 };
 
 const afb_binding_v2 afbBindingV2 = {

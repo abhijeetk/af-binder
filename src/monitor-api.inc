@@ -50,13 +50,15 @@ static const struct afb_verb_v2 _afb_verbs_v2_monitor[] = {
         .verb = "get",
         .callback = f_get,
         .auth = &_afb_auths_v2_monitor[2],
-        .session = 0,
+        .info = NULL,
+        .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "set",
         .callback = f_set,
         .auth = &_afb_auths_v2_monitor[0],
-        .session = 0,
+        .info = NULL,
+        .session = AFB_SESSION_NONE_V2
     },
     { .verb = NULL }
 };
@@ -64,9 +66,11 @@ static const struct afb_verb_v2 _afb_verbs_v2_monitor[] = {
 static const struct afb_binding_v2 _afb_binding_v2_monitor = {
     .api = "monitor",
     .specification = _afb_description_v2_monitor,
+    .info = NULL,
     .verbs = _afb_verbs_v2_monitor,
     .preinit = NULL,
     .init = NULL,
     .onevent = NULL,
+    .noconcurrency = 0
 };
 

@@ -564,16 +564,15 @@ static void wait(struct afb_req req)
  * array of the verbs exported to afb-daemon
  */
 static const struct afb_verb_v2 verbs[] = {
-   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
-   { "new",   new,   NULL, AFB_SESSION_NONE },
-   { "play",  play,  NULL, AFB_SESSION_NONE },
-   { "move",  move,  NULL, AFB_SESSION_NONE },
-   { "board", board, NULL, AFB_SESSION_NONE },
-   { "level", level, NULL, AFB_SESSION_NONE },
-   { "join",  join,  NULL, AFB_SESSION_NONE },
-   { "undo",  undo,  NULL, AFB_SESSION_NONE },
-   { "wait",  wait,  NULL, AFB_SESSION_NONE },
-   { NULL,    NULL,  NULL, AFB_SESSION_NONE } /* marker for end of the array */
+   { .verb="new",   .callback=new },
+   { .verb="play",  .callback=play },
+   { .verb="move",  .callback=move },
+   { .verb="board", .callback=board },
+   { .verb="level", .callback=level },
+   { .verb="join",  .callback=join },
+   { .verb="undo",  .callback=undo },
+   { .verb="wait",  .callback=wait },
+   { .verb=NULL }
 };
 
 /*
