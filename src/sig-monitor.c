@@ -24,6 +24,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <execinfo.h>
 
 #include "sig-monitor.h"
 #include "verbose.h"
@@ -36,6 +37,26 @@ static _Thread_local sigjmp_buf *error_handler;
 /* local timers */
 static _Thread_local int thread_timer_set;
 static _Thread_local timer_t thread_timerid;
+
+/*
+ * Dumps the current stack
+ */
+static void dumpstack(int crop)
+{
+	int idx, count;
+	void *addresses[1000];
+	char **locations;
+
+	count = backtrace(addresses, sizeof addresses / sizeof *addresses);
+	locations = backtrace_symbols(addresses, count);
+	if (locations == NULL)
+		ERROR("can't get the backtrace (returned %d addresses)", count);
+	else {
+		for (idx = crop; idx < count; idx++)
+			ERROR("[BACKTRACE %d/%d] %s", idx - crop + 1, count - crop, locations[idx]);
+		free(locations);
+	}
+}
 
 /*
  * Creates a timer for the current thread
@@ -118,6 +139,10 @@ static void on_signal_error(int signum)
 	sigset_t sigset;
 
 	ERROR("ALERT! signal %d received: %s", signum, strsignal(signum));
+	if (error_handler == NULL && signum == SIG_FOR_TIMER)
+		return;
+
+	dumpstack(3);
 
 	// unlock signal to allow a new signal to come
 	if (error_handler != NULL) {
@@ -126,8 +151,6 @@ static void on_signal_error(int signum)
 		sigprocmask(SIG_UNBLOCK, &sigset, 0);
 		longjmp(*error_handler, signum);
 	}
-	if (signum == SIG_FOR_TIMER)
-		return;
 	ERROR("Unmonitored signal %d received: %s", signum, strsignal(signum));
 	exit(2);
 }
