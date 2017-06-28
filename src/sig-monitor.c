@@ -171,8 +171,8 @@ static int install(void (*handler)(int), int *signals)
 
 int sig_monitor_init()
 {
-	static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, 0 };
-	static int sigterm[] = { SIGINT, SIGABRT, 0 };
+	static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, SIGILL, SIGBUS, 0 };
+	static int sigterm[] = { SIGINT, SIGABRT, SIGTERM, 0 };
 
 	return (install(on_signal_error, sigerr) & install(on_signal_terminate, sigterm)) - 1;
 }
