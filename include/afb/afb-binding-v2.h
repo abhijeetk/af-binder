@@ -36,9 +36,10 @@ struct json_object;
  */
 struct afb_verb_v2
 {
-	const char *verb;                       /* name of the verb */
+	const char *verb;                       /* name of the verb, NULL only at end of the array */
 	void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-	const struct afb_auth *auth;		/* required authorisation */
+	const struct afb_auth *auth;		/* required authorisation, can be NULL */
+	const char *info;			/* some info about the verb, can be NULL */
 	uint32_t session;                       /* authorisation and session requirements of the verb */
 };
 
@@ -48,7 +49,8 @@ struct afb_verb_v2
 struct afb_binding_v2
 {
 	const char *api;			/* api name for the binding */
-	const char *specification;		/* textual specification of the binding */
+	const char *specification;		/* textual specification of the binding, can be NULL */
+	const char *info;			/* some info about the api, can be NULL */
 	const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
 	int (*preinit)();                       /* callback at load of the binding */
 	int (*init)();                          /* callback for starting the service */

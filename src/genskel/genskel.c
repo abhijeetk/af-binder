@@ -496,6 +496,7 @@ void print_struct_verb(const char *name, struct json_object *obj)
 	printf(
 		",\n"
 		"        .auth = %s,\n"
+		"        .info = NULL,\n"
 		"        .session = "
 		, p ? json_object_get_string(decl_perm(p)) : "NULL"
 	);
@@ -624,6 +625,7 @@ void process(char *filename)
 		"%sconst struct afb_binding_v2 %s%s = {\n"
 		"    .api = \"%s\",\n"
 		"    .specification = _afb_description_v2_%s,\n"
+		"    .info = NULL,\n"
 		"    .verbs = _afb_verbs_v2_%s,\n"
 		"    .preinit = %s,\n"
 		"    .init = %s,\n"

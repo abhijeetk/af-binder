@@ -183,8 +183,9 @@ static struct json_object *make_description_openAPIv3(struct api_so_v1 *desc)
 
 	i = json_object_new_object();
 	json_object_object_add(r, "info", i);
-	json_object_object_add(i, "title", json_object_new_string(desc->binding->v1.info));
+	json_object_object_add(i, "title", json_object_new_string(desc->binding->v1.prefix));
 	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
+	json_object_object_add(i, "description", json_object_new_string(desc->binding->v1.info ?: desc->binding->v1.prefix));
 
 	p = json_object_new_object();
 	json_object_object_add(r, "paths", p);

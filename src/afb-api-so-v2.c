@@ -210,6 +210,7 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 	json_object_object_add(r, "info", i);
 	json_object_object_add(i, "title", json_object_new_string(desc->binding->api));
 	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
+	json_object_object_add(i, "description", json_object_new_string(desc->binding->info ?: desc->binding->api));
 
 	p = json_object_new_object();
 	json_object_object_add(r, "paths", p);
@@ -243,7 +244,7 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 		json_object_object_add(g, "responses", a);
 		f = json_object_new_object();
 		json_object_object_add(a, "200", f);
-		json_object_object_add(f, "description", json_object_new_string(verb->verb));
+		json_object_object_add(f, "description", json_object_new_string(verb->info?:verb->verb));
 		verb++;
 	}
 	return r;
