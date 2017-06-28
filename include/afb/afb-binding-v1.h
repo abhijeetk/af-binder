@@ -171,16 +171,16 @@ struct afb_binding_interface_v1
 			afb_req_verbose(req,llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
 # endif
-# define AFB_ERROR_V1(itf,...)       _AFB_LOGGING_V1_(itf,0,3,__VA_ARGS__)
-# define AFB_WARNING_V1(itf,...)     _AFB_LOGGING_V1_(itf,1,4,__VA_ARGS__)
-# define AFB_NOTICE_V1(itf,...)      _AFB_LOGGING_V1_(itf,1,5,__VA_ARGS__)
-# define AFB_INFO_V1(itf,...)        _AFB_LOGGING_V1_(itf,2,6,__VA_ARGS__)
-# define AFB_DEBUG_V1(itf,...)       _AFB_LOGGING_V1_(itf,3,7,__VA_ARGS__)
-# define AFB_REQ_ERROR_V1(itf,...)   _AFB_REQ_LOGGING_V1_(itf,0,3,__VA_ARGS__)
-# define AFB_REQ_WARNING_V1(itf,...) _AFB_REQ_LOGGING_V1_(itf,1,4,__VA_ARGS__)
-# define AFB_REQ_NOTICE_V1(itf,...)  _AFB_REQ_LOGGING_V1_(itf,1,5,__VA_ARGS__)
-# define AFB_REQ_INFO_V1(itf,...)    _AFB_REQ_LOGGING_V1_(itf,2,6,__VA_ARGS__)
-# define AFB_REQ_DEBUG_V1(itf,...)   _AFB_REQ_LOGGING_V1_(itf,3,7,__VA_ARGS__)
+# include "afb-verbosity.h"
+# define AFB_ERROR_V1(itf,...)       _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
+# define AFB_WARNING_V1(itf,...)     _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
+# define AFB_NOTICE_V1(itf,...)      _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
+# define AFB_INFO_V1(itf,...)        _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
+# define AFB_DEBUG_V1(itf,...)       _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
+# define AFB_REQ_ERROR_V1(itf,...)   _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
+# define AFB_REQ_WARNING_V1(itf,...) _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
+# define AFB_REQ_NOTICE_V1(itf,...)  _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
+# define AFB_REQ_INFO_V1(itf,...)    _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
+# define AFB_REQ_DEBUG_V1(itf,...)   _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
 #endif
-
 
