@@ -77,6 +77,7 @@ void verbose_set_name(const char *name, int authority)
 #else
 
 #include <unistd.h>
+#include <errno.h>
 
 static const char *appname;
 
@@ -95,7 +96,9 @@ static const char *prefixes[] = {
 
 void vverbose(int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
+	int saverr = errno;
 	int tty = isatty(fileno(stderr));
+	errno = saverr;
 
 	fprintf(stderr, "%s: ", prefixes[LEVEL(level)] + (tty ? 4 : 0));
 	vfprintf(stderr, fmt, args);
