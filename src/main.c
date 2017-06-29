@@ -54,6 +54,7 @@
 #include "sd-fds.h"
 #include "afb-debug.h"
 #include "process-name.h"
+#include "afb-supervision.h"
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -569,6 +570,10 @@ static void start(int signum, void *arg)
 	}
 	if (afb_monitor_init() < 0) {
 		ERROR("failed to setup monitor");
+		goto error;
+	}
+	if (afb_supervision_init() < 0) {
+		ERROR("failed to setup supervision");
 		goto error;
 	}
 

@@ -52,6 +52,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-proto-ws.c
 	afb-session.c
 	afb-stub-ws.c
+	afb-supervision.c
 	afb-trace.c
 	afb-websock.c
 	afb-ws-client.c
@@ -79,6 +80,17 @@ TARGET_LINK_LIBRARIES(afb-daemon
 	${link_libraries}
 )
 INSTALL(TARGETS afb-daemon
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+###########################################
+# build and install afb-daemon
+###########################################
+ADD_EXECUTABLE(afs-supervisor afs-supervisor.c)
+TARGET_LINK_LIBRARIES(afs-supervisor
+	afb-lib
+	${link_libraries}
+)
+INSTALL(TARGETS afs-supervisor
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 ###########################################
