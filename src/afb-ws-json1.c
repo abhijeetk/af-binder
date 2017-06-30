@@ -143,13 +143,13 @@ error:
 	return NULL;
 }
 
-static struct afb_ws_json1 *aws_addref(struct afb_ws_json1 *ws)
+struct afb_ws_json1 *afb_ws_json1_addref(struct afb_ws_json1 *ws)
 {
 	__atomic_add_fetch(&ws->refcount, 1, __ATOMIC_RELAXED);
 	return ws;
 }
 
-static void aws_unref(struct afb_ws_json1 *ws)
+void afb_ws_json1_unref(struct afb_ws_json1 *ws)
 {
 	if (!__atomic_sub_fetch(&ws->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_evt_listener_unref(ws->listener);
@@ -165,7 +165,7 @@ static void aws_unref(struct afb_ws_json1 *ws)
 
 static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1)
 {
-	aws_unref(ws);
+	afb_ws_json1_unref(ws);
 }
 
 static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg)
@@ -198,7 +198,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	wsreq->xreq.api = api;
 	wsreq->xreq.verb = verb;
 	wsreq->xreq.json = afb_wsj1_msg_object_j(wsreq->msgj1);
-	wsreq->aws = aws_addref(ws);
+	wsreq->aws = afb_ws_json1_addref(ws);
 	wsreq->xreq.listener = wsreq->aws->listener;
 
 	/* emits the call */
@@ -225,7 +225,7 @@ static void wsreq_destroy(struct afb_xreq *xreq)
 	afb_context_disconnect(&wsreq->xreq.context);
 	afb_wsj1_msg_unref(wsreq->msgj1);
 	afb_cred_unref(wsreq->xreq.cred);
-	aws_unref(wsreq->aws);
+	afb_ws_json1_unref(wsreq->aws);
 	free(wsreq);
 }
 
