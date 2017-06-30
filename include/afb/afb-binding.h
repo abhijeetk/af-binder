@@ -243,6 +243,9 @@ typedef struct afb_service_itf          afb_service_itf;
 # define afb_verbose_info()	(afb_get_verbosity() >= 2)
 # define afb_verbose_debug()	(afb_get_verbosity() >= 3)
 
+# if !defined(AFB_BINDING_PRAGMA_KEEP_VERBOSE_UNPREFIX) && !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX)
+#  define AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX
+# endif
 #endif
 
 /***************************************************************************************************/

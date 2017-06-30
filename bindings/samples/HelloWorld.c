@@ -361,7 +361,7 @@ static void exitnow (afb_req request)
 	if (!json_object_object_get_ex(query,"reason",&l))
 		l = NULL;
 
-	REQ_NOTICE(request, "in phase of exiting with code %d, reason: %s", code, l ? json_object_get_string(l) : "unknown");
+	AFB_REQ_NOTICE(request, "in phase of exiting with code %d, reason: %s", code, l ? json_object_get_string(l) : "unknown");
 	afb_req_success(request, NULL, NULL);
 	exit(code);
 }
@@ -393,19 +393,19 @@ static void broadcast(afb_req request)
 
 static int preinit()
 {
-	NOTICE("hello binding comes to live");
+	AFB_NOTICE("hello binding comes to live");
 	return 0;
 }
 
 static int init()
 {
-	NOTICE("hello binding starting");
+	AFB_NOTICE("hello binding starting");
 	return 0;
 }
 
 static void onevent(const char *event, struct json_object *object)
 {
-	NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
+	AFB_NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
