@@ -315,7 +315,7 @@ static void new(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'new' called for boardid %d", board->id);
+	AFB_INFO("method 'new' called for boardid %d", board->id);
 
 	/* reset the game */
 	memset(board->board, ' ', sizeof board->board);
@@ -338,7 +338,7 @@ static void board(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'board' called for boardid %d", board->id);
+	AFB_INFO("method 'board' called for boardid %d", board->id);
 
 	/* describe the board */
 	description = describe(board);
@@ -358,7 +358,7 @@ static void move(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'move' called for boardid %d", board->id);
+	AFB_INFO("method 'move' called for boardid %d", board->id);
 
 	/* retrieves the arguments of the move */
 	index = afb_req_value(req, "index");
@@ -366,27 +366,27 @@ static void move(struct afb_req req)
 
 	/* checks validity of arguments */
 	if (i < 0 || i > 8) {
-		WARNING("can't move to %s: %s", index?:"?", index?"wrong value":"not set");
+		AFB_WARNING("can't move to %s: %s", index?:"?", index?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0) {
-		WARNING("can't move to %s: game is terminated", index);
+		AFB_WARNING("can't move to %s: game is terminated", index);
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
 
 	/* checks validity of the move */
 	if (board->board[i] != ' ') {
-		WARNING("can't move to %s: room occupied", index);
+		AFB_WARNING("can't move to %s: room occupied", index);
 		afb_req_fail(req, "error", "occupied");
 		return;
 	}
 
 	/* applies the move */
-	INFO("method 'move' for boardid %d, index=%s", board->id, index);
+	AFB_INFO("method 'move' for boardid %d, index=%s", board->id, index);
 	add_move(board, i);
 
 	/* replies */
@@ -407,7 +407,7 @@ static void level(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'level' called for boardid %d", board->id);
+	AFB_INFO("method 'level' called for boardid %d", board->id);
 
 	/* retrieves the arguments */
 	level = afb_req_value(req, "level");
@@ -415,13 +415,13 @@ static void level(struct afb_req req)
 
 	/* check validity of arguments */
 	if (l < 1 || l > 10) {
-		WARNING("can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
+		AFB_WARNING("can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
 
 	/* set the level */
-	INFO("method 'level' for boardid %d, level=%d", board->id, l);
+	AFB_INFO("method 'level' for boardid %d, level=%d", board->id, l);
 	board->level = l;
 
 	/* replies */
@@ -441,7 +441,7 @@ static void join(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'join' called for boardid %d", board->id);
+	AFB_INFO("method 'join' called for boardid %d", board->id);
 
 	/* retrieves the arguments */
 	id = afb_req_value(req, "boardid");
@@ -478,7 +478,7 @@ success:
 	return;
 
 bad_request:
-	WARNING("can't join boardid %s: %s", id ? : "?", !id ? "no boardid" : atoi(id) ? "not found" : "bad boardid");
+	AFB_WARNING("can't join boardid %s: %s", id ? : "?", !id ? "no boardid" : atoi(id) ? "not found" : "bad boardid");
 	afb_req_fail(req, "error", "bad request");
 	return;
 }
@@ -493,11 +493,11 @@ static void undo(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'undo' called for boardid %d", board->id);
+	AFB_INFO("method 'undo' called for boardid %d", board->id);
 
 	/* checks the state */
 	if (board->moves == 0) {
-		WARNING("can't undo");
+		AFB_WARNING("can't undo");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
@@ -523,11 +523,11 @@ static void play(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'play' called for boardid %d", board->id);
+	AFB_INFO("method 'play' called for boardid %d", board->id);
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0 || board->moves == 9) {
-		WARNING("can't play: game terminated (%s)", winner(board->board) ? "has winner" : "no room left");
+		AFB_WARNING("can't play: game terminated (%s)", winner(board->board) ? "has winner" : "no room left");
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
@@ -550,7 +550,7 @@ static void wait(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
-	INFO("method 'wait' called for boardid %d", board->id);
+	AFB_INFO("method 'wait' called for boardid %d", board->id);
 
 	/* creates the waiter and enqueues it */
 	waiter = calloc(1, sizeof *waiter);
