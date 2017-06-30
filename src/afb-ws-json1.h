@@ -22,4 +22,6 @@ struct afb_context;
 struct afb_apiset;
 
 extern struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *closure);
+extern struct afb_ws_json1 *afb_ws_json1_addref(struct afb_ws_json1 *ws);
+extern void afb_ws_json1_unref(struct afb_ws_json1 *ws);
 
