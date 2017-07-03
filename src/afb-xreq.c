@@ -109,7 +109,7 @@ static void xreq_fail_cb(void *closure, const char *status, const char *info)
 		if (xreq->queryitf->fail)
 			xreq->queryitf->fail(xreq, status, info);
 		else
-			xreq->queryitf->reply(xreq, 1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
+			xreq->queryitf->reply(xreq, -1, afb_msg_json_reply_error(status, info, &xreq->context, NULL));
 	}
 }
 
@@ -215,7 +215,7 @@ struct xreq_sync
 	struct json_object *args;
 	struct jobloop *jobloop;
 	struct json_object *result;
-	int iserror;
+	int status;
 };
 
 static void xreq_sync_leave(struct xreq_sync *sync)
@@ -227,11 +227,11 @@ static void xreq_sync_leave(struct xreq_sync *sync)
 	}
 }
 
-static void xreq_sync_reply(void *closure, int iserror, struct json_object *obj)
+static void xreq_sync_reply(void *closure, int status, struct json_object *obj)
 {
 	struct xreq_sync *sync = closure;
 
-	sync->iserror = iserror;
+	sync->status = status;
 	sync->result = json_object_get(obj);
 	xreq_sync_leave(sync);
 }
@@ -244,7 +244,7 @@ static void xreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
 		sync->jobloop = jobloop;
 		xreq_subcall_cb(sync->caller, sync->api, sync->verb, json_object_get(sync->args), xreq_sync_reply, sync);
 	} else {
-		sync->iserror = 1;
+		sync->status = -1;
 		xreq_sync_leave(sync);
 	}
 }
@@ -261,16 +261,16 @@ static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb,
 	sync.args = args;
 	sync.jobloop = NULL;
 	sync.result = NULL;
-	sync.iserror = 1;
+	sync.status = 0;
 
 	rc = jobs_enter(NULL, 0, xreq_sync_enter, &sync);
 	json_object_put(args);
-	if (rc < 0 || sync.iserror) {
+	if (rc < 0 || sync.status < 0) {
 		*result = sync.result ? : afb_msg_json_internal_error();
-		return 0;
+		return -1;
 	}
 	*result = sync.result;
-	return 1;
+	return 0;
 }
 
 static void xreq_vverbose_cb(void*closure, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
@@ -391,12 +391,12 @@ struct reply
 	void *closure;
 };
 
-static void xreq_hooked_subcall_reply_cb(void *closure, int iserror, struct json_object *result)
+static void xreq_hooked_subcall_reply_cb(void *closure, int status, struct json_object *result)
 {
 	struct reply *reply = closure;
 	
-	afb_hook_xreq_subcall_result(reply->xreq, iserror, result);
-	reply->callback(reply->closure, iserror, result);
+	afb_hook_xreq_subcall_result(reply->xreq, status, result);
+	reply->callback(reply->closure, status, result);
 	free(reply);
 }
 

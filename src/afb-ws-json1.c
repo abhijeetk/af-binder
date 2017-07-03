@@ -50,7 +50,7 @@ static void aws_on_event(struct afb_ws_json1 *ws, const char *event, int eventid
 
 /* predeclaration of wsreq callbacks */
 static void wsreq_destroy(struct afb_xreq *xreq);
-static void wsreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj);
+static void wsreq_reply(struct afb_xreq *xreq, int status, json_object *obj);
 
 /* declaration of websocket structure */
 struct afb_ws_json1
@@ -229,12 +229,12 @@ static void wsreq_destroy(struct afb_xreq *xreq)
 	free(wsreq);
 }
 
-static void wsreq_reply(struct afb_xreq *xreq, int iserror, json_object *obj)
+static void wsreq_reply(struct afb_xreq *xreq, int status, json_object *obj)
 {
 	struct afb_wsreq *wsreq = CONTAINER_OF_XREQ(struct afb_wsreq, xreq);
 	int rc;
 
-	rc = (iserror ? afb_wsj1_reply_error_j : afb_wsj1_reply_ok_j)(
+	rc = (status < 0 ? afb_wsj1_reply_error_j : afb_wsj1_reply_ok_j)(
 			wsreq->msgj1, obj, afb_context_sent_token(&wsreq->xreq.context));
 	if (rc)
 		ERROR("Can't send reply: %m");

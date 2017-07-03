@@ -336,7 +336,7 @@ static inline int afb_req_unsubscribe(struct afb_req req, struct afb_event event
  * This call is made in the context of the request 'req'.
  * On completion, the function 'callback' is invoked with the
  * 'closure' given at call and two other parameters: 'iserror' and 'result'.
- * 'iserror' is a boolean that indicates if the reply is an error reply.
+ * 'status' is 0 on success or negative when on an error reply.
  * 'result' is the json object of the reply, you must not call json_object_put
  * on the result.
  *
@@ -353,7 +353,7 @@ static inline void afb_req_subcall(struct afb_req req, const char *api, const ch
  * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
  * This call is made in the context of the request 'req'.
  * This call is synchronous, it waits untill completion of the request.
- * It returns 0 on an error answer and returns 1 when no error was detected.
+ * It returns 0 on success or a negative value on error answer.
  * The object pointed by 'result' is filled and must be released by the caller
  * after its use by calling 'json_object_put'.
  *

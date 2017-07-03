@@ -49,11 +49,11 @@ static void subcall_destroy(struct afb_xreq *xreq)
 	free(subcall);
 }
 
-static void subcall_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj)
+static void subcall_reply(struct afb_xreq *xreq, int status, struct json_object *obj)
 {
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
-	subcall->callback(subcall->closure, iserror, obj);
+	subcall->callback(subcall->closure, status, obj);
 	json_object_put(obj);
 }
 

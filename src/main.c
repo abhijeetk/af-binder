@@ -447,11 +447,11 @@ struct startup_req
 	struct afb_session *session;
 };
 
-static void startup_call_reply(struct afb_xreq *xreq, int iserror, struct json_object *obj)
+static void startup_call_reply(struct afb_xreq *xreq, int status, struct json_object *obj)
 {
 	struct startup_req *sreq = CONTAINER_OF_XREQ(struct startup_req, xreq);
 
-	if (!iserror)
+	if (status >= 0)
 		NOTICE("startup call %s returned %s", sreq->current->value, json_object_get_string(obj));
 	else {
 		ERROR("startup call %s ERROR! %s", sreq->current->value, json_object_get_string(obj));

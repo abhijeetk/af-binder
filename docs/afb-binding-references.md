@@ -245,7 +245,7 @@ bindings for themselves.
  *
  * The 'callback' receives 3 arguments:
  *  1. 'closure' the user defined closure pointer 'callback_closure',
- *  2. 'iserror' a boolean status being true (not null) when an error occured,
+ *  2. 'status' a status being 0 on success or negative when an error occured,
  *  2. 'result' the resulting data as a JSON object.
  *
  * @param api      The api name of the method to call
@@ -260,7 +260,7 @@ void afb_service_call(
 	const char *api,
 	const char *verb,
 	struct json_object *args,
-	void (*callback)(void*closure, int iserror, struct json_object *result),
+	void (*callback)(void*closure, int status, struct json_object *result),
 	void *callback_closure);
 
 /**
@@ -276,7 +276,7 @@ void afb_service_call(
  * @param args     The arguments to pass to the method
  * @param result   Where to store the result - should call json_object_put on it -
  *
- * @returns 1 in case of success or 0 in case of error.
+ * @returns 0 in case of success or a negative value in case of error.
  *
  * @see also 'afb_req_subcall'
  */
@@ -578,7 +578,7 @@ client (with its permissions).
  * This call is made in the context of the request 'req'.
  * On completion, the function 'callback' is invoked with the
  * 'closure' given at call and two other parameters: 'iserror' and 'result'.
- * 'iserror' is a boolean that indicates if the reply is an error reply.
+ * 'status' is 0 on success or negative when on an error reply.
  * 'result' is the json object of the reply, you must not call json_object_put
  * on the result.
  *
@@ -591,14 +591,14 @@ void afb_req_subcall(
                 const char *api,
                 const char *verb,
                 struct json_object *args,
-                void (*callback)(void *closure, int iserror, struct json_object *result),
+                void (*callback)(void *closure, int status, struct json_object *result),
                 void *closure);
 
 /*
  * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
  * This call is made in the context of the request 'req'.
  * This call is synchronous, it waits untill completion of the request.
- * It returns 0 on an error answer and returns 1 when no error was detected.
+ * It returns 0 on success or a negative value on error answer.
  * The object pointed by 'result' is filled and must be released by the caller
  * after its use by calling 'json_object_put'.
  *

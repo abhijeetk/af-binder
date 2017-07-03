@@ -35,7 +35,7 @@ struct afb_xreq_query_itf {
 	struct afb_arg (*get)(struct afb_xreq *xreq, const char *name);
 	void (*success)(struct afb_xreq *xreq, struct json_object *obj, const char *info);
 	void (*fail)(struct afb_xreq *xreq, const char *status, const char *info);
-	void (*reply)(struct afb_xreq *xreq, int iserror, struct json_object *obj);
+	void (*reply)(struct afb_xreq *xreq, int status, struct json_object *obj);
 	void (*unref)(struct afb_xreq *xreq);
 	int (*subscribe)(struct afb_xreq *xreq, struct afb_event event);
 	int (*unsubscribe)(struct afb_xreq *xreq, struct afb_event event);
