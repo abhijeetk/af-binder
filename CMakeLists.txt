@@ -77,7 +77,7 @@ ENDIF(NOT HAVE_LIBMAGIC)
 ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
 
 PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.54)
+PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.55)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
 PKG_CHECK_MODULES(cynara cynara-client)
