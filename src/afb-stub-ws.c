@@ -740,11 +740,11 @@ static void client_reply_fail(struct afb_stub_ws *stubws, struct readbuf *rb)
 }
 
 /* send a subcall reply */
-static void client_send_subcall_reply(struct client_subcall *subcall, int iserror, json_object *object)
+static void client_send_subcall_reply(struct client_subcall *subcall, int status, json_object *object)
 {
 	int rc;
 	struct writebuf wb = { .count = 0 };
-	char ie = (char)!!iserror;
+	char ie = status < 0;
 
 	if (!writebuf_char(&wb, CHAR_FOR_SUBCALL_REPLY)
 	 || !writebuf_uint32(&wb, subcall->subcallid)
@@ -761,9 +761,9 @@ static void client_send_subcall_reply(struct client_subcall *subcall, int iserro
 }
 
 /* callback for subcall reply */
-static void client_subcall_reply_cb(void *closure, int iserror, json_object *object)
+static void client_subcall_reply_cb(void *closure, int status, json_object *object)
 {
-	client_send_subcall_reply(closure, iserror, object);
+	client_send_subcall_reply(closure, status, object);
 	free(closure);
 }
 
@@ -1040,14 +1040,14 @@ overflow:
 /* on subcall reply */
 static void server_on_subcall_reply(struct afb_stub_ws *stubws, struct readbuf *rb)
 {
-	char iserror;
+	char ie;
 	uint32_t subcallid;
 	struct json_object *object;
 	struct server_subcall *sc, **psc;
 
 	/* reads the call message data */
 	if (!readbuf_uint32(rb, &subcallid)
-	 || !readbuf_char(rb, &iserror)
+	 || !readbuf_char(rb, &ie)
 	 || !readbuf_object(rb, &object)) {
 		/* TODO bad protocol */
 		return;
@@ -1064,7 +1064,7 @@ static void server_on_subcall_reply(struct afb_stub_ws *stubws, struct readbuf *
 	} else {
 		*psc = sc->next;
 		pthread_mutex_unlock(&stubws->mutex);
-		sc->callback(sc->closure, (int)iserror, object);
+		sc->callback(sc->closure, -(int)ie, object);
 		free(sc);
 	}
 	json_object_put(object);

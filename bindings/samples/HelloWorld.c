@@ -169,10 +169,10 @@ static void pingJson (afb_req request) {
     ping(request, jresp, "pingJson");
 }
 
-static void subcallcb (void *prequest, int iserror, json_object *object)
+static void subcallcb (void *prequest, int status, json_object *object)
 {
 	afb_req request = afb_req_unstore(prequest);
-	if (iserror)
+	if (status < 0)
 		afb_req_fail(request, "failed", json_object_to_json_string(object));
 	else
 		afb_req_success(request, json_object_get(object), NULL);
@@ -204,7 +204,7 @@ static void subcallsync (afb_req request)
 		afb_req_fail(request, "failed", "bad arguments");
 	else {
 		rc = afb_req_subcall_sync(request, api, verb, object, &result);
-		if (rc)
+		if (rc >= 0)
 			afb_req_success(request, result, NULL);
 		else {
 			afb_req_fail(request, "failed", json_object_to_json_string(result));
@@ -287,10 +287,10 @@ static void eventpush (afb_req request)
 	json_object_put(object);
 }
 
-static void callcb (void *prequest, int iserror, json_object *object)
+static void callcb (void *prequest, int status, json_object *object)
 {
 	afb_req request = afb_req_unstore(prequest);
-	if (iserror)
+	if (status < 0)
 		afb_req_fail(request, "failed", json_object_to_json_string(object));
 	else
 		afb_req_success(request, json_object_get(object), NULL);
@@ -322,7 +322,7 @@ static void callsync (afb_req request)
 		afb_req_fail(request, "failed", "bad arguments");
 	else {
 		rc = afb_service_call_sync(api, verb, object, &result);
-		if (rc)
+		if (rc >= 0)
 			afb_req_success(request, result, NULL);
 		else {
 			afb_req_fail(request, "failed", json_object_to_json_string(result));

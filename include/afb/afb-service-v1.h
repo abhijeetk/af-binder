@@ -29,7 +29,7 @@
  *
  * The 'callback' receives 3 arguments:
  *  1. 'closure' the user defined closure pointer 'callback_closure',
- *  2. 'iserror' a boolean status being true (not null) when an error occured,
+ *  2. 'status' a status being 0 on success or negative when an error occured,
  *  2. 'result' the resulting data as a JSON object.
  *
  * @param service  The service as received during initialisation
@@ -46,7 +46,7 @@ static inline void afb_service_call_v1(
 	const char *api,
 	const char *verb,
 	struct json_object *args,
-	void (*callback)(void*closure, int iserror, struct json_object *result),
+	void (*callback)(void*closure, int status, struct json_object *result),
 	void *callback_closure)
 {
 	service.itf->call(service.closure, api, verb, args, callback, callback_closure);
@@ -66,7 +66,7 @@ static inline void afb_service_call_v1(
  * @param args     The arguments to pass to the method
  * @param result   Where to store the result - should call json_object_put on it -
  *
- * @returns 1 in case of success or 0 in case of error.
+ * @returns 0 in case of success or a negative value in case of error.
  *
  * @see also 'afb_req_subcall'
  */
