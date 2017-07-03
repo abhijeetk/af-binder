@@ -14,7 +14,7 @@ Group:          Development/Libraries/C and C++
 Url:            https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/app-framework-binder
 Source:         %{name}_%{version}.orig.tar.gz
 #BuildRequires:  gdb 
-BuildRequires:  pkgconfig(libmicrohttpd) >= 0.9.54
+BuildRequires:  pkgconfig(libmicrohttpd) >= 0.9.55
 BuildRequires:  make
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(libsystemd) >= 222
