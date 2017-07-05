@@ -49,6 +49,7 @@
 #include "afb-monitor.h"
 #include "afb-hook.h"
 #include "sd-fds.h"
+#include "afb-debug.h"
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -533,6 +534,8 @@ static void start(int signum)
 {
 	struct afb_hsrv *hsrv;
 
+	afb_debug("start-entry");
+
 	if (signum) {
 		ERROR("start aborted: received signal %s", strsignal(signum));
 		exit(1);
@@ -582,6 +585,7 @@ static void start(int signum)
 		afb_hook_create_evt(NULL, config->traceevt, NULL, NULL);
 
 	/* load bindings */
+	afb_debug("start-load");
 	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 	apiset_start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
 	apiset_start_list(config->ldpaths, afb_api_so_add_pathset, "the binding path set");
@@ -593,10 +597,12 @@ static void start(int signum)
 	DEBUG("Init config done");
 
 	/* start the services */
+	afb_debug("start-start");
 	if (afb_apiset_start_all_services(main_apiset, 1) < 0)
 		goto error;
 
 	/* start the HTTP server */
+	afb_debug("start-http");
 	if (!config->noHttpd) {
 		hsrv = start_http_server();
 		if (hsrv == NULL)
@@ -604,9 +610,11 @@ static void start(int signum)
 	}
 
 	/* run the startup calls */
+	afb_debug("start-call");
 	run_startup_calls();
 
 	/* run the command */
+	afb_debug("start-exec");
 	if (execute_command() < 0)
 		goto error;
 
@@ -624,6 +632,8 @@ error:
 
 int main(int argc, char *argv[])
 {
+	afb_debug("main-entry");
+
 	// let's run this program with a low priority
 	nice(20);
 
@@ -631,6 +641,8 @@ int main(int argc, char *argv[])
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
+
+	afb_debug("main-args");
 
 	// --------- run -----------
 	if (config->background) {
@@ -645,6 +657,8 @@ int main(int argc, char *argv[])
 
 	/* set the daemon environment */
 	setup_daemon();
+
+	afb_debug("main-start");
 
 	/* enter job processing */
 	jobs_start(3, 0, 50, start);
