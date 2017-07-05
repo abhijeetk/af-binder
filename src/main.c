@@ -603,15 +603,15 @@ static void start(int signum)
 			goto error;
 	}
 
+	/* run the startup calls */
+	run_startup_calls();
+
 	/* run the command */
 	if (execute_command() < 0)
 		goto error;
 
 	/* ready */
 	sd_notify(1, "READY=1");
-
-	/* run the startup calls */
-	run_startup_calls();
 	return;
 error:
 	exit(1);
@@ -631,7 +631,6 @@ int main(int argc, char *argv[])
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
-	INFO("running with pid %d", getpid());
 
 	// --------- run -----------
 	if (config->background) {
@@ -642,6 +641,7 @@ int main(int argc, char *argv[])
 		// ---- in foreground mode --------------------
 		INFO("entering foreground mode");
 	}
+	INFO("running with pid %d", getpid());
 
 	/* set the daemon environment */
 	setup_daemon();
