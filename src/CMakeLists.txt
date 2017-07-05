@@ -42,6 +42,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-config.c
 	afb-context.c
 	afb-cred.c
+	afb-debug.c
 	afb-ditf.c
 	afb-evt.c
 	afb-hook.c
