@@ -28,6 +28,7 @@ ADD_SUBDIRECTORY(tests)
 ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 # Always add INFER_EXTENSION (more details in afb-hreq.c)
 ADD_DEFINITIONS(-DINFER_EXTENSION)
+ADD_DEFINITIONS(-DAGL_DEVEL)
 
 ADD_LIBRARY(afb-lib STATIC
 	afb-api.c

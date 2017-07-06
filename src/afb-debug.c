@@ -25,12 +25,22 @@
 #include <string.h>
 #include <signal.h>
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "verbose.h"
 
 static char key_env_break[] = "AFB_DEBUG_BREAK";
 static char key_env_wait[] = "AFB_DEBUG_WAIT";
 static char separs[] = ", \t\n";
 
+/*
+ * Checks whether the 'key' is in the 'list'
+ * Return 1 if it is in or 0 otherwise
+ */
 static int has_key(const char *key, const char *list)
 {
 	if (list && key) {
@@ -46,39 +56,56 @@ static int has_key(const char *key, const char *list)
 	return 0;
 }
 
+static void indicate(const char *key)
+{
+#if !defined(NO_AFB_DEBUG_FILE_INDICATION)
+	char filename[200];
+	int fd;
+
+	snprintf(filename, sizeof filename, "/tmp/afb-debug-%ld", (long)getpid());
+	if (key) {
+		fd = creat(filename, 0644);
+		write(fd, key, strlen(key));
+		close(fd);
+	} else {
+		unlink(filename);
+	}
+#endif
+}
+
 static void handler(int signum)
 {
 }
 
 void afb_debug(const char *key)
 {
-	enum { None, Break, Wait } action;
+	struct sigaction sa, psa;
+	sigset_t ss, oss;
 
-	if (has_key(key, secure_getenv(key_env_break)))
-		action = Break;
-	else if (has_key(key, secure_getenv(key_env_wait)))
-		action = Wait;
-	else
-		action = None;
-
-	if (action != None) {
-		const char *a = action == Break ? "BREAK" : "WAIT";
-		struct sigaction sa, psa;
-		sigset_t ss;
-
-		NOTICE("DEBUG %s before %s", a, key);
+	if (has_key(key, secure_getenv(key_env_break))) {
+		NOTICE("DEBUG BREAK before %s", key);
 		memset(&sa, 0, sizeof sa);
 		sa.sa_handler = handler;
 		sigaction(SIGINT, &sa, &psa);
-		if (action == Break) {
-			raise(SIGINT);
-		} else {
-			sigemptyset(&ss);
-			sigaddset(&ss, SIGINT);
-			sigwaitinfo(&ss, NULL);
-		}
+		raise(SIGINT);
 		sigaction(SIGINT, &psa, NULL);
-		NOTICE("DEBUG %s after %s", a, key);
+		NOTICE("DEBUG BREAK after %s", key);
+	} else if (has_key(key, secure_getenv(key_env_wait))) {
+		NOTICE("DEBUG WAIT before %s", key);
+		sigfillset(&ss);
+		sigdelset(&ss, SIGINT);
+		sigprocmask(SIG_SETMASK, &ss, &oss);
+		sigemptyset(&ss);
+		sigaddset(&ss, SIGINT);
+		memset(&sa, 0, sizeof sa);
+		sa.sa_handler = handler;
+		sigaction(SIGINT, &sa, &psa);
+		indicate(key);
+		sigwaitinfo(&ss, NULL);
+		sigaction(SIGINT, &psa, NULL);
+		indicate(NULL);
+		sigprocmask(SIG_SETMASK, &oss, NULL);
+		NOTICE("DEBUG WAIT after %s", key);
 	}
 }
 
