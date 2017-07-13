@@ -61,6 +61,7 @@ A ***binder*** loads and runs any of these version in any combination.
 This document explain how to write bindings version 2.
 
 <!-- pagebreak -->
+
 Sample binding: tuto-1
 ======================
 
@@ -254,8 +255,10 @@ Here again, you can explicitly mark the fact that
 ```
 
 <!-- pagebreak -->
+
 Sample binding: tuto-2
 ======================
+
 The second tutorial shows many important feature that can
 commonly be used when writing a ***binding***: initialization,
 getting arguments, sending replies, pushing events.
