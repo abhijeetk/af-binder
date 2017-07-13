@@ -34,10 +34,10 @@ enum afb_auth_type
 
 struct afb_auth
 {
-	const enum afb_auth_type type;
+	enum afb_auth_type type;
 	union {
 		const char *text;
-		const unsigned loa;
+		unsigned loa;
 		const struct afb_auth *first;
 	};
 	const struct afb_auth *next;
