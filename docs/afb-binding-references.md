@@ -19,6 +19,7 @@ struct afb_binding_v2
 {
         const char *api;			/* api name for the binding */
         const char *specification;		/* textual openAPIv3 specification of the binding */
+	const char *info;			/* some info about the api, can be NULL */
         const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
         int (*preinit)();                       /* callback at load of the binding */
         int (*init)();                          /* callback for starting the service */
@@ -42,6 +43,7 @@ struct afb_verb_v2
         const char *verb;                       /* name of the verb */
         void (*callback)(struct afb_req req);   /* callback function implementing the verb */
         const struct afb_auth *auth;		    /* required authorization */
+	const char *info;			/* some info about the verb, can be NULL */
         uint32_t session;                       /* authorization and session requirements of the verb */
 };
 ```
