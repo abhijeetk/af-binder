@@ -69,6 +69,7 @@ ADD_LIBRARY(afb-lib STATIC
 	sig-monitor.c
 	verbose.c
 	websock.c
+	wrap-json.c
 )
 
 ###########################################

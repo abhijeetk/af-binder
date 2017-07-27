@@ -21,9 +21,16 @@
 #include <stdarg.h>
 #include <json-c/json.h>
 
-extern int wrap_json_pack_error_position(int rc);
-extern int wrap_json_pack_error_code(int rc);
-extern const char *wrap_json_pack_error_string(int rc);
+extern int wrap_json_get_error_position(int rc);
+extern int wrap_json_get_error_code(int rc);
+extern const char *wrap_json_get_error_string(int rc);
+
 extern int wrap_json_vpack(struct json_object **result, const char *desc, va_list args);
 extern int wrap_json_pack(struct json_object **result, const char *desc, ...);
 
+extern int wrap_json_vunpack(struct json_object *object, const char *desc, va_list args);
+extern int wrap_json_unpack(struct json_object *object, const char *desc, ...);
+extern int wrap_json_vcheck(struct json_object *object, const char *desc, va_list args);
+extern int wrap_json_check(struct json_object *object, const char *desc, ...);
+extern int wrap_json_vmatch(struct json_object *object, const char *desc, va_list args);
+extern int wrap_json_match(struct json_object *object, const char *desc, ...);
