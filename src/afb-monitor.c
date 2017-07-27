@@ -29,6 +29,7 @@
 #include "afb-ditf.h"
 #include "afb-xreq.h"
 #include "verbose.h"
+#include "wrap-json.h"
 
 #include "monitor-api.inc"
 
@@ -60,11 +61,10 @@ static int decode_verbosity(struct json_object *v)
 {
 	const char *s;
 	int level = -1;
-	if (json_object_is_type(v, json_type_int)) {
-		level = json_object_get_int(v);
+
+	if (!wrap_json_unpack(v, "i", &level)) {
 		level = level < 0 ? 0 : level > 3 ? 3 : level;
-	} else if (json_object_is_type(v, json_type_string)) {
-		s = json_object_get_string(v);
+	} else if (!wrap_json_unpack(v, "s", &s)) {
 		switch(*s&~' ') {
 		case 'D':
 			if (!strcasecmp(s, _debug_))
@@ -198,11 +198,13 @@ static void get_verbosity_of(struct json_object *resu, const char *name)
  * @param resu the json object to build
  * @param spec specification of the verbosity to set
  */
-static void get_verbosity(struct json_object *resu, struct json_object *spec)
+static struct json_object *get_verbosity(struct json_object *spec)
 {
 	int i, n;
+	struct json_object *resu;
 	struct json_object_iterator it, end;
 
+	resu = json_object_new_object();
 	if (json_object_is_type(spec, json_type_object)) {
 		it = json_object_iter_begin(spec);
 		end = json_object_iter_end(spec);
@@ -220,6 +222,7 @@ static void get_verbosity(struct json_object *resu, struct json_object *spec)
 		get_verbosity_of(resu, "");
 		get_verbosity_of(resu, "*");
 	}
+	return resu;
 }
 
 /******************************************************************************
@@ -261,11 +264,13 @@ static void get_apis_of_all_cb(struct afb_apiset *set, const char *name, void *c
  * @param resu the json object to build
  * @param spec specification of the verbosity to set
  */
-static void get_apis(struct json_object *resu, struct json_object *spec)
+static struct json_object *get_apis(struct json_object *spec)
 {
 	int i, n;
+	struct json_object *resu;
 	struct json_object_iterator it, end;
 
+	resu = json_object_new_object();
 	if (json_object_is_type(spec, json_type_object)) {
 		it = json_object_iter_begin(spec);
 		end = json_object_iter_end(spec);
@@ -282,6 +287,7 @@ static void get_apis(struct json_object *resu, struct json_object *spec)
 	} else if (json_object_get_boolean(spec)) {
 		afb_apiset_enum(main_apiset, get_apis_of_all_cb, resu);
 	}
+	return resu;
 }
 
 /******************************************************************************
@@ -293,35 +299,27 @@ static const char _apis_[] = "apis";
 
 static void f_get(struct afb_req req)
 {
-	struct json_object *o, *v, *r, *x;
+	struct json_object *r;
+	struct json_object *apis = NULL;
+	struct json_object *verbosity = NULL;
 
-	r = json_object_new_object();
-	o = afb_req_json(req);
+	wrap_json_unpack(afb_req_json(req), "{s?:o,s?:o}", _verbosity_, &verbosity, _apis_, &apis);
+	if (verbosity)
+		verbosity = get_verbosity(verbosity);
+	if (apis)
+		apis = get_apis(apis);
 
-	if (json_object_object_get_ex(o, _verbosity_, &v)) {
-		x = json_object_new_object();
-		json_object_object_add(r, _verbosity_, x);
-		get_verbosity(x, v);
-	}
-
-	if (json_object_object_get_ex(o, _apis_, &v)) {
-		x = json_object_new_object();
-		json_object_object_add(r, _apis_, x);
-		get_apis(x, v);
-	}
-
-	afb_req_success(req, json_object_get(r), NULL);
-	json_object_put(r);
+	wrap_json_pack(&r, "{s:o*,s:o*}", _verbosity_, verbosity, _apis_, apis);
+	afb_req_success(req, r, NULL);
 }
 
 static void f_set(struct afb_req req)
 {
-	struct json_object *o, *v;
+	struct json_object *verbosity = NULL;
 
-	o = afb_req_json(req);
-	if (json_object_object_get_ex(o, _verbosity_, &v)) {
-		set_verbosity(v);
-	}
+	wrap_json_unpack(afb_req_json(req), "{s?:o}", _verbosity_, &verbosity);
+	if (verbosity)
+		set_verbosity(verbosity);
 
 	afb_req_success(req, NULL, NULL);
 }
