@@ -1,12 +1,10 @@
-
-Overview of the bindings
-========================
+# Overview of the bindings
 
 The ***binder*** serves files through HTTP protocol and offers to
 developers the capability to offer application API methods through HTTP or
 WebSocket protocol.
 
-The ***bindings*** are used to add **API** to ***binders***.
+The ***bindings*** are used to add **API** to ***binders***.  
 This part describes how to write a ***binding*** for ***binder***
 or in other words how to add a new **API** to the system.
 
@@ -16,19 +14,20 @@ This section shortly explain how to write a binding
 using the C programming language.
 
 It is convenient to install the ***binder*** on the
-desktop used for writing the binding. It allows easy
-debug and test.
+desktop used for writing the binding.  
+It allows easy debug and test.
 
 ## Nature of a binding
 
 A ***binding*** is an independent piece of software compiled as a shared
-library and dynamically loaded by a ***binder***.
+library and dynamically loaded by a ***binder***.  
 It is intended to provide one **API** (**A**pplication **P**rogramming
 **I**nterface).
 
-The **API** is designated and accessed through its name.
+The **API** is designated and accessed through its name.  
 It contains several **verbs** that implement the ***binding***
-functionalities.  Each of these **verbs** is a **method** that
+functionalities.  
+Each of these **verbs** is a **method** that
 processes requests of applications and sends result.
 
 The ***binding***'s methods are invoked by HTTP or websocket
@@ -36,34 +35,34 @@ requests.
 
 The **methods** of the ***bindings*** are noted **api/verb**
 where **api** is the **API** name of the binding and **verb** is
-the **method**'s name within the **API**.
+the **method**'s name within the **API**.  
 This notation comes from HTTP invocations that rely on URL path terminated
 with **api/verb**.
 
 The name of an **API** can be made of any characters except:
 
- - the control characters (\u0000 .. \u001f)
- - the characters of the set { ' ', '"', '#', '%', '&',
+- the control characters (\u0000 .. \u001f)
+- the characters of the set { ' ', '"', '#', '%', '&',
    '\'', '/', '?', '`', '\x7f' }
 
-The names if the **verbs** can be any character.
+The names of the **verbs** can be any character.
 
 The binder makes no distinctions between upper case and lower case
-latin letters. So **API/VERB** matches **Api/Verb** or **api/verb**.
+latin letters.  
+So **API/VERB** matches **Api/Verb** or **api/verb**.
 
 Actually it exists 2 ways of writing ***bindings***.
 You can either write:
 
- - a binding version 1 (not recommended);
- - a binding version 2 (RECOMMENDED).
+- a binding version 1 (not recommended);
+- a binding version 2 (RECOMMENDED).
 
-A ***binder*** loads and runs any of these version in any combination.
+A ***binder*** loads and runs any of these version in any combination.  
 This document explain how to write bindings version 2.
 
 <!-- pagebreak -->
 
-Sample binding: tuto-1
-======================
+## Sample binding: tuto-1
 
 This is the code of the binding **tuto-1.c**:
 
@@ -91,13 +90,13 @@ This is the code of the binding **tuto-1.c**:
 Compiling:
 
 ```bash
-$ gcc -fPIC -shared tuto-1.c -o tuto-1.so $(pkg-config --cflags-only-I afb-daemon)
+gcc -fPIC -shared tuto-1.c -o tuto-1.so $(pkg-config --cflags-only-I afb-daemon)
 ```
 
 Running:
 
 ```bash
-$ afb-daemon --binding tuto-1.so --port 3333 --token ''
+afb-daemon --binding tuto-1.so --port 3333 --token ''
 ```
 
 Testing using **curl**:
@@ -125,10 +124,9 @@ ON-REPLY 1:tuto-1/hello: OK
 
 This shows basic things:
 
- - The include to get for creating a binding
- - How to declare the API offered by the binding
- - How to handle request made to the binding
-
+- The include to get for creating a binding
+- How to declare the API offered by the binding
+- How to handle request made to the binding
 
 ### Getting declarations for the binding
 
@@ -139,12 +137,12 @@ The lines 1 and 2 show how to get the include file **afb-binding.h**.
   2 #include <afb/afb-binding.h>
 ```
 
-You must define the version of ***binding*** that you are using.
+You must define the version of ***binding*** that you are using.  
 This is done line 1 where we define that this is the version 2.
 
 If you don't define it, a warning message is prompted by the compiler
-and the version is switched to version 1. This behaviour is
-temporarily and enables to continue to use previously written
+and the version is switched to version 1.  
+This behaviour is temporarily and enables to continue to use previously written
 ***binding*** without change but it will change in some future when
 ***bindings*** V1 will become obsoletes.
 
@@ -155,13 +153,15 @@ should be set correctly if needed (not needed only if installed in
 Setting the include path is easy using **pkg-config**:
 
 ```bash
-$ pkg-config --cflags-only-I afb-daemon
+pkg-config --cflags-only-I afb-daemon
 ```
 
-Note for **C++** developers: The ***binder*** currently expose
-only **C** language **API**. The file **afb/afb-binding.h**
-isn't **C++** ready. You should use the construct **extern "C"**
-as below:
+Note for **C++** developers: 
+
+- The ***binder*** currently expose only **C** language **API**.  
+  The file **afb/afb-binding.h** isn't **C++** ready.  
+
+You should use the construct **extern "C"** as below:
 
 ```C
   #define AFB_BINDING_VERSION 2
@@ -171,8 +171,8 @@ as below:
 ```
 
 Future version of the ***binder*** will include a **C++**
-interface. Until it is available, please, use the above
-construct.
+interface.  
+Until it is available, please, use the above construct.
 
 ### Declaring the API of the binding
 
@@ -196,8 +196,8 @@ a structure of type **afb_binding_v2**.
 
 The structure **afbBindingV2** actually tells that:
 
- - the exported **API** name is **tuto-1** (line 16)
- - the array of verbs is the above defined one
+- the exported **API** name is **tuto-1** (line 16)
+- the array of verbs is the above defined one
 
 The exported list of verb is specified by an array of structures,
 each describing a verb, ended with a verb NULL (line 12).
@@ -242,8 +242,8 @@ The callback has to treat synchronously or asynchronously the request and
 should at the end emit a reply for the request.
 
 Here, the callback for **tuto-1/hello** replies a successful answer
-(line 7) to the request **req**. The second parameter (here NULL)
-is a json object that is sent to the client with the reply.
+(line 7) to the request **req**.  
+The second parameter (here NULL) is a json object that is sent to the client with the reply.  
 The third parameter is also sent with the reply and is a string
 called info that can be used as some meta data.
 
@@ -256,12 +256,12 @@ Here again, you can explicitly mark the fact that
 
 <!-- pagebreak -->
 
-Sample binding: tuto-2
-======================
+## Sample binding: tuto-2
 
 The second tutorial shows many important feature that can
-commonly be used when writing a ***binding***: initialization,
-getting arguments, sending replies, pushing events.
+commonly be used when writing a ***binding***:
+
+- initialization, getting arguments, sending replies, pushing events.
 
 This is the code of the binding **tuto-2.c**:
 
@@ -371,13 +371,13 @@ This is the code of the binding **tuto-2.c**:
 Compiling:
 
 ```bash
-$ gcc -fPIC -shared tuto-2.c -o tuto-2.so $(pkg-config --cflags --libs afb-daemon)
+gcc -fPIC -shared tuto-2.c -o tuto-2.so $(pkg-config --cflags --libs afb-daemon)
 ```
 
 Running:
 
 ```bash
-$ afb-daemon --binding tuto-2.so --port 3333 --token ''
+afb-daemon --binding tuto-2.so --port 3333 --token ''
 ```
 
 Testing:
@@ -461,4 +461,3 @@ ON-EVENT tuto-2/logout:
   "jtype":"afb-event"
 }
 ```
-

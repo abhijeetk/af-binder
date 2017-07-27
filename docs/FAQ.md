@@ -1,5 +1,1 @@
-Frequently Asked Question about AFB-DAEMON
-==========================================
-
-
-
+# Frequently Asked Question about AFB-DAEMON

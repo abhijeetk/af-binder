@@ -1,8 +1,6 @@
-Binding Reference
-=================
+# Binding Reference
 
-Structure for declaring binding
--------------------------------
+## Structure for declaring binding
 
 ### struct afb_binding_v2
 
@@ -17,14 +15,14 @@ This structure is defined as below.
  */
 struct afb_binding_v2
 {
-        const char *api;			/* api name for the binding */
-        const char *specification;		/* textual openAPIv3 specification of the binding */
-	const char *info;			/* some info about the api, can be NULL */
-        const struct afb_verb_v2 *verbs;	/* array of descriptions of verbs terminated by a NULL name */
+        const char *api;                        /* api name for the binding */
+        const char *specification;              /* textual openAPIv3 specification of the binding */
+        const char *info;                       /* some info about the api, can be NULL */
+        const struct afb_verb_v2 *verbs;        /* array of descriptions of verbs terminated by a NULL name */
         int (*preinit)();                       /* callback at load of the binding */
         int (*init)();                          /* callback for starting the service */
         void (*onevent)(const char *event, struct json_object *object); /* callback for handling events */
-        unsigned noconcurrency: 1;		/* avoids concurrent requests to verbs */
+        unsigned noconcurrency: 1;              /* avoids concurrent requests to verbs */
 };
 ```
 
@@ -42,30 +40,30 @@ struct afb_verb_v2
 {
         const char *verb;                       /* name of the verb */
         void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-        const struct afb_auth *auth;		    /* required authorization */
-	const char *info;			/* some info about the verb, can be NULL */
+        const struct afb_auth *auth;            /* required authorization */
+        const char *info;                       /* some info about the verb, can be NULL */
         uint32_t session;                       /* authorization and session requirements of the verb */
 };
 ```
 
-The session flags is an or of the constant defined below:
+The **session** flags is one of the constant defined below:
 
-  - AFB_SESSION_NONE : no flag, synonym to 0
-  - AFB_SESSION_LOA_0 : Requires the LOA to be 0 or more, synonym to 0 or AFB_SESSION_NONE
-  - AFB_SESSION_LOA_1 : Requires the LOA to be 1 or more
-  - AFB_SESSION_LOA_2 : Requires the LOA to be 2 or more
-  - AFB_SESSION_LOA_3 : Requires the LOA to be 3 or more
-  - AFB_SESSION_CHECK : Requires the token to be set and valid
-  - AFB_SESSION_REFRESH : Implies a token refresh
-  - AFB_SESSION_CLOSE : Implies cloing the session
+- AFB_SESSION_NONE : no flag, synonym to 0
+- AFB_SESSION_LOA_0 : Requires the LOA to be 0 or more, synonym to 0 or AFB_SESSION_NONE
+- AFB_SESSION_LOA_1 : Requires the LOA to be 1 or more
+- AFB_SESSION_LOA_2 : Requires the LOA to be 2 or more
+- AFB_SESSION_LOA_3 : Requires the LOA to be 3 or more
+- AFB_SESSION_CHECK : Requires the token to be set and valid
+- AFB_SESSION_REFRESH : Implies a token refresh
+- AFB_SESSION_CLOSE : Implies cloing the session
 
-The LOA is set binding by binding using the function **afb_req_session_set_LOA**.
+The LOA (Level Of Assurance) is set, by binding, using the function **afb_req_session_set_LOA**.
 
 ### struct afb_auth and enum afb_auth_type
 
 The structure **afb_auth** is used within verb description to
-set security requirements. The interpretation of the structure
-depends on the value of the field **type**.
+set security requirements.  
+The interpretation of the structure depends on the value of the field **type**.
 
 ```C
 struct afb_auth
@@ -79,6 +77,7 @@ struct afb_auth
         const struct afb_auth *next;
 };
 ```
+
 The possible values for **type** is defined here:
 
 ```C
@@ -87,14 +86,14 @@ The possible values for **type** is defined here:
  */
 enum afb_auth_type
 {
-        afb_auth_No = 0,	/** never authorized, no data */
-        afb_auth_Token,		/** authorized if token valid, no data */
-        afb_auth_LOA,		/** authorized if LOA greater than data 'loa' */
-        afb_auth_Permission,	/** authorized if permission 'text' is granted */
-        afb_auth_Or,		/** authorized if 'first' or 'next' is authorized */
-        afb_auth_And,		/** authorized if 'first' and 'next' are authorized */
-        afb_auth_Not,		/** authorized if 'first' is not authorized */
-        afb_auth_Yes		/** always authorized, no data */
+        afb_auth_No = 0,        /** never authorized, no data */
+        afb_auth_Token,         /** authorized if token valid, no data */
+        afb_auth_LOA,           /** authorized if LOA greater than data 'loa' */
+        afb_auth_Permission,    /** authorized if permission 'text' is granted */
+        afb_auth_Or,            /** authorized if 'first' or 'next' is authorized */
+        afb_auth_And,           /** authorized if 'first' and 'next' are authorized */
+        afb_auth_Not,           /** authorized if 'first' is not authorized */
+        afb_auth_Yes            /** always authorized, no data */
 };
 ```
 
@@ -102,16 +101,15 @@ Example:
 
 ```C
 static const struct afb_auth _afb_auths_v2_monitor[] = {
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:set" },
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:get" },
-	{ .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] }
+    { .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:set" },
+    { .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:get" },
+    { .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] }
 };
 ```
 
-Functions of class afb_daemon...
--------------------------
+## Functions of class afb_daemon
 
-The 3 following functions are linked to libsystemd.
+The 3 following functions are linked to libsystemd.  
 They allow use of **sd_event** features and access
 to **sd_bus** features.
 
@@ -132,7 +130,7 @@ struct sd_bus *afb_daemon_get_user_bus();
 struct sd_bus *afb_daemon_get_system_bus();
 ```
 
-The 2 following functions are linked to event management.
+The 2 following functions are linked to event management.  
 Broadcasting an event send it to any possible listener.
 
 ```C
@@ -157,9 +155,14 @@ struct afb_event afb_daemon_make_event(const char *name);
 ```
 
 The following function is used by logging macros and should normally
-not be used. Instead, you should use the macros
-**AFB\_ERROR**, **AFB\_WARNING**, **AFB\_NOTICE**,
-**AFB\_INFO**, **AFB\_DEBUG**
+not be used.  
+Instead, you should use the macros:
+
+- **AFB\_ERROR**
+- **AFB\_WARNING**
+- **AFB\_NOTICE**
+- **AFB\_INFO**
+- **AFB\_DEBUG**
 
 ```C
 /*
@@ -230,8 +233,7 @@ bindings at its initialization.
 int afb_daemon_require_api(const char *name, int initialized)
 ```
 
-Functions of class afb_service...
--------------------------
+## Functions of class afb_service
 
 The following functions allow services to call verbs of other
 bindings for themselves.
@@ -259,11 +261,11 @@ bindings for themselves.
  * @see also 'afb_req_subcall'
  */
 void afb_service_call(
-	const char *api,
-	const char *verb,
-	struct json_object *args,
-	void (*callback)(void*closure, int status, struct json_object *result),
-	void *callback_closure);
+    const char *api,
+    const char *verb,
+    struct json_object *args,
+    void (*callback)(void*closure, int status, struct json_object *result),
+    void *callback_closure);
 
 /**
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
@@ -283,17 +285,16 @@ void afb_service_call(
  * @see also 'afb_req_subcall'
  */
 int afb_service_call_sync(
-	const char *api,
-	const char *verb,
-	struct json_object *args,
-	struct json_object **result);
+    const char *api,
+    const char *verb,
+    struct json_object *args,
+    struct json_object **result);
 ```
 
-Functions of class afb_event...
--------------------------
+## Functions of class afb_event
 
-This function checks whether the event is valid. It must be used
-when creating events.
+This function checks whether the event is valid.  
+It must be used when creating events.
 
 ```C
 /*
@@ -353,8 +354,7 @@ This function allows to retrieve the exact name of the event.
 const char *afb_event_name(struct afb_event event);
 ```
 
-Functions of class afb_req...
--------------------------
+## Functions of class afb_req
 
 This function checks the validity of the **req**.
 
@@ -516,7 +516,6 @@ void afb_req_session_close(struct afb_req req);
 int afb_req_session_set_LOA(struct afb_req req, unsigned level);
 ```
 
-
 The 4 following functions must be used for asynchronous handling requests.
 
 ```C
@@ -617,9 +616,14 @@ int afb_req_subcall_sync(
 ```
 
 The following function is used by logging macros and should normally
-not be used. Instead, you should use the macros
-**AFB_REQ_ERROR**, **AFB_REQ_WARNING**, **AFB_REQ_NOTICE**,
-**AFB_REQ_INFO**, **AFB_REQ_DEBUG**
+not be used.  
+Instead, you should use the macros:
+
+- **AFB_REQ_ERROR**
+- **AFB_REQ_WARNING**
+- **AFB_REQ_NOTICE**
+- **AFB_REQ_INFO**
+- **AFB_REQ_DEBUG**
 
 ```C
 /*
@@ -642,8 +646,7 @@ not be used. Instead, you should use the macros
 void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...);
 ```
 
-Logging macros
---------------
+## Logging macros
 
 The following macros must be used for logging:
 
