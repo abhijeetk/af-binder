@@ -82,15 +82,7 @@ void afb_debug(const char *key)
 	struct sigaction sa, psa;
 	sigset_t ss, oss;
 
-	if (has_key(key, secure_getenv(key_env_break))) {
-		NOTICE("DEBUG BREAK before %s", key);
-		memset(&sa, 0, sizeof sa);
-		sa.sa_handler = handler;
-		sigaction(SIGINT, &sa, &psa);
-		raise(SIGINT);
-		sigaction(SIGINT, &psa, NULL);
-		NOTICE("DEBUG BREAK after %s", key);
-	} else if (has_key(key, secure_getenv(key_env_wait))) {
+	if (has_key(key, secure_getenv(key_env_wait))) {
 		NOTICE("DEBUG WAIT before %s", key);
 		sigfillset(&ss);
 		sigdelset(&ss, SIGINT);
@@ -106,6 +98,15 @@ void afb_debug(const char *key)
 		indicate(NULL);
 		sigprocmask(SIG_SETMASK, &oss, NULL);
 		NOTICE("DEBUG WAIT after %s", key);
+	}
+	if (has_key(key, secure_getenv(key_env_break))) {
+		NOTICE("DEBUG BREAK before %s", key);
+		memset(&sa, 0, sizeof sa);
+		sa.sa_handler = handler;
+		sigaction(SIGINT, &sa, &psa);
+		raise(SIGINT);
+		sigaction(SIGINT, &psa, NULL);
+		NOTICE("DEBUG BREAK after %s", key);
 	}
 }
 
