@@ -643,6 +643,68 @@ int wrap_json_unpack(struct json_object *object, const char *desc, ...)
 	return rc;
 }
 
+static void object_for_all(struct json_object *object, void (*callback)(void*,struct json_object*,const char*), void *closure)
+{
+	struct json_object_iterator it = json_object_iter_begin(object);
+	struct json_object_iterator end = json_object_iter_end(object);
+	while (!json_object_iter_equal(&it, &end)) {
+		callback(closure, json_object_iter_peek_value(&it), json_object_iter_peek_name(&it));
+		json_object_iter_next(&it);
+	}
+}
+
+static void array_for_all(struct json_object *object, void (*callback)(void*,struct json_object*), void *closure)
+{
+	int n = json_object_array_length(object);
+	int i = 0;
+	while(i < n)
+		callback(closure, json_object_array_get_idx(object, i++));
+}
+
+void wrap_json_optarray_for_all(struct json_object *object, void (*callback)(void*,struct json_object*), void *closure)
+{
+	if (json_object_is_type(object, json_type_array))
+		array_for_all(object, callback, closure);
+	else
+		callback(closure, object);
+}
+
+void wrap_json_array_for_all(struct json_object *object, void (*callback)(void*,struct json_object*), void *closure)
+{
+	if (json_object_is_type(object, json_type_array))
+		array_for_all(object, callback, closure);
+}
+
+void wrap_json_object_for_all(struct json_object *object, void (*callback)(void*,struct json_object*,const char*), void *closure)
+{
+	if (json_object_is_type(object, json_type_object))
+		object_for_all(object, callback, closure);
+}
+
+void wrap_json_optobject_for_all(struct json_object *object, void (*callback)(void*,struct json_object*,const char*), void *closure)
+{
+	if (json_object_is_type(object, json_type_object))
+		object_for_all(object, callback, closure);
+	else
+		callback(closure, object, NULL);
+}
+
+void wrap_json_for_all(struct json_object *object, void (*callback)(void*,struct json_object*,const char*), void *closure)
+{
+	if (!object)
+		/* do nothing */;
+	else if (json_object_is_type(object, json_type_object))
+		object_for_all(object, callback, closure);
+	else if (!json_object_is_type(object, json_type_array))
+		callback(closure, object, NULL);
+	else {
+		int n = json_object_array_length(object);
+		int i = 0;
+		while(i < n)
+			callback(closure, json_object_array_get_idx(object, i++), NULL);
+	}
+}
+
 #if defined(WRAP_JSON_TEST)
 #include <stdio.h>
 
