@@ -29,6 +29,19 @@
 
 #define MAX_LABEL_LENGTH  1024
 
+#if !defined(DEFAULT_PEERSEC_LABEL)
+#  define DEFAULT_PEERSEC_LABEL "NoLabel"
+#endif
+#if !defined(DEFAULT_PEERCRED_UID)
+#  define DEFAULT_PEERCRED_UID 99 /* nobody */
+#endif
+#if !defined(DEFAULT_PEERCRED_GID)
+#  define DEFAULT_PEERCRED_GID 99 /* nobody */
+#endif
+#if !defined(DEFAULT_PEERCRED_PID)
+#  define DEFAULT_PEERCRED_PID 0  /* no process */
+#endif
+
 static struct afb_cred *current;
 
 static struct afb_cred *mkcred(uid_t uid, gid_t gid, pid_t pid, const char *label, size_t size)
@@ -90,7 +103,7 @@ static struct afb_cred *mkcurrent()
 
 struct afb_cred *afb_cred_create(uid_t uid, gid_t gid, pid_t pid, const char *label)
 {
-	label = label ? : "";
+	label = label ? : DEFAULT_PEERSEC_LABEL;
 	return mkcred(uid, gid, pid, label, strlen(label));
 }
 
@@ -105,18 +118,29 @@ struct afb_cred *afb_cred_create_for_socket(int fd)
 	length = (socklen_t)(sizeof ucred);
 	rc = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &length);
 	if (rc < 0 || length != (socklen_t)(sizeof ucred)) {
+#if !defined(NO_DEFAULT_PEERCRED)
 		if (!rc)
 			errno = EINVAL;
 		return NULL;
+#else
+		ucred.uid = DEFAULT_PEERCRED_UID;
+		ucred.gid = DEFAULT_PEERCRED_GID;
+		ucred.pid = DEFAULT_PEERCRED_PID;
+#endif
 	}
 
 	/* get the security label */
 	length = (socklen_t)(sizeof label);
 	rc = getsockopt(fd, SOL_SOCKET, SO_PEERSEC, label, &length);
 	if (rc < 0 || length > (socklen_t)(sizeof label)) {
+#if !defined(NO_DEFAULT_PEERSEC)
+		length = (socklen_t)strlen(DEFAULT_PEERSEC_LABEL);
+		strcpy (label, DEFAULT_PEERSEC_LABEL);
+#else
 		if (!rc)
 			errno = EINVAL;
 		return NULL;
+#endif
 	}
 
 	/* makes the result */
