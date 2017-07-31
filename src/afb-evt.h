@@ -41,6 +41,9 @@ extern struct afb_event afb_evt_create_event(const char *name);
 extern const char *afb_evt_event_name(struct afb_event event);
 extern int afb_evt_event_id(struct afb_event event);
 
+extern int afb_evt_push(struct afb_event event, struct json_object *object);
+extern int afb_evt_unhooked_push(struct afb_event event, struct json_object *object);
+
 extern int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event);
 extern int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event);
 

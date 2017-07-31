@@ -179,9 +179,10 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
 /*
  * Pushes the event 'evt' with 'obj' to its listeners
  * 'obj' is released (like json_object_put)
+ * calls hooks if hookflags isn't 0
  * Returns the count of listener taht received the event.
  */
-static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
+static int push(struct afb_evt_event *evt, struct json_object *obj, int hookflags)
 {
 	int result;
 	struct afb_evt_watch *watch;
@@ -189,7 +190,7 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 
 	result = 0;
 	pthread_mutex_lock(&evt->mutex);
-	if (evt->hookflags & afb_hook_flag_evt_push_before)
+	if (hookflags & afb_hook_flag_evt_push_before)
 		afb_hook_evt_push_before(evt->name, evt->id, obj);
 	watch = evt->watchs;
 	while(watch) {
@@ -201,11 +202,21 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 		}
 		watch = watch->next_by_event;
 	}
-	if (evt->hookflags & afb_hook_flag_evt_push_after)
+	if (hookflags & afb_hook_flag_evt_push_after)
 		afb_hook_evt_push_after(evt->name, evt->id, obj, result);
 	pthread_mutex_unlock(&evt->mutex);
 	json_object_put(obj);
 	return result;
+}
+
+/*
+ * Pushes the event 'evt' with 'obj' to its listeners
+ * 'obj' is released (like json_object_put)
+ * Returns the count of listener taht received the event.
+ */
+static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
+{
+	return push(evt, obj, evt->hookflags);
 }
 
 /*
@@ -542,5 +553,21 @@ void afb_evt_update_hooks()
 	for (evt = events ; evt ; evt = evt->next)
 		evt->hookflags = afb_hook_flags_evt(evt->name);
 	pthread_mutex_unlock(&events_mutex);
+}
+
+int afb_evt_push(struct afb_event event, struct json_object *object)
+{
+	if (event.itf == &afb_evt_event_itf)
+		return evt_push((struct afb_evt_event *)event.closure, object);
+	json_object_put(object);
+	return 0;
+}
+
+int afb_evt_unhooked_push(struct afb_event event, struct json_object *object)
+{
+	if (event.itf == &afb_evt_event_itf)
+		return push((struct afb_evt_event *)event.closure, object, 0);
+	json_object_put(object);
+	return 0;
 }
 
