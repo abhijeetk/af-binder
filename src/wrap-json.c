@@ -525,6 +525,7 @@ static int vunpack(struct json_object *object, const char *desc, va_list args, i
 				goto invalid_character;
 			if (!ignore && top->index != top->count)
 				goto incomplete;
+			/*@fallthrough@*/
 		case '*':
 			acc = xacc;
 			continue;

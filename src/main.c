@@ -351,7 +351,7 @@ static char *instanciate_string(char *arg, const char *port, const char *token)
 		switch(*++it) {
 		case 'p': wr = stpcpy(wr, port); break;
 		case 't': wr = stpcpy(wr, token); break;
-		default: *wr++ = SUBST_CHAR;
+		default: *wr++ = SUBST_CHAR; /*@fallthrough@*/
 		case SUBST_CHAR: *wr++ = *it;
 		}
 		arg = ++it;

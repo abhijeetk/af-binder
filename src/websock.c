@@ -312,6 +312,7 @@ loop:
 		ws->lenhead = 0;
 		ws->szhead = 2;
 		ws->state = STATE_START;
+		/*@fallthrough@*/
 
 	case STATE_START:
 		/* read the header */
@@ -342,12 +343,15 @@ loop:
 		switch (FRAME_GET_PAYLOAD_LEN(ws->header[1])) {
 		case 127:
 			ws->szhead += 6;
+			/*@fallthrough@*/
 		case 126:
 			ws->szhead += 2;
+			/*@fallthrough@*/
 		default:
 			ws->szhead += 4 * FRAME_GET_MASK(ws->header[1]);
 		}
 		ws->state = STATE_LENGTH;
+		/*@fallthrough@*/
 
 	case STATE_LENGTH:
 		/* continue to read the header */
