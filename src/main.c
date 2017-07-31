@@ -29,6 +29,10 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#if !defined(NO_CALL_PERSONALITY)
+#include <sys/personality.h>
+#endif
+
 #include <json-c/json.h>
 
 #include <systemd/sd-daemon.h>
@@ -598,6 +602,9 @@ static void start(int signum)
 
 	/* start the services */
 	afb_debug("start-start");
+#if !defined(NO_CALL_PERSONALITY)
+	personality((unsigned long)-1L);
+#endif
 	if (afb_apiset_start_all_services(main_apiset, 1) < 0)
 		goto error;
 
