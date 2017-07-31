@@ -249,7 +249,7 @@ int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api)
 	apis->name = name;
 	set->count++;
 
-	NOTICE("API %s added", name);
+	INFO("API %s added", name);
 
 	return 0;
 
@@ -359,7 +359,7 @@ static int start_api(struct afb_apiset *set, struct api_desc *api, int share_ses
 		return -1;
 	}
 
-	NOTICE("API %s starting...", api->name);
+	INFO("API %s starting...", api->name);
 	if (api->api.itf->service_start) {
 		api->status = EBUSY;
 		rc = api->api.itf->service_start(api->api.closure, share_session, onneed, set);
