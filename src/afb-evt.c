@@ -213,9 +213,11 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
  */
 static const char *evt_name(struct afb_evt_event *evt)
 {
+	const char *name = strchr(evt->name, '/');
+	name = name ? name + 1 : evt->name;
 	if (evt->hookflags & afb_hook_flag_evt_name)
 		afb_hook_evt_name(evt->name, evt->id);
-	return evt->name;
+	return name;
 }
 
 /*
