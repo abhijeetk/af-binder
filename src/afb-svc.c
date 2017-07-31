@@ -58,6 +58,7 @@ struct svc_req
 	struct jobloop *jobloop;
 	struct json_object *result;
 	int status;
+	int async;
 };
 
 /* functions for services */
@@ -319,9 +320,10 @@ static void svcreq_sync_leave(struct svc_req *svcreq)
 static void svcreq_reply(struct afb_xreq *xreq, int status, json_object *obj)
 {
 	struct svc_req *svcreq = CONTAINER_OF_XREQ(struct svc_req, xreq);
-	if (svcreq->callback) {
+	if (svcreq->async) {
 		struct afb_svc *svc = svcreq->svc;
-		svcreq->callback(svcreq->closure, status, obj);
+		if (svcreq->callback)
+			svcreq->callback(svcreq->closure, status, obj);
 		HOOK(call_result, svc, status, obj);
 		json_object_put(obj);
 	} else {
@@ -362,7 +364,8 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 		ERROR("out of memory");
 		json_object_put(args);
 		ierr = afb_msg_json_internal_error();
-		callback(cbclosure, -1, ierr);
+		if (callback)
+			callback(cbclosure, -1, ierr);
 		HOOK(call_result, svc, -1, ierr);
 		json_object_put(ierr);
 		return;
@@ -372,6 +375,7 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	svcreq->jobloop = NULL;
 	svcreq->callback = callback;
 	svcreq->closure = cbclosure;
+	svcreq->async = 1;
 
 	/* terminates and frees ressources if needed */
 	afb_xreq_process(&svcreq->xreq, svc->apiset);
@@ -382,6 +386,7 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 {
 	struct afb_svc *svc = closure;
 	struct svc_req *svcreq;
+	struct json_object *resu;
 	int rc;
 
 	HOOK(callsync, svc, api, verb, args);
@@ -392,7 +397,7 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 		ERROR("out of memory");
 		errno = ENOMEM;
 		json_object_put(args);
-		*result = afb_msg_json_internal_error();
+		resu = afb_msg_json_internal_error();
 		rc = -1;
 	} else {
 		/* initialises the request */
@@ -400,14 +405,19 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 		svcreq->callback = NULL;
 		svcreq->result = NULL;
 		svcreq->status = 0;
+		svcreq->async = 0;
 		afb_xreq_addref(&svcreq->xreq);
 		rc = jobs_enter(NULL, 0, svcreq_sync_enter, svcreq);
 		if (rc >= 0)
 			rc = svcreq->status;
-		*result = (rc >= 0 || svcreq->result) ? svcreq->result : afb_msg_json_internal_error();
+		resu = (rc >= 0 || svcreq->result) ? svcreq->result : afb_msg_json_internal_error();
 		afb_xreq_unref(&svcreq->xreq);
 	}
-	HOOK(callsync_result, svc, rc, *result);
+	HOOK(callsync_result, svc, rc, resu);
+	if (result)
+		*result = resu;
+	else
+		json_object_put(resu);
 	return rc;
 }
 
