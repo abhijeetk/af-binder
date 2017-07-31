@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <json-c/json.h>
+
 #include <afb/afb-binding-v2.h>
 
 #include "afb-api.h"
@@ -28,6 +29,7 @@
 #include "afb-api-so-v2.h"
 #include "afb-ditf.h"
 #include "afb-xreq.h"
+#include "afb-trace.h"
 #include "verbose.h"
 #include "wrap-json.h"
 
@@ -324,18 +326,36 @@ static void f_set(struct afb_req req)
 	afb_req_success(req, NULL, NULL);
 }
 
-#if 0
-static void f_hook(struct afb_xreq *xreq)
+static void *context_create()
 {
-	struct json_object *o, *v;
-
-	o = afb_xreq_json(xreq);
-	if (json_object_object_get_ex(o, _verbosity_, &v)) {
-		set_verbosity(v);
-	}
-
-	if (!xreq->replied)
-		afb_xreq_success(xreq, NULL, NULL);
+	return afb_trace_create(&datav2.daemon, NULL);
 }
-#endif
+
+static void context_destroy(void *pointer)
+{
+	struct afb_trace *trace = pointer;
+	afb_trace_unref(trace);
+}
+
+static void f_trace(struct afb_req req)
+{
+	int rc;
+	struct json_object *add = NULL;
+	struct json_object *drop = NULL;
+	struct afb_trace *trace;
+
+	trace = afb_req_context(req, context_create, context_destroy);
+	wrap_json_unpack(afb_req_json(req), "{s?o s?o}", "add", &add, "drop", &drop);
+	if (add) {
+		rc = afb_trace_add(req, add, trace);
+		if (rc)
+			return;
+	}
+	if (drop) {
+		rc = afb_trace_drop(req, drop, trace);
+		if (rc)
+			return;
+	}
+	afb_req_success(req, NULL, NULL);
+}
 

@@ -118,6 +118,167 @@
       },
       "verbosity-level": {
         "enum": [ "debug", 3, "info", 2, "notice", "warning", 1, "error", 0 ]
+      },
+      "trace-add": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-add-object" } },
+          { "$ref": "#/components/schemas/trace-add-any" }
+        ]
+      },
+      "trace-add-any": {
+        "anyOf": [
+          { "$ref": "#/components/schemas/trace-add-request" },
+          { "$ref": "#/components/schemas/trace-add-object" }
+        ]
+      },
+      "trace-add-object": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "name of the generated event", "default": "trace" },
+          "tag": { "type": "string", "description": "tag for grouping traces", "default": "trace" },
+          "api": { "type": "string", "description": "api for requests, daemons and services" },
+          "verb": { "type": "string", "description": "verb for requests" },
+          "session": { "type": "string", "description": "session for requests" },
+          "pattern": { "type": "string", "description": "pattern for events" },
+          "request": { "$ref": "#/components/schemas/trace-add-request" },
+          "daemon": { "$ref": "#/components/schemas/trace-add-daemon" },
+          "service": { "$ref": "#/components/schemas/trace-add-service" },
+          "event": { "$ref": "#/components/schemas/trace-add-event" },
+          "for": { "$ref": "#/components/schemas/trace-add" }
+        },
+        "examples": [
+          { "tag": "1", "for": [ "common", { "api": "xxx", "request": "*", "daemon": "*", "service": "*" } ] }
+        ]
+      },
+      "trace-add-request": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-request-names" } },
+          { "$ref": "#/components/schemas/trace-request-names" }
+        ]
+      },
+      "trace-request-names": {
+        "title": "name of traceable items of requests",
+        "enum": [
+          "*",
+          "addref",
+          "all",
+          "args",
+          "begin",
+          "common",
+          "context",
+          "context_get",
+          "context_set",
+          "end",
+          "event",
+          "extra",
+          "fail",
+          "get",
+          "json",
+          "life",
+          "ref",
+          "result",
+          "session",
+          "session_close",
+          "session_set_LOA",
+          "simple",
+          "store",
+          "stores",
+          "subcall",
+          "subcall_result",
+          "subcalls",
+          "subcallsync",
+          "subcallsync_result",
+          "subscribe",
+          "success",
+          "unref",
+          "unstore",
+          "unsubscribe",
+          "vverbose"
+        ]
+      },
+      "trace-add-daemon": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-daemon-names" } },
+          { "$ref": "#/components/schemas/trace-daemon-names" }
+        ]
+      },
+      "trace-daemon-names": {
+        "title": "name of traceable items of daemons",
+        "enum": [
+          "*",
+          "all",
+          "common",
+          "event_broadcast_after",
+          "event_broadcast_before",
+          "event_make",
+          "extra",
+          "get_event_loop",
+          "get_system_bus",
+          "get_user_bus",
+          "queue_job",
+          "require_api",
+          "require_api_result",
+          "rootdir_get_fd",
+          "rootdir_open_locale",
+          "unstore_req",
+          "vverbose"
+        ]
+      },
+      "trace-add-service": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-service-names" } },
+          { "$ref": "#/components/schemas/trace-service-names" }
+        ]
+      },
+      "trace-service-names": {
+        "title": "name of traceable items of services",
+        "enum": [
+          "*",
+          "all",
+          "call",
+          "call_result",
+          "callsync",
+          "callsync_result",
+          "on_event_after",
+          "on_event_before",
+          "start_after",
+          "start_before"
+        ]
+      },
+      "trace-add-event": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-event-names" } },
+          { "$ref": "#/components/schemas/trace-event-names" }
+        ]
+      },
+      "trace-event-names": {
+        "title": "name of traceable items of events",
+        "enum": [
+          "*",
+          "all",
+          "broadcast_after",
+          "broadcast_before",
+          "common",
+          "create",
+          "drop",
+          "extra",
+          "name",
+          "push_after",
+          "push_before"
+        ]
+      },
+      "trace-drop": {
+        "anyOf": [
+          { "type": "boolean" },
+          {
+            "type": "object",
+            "properties": {
+              "event": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] },
+              "tag": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] },
+              "session": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] }
+            }
+          }
+        ]
       }
     },
     "x-permissions": {
@@ -182,6 +343,40 @@
             "name": "verbosity",
             "required": false,
             "schema": { "$ref": "#/components/schemas/set-verbosity" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A complex object array response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/afb-reply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trace": {
+      "description": "Set monitoring actions.",
+      "get": {
+        "x-permissions": {
+          "$ref": "#/components/x-permissions/set"
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "add",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/trace-add" }
+          },
+          {
+            "in": "query",
+            "name": "drop",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/trace-drop" }
           }
         ],
         "responses": {

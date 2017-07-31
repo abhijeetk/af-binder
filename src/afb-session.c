@@ -309,6 +309,8 @@ struct afb_session *afb_session_get (const char *uuid, int *created)
 	/* search for an existing one not too old */
 	if (uuid != NULL) {
 		session = search(uuid);
+		if (!created)
+			return session;
 		if (session != NULL) {
 			*created = 0;
 			session->access = now;
@@ -317,7 +319,9 @@ struct afb_session *afb_session_get (const char *uuid, int *created)
 		}
 	}
 
-	*created = 1;
+	if (created)
+		*created = 1;
+
 	return make_session(uuid, sessions.timeout, now);
 }
 
