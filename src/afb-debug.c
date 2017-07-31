@@ -30,6 +30,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#if !defined(NO_CALL_PERSONALITY)
+#include <sys/personality.h>
+#endif
 
 #include "verbose.h"
 
@@ -98,6 +101,9 @@ void afb_debug(const char *key)
 		indicate(NULL);
 		sigprocmask(SIG_SETMASK, &oss, NULL);
 		NOTICE("DEBUG WAIT after %s", key);
+#if !defined(NO_CALL_PERSONALITY)
+		personality((unsigned long)-1L);
+#endif
 	}
 	if (has_key(key, secure_getenv(key_env_break))) {
 		NOTICE("DEBUG BREAK before %s", key);
