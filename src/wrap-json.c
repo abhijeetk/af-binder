@@ -121,9 +121,10 @@ int wrap_json_vpack(struct json_object **result, const char *desc, va_list args)
 	top->cont = NULL;
 	top->acc = pack_accept_any;
 	top->type = 0;
-	if (!desc)
+	d = desc;
+	if (!d)
 		goto null_spec;
-	d = skip(desc);
+	d = skip(d);
 	for(;;) {
 		c = *d;
 		if (!c)
@@ -336,16 +337,16 @@ int wrap_json_pack(struct json_object **result, const char *desc, ...)
 
 static int vunpack(struct json_object *object, const char *desc, va_list args, int store)
 {
-	int rc, optionnal, ignore;
+	int rc = 0, optionnal, ignore;
 	char c, xacc[2] = { 0, 0 };
 	const char *acc;
-	const char *d, *fit;
-	const char *key;
-	const char **ps;
-	double *pf;
-	int *pi;
-	int64_t *pI;
-	size_t *pz;
+	const char *d, *fit = NULL;
+	const char *key = NULL;
+	const char **ps = NULL;
+	double *pf = NULL;
+	int *pi = NULL;
+	int64_t *pI = NULL;
+	size_t *pz = NULL;
 	struct { struct json_object *parent; const char *acc; int index, count; char type; } stack[STACKCOUNT], *top;
 	struct json_object *obj;
 	struct json_object **po;
@@ -354,9 +355,10 @@ static int vunpack(struct json_object *object, const char *desc, va_list args, i
 	ignore = 0;
 	top = NULL;
 	acc = unpack_accept_any;
-	if (!desc)
+	d = desc;
+	if (!d)
 		goto null_spec;
-	d = skip(desc);
+	d = skip(d);
 	obj = object;
 	for(;;) {
 		fit = d;
