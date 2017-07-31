@@ -66,20 +66,20 @@ struct afb_hook_xreq;
 #define afb_hook_flags_req_result	(afb_hook_flag_req_success|afb_hook_flag_req_fail)
 #define afb_hook_flags_req_session	(afb_hook_flag_req_session_close|afb_hook_flag_req_session_set_LOA)
 #define afb_hook_flags_req_event	(afb_hook_flag_req_subscribe|afb_hook_flag_req_unsubscribe)
-#define afb_hook_flags_req_subcall	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result\
+#define afb_hook_flags_req_subcalls	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result\
 					|afb_hook_flag_req_subcallsync|afb_hook_flag_req_subcallsync_result)
 
 /* extra flags */
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
 #define afb_hook_flags_req_context	(afb_hook_flag_req_context_get|afb_hook_flag_req_context_set)
-#define afb_hook_flags_req_store	(afb_hook_flag_req_store|afb_hook_flag_req_unstore)
+#define afb_hook_flags_req_stores	(afb_hook_flag_req_store|afb_hook_flag_req_unstore)
 
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
-					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcall\
+					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcalls\
 					|afb_hook_flag_req_vverbose)
 #define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context\
-					|afb_hook_flags_req_store)
+					|afb_hook_flags_req_stores)
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
 
 struct afb_hook_xreq_itf {
