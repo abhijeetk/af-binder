@@ -31,13 +31,166 @@
 #include "afb-xreq.h"
 #include "afb-evt.h"
 #include "afb-msg-json.h"
-#include "afb-subcall.h"
+#include "afb-cred.h"
 #include "afb-hook.h"
 #include "afb-api.h"
 #include "afb-apiset.h"
 #include "afb-auth.h"
 #include "jobs.h"
 #include "verbose.h"
+
+/******************************************************************************/
+
+static inline void xreq_addref(struct afb_xreq *xreq)
+{
+	__atomic_add_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED);
+}
+
+static inline void xreq_unref(struct afb_xreq *xreq)
+{
+	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
+		if (xreq->hookflags)
+			afb_hook_xreq_end(xreq);
+		xreq->queryitf->unref(xreq);
+	}
+}
+
+/******************************************************************************/
+
+struct subcall
+{
+	struct afb_xreq xreq;
+	struct afb_xreq *caller;
+	void (*callback)(void*, int, struct json_object*);
+	void *closure;
+	union {
+		struct {
+			struct jobloop *jobloop;
+			struct json_object *result;
+			int status;
+		};
+		struct {
+				void (*callback)(void*, int, struct json_object*);
+				void *closure;
+		} hooked;
+	};
+};
+
+static int subcall_subscribe(struct afb_xreq *xreq, struct afb_event event)
+{
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
+
+	return afb_xreq_subscribe(subcall->caller, event);
+}
+
+static int subcall_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
+{
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
+
+	return afb_xreq_unsubscribe(subcall->caller, event);
+}
+
+static void subcall_reply(struct afb_xreq *xreq, int status, struct json_object *obj)
+{
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
+
+	if (subcall->callback)
+		subcall->callback(subcall->closure, status, obj);
+	json_object_put(obj);
+}
+
+static void subcall_destroy(struct afb_xreq *xreq)
+{
+	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
+
+	json_object_put(subcall->xreq.json);
+	afb_cred_unref(subcall->xreq.cred);
+	xreq_unref(subcall->caller);
+	free(subcall);
+}
+
+const struct afb_xreq_query_itf afb_xreq_subcall_itf = {
+	.reply = subcall_reply,
+	.unref = subcall_destroy,
+	.subscribe = subcall_subscribe,
+	.unsubscribe = subcall_unsubscribe
+};
+
+static struct subcall *subcall_alloc(
+		struct afb_xreq *caller,
+		const char *api,
+		const char *verb,
+		struct json_object *args
+)
+{
+	struct subcall *subcall;
+	size_t lenapi, lenverb;
+	char *copy;
+
+	lenapi = 1 + strlen(api);
+	lenverb = 1 + strlen(verb);
+	subcall = malloc(lenapi + lenverb + sizeof *subcall);
+	if (!subcall)
+		ERROR("out of memory");
+	else {
+		copy = (char*)&subcall[1];
+		memcpy(copy, api, lenapi);
+		api = copy;
+		copy = &copy[lenapi];
+		memcpy(copy, verb, lenverb);
+		verb = copy;
+
+		afb_xreq_init(&subcall->xreq, &afb_xreq_subcall_itf);
+		afb_context_subinit(&subcall->xreq.context, &caller->context);
+		subcall->xreq.cred = afb_cred_addref(caller->cred);
+		subcall->xreq.json = args;
+		subcall->xreq.api = api;
+		subcall->xreq.verb = verb;
+		subcall->caller = caller;
+		xreq_addref(caller);
+	}
+	return subcall;
+}
+
+static void subcall_process(struct subcall *subcall)
+{
+	if (subcall->caller->queryitf->subcall) {
+		subcall->caller->queryitf->subcall(
+			subcall->caller, subcall->xreq.api, subcall->xreq.verb,
+			subcall->xreq.json, subcall->callback, subcall->closure);
+		xreq_unref(&subcall->xreq);
+	} else
+		afb_xreq_process(&subcall->xreq, subcall->caller->apiset);
+}
+
+static void subcall_sync_leave(struct subcall *subcall)
+{
+	struct jobloop *jobloop = __atomic_exchange_n(&subcall->jobloop, NULL, __ATOMIC_RELAXED);
+	if (jobloop)
+		jobs_leave(jobloop);
+}
+
+static void subcall_sync_reply(void *closure, int status, struct json_object *obj)
+{
+	struct subcall *subcall = closure;
+
+	subcall->status = status;
+	subcall->result = json_object_get(obj);
+	subcall_sync_leave(subcall);
+}
+
+static void subcall_sync_enter(int signum, void *closure, struct jobloop *jobloop)
+{
+	struct subcall *subcall = closure;
+
+	if (!signum) {
+		subcall->jobloop = jobloop;
+		subcall_process(subcall);
+	} else {
+		subcall->status = -1;
+		subcall_sync_leave(subcall);
+	}
+}
 
 /******************************************************************************/
 
@@ -138,15 +291,13 @@ static void xreq_context_set_cb(void *closure, void *value, void (*free_value)(v
 static void xreq_addref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	__atomic_add_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED);
+	xreq_addref(xreq);
 }
 
 static void xreq_unref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
-		xreq->queryitf->unref(xreq);
-	}
+	xreq_unref(xreq);
 }
 
 static void xreq_session_close_cb(void *closure)
@@ -198,79 +349,50 @@ int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 static void xreq_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
 	struct afb_xreq *xreq = closure;
+	struct subcall *subcall;
 
-	if (xreq->queryitf->subcall) {
-		xreq->queryitf->subcall(xreq, api, verb, args, callback, cb_closure);
+	subcall = subcall_alloc(xreq, api, verb, args);
+	if (subcall == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error());
 		json_object_put(args);
 	} else {
-		afb_subcall(xreq, api, verb, args, callback, cb_closure);
-	}
-}
-
-struct xreq_sync
-{
-	struct afb_xreq *caller;
-	const char *api;
-	const char *verb;
-	struct json_object *args;
-	struct jobloop *jobloop;
-	struct json_object *result;
-	int status;
-};
-
-static void xreq_sync_leave(struct xreq_sync *sync)
-{
-	struct jobloop *jobloop = sync->jobloop;
-	if (jobloop) {
-		sync->jobloop = NULL;
-		jobs_leave(jobloop);
-	}
-}
-
-static void xreq_sync_reply(void *closure, int status, struct json_object *obj)
-{
-	struct xreq_sync *sync = closure;
-
-	sync->status = status;
-	sync->result = json_object_get(obj);
-	xreq_sync_leave(sync);
-}
-
-static void xreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
-{
-	struct xreq_sync *sync = closure;
-
-	if (!signum) {
-		sync->jobloop = jobloop;
-		xreq_subcall_cb(sync->caller, sync->api, sync->verb, json_object_get(sync->args), xreq_sync_reply, sync);
-	} else {
-		sync->status = -1;
-		xreq_sync_leave(sync);
+		subcall->callback = callback;
+		subcall->closure = cb_closure;
+		subcall_process(subcall);
 	}
 }
 
 static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
 	int rc;
-	struct xreq_sync sync;
+	struct subcall *subcall;
 	struct afb_xreq *xreq = closure;
+	struct json_object *resu;
 
-	sync.caller = xreq;
-	sync.api = api;
-	sync.verb = verb;
-	sync.args = args;
-	sync.jobloop = NULL;
-	sync.result = NULL;
-	sync.status = 0;
-
-	rc = jobs_enter(NULL, 0, xreq_sync_enter, &sync);
-	json_object_put(args);
-	if (rc < 0 || sync.status < 0) {
-		*result = sync.result ? : afb_msg_json_internal_error();
-		return -1;
+	subcall = subcall_alloc(xreq, api, verb, args);
+	if (!subcall) {
+		rc = -1;
+		resu = afb_msg_json_internal_error();
+		json_object_put(args);
+	} else {
+		subcall->callback = subcall_sync_reply;
+		subcall->closure = subcall;
+		subcall->jobloop = NULL;
+		subcall->result = NULL;
+		subcall->status = 0;
+		rc = jobs_enter(NULL, 0, subcall_sync_enter, subcall);
+		resu = subcall->result;
+		if (rc < 0 || subcall->status < 0) {
+			resu = resu ?: afb_msg_json_internal_error();
+			rc = -1;
+		}
 	}
-	*result = sync.result;
-	return 0;
+	if (result)
+		*result = resu;
+	else
+		json_object_put(resu);
+	return rc;
 }
 
 static void xreq_vverbose_cb(void*closure, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
@@ -350,10 +472,7 @@ static void xreq_hooked_unref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
 	afb_hook_xreq_unref(xreq);
-	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
-		afb_hook_xreq_end(xreq);
-		xreq->queryitf->unref(xreq);
-	}
+	xreq_unref_cb(closure);
 }
 
 static void xreq_hooked_session_close_cb(void *closure)
@@ -384,35 +503,31 @@ static int xreq_hooked_unsubscribe_cb(void *closure, struct afb_event event)
 	return afb_hook_xreq_unsubscribe(xreq, event, r);
 }
 
-struct reply
-{
-	struct afb_xreq *xreq;
-	void (*callback)(void*, int, struct json_object*);
-	void *closure;
-};
-
 static void xreq_hooked_subcall_reply_cb(void *closure, int status, struct json_object *result)
 {
-	struct reply *reply = closure;
+	struct subcall *subcall = closure;
 	
-	afb_hook_xreq_subcall_result(reply->xreq, status, result);
-	reply->callback(reply->closure, status, result);
-	free(reply);
+	afb_hook_xreq_subcall_result(subcall->caller, status, result);
+	subcall->hooked.callback(subcall->hooked.closure, status, result);
 }
 
 static void xreq_hooked_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
-	struct reply *reply = malloc(sizeof *reply);
 	struct afb_xreq *xreq = closure;
+	struct subcall *subcall;
+
 	afb_hook_xreq_subcall(xreq, api, verb, args);
-	if (reply) {
-		reply->xreq = xreq;
-		reply->callback = callback;
-		reply->closure = cb_closure;
-		xreq_subcall_cb(closure, api, verb, args, xreq_hooked_subcall_reply_cb, reply);
+	subcall = subcall_alloc(xreq, api, verb, args);
+	if (subcall == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error());
+		json_object_put(args);
 	} else {
-		ERROR("out of memory");
-		xreq_subcall_cb(closure, api, verb, args, callback, cb_closure);
+		subcall->callback = xreq_hooked_subcall_reply_cb;
+		subcall->closure = subcall;
+		subcall->hooked.callback = callback;
+		subcall->hooked.closure = cb_closure;
+		subcall_process(subcall);
 	}
 }
 
@@ -723,20 +838,20 @@ static void process_async(int signum, void *arg)
 	} else {
 		process_sync(xreq);
 	}
-	afb_xreq_unref(xreq);
+	xreq_unref(xreq);
 }
 
 void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 {
 	xreq->apiset = apiset;
 
-	afb_xreq_addref(xreq);
+	xreq_addref(xreq);
 	if (jobs_queue(NULL, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
-		afb_xreq_unref(xreq);
+		xreq_unref(xreq);
 	}
-	afb_xreq_unref(xreq);
+	xreq_unref(xreq);
 }
 
