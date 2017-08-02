@@ -281,6 +281,16 @@ static void hook_xreq_unstore_default_cb(void * closure, const struct afb_xreq *
 	_hook_xreq_(xreq, "unstore()");
 }
 
+static void hook_xreq_subcall_req_default_cb(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+{
+	_hook_xreq_(xreq, "subcall_req(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+}
+
+static void hook_xreq_subcall_req_result_default_cb(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result)
+{
+	_hook_xreq_(xreq, "    ...subcall_req... -> %d: %s", status, json_object_to_json_string(result));
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -302,7 +312,9 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_subcallsync_result = hook_xreq_subcallsync_result_default_cb,
 	.hook_xreq_vverbose = hook_xreq_vverbose_default_cb,
 	.hook_xreq_store = hook_xreq_store_default_cb,
-	.hook_xreq_unstore = hook_xreq_unstore_default_cb
+	.hook_xreq_unstore = hook_xreq_unstore_default_cb,
+	.hook_xreq_subcall_req = hook_xreq_subcall_req_default_cb,
+	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result_default_cb
 };
 
 /******************************************************************************
@@ -436,6 +448,16 @@ void afb_hook_xreq_store(const struct afb_xreq *xreq, struct afb_stored_req *sre
 void afb_hook_xreq_unstore(const struct afb_xreq *xreq)
 {
 	_HOOK_XREQ_(unstore, xreq);
+}
+
+void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+{
+	_HOOK_XREQ_(subcall_req, xreq, api, verb, args);
+}
+
+void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result)
+{
+	_HOOK_XREQ_(subcall_req_result, xreq, status, result);
 }
 
 /******************************************************************************

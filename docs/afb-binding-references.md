@@ -586,6 +586,10 @@ client (with its permissions).
  * For convenience, the function calls 'json_object_put' for 'args'.
  * Thus, in the case where 'args' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
+ *
+ * See also:
+ *  - 'afb_req_subcall_req' that is convenient to keep request alive automatically.
+ *  - 'afb_req_subcall_sync' the synchronous version
  */
 void afb_req_subcall(
                 struct afb_req req,
@@ -598,6 +602,29 @@ void afb_req_subcall(
 /*
  * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
  * This call is made in the context of the request 'req'.
+ * On completion, the function 'callback' is invoked with the
+ * original request 'req', the 'closure' given at call and two
+ * other parameters: 'iserror' and 'result'.
+ * 'status' is 0 on success or negative when on an error reply.
+ * 'result' is the json object of the reply, you must not call json_object_put
+ * on the result.
+ *
+ * For convenience, the function calls 'json_object_put' for 'args'.
+ * Thus, in the case where 'args' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ *
+ * See also:
+ *  - 'afb_req_subcall' that doesn't keep request alive automatically.
+ *  - 'afb_req_subcall_sync' the synchronous version
+ */
+static inline void afb_req_subcall_req(struct afb_req req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result, struct afb_req req), void *closure)
+{
+	req.itf->subcall_req(req.closure, api, verb, args, callback, closure);
+}
+
+/*
+ * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
+ * This call is made in the context of the request 'req'.
  * This call is synchronous, it waits untill completion of the request.
  * It returns 0 on success or a negative value on error answer.
  * The object pointed by 'result' is filled and must be released by the caller
@@ -606,6 +633,10 @@ void afb_req_subcall(
  * For convenience, the function calls 'json_object_put' for 'args'.
  * Thus, in the case where 'args' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
+ *
+ * See also:
+ *  - 'afb_req_subcall_req' that is convenient to keep request alive automatically.
+ *  - 'afb_req_subcall' that doesn't keep request alive automatically.
  */
 int afb_req_subcall_sync(
                 struct afb_req req,

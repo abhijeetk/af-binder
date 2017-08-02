@@ -57,6 +57,16 @@ static inline void xreq_unref(struct afb_xreq *xreq)
 
 /******************************************************************************/
 
+extern const struct afb_req_itf xreq_itf;
+extern const struct afb_req_itf xreq_hooked_itf;
+
+static inline struct afb_req to_req(struct afb_xreq *xreq)
+{
+	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
+}
+
+/******************************************************************************/
+
 struct subcall
 {
 	struct afb_xreq xreq;
@@ -70,8 +80,11 @@ struct subcall
 			int status;
 		};
 		struct {
+			union {
 				void (*callback)(void*, int, struct json_object*);
-				void *closure;
+				void (*callback2)(void*, int, struct json_object*, struct afb_req);
+			};
+			void *closure;
 		} hooked;
 	};
 };
@@ -363,6 +376,32 @@ static void xreq_subcall_cb(void *closure, const char *api, const char *verb, st
 	}
 }
 
+static void xreq_subcall_req_reply_cb(void *closure, int status, struct json_object *result)
+{
+	struct subcall *subcall = closure;
+	subcall->hooked.callback2(subcall->hooked.closure, status, result, to_req(subcall->caller));
+}
+
+static void xreq_subcall_req_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure)
+{
+	struct afb_xreq *xreq = closure;
+	struct subcall *subcall;
+
+	subcall = subcall_alloc(xreq, api, verb, args);
+	if (subcall == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error(), to_req(xreq));
+		json_object_put(args);
+	} else {
+		subcall->callback = xreq_subcall_req_reply_cb;
+		subcall->closure = subcall;
+		subcall->hooked.callback2 = callback;
+		subcall->hooked.closure = cb_closure;
+		subcall_process(subcall);
+	}
+}
+
+
 static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
 	int rc;
@@ -506,7 +545,7 @@ static int xreq_hooked_unsubscribe_cb(void *closure, struct afb_event event)
 static void xreq_hooked_subcall_reply_cb(void *closure, int status, struct json_object *result)
 {
 	struct subcall *subcall = closure;
-	
+
 	afb_hook_xreq_subcall_result(subcall->caller, status, result);
 	subcall->hooked.callback(subcall->hooked.closure, status, result);
 }
@@ -526,6 +565,34 @@ static void xreq_hooked_subcall_cb(void *closure, const char *api, const char *v
 		subcall->callback = xreq_hooked_subcall_reply_cb;
 		subcall->closure = subcall;
 		subcall->hooked.callback = callback;
+		subcall->hooked.closure = cb_closure;
+		subcall_process(subcall);
+	}
+}
+
+static void xreq_hooked_subcall_req_reply_cb(void *closure, int status, struct json_object *result)
+{
+	struct subcall *subcall = closure;
+
+	afb_hook_xreq_subcall_req_result(subcall->caller, status, result);
+	subcall->hooked.callback2(subcall->hooked.closure, status, result, to_req(subcall->caller));
+}
+
+static void xreq_hooked_subcall_req_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure)
+{
+	struct afb_xreq *xreq = closure;
+	struct subcall *subcall;
+
+	afb_hook_xreq_subcall_req(xreq, api, verb, args);
+	subcall = subcall_alloc(xreq, api, verb, args);
+	if (subcall == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error(), to_req(xreq));
+		json_object_put(args);
+	} else {
+		subcall->callback = xreq_hooked_subcall_req_reply_cb;
+		subcall->closure = subcall;
+		subcall->hooked.callback2 = callback;
 		subcall->hooked.closure = cb_closure;
 		subcall_process(subcall);
 	}
@@ -578,7 +645,8 @@ const struct afb_req_itf xreq_itf = {
 	.subcall = xreq_subcall_cb,
 	.subcallsync = xreq_subcallsync_cb,
 	.vverbose = xreq_vverbose_cb,
-	.store = xreq_store_cb
+	.store = xreq_store_cb,
+	.subcall_req = xreq_subcall_req_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -599,13 +667,9 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.subcall = xreq_hooked_subcall_cb,
 	.subcallsync = xreq_hooked_subcallsync_cb,
 	.vverbose = xreq_hooked_vverbose_cb,
-	.store = xreq_hooked_store_cb
+	.store = xreq_hooked_store_cb,
+	.subcall_req = xreq_hooked_subcall_req_cb
 };
-
-static inline struct afb_req to_req(struct afb_xreq *xreq)
-{
-	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
-}
 
 /******************************************************************************/
 
