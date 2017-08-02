@@ -53,12 +53,14 @@ struct afb_hook_xreq;
 #define afb_hook_flag_req_subscribe		0x001000
 #define afb_hook_flag_req_unsubscribe		0x002000
 #define afb_hook_flag_req_subcall		0x004000
-#define afb_hook_flag_req_subcall_result	0x010800
-#define afb_hook_flag_req_subcallsync		0x020000
-#define afb_hook_flag_req_subcallsync_result	0x040000
-#define afb_hook_flag_req_vverbose		0x080000
-#define afb_hook_flag_req_store			0x100000
-#define afb_hook_flag_req_unstore		0x200000
+#define afb_hook_flag_req_subcall_result	0x008000
+#define afb_hook_flag_req_subcallsync		0x010000
+#define afb_hook_flag_req_subcallsync_result	0x020000
+#define afb_hook_flag_req_vverbose		0x040000
+#define afb_hook_flag_req_store			0x080000
+#define afb_hook_flag_req_unstore		0x100000
+#define afb_hook_flag_req_subcall_req		0x200000
+#define afb_hook_flag_req_subcall_req_result	0x400000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -67,6 +69,7 @@ struct afb_hook_xreq;
 #define afb_hook_flags_req_session	(afb_hook_flag_req_session_close|afb_hook_flag_req_session_set_LOA)
 #define afb_hook_flags_req_event	(afb_hook_flag_req_subscribe|afb_hook_flag_req_unsubscribe)
 #define afb_hook_flags_req_subcalls	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result\
+					|afb_hook_flag_req_subcall_req|afb_hook_flag_req_subcall_req_result\
 					|afb_hook_flag_req_subcallsync|afb_hook_flag_req_subcallsync_result)
 
 /* extra flags */
@@ -104,6 +107,8 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_vverbose)(void * closure, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
 	void (*hook_xreq_store)(void * closure, const struct afb_xreq *xreq, struct afb_stored_req *sreq);
 	void (*hook_xreq_unstore)(void * closure, const struct afb_xreq *xreq);
+	void (*hook_xreq_subcall_req)(void * closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+	void (*hook_xreq_subcall_req_result)(void * closure, const struct afb_xreq *xreq, int status, struct json_object *result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -134,6 +139,8 @@ extern int afb_hook_xreq_subcallsync_result(const struct afb_xreq *xreq, int sta
 extern void afb_hook_xreq_vverbose(const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
 extern void afb_hook_xreq_store(const struct afb_xreq *xreq, struct afb_stored_req *sreq);
 extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
+extern void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 
 /*********************************************************
 * section hooking ditf (daemon interface)

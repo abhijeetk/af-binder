@@ -192,6 +192,27 @@ static void subcall (afb_req request)
 		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
 }
 
+static void subcallreqcb (void *prequest, int status, json_object *object, afb_req request)
+{
+	if (status < 0)
+		afb_req_fail(request, "failed", json_object_to_json_string(object));
+	else
+		afb_req_success(request, json_object_get(object), NULL);
+}
+
+static void subcallreq (afb_req request)
+{
+	const char *api = afb_req_value(request, "api");
+	const char *verb = afb_req_value(request, "verb");
+	const char *args = afb_req_value(request, "args");
+	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
+
+	if (object == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else
+		afb_req_subcall_req(request, api, verb, object, subcallreqcb, NULL);
+}
+
 static void subcallsync (afb_req request)
 {
 	int rc;
@@ -418,6 +439,7 @@ static const afb_verb_v2 verbs[]= {
   { .verb="pingJson",    .callback=pingJson },
   { .verb="pingevent",   .callback=pingEvent },
   { .verb="subcall",     .callback=subcall },
+  { .verb="subcallreq",  .callback=subcallreq },
   { .verb="subcallsync", .callback=subcallsync },
   { .verb="eventadd",    .callback=eventadd },
   { .verb="eventdel",    .callback=eventdel },
