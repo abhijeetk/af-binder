@@ -29,6 +29,10 @@
 
 #define MAX_LABEL_LENGTH  1024
 
+#if !defined(NO_DEFAULT_PEERCRED) && !defined(ADD_DEFAULT_PEERCRED)
+#  define NO_DEFAULT_PEERCRED
+#endif
+
 #if !defined(DEFAULT_PEERSEC_LABEL)
 #  define DEFAULT_PEERSEC_LABEL "NoLabel"
 #endif
@@ -117,15 +121,15 @@ struct afb_cred *afb_cred_create_for_socket(int fd)
 	/* get the credentials */
 	length = (socklen_t)(sizeof ucred);
 	rc = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &length);
-	if (rc < 0 || length != (socklen_t)(sizeof ucred)) {
+	if (rc < 0 || length != (socklen_t)(sizeof ucred) || !~ucred.uid) {
 #if !defined(NO_DEFAULT_PEERCRED)
-		if (!rc)
-			errno = EINVAL;
-		return NULL;
-#else
 		ucred.uid = DEFAULT_PEERCRED_UID;
 		ucred.gid = DEFAULT_PEERCRED_GID;
 		ucred.pid = DEFAULT_PEERCRED_PID;
+#else
+		if (!rc)
+			errno = EINVAL;
+		return NULL;
 #endif
 	}
 
