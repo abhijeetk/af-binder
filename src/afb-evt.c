@@ -312,17 +312,13 @@ static void evt_destroy(struct afb_evt_event *evt)
 struct afb_event afb_evt_create_event(const char *name)
 {
 	size_t len;
-	struct afb_evt_event *evt;
+	struct afb_evt_event *evt, *oevt;
 
 	/* allocates the event */
 	len = strlen(name);
 	evt = malloc(len + sizeof * evt);
 	if (evt == NULL)
 		goto error;
-
-	/* initialize the event */
-	evt->watchs = NULL;
-	memcpy(evt->name, name, len + 1);
 
 	/* allocates the id */
 	pthread_mutex_lock(&events_mutex);
@@ -333,10 +329,10 @@ struct afb_event afb_evt_create_event(const char *name)
 		}
 		if (!event_id_wrapped)
 			break;
-		evt = events;
-		while(evt != NULL && evt->id != event_id_counter)
-			evt = evt->next;
-	} while (evt != NULL);
+		oevt = events;
+		while(oevt != NULL && oevt->id != event_id_counter)
+			oevt = oevt->next;
+	} while (oevt != NULL);
 
 	/* initialize the event */
 	memcpy(evt->name, name, len + 1);

@@ -263,7 +263,8 @@ static int init_container(struct locale_container *container, int dirfd)
 	}
 
 	/* sort the folders */
-	qsort(container->folders, container->count, sizeof *container->folders, compare_folders_for_qsort);
+	if (container->count)
+		qsort(container->folders, container->count, sizeof *container->folders, compare_folders_for_qsort);
 
 	/* build the parents links */
 	i = container->count;
