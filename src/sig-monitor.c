@@ -130,6 +130,8 @@ static inline void timeout_delete()
 static void on_signal_terminate (int signum)
 {
 	ERROR("Terminating signal %d received: %s", signum, strsignal(signum));
+	if (signum == SIGABRT)
+		dumpstack(3);
 	exit(1);
 }
 
