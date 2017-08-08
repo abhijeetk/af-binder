@@ -120,7 +120,7 @@ static void free_data (struct afb_session *session)
 void afb_session_init (int max_session_count, int timeout, const char *initok)
 {
 	// let's create as store as hashtable does not have any
-	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct afb_session));
+	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof *sessions.store);
 	pthread_mutex_init(&sessions.mutex, NULL);
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
