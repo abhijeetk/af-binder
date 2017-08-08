@@ -282,6 +282,9 @@
       }
     },
     "x-permissions": {
+        "trace": {
+          "permission": "urn:AGL:permission:monitor:public:trace"
+        },
         "set": {
           "permission": "urn:AGL:permission:monitor:public:set"
         },
@@ -363,7 +366,7 @@
       "description": "Set monitoring actions.",
       "get": {
         "x-permissions": {
-          "$ref": "#/components/x-permissions/set"
+          "$ref": "#/components/x-permissions/trace"
         },
         "parameters": [
           {

@@ -82,39 +82,41 @@ static const char _afb_description_v2_monitor[] =
     "ent\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"array\",\"items\":\""
     "string\"}]},\"tag\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"array\""
     ",\"items\":\"string\"}]},\"session\":{\"anyOf\":[{\"type\":\"string\"},{"
-    "\"type\":\"array\",\"items\":\"string\"}]}}}]}},\"x-permissions\":{\"set"
-    "\":{\"permission\":\"urn:AGL:permission:monitor:public:set\"},\"get\":{\""
-    "permission\":\"urn:AGL:permission:monitor:public:get\"},\"get-or-set\":{"
-    "\"anyOf\":[{\"$ref\":\"#/components/x-permissions/get\"},{\"$ref\":\"#/c"
-    "omponents/x-permissions/set\"}]}}},\"paths\":{\"/get\":{\"description\":"
-    "\"Get monitoring data.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/compon"
-    "ents/x-permissions/get-or-set\"},\"parameters\":[{\"in\":\"query\",\"nam"
-    "e\":\"verbosity\",\"required\":false,\"schema\":{\"$ref\":\"#/components"
-    "/schemas/get-verbosity\"}},{\"in\":\"query\",\"name\":\"apis\",\"require"
-    "d\":false,\"schema\":{\"$ref\":\"#/components/schemas/get-apis\"}}],\"re"
-    "sponses\":{\"200\":{\"description\":\"A complex object array response\","
-    "\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/s"
-    "chemas/afb-reply\"}}}}}}},\"/set\":{\"description\":\"Set monitoring act"
-    "ions.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permission"
-    "s/set\"},\"parameters\":[{\"in\":\"query\",\"name\":\"verbosity\",\"requ"
-    "ired\":false,\"schema\":{\"$ref\":\"#/components/schemas/set-verbosity\""
-    "}}],\"responses\":{\"200\":{\"description\":\"A complex object array res"
-    "ponse\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/comp"
-    "onents/schemas/afb-reply\"}}}}}}},\"/trace\":{\"description\":\"Set moni"
-    "toring actions.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-"
-    "permissions/set\"},\"parameters\":[{\"in\":\"query\",\"name\":\"add\",\""
-    "required\":false,\"schema\":{\"$ref\":\"#/components/schemas/trace-add\""
-    "}},{\"in\":\"query\",\"name\":\"drop\",\"required\":false,\"schema\":{\""
-    "$ref\":\"#/components/schemas/trace-drop\"}}],\"responses\":{\"200\":{\""
-    "description\":\"A complex object array response\",\"content\":{\"applica"
-    "tion/json\":{\"schema\":{\"$ref\":\"#/components/schemas/afb-reply\"}}}}"
-    "}}}}}"
+    "\"type\":\"array\",\"items\":\"string\"}]}}}]}},\"x-permissions\":{\"tra"
+    "ce\":{\"permission\":\"urn:AGL:permission:monitor:public:trace\"},\"set\""
+    ":{\"permission\":\"urn:AGL:permission:monitor:public:set\"},\"get\":{\"p"
+    "ermission\":\"urn:AGL:permission:monitor:public:get\"},\"get-or-set\":{\""
+    "anyOf\":[{\"$ref\":\"#/components/x-permissions/get\"},{\"$ref\":\"#/com"
+    "ponents/x-permissions/set\"}]}}},\"paths\":{\"/get\":{\"description\":\""
+    "Get monitoring data.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/componen"
+    "ts/x-permissions/get-or-set\"},\"parameters\":[{\"in\":\"query\",\"name\""
+    ":\"verbosity\",\"required\":false,\"schema\":{\"$ref\":\"#/components/sc"
+    "hemas/get-verbosity\"}},{\"in\":\"query\",\"name\":\"apis\",\"required\""
+    ":false,\"schema\":{\"$ref\":\"#/components/schemas/get-apis\"}}],\"respo"
+    "nses\":{\"200\":{\"description\":\"A complex object array response\",\"c"
+    "ontent\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/sche"
+    "mas/afb-reply\"}}}}}}},\"/set\":{\"description\":\"Set monitoring action"
+    "s.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permissions/s"
+    "et\"},\"parameters\":[{\"in\":\"query\",\"name\":\"verbosity\",\"require"
+    "d\":false,\"schema\":{\"$ref\":\"#/components/schemas/set-verbosity\"}}]"
+    ",\"responses\":{\"200\":{\"description\":\"A complex object array respon"
+    "se\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/compone"
+    "nts/schemas/afb-reply\"}}}}}}},\"/trace\":{\"description\":\"Set monitor"
+    "ing actions.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-per"
+    "missions/trace\"},\"parameters\":[{\"in\":\"query\",\"name\":\"add\",\"r"
+    "equired\":false,\"schema\":{\"$ref\":\"#/components/schemas/trace-add\"}"
+    "},{\"in\":\"query\",\"name\":\"drop\",\"required\":false,\"schema\":{\"$"
+    "ref\":\"#/components/schemas/trace-drop\"}}],\"responses\":{\"200\":{\"d"
+    "escription\":\"A complex object array response\",\"content\":{\"applicat"
+    "ion/json\":{\"schema\":{\"$ref\":\"#/components/schemas/afb-reply\"}}}}}"
+    "}}}}"
 ;
 
 static const struct afb_auth _afb_auths_v2_monitor[] = {
 	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:set" },
 	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:get" },
-	{ .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] }
+	{ .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] },
+	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:trace" }
 };
 
 static void f_get(struct afb_req req);
@@ -139,7 +141,7 @@ static const struct afb_verb_v2 _afb_verbs_v2_monitor[] = {
     {
         .verb = "trace",
         .callback = f_trace,
-        .auth = &_afb_auths_v2_monitor[0],
+        .auth = &_afb_auths_v2_monitor[3],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
