@@ -129,6 +129,7 @@
 #define SET_NAME           'n'
 #define SET_OUTPUT         'o'
 #define SET_PORT           'p'
+#define JS_API             'j'
 #define SET_QUIET          'q'
 #define SET_RANDOM_TOKEN   'r'
 #define ADD_SET            's'
@@ -178,6 +179,7 @@ static struct option_desc optdefs[] = {
 	{ADD_BINDING,         1, "binding",     "Load the binding of path"},
 	{ADD_WEAK_LDPATH,     1, "weak-ldpaths","Same as --ldpaths but ignore errors"},
 	{SET_NO_LDPATH,       0, "no-ldpaths",  "Discard default ldpaths loading"},
+	{JS_API,              1, "jsapi",       "Load the javascript api of path"},
 
 	{SET_TOKEN,           1, "token",       "Initial Secret [default=random, use --token="" to allow any token]"},
 	{SET_RANDOM_TOKEN,    0, "random-token","Enforce a random token"},
@@ -801,6 +803,7 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 		case ADD_WS_SERVICE:
 		case ADD_BINDING:
 		case ADD_AUTO_API:
+		case JS_API:
 			config_add_optstr(config, optid);
 			break;
 

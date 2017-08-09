@@ -47,6 +47,7 @@
 #   include "afb-api-dbus.h"
 #endif
 #include "afb-api-ws.h"
+#include "afb-api-js.h"
 #include "afb-hsrv.h"
 #include "afb-hreq.h"
 #include "afb-xreq.h"
@@ -770,6 +771,7 @@ static void start(int signum, void *arg)
 	apiset_start_list("ldpaths", afb_api_so_add_pathset_fails, "the binding path set");
 	apiset_start_list("weak-ldpaths", afb_api_so_add_pathset_nofails, "the weak binding path set");
 	apiset_start_list("auto-api", afb_autoset_add_any, "the automatic api path set");
+	apiset_start_list("jsapi", afb_api_js_add, "the jsapi");
 #if defined(WITH_DBUS_TRANSPARENCY)
 	apiset_start_list("dbus-client", afb_api_dbus_add_client, "the afb-dbus client");
 #endif

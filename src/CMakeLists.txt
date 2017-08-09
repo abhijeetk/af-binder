@@ -26,6 +26,7 @@ ADD_DEFINITIONS(-DINFER_EXTENSION)
 
 SET(AFB_LIB_SOURCES
 	afb-api.c
+	afb-api-js.c
 	afb-api-so.c
 	afb-api-so-v2.c
 	afb-api-so-v3.c
@@ -76,6 +77,7 @@ SET(AFB_LIB_SOURCES
 	verbose.c
 	websock.c
 	wrap-json.c
+	duktape.c
 )
 
 IF(INCLUDE_LEGACY_BINDING_V1)

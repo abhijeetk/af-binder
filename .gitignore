@@ -7,12 +7,11 @@ dist/*
 .dep.inc
 CMakeFiles/
 CMakeCache.txt
-nbproject/private/*
 cmake_install.cmake
 .vscode
 stress-out*
 node_modules/
 _book/
 *.kdev4
-nbproject/*
+nbproject/
 doxygen-output
