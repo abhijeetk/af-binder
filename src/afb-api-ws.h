@@ -18,7 +18,7 @@
 
 #pragma once
 
-struct afb_req_itf;
+struct afb_apiset;
 
 extern int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset);
 
