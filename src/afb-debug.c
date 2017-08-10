@@ -80,40 +80,52 @@ static void handler(int signum)
 {
 }
 
-void afb_debug(const char *key)
+void afb_debug_wait(const char *key)
 {
 	struct sigaction sa, psa;
 	sigset_t ss, oss;
 
-	if (has_key(key, secure_getenv(key_env_wait))) {
-		NOTICE("DEBUG WAIT before %s", key);
-		sigfillset(&ss);
-		sigdelset(&ss, SIGINT);
-		sigprocmask(SIG_SETMASK, &ss, &oss);
-		sigemptyset(&ss);
-		sigaddset(&ss, SIGINT);
-		memset(&sa, 0, sizeof sa);
-		sa.sa_handler = handler;
-		sigaction(SIGINT, &sa, &psa);
-		indicate(key);
-		sigwaitinfo(&ss, NULL);
-		sigaction(SIGINT, &psa, NULL);
-		indicate(NULL);
-		sigprocmask(SIG_SETMASK, &oss, NULL);
-		NOTICE("DEBUG WAIT after %s", key);
+	key = key ?: "NULL";
+	NOTICE("DEBUG WAIT before %s", key);
+	sigfillset(&ss);
+	sigdelset(&ss, SIGINT);
+	sigprocmask(SIG_SETMASK, &ss, &oss);
+	sigemptyset(&ss);
+	sigaddset(&ss, SIGINT);
+	memset(&sa, 0, sizeof sa);
+	sa.sa_handler = handler;
+	sigaction(SIGINT, &sa, &psa);
+	indicate(key);
+	sigwaitinfo(&ss, NULL);
+	sigaction(SIGINT, &psa, NULL);
+	indicate(NULL);
+	sigprocmask(SIG_SETMASK, &oss, NULL);
+	NOTICE("DEBUG WAIT after %s", key);
 #if !defined(NO_CALL_PERSONALITY)
-		personality((unsigned long)-1L);
+	personality((unsigned long)-1L);
 #endif
-	}
-	if (has_key(key, secure_getenv(key_env_break))) {
-		NOTICE("DEBUG BREAK before %s", key);
-		memset(&sa, 0, sizeof sa);
-		sa.sa_handler = handler;
-		sigaction(SIGINT, &sa, &psa);
-		raise(SIGINT);
-		sigaction(SIGINT, &psa, NULL);
-		NOTICE("DEBUG BREAK after %s", key);
-	}
+}
+
+void afb_debug_break(const char *key)
+{
+	struct sigaction sa, psa;
+
+	key = key ?: "NULL";
+	NOTICE("DEBUG BREAK before %s", key);
+	memset(&sa, 0, sizeof sa);
+	sa.sa_handler = handler;
+	sigaction(SIGINT, &sa, &psa);
+	raise(SIGINT);
+	sigaction(SIGINT, &psa, NULL);
+	NOTICE("DEBUG BREAK after %s", key);
+}
+
+void afb_debug(const char *key)
+{
+	if (has_key(key, secure_getenv(key_env_wait)))
+		afb_debug_wait(key);
+	if (has_key(key, secure_getenv(key_env_break)))
+		afb_debug_break(key);
 }
 
 #endif

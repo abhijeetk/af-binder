@@ -24,6 +24,10 @@
 
 #if defined(AFB_INSERT_DEBUG_FEATURES)
 extern void afb_debug(const char *key);
+extern void afb_debug_wait(const char *key);
+extern void afb_debug_break(const char *key);
 #else
-#define afb_debug(x)  ((void)0)
+#define afb_debug(x)       ((void)0)
+#define afb_debug_wait(x)  ((void)0)
+#define afb_debug_break(x) ((void)0)
 #endif
