@@ -32,6 +32,7 @@
 #include <dirent.h>
 
 #include "locale-root.h"
+#include "subpath.h"
 
 /*
  * Implementation of folder based localisation as described here:
@@ -77,62 +78,6 @@ struct locale_root {
 	struct locale_search *lru[LRU_COUNT];
 	struct locale_search *default_search;
 };
-
-/* a valid subpath is a relative path not looking deeper than root using .. */
-static int validsubpath(const char *subpath)
-{
-	int l = 0, i = 0;
-
-	/* absolute path is not valid */
-	if (subpath[i] == '/')
-		return 0;
-
-	/* inspect the path */
-	while(subpath[i]) {
-		switch(subpath[i++]) {
-		case '.':
-			if (!subpath[i])
-				break;
-			if (subpath[i] == '/') {
-				i++;
-				break;
-			}
-			if (subpath[i++] == '.') {
-				if (!subpath[i]) {
-					l--;
-					break;
-				}
-				if (subpath[i++] == '/') {
-					l--;
-					break;
-				}
-			}
-		default:
-			while(subpath[i] && subpath[i] != '/')
-				i++;
-			if (l >= 0)
-				l++;
-		case '/':
-			break;
-		}
-	}
-	return l >= 0;
-}
-
-/*
- * Normalizes and checks the 'subpath'.
- * Removes any starting '/' and checks that 'subpath'
- * does not contains sequence of '..' going deeper than
- * root.
- * Returns the normalized subpath or NULL in case of
- * invalid subpath.
- */
-static const char *normalsubpath(const char *subpath)
-{
-	while(*subpath == '/')
-		subpath++;
-	return validsubpath(subpath) ? subpath : NULL;
-}
 
 /*
  * Clear a container content
@@ -595,7 +540,7 @@ static int do_open(struct locale_search *search, const char *filename, int flags
 	int rootfd, fd;
 
 	/* check the path and normalize it */
-	filename = normalsubpath(filename);
+	filename = subpath_force(filename);
 	if (filename == NULL)
 		goto inval;
 
@@ -686,7 +631,7 @@ static char *do_resolve(struct locale_search *search, const char *filename, stru
 	int rootfd;
 
 	/* check the path and normalize it */
-	filename = normalsubpath(filename);
+	filename = subpath_force(filename);
 	if (filename == NULL)
 		goto inval;
 
@@ -767,30 +712,6 @@ char *locale_search_resolve(struct locale_search *search, const char *filename)
 {
 	return do_resolve(search, filename, search->root);
 }
-
-#if defined(TEST_locale_root_validsubpath)
-#include <stdio.h>
-void t(const char *subpath, int validity) {
-  printf("%s -> %d = %d, %s\n", subpath, validity, validsubpath(subpath), validsubpath(subpath)==validity ? "ok" : "NOT OK");
-}
-int main() {
-  t("/",0);
-  t("..",0);
-  t(".",1);
-  t("../a",0);
-  t("a/..",1);
-  t("a/../////..",0);
-  t("a/../b/..",1);
-  t("a/b/c/..",1);
-  t("a/b/c/../..",1);
-  t("a/b/c/../../..",1);
-  t("a/b/c/../../../.",1);
-  t("./..a/././..b/..c/./.././.././../.",1);
-  t("./..a/././..b/..c/./.././.././.././..",0);
-  t("./..a//.//./..b/..c/./.././/./././///.././.././a/a/a/a/a",1);
-  return 0;
-}
-#endif
 
 #if defined(TEST_locale_root)
 int main(int ac,char**av)

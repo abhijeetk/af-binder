@@ -67,6 +67,7 @@ ADD_LIBRARY(afb-lib STATIC
 	locale-root.c
 	sd-fds.c
 	sig-monitor.c
+	subpath.c
 	verbose.c
 	websock.c
 	wrap-json.c
