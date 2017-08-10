@@ -49,6 +49,8 @@ static inline void xreq_addref(struct afb_xreq *xreq)
 static inline void xreq_unref(struct afb_xreq *xreq)
 {
 	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
+		if (!xreq->replied)
+			afb_xreq_fail(xreq, "error", "no reply");
 		if (xreq->hookflags)
 			afb_hook_xreq_end(xreq);
 		xreq->queryitf->unref(xreq);
