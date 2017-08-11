@@ -19,6 +19,7 @@
 
 struct afb_api;
 struct afb_apiset;
+struct json_object;
 
 extern struct afb_apiset *afb_apiset_addref(struct afb_apiset *set);
 extern void afb_apiset_unref(struct afb_apiset *set);
@@ -30,6 +31,7 @@ extern void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *sub
 extern struct afb_apiset *afb_apiset_subset_get(struct afb_apiset *set);
 extern int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api);
 extern int afb_apiset_del(struct afb_apiset *set, const char *name);
+extern int afb_apiset_has(struct afb_apiset *set, const char *name);
 extern int afb_apiset_lookup(struct afb_apiset *set, const char *name, struct afb_api *api);
 extern int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api);
 extern int afb_apiset_get_started(struct afb_apiset *set, const char *name, struct afb_api *api);
@@ -38,6 +40,7 @@ extern int afb_apiset_start_all_services(struct afb_apiset *set, int share_sessi
 extern void afb_apiset_update_hooks(struct afb_apiset *set, const char *name);
 extern void afb_apiset_set_verbosity(struct afb_apiset *set, const char *name, int level);
 extern int afb_apiset_get_verbosity(struct afb_apiset *set, const char *name);
+extern struct json_object *afb_apiset_describe(struct afb_apiset *set, const char *name);
 extern const char **afb_apiset_get_names(struct afb_apiset *set);
 extern void afb_apiset_enum(struct afb_apiset *set, void (*callback)(struct afb_apiset *set, const char *name, void *closure), void *closure);
 

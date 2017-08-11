@@ -239,14 +239,10 @@ static struct json_object *get_verbosity(struct json_object *spec)
 static void get_one_api(struct json_object *resu, const char *name, struct json_object *spec)
 {
 	struct json_object *o;
-	struct afb_api api;
-	int rc;
 
-	rc = afb_apiset_lookup(main_apiset, name, &api);
-	if (!rc) {
-		o = api.itf->describe ? api.itf->describe(api.closure) : NULL;
+	o = afb_apiset_describe(main_apiset, name);
+	if (o || afb_apiset_has(main_apiset, name))
 		json_object_object_add(resu, name, o);
-	}
 }
 
 /**

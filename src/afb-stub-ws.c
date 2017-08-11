@@ -1083,17 +1083,11 @@ static void server_send_description(struct afb_stub_ws *stubws, uint32_t descid,
 
 static void server_describe_job(int signum, void *closure)
 {
-	struct afb_api api;
 	struct json_object *obj;
 	struct server_describe *desc = closure;
 
 	/* get the description if possible */
-	obj = NULL;
-	if (!signum
-	 && !afb_apiset_get(desc->stubws->apiset, desc->stubws->apiname, &api)
-	 && api.itf->describe) {
-		obj = api.itf->describe(api.closure);
-	}
+	obj = !signum ? afb_apiset_describe(desc->stubws->apiset, desc->stubws->apiname) : NULL;
 
 	/* send it */
 	server_send_description(desc->stubws, desc->descid, obj);

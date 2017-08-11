@@ -307,6 +307,17 @@ int afb_apiset_lookup(struct afb_apiset *set, const char *name, struct afb_api *
 }
 
 /**
+ * Check whether the 'set' has the API of 'name'
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @return 1 if the api exist or 0 otherwise
+ */
+int afb_apiset_has(struct afb_apiset *set, const char *name)
+{
+	return !!search(set, name);
+}
+
+/**
  * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
  * @param set the set of API
  * @param name the name of the API to get
@@ -494,9 +505,10 @@ void afb_apiset_set_verbosity(struct afb_apiset *set, const char *name, int leve
 }
 
 /**
- * Set the verbosity level of the 'api'
+ * Get the verbosity level of the 'api'
  * @param set the api set
- * @param name the api to set (NULL set all)
+ * @param name the api to get
+ * @return the verbosity level or -1 in case of error
  */
 int afb_apiset_get_verbosity(struct afb_apiset *set, const char *name)
 {
@@ -507,10 +519,25 @@ int afb_apiset_get_verbosity(struct afb_apiset *set, const char *name)
 		errno = ENOENT;
 		return -1;
 	}
+
 	if (!i->api.itf->get_verbosity)
 		return verbosity;
 
 	return i->api.itf->get_verbosity(i->api.closure);
+}
+
+/**
+ * Get the description of the API of 'name'
+ * @param set the api set
+ * @param name the api whose description is required
+ * @return the description or NULL
+ */
+struct json_object *afb_apiset_describe(struct afb_apiset *set, const char *name)
+{
+	const struct api_desc *i;
+
+	i = name ? search(set, name) : NULL;
+	return i && i->api.itf->describe ? i->api.itf->describe(i->api.closure) : NULL;
 }
 
 /**
