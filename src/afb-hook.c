@@ -38,6 +38,7 @@
 #include "afb-xreq.h"
 #include "afb-export.h"
 #include "afb-evt.h"
+#include "afb-api.h"
 #include "verbose.h"
 
 /**
@@ -582,19 +583,21 @@ void afb_hook_init_xreq(struct afb_xreq *xreq)
 
 	/* scan hook list to get the expected flags */
 	flags = 0;
-	pthread_rwlock_rdlock(&rwlock);
-	hook = list_of_xreq_hooks;
-	while (hook) {
-		f = hook->flags & afb_hook_flags_req_all;
-		add = f != 0
-		   && (!hook->session || hook->session == xreq->context.session)
-		   && (!hook->api || !strcasecmp(hook->api, xreq->request.api))
-		   && (!hook->verb || !strcasecmp(hook->verb, xreq->request.verb));
-		if (add)
-			flags |= f;
-		hook = hook->next;
+	if (afb_api_is_hookable(xreq->request.api)) {
+		pthread_rwlock_rdlock(&rwlock);
+		hook = list_of_xreq_hooks;
+		while (hook) {
+			f = hook->flags & afb_hook_flags_req_all;
+			add = f != 0
+			   && (!hook->session || hook->session == xreq->context.session)
+			   && (!hook->api || !strcasecmp(hook->api, xreq->request.api))
+			   && (!hook->verb || !strcasecmp(hook->verb, xreq->request.verb));
+			if (add)
+				flags |= f;
+			hook = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
 	}
-	pthread_rwlock_unlock(&rwlock);
 
 	/* store the hooking data */
 	xreq->hookflags = flags;
@@ -919,15 +922,17 @@ int afb_hook_flags_ditf(const char *api)
 	int flags;
 	struct afb_hook_ditf *hook;
 
-	pthread_rwlock_rdlock(&rwlock);
 	flags = 0;
-	hook = list_of_ditf_hooks;
-	while (hook) {
-		if (!api || !hook->api || !strcasecmp(hook->api, api))
-			flags |= hook->flags;
-		hook = hook->next;
+	if (!api || afb_api_is_hookable(api)) {
+		pthread_rwlock_rdlock(&rwlock);
+		hook = list_of_ditf_hooks;
+		while (hook) {
+			if (!api || !hook->api || !strcasecmp(hook->api, api))
+				flags |= hook->flags;
+			hook = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
 	}
-	pthread_rwlock_unlock(&rwlock);
 	return flags;
 }
 
@@ -1131,15 +1136,17 @@ int afb_hook_flags_svc(const char *api)
 	int flags;
 	struct afb_hook_svc *hook;
 
-	pthread_rwlock_rdlock(&rwlock);
 	flags = 0;
-	hook = list_of_svc_hooks;
-	while (hook) {
-		if (!api || !hook->api || !strcasecmp(hook->api, api))
-			flags |= hook->flags;
-		hook = hook->next;
+	if (!api || afb_api_is_hookable(api)) {
+		pthread_rwlock_rdlock(&rwlock);
+		hook = list_of_svc_hooks;
+		while (hook) {
+			if (!api || !hook->api || !strcasecmp(hook->api, api))
+				flags |= hook->flags;
+			hook = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
 	}
-	pthread_rwlock_unlock(&rwlock);
 	return flags;
 }
 
@@ -1343,15 +1350,17 @@ int afb_hook_flags_evt(const char *name)
 	int flags;
 	struct afb_hook_evt *hook;
 
-	pthread_rwlock_rdlock(&rwlock);
 	flags = 0;
-	hook = list_of_evt_hooks;
-	while (hook) {
-		if (!name || !hook->pattern || !fnmatch(hook->pattern, name, FNM_CASEFOLD))
-			flags |= hook->flags;
-		hook = hook->next;
+	if (!name || afb_api_is_hookable(name)) {
+		pthread_rwlock_rdlock(&rwlock);
+		hook = list_of_evt_hooks;
+		while (hook) {
+			if (!name || !hook->pattern || !fnmatch(hook->pattern, name, FNM_CASEFOLD))
+				flags |= hook->flags;
+			hook = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
 	}
-	pthread_rwlock_unlock(&rwlock);
 	return flags;
 }
 

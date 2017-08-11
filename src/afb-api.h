@@ -39,3 +39,8 @@ struct afb_api
 };
 
 extern int afb_api_is_valid_name(const char *name);
+
+#define AFB_API_UNHOOKABLE_PREFIX_CHAR    '$'
+#define AFB_API_UNHOOKABLE_PREFIX_STRING  "$"
+#define afb_api_is_hookable(api)          ((api)[0] != AFB_API_UNHOOKABLE_PREFIX_CHAR)
+
