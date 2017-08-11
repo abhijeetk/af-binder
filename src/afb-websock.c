@@ -215,7 +215,6 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 	make_accept_value(key, acceptval);
 	MHD_add_response_header(response, sec_websocket_accept_s, acceptval);
 	MHD_add_response_header(response, sec_websocket_protocol_s, proto->name);
-	MHD_add_response_header(response, MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_UPGRADE, websocket_s);
 	MHD_queue_response(con, MHD_HTTP_SWITCHING_PROTOCOLS, response);
 	MHD_destroy_response(response);
