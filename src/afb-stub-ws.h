@@ -20,6 +20,7 @@
 
 struct afb_stub_ws;
 struct afb_apiset;
+struct afb_api;
 
 extern struct afb_stub_ws *afb_stub_ws_create_client(int fd, const char *apiname, struct afb_apiset *apiset);
 
@@ -28,4 +29,12 @@ extern struct afb_stub_ws *afb_stub_ws_create_server(int fd, const char *apiname
 extern void afb_stub_ws_unref(struct afb_stub_ws *stubws);
 
 extern void afb_stub_ws_addref(struct afb_stub_ws *stubws);
+
+extern void afb_stub_ws_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*));
+
+extern const char *afb_stub_ws_name(struct afb_stub_ws *stubws);
+
+extern struct afb_api afb_stub_ws_client_api(struct afb_stub_ws *stubws);
+
+extern int afb_stub_ws_client_add(struct afb_stub_ws *stubws, struct afb_apiset *apiset);
 

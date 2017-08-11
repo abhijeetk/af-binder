@@ -226,9 +226,14 @@ int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset)
 		ERROR("can't setup client ws service to %s", apiws->path);
 		goto error3;
 	}
+	if (afb_stub_ws_client_add(stubws, apiset) < 0) {
+		ERROR("can't add the client to the apiset for service %s", apiws->path);
+		goto error4;
+	}
 	free(apiws);
 	return 0;
-
+error4:
+	afb_stub_ws_unref(stubws);
 error3:
 	close(apiws->fd);
 error2:

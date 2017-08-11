@@ -144,7 +144,7 @@ struct server_describe
 	uint32_t descid;
 };
 
-/******************* client description part for server *****************************/
+/******************* stub description for client or servers ******************/
 
 struct afb_stub_ws
 {
@@ -180,6 +180,9 @@ struct afb_stub_ws
 
 	/* apiset */
 	struct afb_apiset *apiset;
+
+	/* on hangup callback */
+	void (*on_hangup)(struct afb_stub_ws *);
 
 	/* the api name */
 	char apiname[1];
@@ -1205,6 +1208,8 @@ static void server_on_hangup(void *closure)
 	if (stubws->fd >= 0) {
 		close(stubws->fd);
 		stubws->fd = -1;
+		if (stubws->on_hangup)
+			stubws->on_hangup(stubws);
 	}
 
 	/* release the client */
@@ -1272,19 +1277,7 @@ static struct afb_stub_ws *afb_stub_ws_create(int fd, const char *apiname, struc
 
 struct afb_stub_ws *afb_stub_ws_create_client(int fd, const char *apiname, struct afb_apiset *apiset)
 {
-	struct afb_api afb_api;
-	struct afb_stub_ws *stubws;
-
-	stubws = afb_stub_ws_create(fd, apiname, apiset, &stub_ws_client_ws_itf);
-	if (stubws) {
-		afb_api.closure = stubws;
-		afb_api.itf = &ws_api_itf;
-		if (afb_apiset_add(apiset, stubws->apiname, afb_api) >= 0)
-			return stubws;
-		afb_stub_ws_unref(stubws);
-	}
-	return NULL;
-
+	return afb_stub_ws_create(fd, apiname, apiset, &stub_ws_client_ws_itf);
 }
 
 struct afb_stub_ws *afb_stub_ws_create_server(int fd, const char *apiname, struct afb_apiset *apiset)
@@ -1325,5 +1318,30 @@ void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 void afb_stub_ws_addref(struct afb_stub_ws *stubws)
 {
 	__atomic_add_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED);
+}
+
+void afb_stub_ws_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*))
+{
+	stubws->on_hangup = on_hangup;
+}
+
+const char *afb_stub_ws_name(struct afb_stub_ws *stubws)
+{
+	return stubws->apiname;
+}
+
+struct afb_api afb_stub_ws_client_api(struct afb_stub_ws *stubws)
+{
+	struct afb_api api;
+
+	assert(!stubws->listener); /* check client */
+	api.closure = stubws;
+	api.itf = &ws_api_itf;
+	return api;
+}
+
+int afb_stub_ws_client_add(struct afb_stub_ws *stubws, struct afb_apiset *apiset)
+{
+	return afb_apiset_add(apiset, stubws->apiname, afb_stub_ws_client_api(stubws));
 }
 
