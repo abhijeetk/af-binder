@@ -1,0 +1,366 @@
+/*******************************************************************/
+/* top */
+body {
+	margin: 0px;
+	position: fixed;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+body.on #params,
+body.off #controls,
+body.off #logmsg-box { display: none; }
+
+/*******************************************************************/
+/* head */
+#head {
+	position: relative;
+}
+
+#logo {
+	float: left;
+}
+
+#title {
+	font-weight: bolder;
+	font-size: larger;
+	padding: 10px;
+	margin: 5px;
+}
+
+#connected {
+	float: right;
+	margin: 5px;
+	padding: 10px;
+	border: solid 2px black;
+	border-radius: 7px;
+}
+
+#connected.ok {
+	background: #afa;
+}
+
+#connected.error {
+	background: #f88;
+}
+
+/*******************************************************************/
+/* connection area */
+
+
+#params {
+	border: dashed 4px red;
+	background: #fde;
+	padding: 10px;
+	margin: 10px;
+	border-radius: 0px 50px;
+}
+
+#connect {
+	float: right;
+	margin: 20px;
+}
+
+/*******************************************************************/
+/* main area */
+
+#work {
+	position: relative;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+#main {
+	position: relative;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+.fillfix {
+	width: 100%;
+	height: 100%;
+}
+
+#controls {
+	position: absolute;
+	width: 250px;
+	left: 0px;
+	top: 0px;
+	bottom: 0px;
+	overflow: auto;
+	margin-bottom: 75px;
+}
+
+#logmsg-box {
+	position: absolute;
+	width: 250px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	font-size: smaller;
+	overflow: auto;
+	margin-bottom: 75px;
+}
+
+#global {
+	background: #ff5;
+}
+
+#trace-events {
+	overflow: auto;
+	position: absolute;
+	right: 250px;
+	left: 250px;
+	top: 0px;
+	bottom: 0px;
+	margin-bottom: 75px;
+}
+
+.expert {
+	text-align: center;
+	font-weight: bolder;
+	font-size: larger;
+	text-decoration: underline;
+}
+
+/*******************************************************************/
+/* setting for apis */
+
+#controls .api {
+	margin: 2px;
+	padding: 5px;
+	border: solid 1px black;
+	background: #ff5;
+	border-radius: 7px;
+	overflow: auto;
+}
+
+#controls #apis .api {
+	background: #fa5;
+}
+
+#controls .api .name {
+	text-align: center;
+	font-weight: bolder;
+	font-size: larger;
+	text-decoration: underline;
+}
+
+#controls .api .desc {
+	text-align: center;
+}
+
+#controls .api .verb {
+	margin-left: 5px;
+}
+
+/*******************************************************************/
+/* setting of verbs */
+.verb .name {
+	font-weight: bolder;
+	text-decoration: underline;
+}
+
+.verb .desc {
+	font-size: smaller;
+}
+
+.verb .perm {
+	font-size: 8px;
+	text-align: right;
+	color: blue;
+}
+
+/*******************************************************************/
+/* setting for traces */
+
+.trace-box {
+	margin: 1px;
+	padding: 1px 1px 1px 10px;
+	border: solid 1px black;
+	border-radius: 10px 0px;
+	font-size: smaller;
+}
+
+.trace-title {
+	font-weight: bolder;
+}
+.trace-item {
+	margin-left: 10px;
+}
+
+#apis .trace-evt {
+	visibility: hidden;
+	display: none;
+}
+
+/*******************************************************************/
+/* tiny button */
+.x-button {
+	font-size: larger;
+	text-align: center;
+	margin: 5px;
+	padding: 10px;
+	border: solid 2px grey;
+	border-radius: 7px;
+	background: #ffc;
+	font-weight: bolder;
+}
+
+.x-button:hover {
+	background: #fcc;
+	border: solid 2px black;
+}
+
+.x-button:active {
+	background: #fcc;
+	border: solid 3px black;
+	margin: 4px;
+}
+
+/*******************************************************************/
+/* display of logmsg */
+.logmsg {
+	background: #f44; /* red by default */
+	margin: 1px;
+	padding: 2px;
+	font-size: smaller;
+	border-radius: 3px;
+	min-height: 20px;
+}
+
+.logmsg.call { background: #ee3; } 
+.logmsg.retok { background: #8e8; } 
+.logmsg.event { background: #d6f; } 
+.logmsg.error { background: #f66; }
+.logmsg.trace { background: #aaa; }
+
+/*******************************************************************/
+/* close box */
+.close {
+	float: right;
+	width: 16;
+	height: 16;
+	background-image: url(cross.png);
+	background-size: contain;
+}
+
+/*******************************************************************/
+/* open / close */
+.opclo { float: right; width: 16; height: 16; } 
+.api > .opclo { float: left; width: 16; height: 16; background: #feb; border: solid 1px black; border-radius: 4px; } 
+
+.closed > .opclo { background-image: url(down.png); background-size: contain; } 
+.opened > .opclo { background-image: url(up.png); background-size: contain; }
+
+.closed > .closedoff { visibility: hidden; display: none; } 
+
+.opened > .closedon { visibility: hidden; display: none; }
+
+/*******************************************************************/
+/* setting for traceevents */
+
+.traceevent {
+	position: relative;
+	margin: 1px;
+	padding: 2px;
+	min-height: 16px;
+	border: solid 1px black;
+	border-radius: 0px 5px 5px 5px;
+}
+
+.traceevent.request, .trace-box.request { background: #ffd; }
+.traceevent.daemon, .trace-box.daemon { background: #fdf; }
+.traceevent.service, .trace-box.service { background: #ddf; }
+.traceevent.event, .trace-box.event { background: #dfd; }
+
+.traceevent.closed {
+	max-height: 16px;
+	overflow: hidden;
+}
+
+.traceevent .time {
+	height: 16px;
+	margin: -2px 8px 2px -2px;
+	padding: 1px 3px;
+	float: left;
+	background: black;
+	color: white;
+	font-weight: bolder;
+}
+
+.traceevent.closed:hover {
+	overflow: visible;
+	z-index: 100;
+	position: relative;
+}
+
+.traceevent.closed:not(:hover) .content {
+	display: none;
+}
+
+.traceevent.closed:hover .content {
+	display: block;
+	background: inherit;
+	margin: 5px;
+	padding: 5px;
+	border: solid 1px black;
+	border-radius: 0px 5px 5px 5px;
+	left: 50%;
+	position: absolute;
+	box-shadow: 10px 10px grey;
+}
+
+.traceevent table.object tr td:nth-child(1) {
+	text-align: right;
+}
+
+.traceevent table.object tr td:nth-child(2) {
+	border: solid 1px black;
+	font-weight: bolder;
+	padding: 0px 4px;
+}
+
+.traceevent {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.traceevent table.object tr td:nth-child(2) {
+	-webkit-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
+	user-select: text;
+}
+
+/*******************************************************************/
+/* aesthetic clue */
+.select {
+	padding: 0px;
+}
+
+/*******************************************************************/
+/* json format */
+
+.json.string { color: lightskyblue; } 
+.json.number { color: darkorange; } 
+.json.boolean { color: deepskyblue; } 
+.json.null { color: magenta; } 
+.json.key { color: red; }
+
+/*******************************************************************/
+/* clear fix */
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}

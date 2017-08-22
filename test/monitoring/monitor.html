@@ -1,0 +1,162 @@
+<html>
+<head>
+    <title>Monitoring</title>
+    <link href="monitor.css" rel="stylesheet">
+    <script type="text/javascript" src="underscore-min.js"></script>
+    <script type="text/javascript" src="AFB.js"></script>
+    <script type="text/javascript" src="monitor.js"></script>
+
+<body id="root" class="on" onload="init();">
+  <div id="head" class="clearfix">
+    <div id="logo"></div>
+    <div id="connected">Not Connected</div>
+    <div id="title">Monitoring</div>
+  </div>
+  <div id="work">
+    <div id="params" class="clearfix">
+      <div id="connect" class="x-button">connect</div>
+      <div>host: <input type="text" id="param-host" size="50" value="localhost"></input></div>
+      <div>port: <input type="text" id="param-port" size="10" value="1234"></input></div>
+      <div>token: <input type="text" id="param-token" size="33" value="hello"></input></div>
+    </div>
+    <div id="main">
+      <div class="fillfix"></div>
+      <div id="controls">
+        <div id="all" class="api opened" data-api="*">
+          <div class="opclo"></div>
+          <div class="name">{ALL}</div>
+          <div class="desc">Settings for all</div>
+          <hr>
+          <div class="verbosity">placeholder</div>
+          <hr class="closedoff">
+          <div class="closedon">traces...</div>
+          <div class="trace closedoff"></div>
+        </div>
+        <div id="common" class="api" data-api="">
+          <div class="name">{COMMON}</div>
+          <div class="desc">Settings without apis</div>
+          <hr>
+          <div class="verbosity">placeholder</div>
+        </div>
+        <div id="apis">
+        </div>
+      </div>
+      <div id="logmsg-box">
+        <div id="disconnect" class="x-button">Disconnect</div>
+        <div id="droptracevts" class="x-button">Clear traces</div>
+        <div id="expert-pane" class="closed">
+          <div class="opclo"></div>
+          <div class="expert">{EXPERT}</div>
+          <div class="closedoff">
+            <div id="stopmsgs" class="x-button">Stop logs</div>
+            <div id="dropmsgs" class="x-button">Clear logs</div>
+            <div id="logmsgs"></div>
+          </div>
+        </div>
+      </div>
+      <div id="trace-events">
+      </div>
+    </div>
+  </div>
+
+<!-- template for APIS -->
+  <template id="t-api">
+    <div class="api closed" data-api="">
+      <div class="opclo"></div>
+      <div class="name"></div>
+      <div class="desc"></div>
+      <div class="closedoff">
+        <hr>
+        <div class="verbosity">placeholder</div>
+        <hr>
+        <div class="closed">
+          <div class="opclo"></div>
+          <div class="closedon">verbs...</div>
+          <div class="verbs closedoff"></div>
+        </div>
+        <div class="closed">
+          <div class="opclo"></div>
+          <div class="closedon">traces...</div>
+          <div class="trace closedoff"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+<!-- template for VERBS of APIS -->
+  <template id="t-verb">
+    <div class="verb" data-verb="">
+      <div class="vdsc">
+        <span class="name"></span>
+        <span class="colon">:</span>
+        <span class="desc"></span>
+      </div>
+      <div class="perm"></div>
+    </div>
+  </template>
+
+<!-- template for ERRORS -->
+  <template id="t-logmsg">
+    <div class="logmsg">
+      <div class="close"></div>
+      <div class="tag"></div>
+      <div class="content"></div>
+    </div>
+  </template>
+
+<!-- template for VERBOSITY -->
+  <template id="t-verbosity">
+    <div class="verbosity">
+      <span>Verbosity:</span>
+      <select class="select">
+        <option value="error">error</option>
+        <option value="notice">notice</option>
+        <option value="info">info</option>
+        <option value="debug">debug</option>
+      </select>
+    </div>
+  </template>
+
+<!-- template for TRACE -->
+  <template id="t-trace">
+    <div class="trace closedoff">
+      <div class="trace-box request" data-trace="request">
+        <div class="trace-title">trace requests: <a target="_blank" href="http://docs.automotivelinux.org/docs/apis_services/en/dev/reference/af-binder/afb-binding-references.html#functions-of-class-afbreq">(doc)</a></div>
+        <div class="trace-item"><input type="radio" value="no" checked>no</input></div>
+        <div class="trace-item"><input type="radio" value="common">common</input></div>
+        <div class="trace-item"><input type="radio" value="extra">extra</input></div>
+        <div class="trace-item"><input type="radio" value="all">all</input></div>
+      </div>
+      <div class="trace-box service" data-trace="service">
+        <div class="trace-title">trace service call: <a target="_blank" href="http://docs.automotivelinux.org/docs/apis_services/en/dev/reference/af-binder/afb-binding-references.html#functions-of-class-afbservice">(doc)</a></div>
+        <div class="trace-item"><input type="radio" value="no" checked>no</input></div>
+        <div class="trace-item"><input type="radio" value="all">all</input></div>
+      </div>
+      <div class="trace-box daemon" data-trace="daemon">
+        <div class="trace-title">trace daemon: <a target="_blank" href="http://docs.automotivelinux.org/docs/apis_services/en/dev/reference/af-binder/afb-binding-references.html#functions-of-class-afbdaemon">(doc)</a></div>
+        <div class="trace-item"><input type="radio" value="no" checked>no</input></div>
+        <div class="trace-item"><input type="radio" value="common">common</input></div>
+        <div class="trace-item"><input type="radio" value="extra">extra</input></div>
+        <div class="trace-item"><input type="radio" value="all">all</input></div>
+      </div>
+      <div class="trace-box event" data-trace="event">
+        <div class="trace-title">trace events: <a target="_blank" href="http://docs.automotivelinux.org/docs/apis_services/en/dev/reference/af-binder/afb-binding-references.html#functions-of-class-afbevent">(doc)</a></div>
+        <div class="trace-item"><input type="radio" value="no" checked>no</input></div>
+        <div class="trace-item"><input type="radio" value="common">common</input></div>
+        <div class="trace-item"><input type="radio" value="extra">extra</input></div>
+        <div class="trace-item"><input type="radio" value="all">all</input></div>
+      </div>
+    </div>
+  </template>
+
+<!-- template for EVENTS -->
+  <template id="t-traceevent">
+    <div class="traceevent closed">
+      <div class="close"></div>
+      <div class="time"></div>
+      <div class="tag"></div>
+      <div class="content"></div>
+    </div>
+  </template>
+
+
