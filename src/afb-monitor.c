@@ -345,13 +345,15 @@ static void f_trace(struct afb_req req)
 	if (add) {
 		rc = afb_trace_add(req, add, trace);
 		if (rc)
-			return;
+			goto end;
 	}
 	if (drop) {
 		rc = afb_trace_drop(req, drop, trace);
 		if (rc)
-			return;
+			goto end;
 	}
 	afb_req_success(req, NULL, NULL);
+end:
+	afb_apiset_update_hooks(main_apiset, NULL);
 }
 
