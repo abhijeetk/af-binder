@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "description": "",
+    "description": "monitoring of bindings and internals",
     "title": "monitor",
     "version": "1.0",
     "x-binding-c-generator": {

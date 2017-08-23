@@ -44,6 +44,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include <json-c/json.h>
 
@@ -167,15 +168,27 @@ struct json_object *expand_$ref(struct path path)
 	return path.object;
 }
 
+char *cify(const char *str)
+{
+	char *r = strdup(str);
+	int i = 0;
+	while (r && r[i]) {
+		if (!isalnum(r[i]))
+			r[i] = '_';
+		i++;
+	}
+	return r;
+}
 
-char *make_desc(struct json_object *o)
+char *make_info(const char *text, int split)
 {
 	const char *a, *b;
 	char *desc, c, buf[3];
 	size_t len;
 	int i, pos, e;
 
-	a = b = json_object_to_json_string_ext(root, 0);
+	/* estimated length */
+	a = b = text;
 	len = 1;
 	while((c = *b++)) {
 		len += 1 + ('"' == c);
@@ -186,6 +199,8 @@ char *make_desc(struct json_object *o)
 	oom(desc);
 
 	len = pos = 0;
+	if (!split)
+		desc[len++] = '"';
 	b = a;
 	while((c = *b++)) {
 		if (c == '"') {
@@ -215,18 +230,20 @@ char *make_desc(struct json_object *o)
 		}
 		i = e = 0;
 		while (buf[i]) {
-			if (pos >= 77 && !e) {
-				desc[len++] = '"';
-				desc[len++] = '\n';
-				pos = 0;
-			}
-			if (pos == 0) {
-				desc[len++] = ' ';
-				desc[len++] = ' ';
-				desc[len++] = ' ';
-				desc[len++] = ' ';
-				desc[len++] = '"';
-				pos = 5;
+			if (split) {
+				if (pos >= 77 && !e) {
+					desc[len++] = '"';
+					desc[len++] = '\n';
+					pos = 0;
+				}
+				if (pos == 0) {
+					desc[len++] = ' ';
+					desc[len++] = ' ';
+					desc[len++] = ' ';
+					desc[len++] = ' ';
+					desc[len++] = '"';
+					pos = 5;
+				}
 			}
 			c = buf[i++];
 			desc[len++] = c;
@@ -235,9 +252,15 @@ char *make_desc(struct json_object *o)
 		}
 	}
 	desc[len++] = '"';
-	desc[len++] = '\n';
+	if (split)
+		desc[len++] = '\n';
 	desc[len] = 0;
 	return desc;
+}
+
+char *make_desc(struct json_object *o)
+{
+	return make_info(json_object_to_json_string_ext(root, 0), 1);
 }
 
 struct json_object *permissions_of_verb(struct json_object *obj)
@@ -483,7 +506,12 @@ void print_declare_verb(const char *name, struct json_object *obj)
 
 void print_struct_verb(const char *name, struct json_object *obj)
 {
-	struct json_object *p;
+	struct json_object *p, *i;
+	const char *info;
+
+	info = NULL;
+	if (json_object_object_get_ex(obj, "description", &i))
+		info = json_object_get_string(i);
 
 	p = permissions_of_verb(obj);
 	printf(
@@ -496,9 +524,10 @@ void print_struct_verb(const char *name, struct json_object *obj)
 	printf(
 		",\n"
 		"        .auth = %s,\n"
-		"        .info = NULL,\n"
+		"        .info = %s,\n"
 		"        .session = "
-		, p ? json_object_get_string(decl_perm(p)) : "NULL"
+		, p && decl_perm(p) ? json_object_get_string(decl_perm(p)) : "NULL"
+		, info ? make_info(info, 0) : "NULL"
 	);
 	print_session(p);
 	printf(
@@ -562,6 +591,8 @@ void getvar(const char **var, const char *path, const char *defval)
 void process(char *filename)
 {
 	char *desc;
+	const char *info;
+	char *capi;
 
 	/* translate - */
 	if (!strcmp(filename, "-"))
@@ -597,6 +628,9 @@ void process(char *filename)
 	getvarbool(&priv, "#/info/x-binding-c-generator/private", 0);
 	getvarbool(&noconc, "#/info/x-binding-c-generator/noconcurrency", 0);
 	getvar(&api, "#/info/title", "?");
+	info = NULL;
+	getvar(&info, "#/info/description", NULL);
+	capi = cify(api);
 
 	/* get the API name */
 	printf(
@@ -605,7 +639,7 @@ void process(char *filename)
 		"%s"
 		";\n"
 		"\n"
-		, api, desc
+		, capi, desc
 	);
 	enum_verbs(declare_permissions);
 	print_perms();
@@ -613,7 +647,7 @@ void process(char *filename)
 	printf(
 		"\n"
 		"static const struct afb_verb_v2 _afb_verbs_v2_%s[] = {\n"
-                , api
+                , capi
 	);
 	enum_verbs(print_struct_verb);
 	printf(
@@ -625,7 +659,7 @@ void process(char *filename)
 		"%sconst struct afb_binding_v2 %s%s = {\n"
 		"    .api = \"%s\",\n"
 		"    .specification = _afb_description_v2_%s,\n"
-		"    .info = NULL,\n"
+		"    .info = %s,\n"
 		"    .verbs = _afb_verbs_v2_%s,\n"
 		"    .preinit = %s,\n"
 		"    .init = %s,\n"
@@ -635,10 +669,11 @@ void process(char *filename)
 		"\n"
 		, priv ? "static " : ""
 		, priv ? "_afb_binding_v2_" : "afbBindingV2"
-		, priv ? api : ""
+		, priv ? capi : ""
 		, api
-		, api
-		, api
+		, capi
+		, info ? make_info(info, 0) : "NULL"
+		, capi
 		, preinit ?: "NULL"
 		, init ?: "NULL"
 		, onevent ?: "NULL"
