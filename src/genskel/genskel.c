@@ -72,6 +72,7 @@ const char *api = NULL;
 const char *scope = NULL;
 const char *prefix = NULL;
 const char *postfix = NULL;
+char *capi = NULL;
 int priv = -1;
 int noconc = -1;
 
@@ -283,7 +284,7 @@ void print_perms()
 
 	n = a_perms ? json_object_array_length(a_perms) : 0;
 	if (n) {
-		printf("static const struct afb_auth _afb_auths_v2_%s[] = {\n" , api);
+		printf("static const struct afb_auth _afb_auths_v2_%s[] = {\n" , capi);
 		i = 0;
 		while (i < n) {
 			printf("\t{ %s }", json_object_get_string(json_object_array_get_idx(a_perms, i)));
@@ -306,7 +307,7 @@ struct json_object *new_perm(struct json_object *obj, const char *desc)
 			a_perms = json_object_new_array();
 		}	
 
-		asprintf(&b, "&_afb_auths_v2_%s[%d]", api, json_object_array_length(a_perms));
+		asprintf(&b, "&_afb_auths_v2_%s[%d]", capi, json_object_array_length(a_perms));
 		x = json_object_new_string(desc);
 		y = json_object_new_string(b);
 		json_object_array_add(a_perms, x);
@@ -592,7 +593,6 @@ void process(char *filename)
 {
 	char *desc;
 	const char *info;
-	char *capi;
 
 	/* translate - */
 	if (!strcmp(filename, "-"))
