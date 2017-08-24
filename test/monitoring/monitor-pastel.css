@@ -2,26 +2,10 @@
 /* top */
 body {
 	margin: 0px;
-	position: fixed;
-	top: 0px;
-	bottom: 0px;
-	left: 0px;
-	right: 0px;
 }
-
-body.on #params,
-body.off #controls,
-body.off #logmsg-box { display: none; }
 
 /*******************************************************************/
 /* head */
-#head {
-	position: relative;
-}
-
-#logo {
-	float: left;
-}
 
 #title {
 	font-weight: bolder;
@@ -31,7 +15,6 @@ body.off #logmsg-box { display: none; }
 }
 
 #connected {
-	float: right;
 	margin: 5px;
 	padding: 10px;
 	border: solid 2px black;
@@ -66,60 +49,8 @@ body.off #logmsg-box { display: none; }
 /*******************************************************************/
 /* main area */
 
-#work {
-	position: relative;
-	top: 0px;
-	bottom: 0px;
-	left: 0px;
-	right: 0px;
-}
-
-#main {
-	position: relative;
-	top: 0px;
-	bottom: 0px;
-	left: 0px;
-	right: 0px;
-}
-
-.fillfix {
-	width: 100%;
-	height: 100%;
-}
-
-#controls {
-	position: absolute;
-	width: 250px;
-	left: 0px;
-	top: 0px;
-	bottom: 0px;
-	overflow: auto;
-	margin-bottom: 75px;
-}
-
-#logmsg-box {
-	position: absolute;
-	width: 250px;
-	right: 0px;
-	top: 0px;
-	bottom: 0px;
-	font-size: smaller;
-	overflow: auto;
-	margin-bottom: 75px;
-}
-
 #global {
 	background: #ff5;
-}
-
-#trace-events {
-	overflow: auto;
-	position: absolute;
-	right: 250px;
-	left: 250px;
-	top: 0px;
-	bottom: 0px;
-	margin-bottom: 75px;
 }
 
 .expert {
@@ -138,7 +69,6 @@ body.off #logmsg-box { display: none; }
 	border: solid 1px black;
 	background: #ff5;
 	border-radius: 7px;
-	overflow: auto;
 }
 
 #controls #apis .api {
@@ -195,11 +125,6 @@ body.off #logmsg-box { display: none; }
 	margin-left: 10px;
 }
 
-#apis .trace-evt {
-	visibility: hidden;
-	display: none;
-}
-
 /*******************************************************************/
 /* tiny button */
 .x-button {
@@ -244,7 +169,6 @@ body.off #logmsg-box { display: none; }
 /*******************************************************************/
 /* close box */
 .close {
-	float: right;
 	width: 16;
 	height: 16;
 	background-image: url(cross.png);
@@ -253,21 +177,17 @@ body.off #logmsg-box { display: none; }
 
 /*******************************************************************/
 /* open / close */
-.opclo { float: right; width: 16; height: 16; } 
-.api > .opclo { float: left; width: 16; height: 16; background: #feb; border: solid 1px black; border-radius: 4px; } 
 
-.closed > .opclo { background-image: url(down.png); background-size: contain; } 
-.opened > .opclo { background-image: url(up.png); background-size: contain; }
+.opclo { width: 16; height: 16; background-size: contain; } 
+.api > .opclo { background: #feb; border: solid 1px black; border-radius: 4px; } 
 
-.closed > .closedoff { visibility: hidden; display: none; } 
-
-.opened > .closedon { visibility: hidden; display: none; }
+.closed > .opclo { background-image: url(down.png); } 
+.opened > .opclo { background-image: url(up.png); }
 
 /*******************************************************************/
 /* setting for traceevents */
 
 .traceevent {
-	position: relative;
 	margin: 1px;
 	padding: 2px;
 	min-height: 16px;
@@ -282,38 +202,22 @@ body.off #logmsg-box { display: none; }
 
 .traceevent.closed {
 	max-height: 16px;
-	overflow: hidden;
 }
 
 .traceevent .time {
 	height: 16px;
 	margin: -2px 8px 2px -2px;
 	padding: 1px 3px;
-	float: left;
 	background: black;
 	color: white;
 	font-weight: bolder;
 }
 
-.traceevent.closed:hover {
-	overflow: visible;
-	z-index: 100;
-	position: relative;
-}
-
-.traceevent.closed:not(:hover) .content {
-	display: none;
-}
-
 .traceevent.closed:hover .content {
-	display: block;
-	background: inherit;
 	margin: 5px;
 	padding: 5px;
 	border: solid 1px black;
 	border-radius: 0px 5px 5px 5px;
-	left: 50%;
-	position: absolute;
 	box-shadow: 10px 10px grey;
 }
 
@@ -325,20 +229,6 @@ body.off #logmsg-box { display: none; }
 	border: solid 1px black;
 	font-weight: bolder;
 	padding: 0px 4px;
-}
-
-.traceevent {
-	-webkit-user-select: none;
-	-moz-user-select: none;
-	-ms-user-select: none;
-	user-select: none;
-}
-
-.traceevent table.object tr td:nth-child(2) {
-	-webkit-user-select: text;
-	-moz-user-select: text;
-	-ms-user-select: text;
-	user-select: text;
 }
 
 /*******************************************************************/
@@ -356,11 +246,3 @@ body.off #logmsg-box { display: none; }
 .json.null { color: magenta; } 
 .json.key { color: red; }
 
-/*******************************************************************/
-/* clear fix */
-
-.clearfix::after {
-    content: "";
-    clear: both;
-    display: table;
-}

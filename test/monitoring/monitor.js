@@ -164,15 +164,15 @@ function on_error_apis(obj) {
 
 function do_call(api_verb, request, onsuccess, onerror) {
 	var call = api_verb + "(" + JSON.stringify(request, null, 1) + ")";
-	add_logmsg(call, "", "call");
+	add_logmsg("send request", call, "call");
 	ws.call(api_verb, request).then(
 		function(obj){
-			add_logmsg(call + " SUCCESS:", JSON.stringify(obj, null, 1), "retok");
+			add_logmsg("receive success", call + " -> " + JSON.stringify(obj, null, 1), "retok");
 			if (onsuccess)
 				onsuccess(obj);
 		},
 		function(obj){
-			add_logmsg(call + " ERROR:", JSON.stringify(obj, null, 1), "reterr");
+			add_logmsg("receive error", call + " -> ", JSON.stringify(obj, null, 1), "reterr");
 			if (onerror)
 				onerror(obj);
 		});
@@ -377,7 +377,7 @@ function gottraceevent(obj) {
 		})[type](desc);
 	var tab = makeobj(desc, 4);
 	if ("data" in data)
-		makeobjitem(tab, 1, "data", data.data);
+		makeobjitem(tab, 2, "data", data.data);
 	get(".content", x).append(tab);
 	trace_events_node.append(x);
 }

@@ -1,0 +1,179 @@
+/*******************************************************************/
+/* top */
+body {
+	position: fixed;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+body.on #params,
+body.off #controls,
+body.off #logmsg-box { display: none; }
+
+/*******************************************************************/
+/* head */
+#head {
+	position: relative;
+}
+
+#logo {
+	float: left;
+}
+
+#connected {
+	float: right;
+}
+
+/*******************************************************************/
+/* connection area */
+
+/*******************************************************************/
+/* main area */
+
+#work {
+	position: relative;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+#main {
+	position: relative;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+}
+
+.fillfix {
+	width: 100%;
+	height: 100%;
+}
+
+#controls {
+	position: absolute;
+	width: 250px;
+	left: 0px;
+	top: 0px;
+	bottom: 0px;
+	overflow: auto;
+	margin-bottom: 75px;
+}
+
+#logmsg-box {
+	position: absolute;
+	width: 250px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	font-size: smaller;
+	overflow: auto;
+	margin-bottom: 75px;
+}
+
+#trace-events {
+	overflow: auto;
+	position: absolute;
+	right: 250px;
+	left: 250px;
+	top: 0px;
+	bottom: 0px;
+	margin-bottom: 75px;
+}
+
+/*******************************************************************/
+/* setting for apis */
+
+/*******************************************************************/
+/* setting of verbs */
+
+/*******************************************************************/
+/* setting for traces */
+
+#apis .trace-evt {
+	visibility: hidden;
+	display: none;
+}
+
+/*******************************************************************/
+/* tiny button */
+
+/*******************************************************************/
+/* display of logmsg */
+
+/*******************************************************************/
+/* close box */
+.close {
+	float: right;
+}
+
+/*******************************************************************/
+/* open / close */
+.opclo { float: right; } 
+.api > .opclo { float: left; }
+
+.closed > .closedoff { visibility: hidden; display: none; } 
+
+.opened > .closedon { visibility: hidden; display: none; }
+
+/*******************************************************************/
+/* setting for traceevents */
+
+.traceevent {
+	position: relative;
+}
+
+.traceevent.closed {
+	overflow: hidden;
+}
+
+.traceevent .time {
+	float: left;
+}
+
+.traceevent.closed:hover {
+	overflow: visible;
+	z-index: 100;
+	position: relative;
+}
+
+.traceevent.closed:not(:hover) .content {
+	display: none;
+}
+
+.traceevent.closed:hover .content {
+	display: block;
+	background: inherit;
+	left: 40%;
+	max-width: 55%;
+	position: absolute;
+}
+
+.traceevent {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.traceevent table.object tr td:nth-child(2) {
+	-webkit-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
+	user-select: text;
+}
+
+/*******************************************************************/
+/* json format */
+
+/*******************************************************************/
+/* clear fix */
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}

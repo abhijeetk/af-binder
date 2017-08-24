@@ -1,0 +1,280 @@
+/*******************************************************************/
+/* top */
+body {
+	margin: 2px;
+	background: url(content-background-car-wide.png) center/cover;
+	color: cyan;
+	font-family: "Lucida Console", Monaco, monospace;
+}
+
+/*******************************************************************/
+/* head */
+
+#logo {
+	background: url(iot-bzh-logo-small.png) center/contain no-repeat;
+	height: 60px;
+	width: 200px;
+}
+
+#title {
+	text-align: center;
+	font-weight: bolder;
+	font-size: 40px;
+	padding: 10px;
+	margin: auto;
+}
+
+#connected {
+	margin: 5px;
+	padding: 10px;
+	border: solid 4px;
+	border-radius: 7px;
+}
+
+#connected.ok { color: #8f8; }
+#connected.error { color: #f44; }
+
+/*******************************************************************/
+/* connection area */
+
+
+#params {
+	border: dashed 4px red;
+	padding: 10px;
+	margin: 10px;
+	border-radius: 0px 50px;
+}
+
+#connect {
+	float: right;
+	margin: 20px;
+}
+
+/*******************************************************************/
+/* main area */
+
+#global {
+	background: #ff5;
+}
+
+.expert {
+	text-align: center;
+	font-weight: bolder;
+	font-size: larger;
+	text-decoration: underline;
+}
+
+#trace-events {
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+/*******************************************************************/
+/* setting for apis */
+
+#controls .api {
+	margin: 2px;
+	padding: 5px;
+	color: #ff5;
+	border: solid 2px;
+	border-radius: 7px;
+}
+#controls .api .opclo { background-color: #ff5; }
+
+#controls #apis .api { color: #fa5; }
+#controls #apis .api .opclo { background-color: #fa5; }
+
+#controls .api .name {
+	text-align: center;
+	font-weight: bolder;
+	font-size: larger;
+	text-decoration: underline;
+}
+
+#controls .api .desc {
+	text-align: center;
+}
+
+#controls .api .verb {
+	margin-left: 5px;
+}
+
+/*******************************************************************/
+/* setting of verbs */
+.verb .name {
+	font-weight: bolder;
+	text-decoration: underline;
+}
+
+.verb .desc {
+	font-size: smaller;
+}
+
+.verb .perm {
+	font-size: 8px;
+	text-align: right;
+	color: blue;
+}
+
+/*******************************************************************/
+/* setting for traces */
+
+.trace-box {
+	margin: 1px;
+	padding: 1px 1px 1px 10px;
+	border: solid 1px;
+	border-radius: 10px 0px;
+	font-size: smaller;
+}
+
+.trace-title {
+	font-weight: bolder;
+}
+.trace-item {
+	margin-left: 10px;
+}
+
+/*******************************************************************/
+/* tiny button */
+.x-button {
+	font-size: larger;
+	text-align: center;
+	margin: 5px;
+	padding: 10px;
+	border: dashed 2px #888;
+	border-radius: 0px 10px;
+	font-weight: bolder;
+}
+
+.x-button:hover {
+	border: solid 2px #aaa;
+}
+
+.x-button:active {
+	border: solid 4px cyan;
+	padding: 8px;
+}
+
+/*******************************************************************/
+/* display of logmsg */
+.logmsg {
+	margin-right: 2px;
+	margin-bottom: 3px;
+	padding: 2px;
+	font-size: smaller;
+	min-height: 20px;
+	border-radius: 3px;
+	border: solid 1px #f44; /* red by default */
+}
+
+.logmsg.call { border-color: #ee3; } 
+.logmsg.retok { border-color: #8e8; } 
+.logmsg.event { border-color: #d6f; } 
+.logmsg.error { border-color: #f66; }
+.logmsg.trace { border-color: #aaa; }
+
+.logmsg .tag { text-align: center; color: black; font-weight: bolder; margin: -2px -2px 1px -2px; }
+.logmsg.call .tag { background: #ee3; } 
+.logmsg.retok .tag { background: #8e8; } 
+.logmsg.event .tag { background: #d6f; } 
+.logmsg.error .tag { background: #f66; }
+.logmsg.trace .tag { background: #aaa; }
+
+/*******************************************************************/
+/* close box */
+.close {
+	width: 10;
+	height: 10;
+	background-image: url(cross.png);
+	background-size: contain;
+}
+
+/*******************************************************************/
+/* open / close */
+
+.opclo { width: 10; height: 10; background-size: contain; background-color: cyan; border-radius: 3px; padding: 2px; }
+
+.closed > .opclo { background-image: url(down.png); } 
+.opened > .opclo { background-image: url(up.png); }
+
+/*******************************************************************/
+/* setting for traceevents */
+
+.traceevent {
+	margin: 1px;
+	padding: 2px;
+	min-height: 14px;
+	border: solid 1px;
+	border-radius: 0px 5px 5px 5px;
+}
+
+/*
+.traceevent.request, .trace-box.request { background: #ffd: }
+.traceevent.daemon, .trace-box.daemon { background: #fdf; }
+.traceevent.service, .trace-box.service { background: #ddf; }
+.traceevent.event, .trace-box.event { background: #dfd; }
+*/
+.traceevent.request, .trace-box.request { color: #ff0; }
+.traceevent.daemon, .trace-box.daemon { color: #66f; }
+.traceevent.service, .trace-box.service { color: #0f0; }
+.traceevent.event, .trace-box.event { color: #f0d; }
+
+.traceevent.closed {
+	max-height: 16px;
+}
+
+.traceevent .time {
+	height: 16px;
+	margin: -2px 8px 2px -2px;
+	padding: 1px 3px;
+	background: black;
+	color: white;
+	font-weight: bolder;
+}
+
+.traceevent .tag {
+	font-weight: bolder;
+}
+
+.traceevent.closed:hover .content {
+	margin: 5px;
+	padding: 5px;
+	border: solid 1px;
+	border-radius: 0px 5px 5px 5px;
+	box-shadow: 10px 10px #dd8;
+	background-color: rgba(0,0,0,0.8);
+}
+
+.traceevent table.object tr td:nth-child(1) {
+	text-align: right;
+	font-weight: bolder;
+	text-decoration: underline;
+}
+
+.traceevent table.object tr td:nth-child(2) {
+/*
+	border: solid 1px black;
+*/
+	background-color: rgba(0,0,0,0.4);
+	padding: 0px 4px;
+}
+
+.traceevent table {
+	color: cyan;
+}
+
+/*******************************************************************/
+/* aesthetic clue */
+.select {
+	padding: 0px;
+}
+
+/*******************************************************************/
+/* json format */
+
+.json.string { color: #fff; } 
+.json.number { color: #ec0; } 
+.json.boolean { color: #0f0; } 
+.json.null { color: #0f0; } 
+.json.key { color: #99f; }
+
