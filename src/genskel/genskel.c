@@ -651,7 +651,13 @@ void process(char *filename)
 	);
 	enum_verbs(print_struct_verb);
 	printf(
-		"    { .verb = NULL }\n"
+		"    {\n"
+		"        .verb = NULL,\n"
+		"        .callback = NULL,\n"
+		"        .auth = NULL,\n"
+		"        .info = NULL,\n"
+		"        .session = 0\n"
+		"	}\n"
 		"};\n"
 	);
 	printf(
