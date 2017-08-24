@@ -28,6 +28,7 @@
 #include "afb-apiset.h"
 #include "afb-api-so-v2.h"
 #include "afb-ditf.h"
+#include "afb-evt.h"
 #include "afb-xreq.h"
 #include "afb-trace.h"
 #include "verbose.h"
@@ -355,5 +356,6 @@ static void f_trace(struct afb_req req)
 	afb_req_success(req, NULL, NULL);
 end:
 	afb_apiset_update_hooks(main_apiset, NULL);
+	afb_evt_update_hooks();
 }
 
