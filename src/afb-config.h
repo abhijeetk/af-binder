@@ -48,8 +48,8 @@ struct afb_config {
 
 	char **exec;
 
+	/* integers */
 	int httpdPort;
-	int background;		// run in backround mode
 	int cacheTimeout;
 	int apiTimeout;
 	int cntxTimeout;	// Client Session Context timeout
@@ -59,8 +59,11 @@ struct afb_config {
 	int traceditf;
 	int tracesvc;
 	int traceevt;
-	int noHttpd;
-	int no_ldpaths;		/* disable default ldpaths */
+
+	/* booleans */
+	unsigned no_ldpaths: 1;		/* disable default ldpaths */
+	unsigned noHttpd: 1;
+	unsigned background: 1;		/* run in backround mode */
 };
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);
