@@ -81,11 +81,12 @@ int afb_api_so_add_binding(const char *path, struct afb_apiset *apiset)
 	return load_binding(path, 1, apiset);
 }
 
-static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset)
+static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, int failstops)
 {
 	DIR *dir;
 	struct dirent *dent;
 	size_t len;
+	int rc;
 
 	/* open the DIR now */
 	dir = opendir(path);
@@ -121,21 +122,24 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset)
 					continue;
 			}
 			memcpy(&path[end], dent->d_name, len+1);
-			adddirs(path, end+len, apiset);
+			rc = adddirs(path, end+len, apiset, failstops);
 		} else if (dent->d_type == DT_REG) {
 			/* case of files */
 			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
 			memcpy(&path[end], dent->d_name, len+1);
-			if (load_binding(path, 0, apiset) < 0)
-				return -1;
+			rc = load_binding(path, 0, apiset);
+		}
+		if (rc < 0 && failstops) {
+			closedir(dir);
+			return rc;
 		}
 	}
 	closedir(dir);
 	return 0;
 }
 
-int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset)
+int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset, int failstops)
 {
 	size_t length;
 	char buffer[PATH_MAX];
@@ -147,10 +151,10 @@ int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset)
 	}
 
 	memcpy(buffer, path, length + 1);
-	return adddirs(buffer, length, apiset);
+	return adddirs(buffer, length, apiset, failstops);
 }
 
-int afb_api_so_add_path(const char *path, struct afb_apiset *apiset)
+int afb_api_so_add_path(const char *path, struct afb_apiset *apiset, int failstops)
 {
 	struct stat st;
 	int rc;
@@ -159,7 +163,7 @@ int afb_api_so_add_path(const char *path, struct afb_apiset *apiset)
 	if (rc < 0)
 		ERROR("Invalid binding path [%s]: %m", path);
 	else if (S_ISDIR(st.st_mode))
-		rc = afb_api_so_add_directory(path, apiset);
+		rc = afb_api_so_add_directory(path, apiset, failstops);
 	else if (strstr(path, ".so"))
 		rc = load_binding(path, 0, apiset);
 	else
@@ -167,18 +171,30 @@ int afb_api_so_add_path(const char *path, struct afb_apiset *apiset)
 	return rc;
 }
 
-int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset)
+int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset, int failstops)
 {
 	static char sep[] = ":";
 	char *ps, *p;
+	int rc;
 
 	ps = strdupa(pathset);
 	for (;;) {
 		p = strsep(&ps, sep);
 		if (!p)
 			return 0;
-		if (afb_api_so_add_path(p, apiset) < 0)
-			return -1;
+		rc = afb_api_so_add_path(p, apiset, failstops);
+		if (rc < 0)
+			return rc;
 	}
+}
+
+int afb_api_so_add_pathset_fails(const char *pathset, struct afb_apiset *apiset)
+{
+	return afb_api_so_add_pathset(pathset, apiset, 1);
+}
+
+int afb_api_so_add_pathset_nofails(const char *pathset, struct afb_apiset *apiset)
+{
+	return afb_api_so_add_pathset(pathset, apiset, 0);
 }
 

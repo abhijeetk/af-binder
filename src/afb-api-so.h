@@ -22,10 +22,13 @@ struct afb_apiset;
 
 extern int afb_api_so_add_binding(const char *path, struct afb_apiset *apiset);
 
-extern int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset);
+extern int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset, int failstops);
 
-extern int afb_api_so_add_path(const char *path, struct afb_apiset *apiset);
+extern int afb_api_so_add_path(const char *path, struct afb_apiset *apiset, int failstops);
 
-extern int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset);
+extern int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset, int failstops);
+
+extern int afb_api_so_add_pathset_fails(const char *pathset, struct afb_apiset *apiset);
+extern int afb_api_so_add_pathset_nofails(const char *pathset, struct afb_apiset *apiset);
 
 
