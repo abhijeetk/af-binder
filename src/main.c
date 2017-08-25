@@ -593,6 +593,7 @@ static void start(int signum)
 	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 	apiset_start_list(config->ws_clients, afb_api_ws_add_client, "the afb-websocket client");
 	apiset_start_list(config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
+	apiset_start_list(config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
 	apiset_start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
 
 	apiset_start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");

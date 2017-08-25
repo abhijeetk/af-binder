@@ -68,7 +68,7 @@
 #define SET_LDPATH         13
 #define SET_APITIMEOUT     14
 #define SET_CNTXTIMEOUT    15
-
+#define SET_WEAK_LDPATH    16
 
 #define SET_MODE           18
 
@@ -136,6 +136,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_LDPATH,        1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
 	{SO_BINDING,        1, "binding",     "Load the binding of path"},
+	{SET_WEAK_LDPATH,   1, "weak-ldpaths","Same as --ldpaths but ignore erros"},
 
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=no-session, --token= for session without authentication]"},
 	{SET_RNDTOKEN,      0, "random-token","Creates a random token"},
@@ -458,6 +459,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			list_add(&config->ldpaths, argvalstr(optc));
 			break;
 
+		case SET_WEAK_LDPATH:
+			list_add(&config->weak_ldpaths, argvalstr(optc));
+			break;
+
 		case ADD_CALL:
 			list_add(&config->calls, argvalstr(optc));
 			break;
@@ -607,7 +612,7 @@ static void config_set_default(struct afb_config *config)
 	if (config->rootapi == NULL)
 		config->rootapi = "/api";
 
-	if (config->ldpaths == NULL)
+	if (config->ldpaths == NULL && config->weak_ldpaths == NULL)
 		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
 
 	// if no config dir create a default path from uploaddir
