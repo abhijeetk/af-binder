@@ -2,7 +2,9 @@
 /* top */
 body {
 	margin: 2px;
-	background: url(content-background-car-wide.png) center/cover;
+	background-image: url(content-background-car-wide.png);
+	background-position: center;
+	background-size: cover;
 	color: cyan;
 	font-family: "Lucida Console", Monaco, monospace;
 }
@@ -39,8 +41,8 @@ body {
 
 
 #params {
-	border: dashed 4px red;
-	padding: 10px;
+	border: dashed 4px #8f8;
+	padding: 30px;
 	margin: 10px;
 	border-radius: 0px 50px;
 }
@@ -192,7 +194,14 @@ body {
 /*******************************************************************/
 /* open / close */
 
-.opclo { width: 10; height: 10; background-size: contain; background-color: cyan; border-radius: 3px; padding: 2px; }
+.opclo {
+	width: 10px;
+	height: 10px;
+	background-size: contain;
+	background-color: cyan;
+	border-radius: 3px;
+	padding: 2px;
+}
 
 .closed > .opclo { background-image: url(down.png); } 
 .opened > .opclo { background-image: url(up.png); }
@@ -206,6 +215,17 @@ body {
 	min-height: 14px;
 	border: solid 1px;
 	border-radius: 0px 5px 5px 5px;
+}
+
+.separator {
+	margin: 8px 100px;
+	padding: 0px;
+	height: 2px;
+	background-color: cyan;
+}
+
+.traceevent.opened {
+	background-color: rgba(0,0,0,0.6);
 }
 
 /*
@@ -234,6 +254,10 @@ body {
 
 .traceevent .tag {
 	font-weight: bolder;
+}
+
+.traceevent.closed:hover {
+	cursor: pointer;
 }
 
 .traceevent.closed:hover .content {
@@ -268,6 +292,10 @@ body {
 .select {
 	padding: 0px;
 }
+
+a:link { color: cyan; }
+a:link:hover, a:active { color: white; }
+a:visited { color: #4d4; }
 
 /*******************************************************************/
 /* json format */

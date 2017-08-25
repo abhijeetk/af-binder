@@ -178,8 +178,15 @@ body {
 /*******************************************************************/
 /* open / close */
 
-.opclo { width: 16; height: 16; background-size: contain; } 
-.api > .opclo { background: #feb; border: solid 1px black; border-radius: 4px; } 
+.opclo {
+	width: 16px;
+	height: 16px;
+	background-size: contain;
+	background-color: #eec;
+	border-radius: 3px;
+	padding: 1px;
+	border: solid 1px black;
+}
 
 .closed > .opclo { background-image: url(down.png); } 
 .opened > .opclo { background-image: url(up.png); }
@@ -193,6 +200,13 @@ body {
 	min-height: 16px;
 	border: solid 1px black;
 	border-radius: 0px 5px 5px 5px;
+}
+
+.separator {
+	margin: 8px 100px;
+	padding: 0px;
+	height: 2px;
+	background-color: black;
 }
 
 .traceevent.request, .trace-box.request { background: #ffd; }

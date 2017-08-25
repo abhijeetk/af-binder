@@ -3,6 +3,7 @@
     <title>Monitoring</title>
     <link href="monitor-base.css" rel="stylesheet">
     <link href="monitor-demo.css" rel="stylesheet">
+    <!--link href="monitor-pastel.css" rel="stylesheet"-->
     <script type="text/javascript" src="underscore-min.js"></script>
     <script type="text/javascript" src="AFB.js"></script>
     <script type="text/javascript" src="monitor.js"></script>
@@ -44,6 +45,8 @@
       </div>
       <div id="logmsg-box">
         <div id="disconnect" class="x-button">Disconnect</div>
+        <div id="autoscroll" class="x-button">Stop scroll</div>
+        <div id="addsep" class="x-button">Add separator</div>
         <div id="droptracevts" class="x-button">Clear traces</div>
         <div id="expert-pane" class="closed">
           <div class="opclo"></div>
@@ -51,7 +54,10 @@
           <div class="closedoff">
             <div id="stopmsgs" class="x-button">Stop logs</div>
             <div id="dropmsgs" class="x-button">Clear logs</div>
-            <div id="logmsgs"></div>
+            <div id="logmsgs-inner-box">
+              <div class="fillfix"></div>
+              <div id="logmsgs"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -158,6 +164,11 @@
       <div class="tag"></div>
       <div class="content"></div>
     </div>
+  </template>
+
+<!-- template for SEPARATOR -->
+  <template id="t-separator">
+    <div class="separator"></div>
   </template>
 
 

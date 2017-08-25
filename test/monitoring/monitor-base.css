@@ -8,9 +8,7 @@ body {
 	right: 0px;
 }
 
-body.on #params,
-body.off #controls,
-body.off #logmsg-box { display: none; }
+body.on #params, body.off #main { display: none; }
 
 /*******************************************************************/
 /* head */
@@ -69,10 +67,32 @@ body.off #logmsg-box { display: none; }
 	right: 0px;
 	top: 0px;
 	bottom: 0px;
+/*
 	font-size: smaller;
 	overflow: auto;
 	margin-bottom: 75px;
+*/
 }
+
+#logmsgs-inner-box {
+	position: relative;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+}
+
+#logmsgs {
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	font-size: smaller;
+	overflow: auto;
+	margin-bottom: 380px;
+}
+
 
 #trace-events {
 	overflow: auto;
@@ -150,6 +170,10 @@ body.off #logmsg-box { display: none; }
 	left: 40%;
 	max-width: 55%;
 	position: absolute;
+}
+
+.traceevent .content {
+	clear: both;
 }
 
 .traceevent {

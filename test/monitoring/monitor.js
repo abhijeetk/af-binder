@@ -8,10 +8,13 @@ var t_logmsg;
 var t_traceevent;
 var t_verbosity;
 var t_trace;
+var t_separator;
+
 var apis = {};
 var events = [];
 var inhibit = false;
 var msgs = false;
+var autoscroll = false;
 
 var root_node;
 var connected_node;
@@ -66,6 +69,7 @@ function init() {
 	t_traceevent = at("t-traceevent").content.firstElementChild;
 	t_verbosity = at("t-verbosity").content.firstElementChild;
 	t_trace = at("t-trace").content.firstElementChild;
+	t_separator = at("t-separator").content.firstElementChild;
 
 	root_node = at("root");
 	connected_node = at("connected");
@@ -90,6 +94,9 @@ function init() {
 	at("stopmsgs").onclick = toggle_logmsgs;
 	start_logmsgs(false);
 	trace_events_node.onclick = on_toggle_traceevent;
+	at("autoscroll").onclick = toggle_autoscroll;
+	start_autoscroll(true);
+	at("addsep").onclick = add_separator;
 
 	connect();
 }
@@ -127,6 +134,21 @@ function onabort() {
 	connected_node.className = "error";
 }
 
+function start_autoscroll(val) {
+	at("autoscroll").textContent = (autoscroll = val) ? "Stop scroll" : "Start scroll";
+}
+
+function toggle_autoscroll() {
+	start_autoscroll(!autoscroll);
+}
+
+function add_separator() {
+	var x = document.importNode(t_separator, true);
+	trace_events_node.append(x);
+	if (autoscroll)
+		x.scrollIntoView();
+}
+
 function start_logmsgs(val) {
 	at("stopmsgs").textContent = (msgs = val) ? "Stop logs" : "Get logs";
 }
@@ -151,7 +173,9 @@ function add_logmsg(tag, content, add) {
 	get(".close", x).onclick = function(evt){x.remove();};
 	if (add)
 		x.className = x.className + " " + add;
-	logmsgs_node.prepend(x);
+	logmsgs_node.append(x);
+	if (autoscroll)
+		x.scrollIntoView();
 }
 
 function add_error(tag, obj) {
@@ -380,6 +404,8 @@ function gottraceevent(obj) {
 		makeobjitem(tab, 2, "data", data.data);
 	get(".content", x).append(tab);
 	trace_events_node.append(x);
+	if (autoscroll)
+		x.scrollIntoView();
 }
 
 function toggle_opened_closed(node, defval) {
