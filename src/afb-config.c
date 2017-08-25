@@ -301,7 +301,7 @@ static void list_add(struct afb_config_list **head, char *value)
  |   helpers for argument scanning
  +--------------------------------------------------------- */
 
-static const char *optname(int optc)
+static const char *name_of_option(int optc)
 {
 	AFB_options *o = cliOptions;
 	while (o->name && o->val != optc)
@@ -313,7 +313,7 @@ static char *argvalstr(int optc)
 {
 	if (optarg == 0) {
 		ERROR("option [--%s] needs a value i.e. --%s=xxx",
-		      optname(optc), optname(optc));
+		      name_of_option(optc), name_of_option(optc));
 		exit(1);
 	}
 	return optarg;
@@ -336,14 +336,14 @@ static int argvalenum(int optc, struct enumdesc *desc)
 		list = malloc(len + i + i);
 		if (!i || !list)
 			ERROR("option [--%s] bad value (found %s)",
-				optname(optc), name);
+				name_of_option(optc), name);
 		else {
 			i = 0;
 			strcpy(list, desc[i].name ? : "");
 			while(desc[++i].name)
 				strcat(strcat(list, ", "), desc[i].name);
 			ERROR("option [--%s] bad value, only accepts values %s (found %s)",
-				optname(optc), list, name);
+				name_of_option(optc), list, name);
 		}
 		free(list);
 		exit(1);
@@ -359,12 +359,12 @@ static int argvalint(int optc, int mini, int maxi, int base)
 	val = strtol(beg, &end, base);
 	if (*end || end == beg) {
 		ERROR("option [--%s] requires a valid integer (found %s)",
-			optname(optc), beg);
+			name_of_option(optc), beg);
 		exit(1);
 	}
 	if (val < (long int)mini || val > (long int)maxi) {
 		ERROR("option [--%s] value out of bounds (not %d<=%ld<=%d)",
-			optname(optc), mini, val, maxi);
+			name_of_option(optc), mini, val, maxi);
 		exit(1);
 	}
 	return (int)val;
@@ -378,7 +378,7 @@ static int argvalintdec(int optc, int mini, int maxi)
 static void noarg(int optc)
 {
 	if (optarg != 0) {
-		ERROR("option [--%s] need no value (found %s)", optname(optc), optarg);
+		ERROR("option [--%s] need no value (found %s)", name_of_option(optc), optarg);
 		exit(1);
 	}
 }
@@ -476,7 +476,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 		case SET_SESSION_DIR:
 			/* config->sessiondir = argvalstr(optc); */
-			WARNING("Obsolete otpion %s ignored", optname(optc));
+			WARNING("Obsolete otpion %s ignored", name_of_option(optc));
 			break;
 
 		case SET_UPLOAD_DIR:
