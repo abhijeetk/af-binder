@@ -309,7 +309,7 @@ static const char *name_of_option(int optc)
 	return o->name ? : "<unknown-option-name>";
 }
 
-static char *argvalstr(int optc)
+static const char *current_argument(int optc)
 {
 	if (optarg == 0) {
 		ERROR("option [--%s] needs a value i.e. --%s=xxx",
@@ -319,11 +319,22 @@ static char *argvalstr(int optc)
 	return optarg;
 }
 
+static char *argvalstr(int optc)
+{
+	char *result = strdup(current_argument(optc));
+	if (result == NULL) {
+		ERROR("can't alloc memory");
+		exit(1);
+	}
+	return result;
+}
+
 static int argvalenum(int optc, struct enumdesc *desc)
 {
 	int i;
 	size_t len;
-	char *list, *name = argvalstr(optc);
+	char *list;
+	const char *name = current_argument(optc);
 
 	i = 0;
 	while(desc[i].name && strcmp(desc[i].name, name))
@@ -353,10 +364,10 @@ static int argvalenum(int optc, struct enumdesc *desc)
 
 static int argvalint(int optc, int mini, int maxi, int base)
 {
-	char *beg, *end;
+	const char *beg, *end;
 	long int val;
-	beg = argvalstr(optc);
-	val = strtol(beg, &end, base);
+	beg = current_argument(optc);
+	val = strtol(beg, (char**)&end, base);
 	if (*end || end == beg) {
 		ERROR("option [--%s] requires a valid integer (found %s)",
 			name_of_option(optc), beg);
