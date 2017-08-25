@@ -60,6 +60,7 @@ struct afb_config {
 	int tracesvc;
 	int traceevt;
 	int noHttpd;
+	int no_ldpaths;		/* disable default ldpaths */
 };
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);
