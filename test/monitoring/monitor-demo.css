@@ -5,7 +5,7 @@ body {
 	background-image: url(content-background-car-wide.png);
 	background-position: center;
 	background-size: cover;
-	color: cyan;
+	color: lightsteelblue;
 	font-family: "Lucida Console", Monaco, monospace;
 }
 
@@ -234,7 +234,7 @@ body {
 .traceevent.service, .trace-box.service { background: #ddf; }
 .traceevent.event, .trace-box.event { background: #dfd; }
 */
-.traceevent.request, .trace-box.request { color: #ff0; }
+.traceevent.request, .trace-box.request { color: lightsteelblue; }
 .traceevent.daemon, .trace-box.daemon { color: #66f; }
 .traceevent.service, .trace-box.service { color: #0f0; }
 .traceevent.event, .trace-box.event { color: #f0d; }
