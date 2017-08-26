@@ -1,7 +1,24 @@
+/*
+ * Copyright (C) 2017 "IoT.bzh"
+ * Author: José Bollo <jose.bollo@iot.bzh>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /*******************************************************************/
 /* top */
 body {
 	margin: 2px;
+	background-color: darkslategray;
 	background-image: url(content-background-car-wide.png);
 	background-position: center;
 	background-size: cover;
@@ -198,7 +215,7 @@ body {
 	width: 10px;
 	height: 10px;
 	background-size: contain;
-	background-color: cyan;
+	background-color: lightsteelblue;
 	border-radius: 3px;
 	padding: 2px;
 }
@@ -218,10 +235,10 @@ body {
 }
 
 .separator {
-	margin: 8px 100px;
+	margin: 15px 100px;
 	padding: 0px;
 	height: 2px;
-	background-color: cyan;
+	background-color: lightsteelblue;
 }
 
 .traceevent.opened {
@@ -295,7 +312,7 @@ body {
 
 a:link { color: cyan; }
 a:link:hover, a:active { color: white; }
-a:visited { color: #4d4; }
+a:visited { color: lightsteelblue; }
 
 /*******************************************************************/
 /* json format */
