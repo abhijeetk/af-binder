@@ -171,7 +171,7 @@ static AFB_options cliOptions[] = {
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
 #if defined(WITH_MONITORING_OTPION)
-	{SET_MONITORING,    0, "monitoring",  "enable HTTP monitoring at <ROOT>/monitoring/monitor.html"},
+	{SET_MONITORING,    0, "monitoring",  "enable HTTP monitoring at <ROOT>/monitoring/"},
 #endif
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
