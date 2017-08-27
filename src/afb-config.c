@@ -25,8 +25,6 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include <uuid/uuid.h>
-
 #include "verbose.h"
 #include "afb-config.h"
 #include "afb-hook.h"
@@ -47,7 +45,6 @@
 #define DEFLT_CACHE_TIMEOUT 100000	// default Static File Chache
 					// [Client Side Cache
 					// 100000~=1day]
-#define DEFLT_AUTH_TOKEN    NULL	// expect for debug should == NULL
 #define CTX_NBCLIENTS       10		// allow a default of 10 authenticated
 					// clients
 
@@ -149,7 +146,7 @@ static AFB_options cliOptions[] = {
 	{NO_LDPATH,         0, "no-ldpaths",  "Discard default ldpaths loading"},
 
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=no-session, --token= for session without authentication]"},
-	{SET_RNDTOKEN,      0, "random-token","Creates a random token"},
+	{SET_RNDTOKEN,      0, "random-token","Enforce a random token"},
 
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
@@ -262,18 +259,6 @@ static void printHelp(FILE * file, const char *name)
 		name);
 }
 
-
-/*----------------------------------------------------------
- |   adds a string to the list
- +--------------------------------------------------------- */
-static char *random_token()
-{
-	static char uuidstr[37];
-	uuid_t uuid;
-	uuid_generate_random(uuid);
-	uuid_unparse(uuid, uuidstr);
-	return uuidstr;
-}
 
 /*----------------------------------------------------------
  |   adds a string to the list
@@ -578,7 +563,8 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_RNDTOKEN:
-			config->token = random_token();
+			config->random_token = 1;
+			break;
 
 #if defined(WITH_MONITORING_OTPION)
 		case SET_MONITORING:
@@ -602,8 +588,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	free(gnuOptions);
 }
 
-// load config from disk and merge with CLI option
-static void config_set_default(struct afb_config *config)
+static void fulfill_config(struct afb_config *config)
 {
 	// default HTTP port
 	if (config->httpdPort == 0)
@@ -614,8 +599,8 @@ static void config_set_default(struct afb_config *config)
 		config->apiTimeout = DEFLT_API_TIMEOUT;
 
 	// default AUTH_TOKEN
-	if (config->token == NULL)
-		config->token = DEFLT_AUTH_TOKEN;
+	if (config->random_token)
+		config->token = NULL;
 
 	// cache timeout default one hour
 	if (config->cacheTimeout == 0)
@@ -733,7 +718,7 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 	result = calloc(1, sizeof *result);
 
 	parse_arguments(argc, argv, result);
-	config_set_default(result);
+	fulfill_config(result);
 	if (verbosity >= 3)
 		afb_config_dump(result);
 	return result;
