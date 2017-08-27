@@ -16,21 +16,19 @@
  */
 /*******************************************************************/
 /* top */
-body {
+html {
 	margin: 2px;
-	background-color: darkslategray;
-	background-image: url(content-background-car-wide.png);
-	background-position: center;
-	background-size: cover;
+	background: darkslategray url(background-iot.bzh.jpeg) center/cover;
 	color: lightsteelblue;
 	font-family: "Lucida Console", Monaco, monospace;
+	min-height: 100%;
 }
 
 /*******************************************************************/
 /* head */
 
 #logo {
-	background: url(iot-bzh-logo-small.png) center/contain no-repeat;
+	background: url(iot-bzh-logo-small.png) center/50% no-repeat;
 	height: 60px;
 	width: 200px;
 }
@@ -62,11 +60,6 @@ body {
 	padding: 30px;
 	margin: 10px;
 	border-radius: 0px 50px;
-}
-
-#connect {
-	float: right;
-	margin: 20px;
 }
 
 /*******************************************************************/
@@ -206,6 +199,8 @@ body {
 	height: 10;
 	background-image: url(cross.png);
 	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
 }
 
 /*******************************************************************/
@@ -235,41 +230,42 @@ body {
 }
 
 .separator {
-	margin: 15px 100px;
+	margin: 25px 100px;
 	padding: 0px;
 	height: 2px;
-	background-color: lightsteelblue;
+	background-color: #ee3;
 }
 
 .traceevent.opened {
 	background-color: rgba(0,0,0,0.6);
 }
 
-/*
-.traceevent.request, .trace-box.request { background: #ffd: }
-.traceevent.daemon, .trace-box.daemon { background: #fdf; }
-.traceevent.service, .trace-box.service { background: #ddf; }
-.traceevent.event, .trace-box.event { background: #dfd; }
-*/
 .traceevent.request, .trace-box.request { color: lightsteelblue; }
-.traceevent.daemon, .trace-box.daemon { color: #66f; }
+.traceevent.daemon, .trace-box.daemon { color: #5af; }
 .traceevent.service, .trace-box.service { color: #0f0; }
-.traceevent.event, .trace-box.event { color: #f0d; }
+.traceevent.event, .trace-box.event { color: #f52; }
 
 .traceevent.closed {
 	max-height: 16px;
 }
 
+.traceevent .close {
+	height: 16px;
+	margin: -1px 0px 0px 0px;
+	padding: 1px;
+	background-color: grey;
+}
+
 .traceevent .time {
 	height: 16px;
-	margin: -2px 8px 2px -2px;
+	margin: -1px 0px 0px 8px;
 	padding: 1px 3px;
-	background: black;
-	color: white;
-	font-weight: bolder;
+	background-color: grey;
+	color: black;
 }
 
 .traceevent .tag {
+	margin-left: 10px;
 	font-weight: bolder;
 }
 
@@ -280,10 +276,10 @@ body {
 .traceevent.closed:hover .content {
 	margin: 5px;
 	padding: 5px;
-	border: solid 1px;
-	border-radius: 0px 5px 5px 5px;
+	border: solid 4px;
+	border-radius: 0px 20px 20px 20px;
 	box-shadow: 10px 10px #dd8;
-	background-color: rgba(0,0,0,0.8);
+	background-color: rgba(0,0,0,0.6);
 }
 
 .traceevent table.object tr td:nth-child(1) {
@@ -293,11 +289,9 @@ body {
 }
 
 .traceevent table.object tr td:nth-child(2) {
-/*
-	border: solid 1px black;
-*/
 	background-color: rgba(0,0,0,0.4);
 	padding: 0px 4px;
+	overflow: auto;
 }
 
 .traceevent table {
@@ -312,7 +306,7 @@ body {
 
 a:link { color: cyan; }
 a:link:hover, a:active { color: white; }
-a:visited { color: lightsteelblue; }
+a:visited { color: lightgrey; }
 
 /*******************************************************************/
 /* json format */

@@ -86,7 +86,7 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, i
 	DIR *dir;
 	struct dirent *dent;
 	size_t len;
-	int rc=0;
+	int rc = 0;
 
 	/* open the DIR now */
 	dir = opendir(path);

@@ -21,7 +21,7 @@ if (typeof base != "object")
 
 var initial = {
 	base: base.base || "api",
-	token: base.token || "hello",
+	token: base.token || initialtoken || "hello",
 	host: base.host || window.location.host,
 	url: base.url || undefined
 };

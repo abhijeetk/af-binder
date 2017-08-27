@@ -19,12 +19,40 @@
 body {
 	position: fixed;
 	top: 0px;
-	bottom: 0px;
 	left: 0px;
 	right: 0px;
+	bottom: 0px;
 }
 
-body.on #params, body.off #main { display: none; }
+body.on #params, body.on #connect, body.off #disconnect { display: none; }
+
+/*******************************************************************/
+/* utilities */
+.-flex-h {
+	display: flex;
+	flex-flow: row nowrap;
+}
+.-flex-v {
+	display: flex;
+	flex-flow: column nowrap;
+}
+.-flex-v > .-flex-fill {
+	height: 100%;
+}
+.-flex-h > .-flex-fill {
+	width: 100%;
+}
+.-box-out {
+	position: relative;
+}
+.-box-in {
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	overflow: auto;
+}
 
 /*******************************************************************/
 /* head */
@@ -46,79 +74,10 @@ body.on #params, body.off #main { display: none; }
 /*******************************************************************/
 /* main area */
 
-#work {
-	position: relative;
-	top: 0px;
-	bottom: 0px;
-	left: 0px;
-	right: 0px;
-}
-
-#main {
-	position: relative;
-	top: 0px;
-	bottom: 0px;
-	left: 0px;
-	right: 0px;
-}
-
-.fillfix {
-	width: 100%;
-	height: 100%;
-}
-
-#controls {
-	position: absolute;
-	width: 250px;
-	left: 0px;
-	top: 0px;
-	bottom: 0px;
-	overflow: auto;
-	margin-bottom: 75px;
-}
-
-#logmsg-box {
-	position: absolute;
-	width: 250px;
-	right: 0px;
-	top: 0px;
-	bottom: 0px;
-/*
-	font-size: smaller;
-	overflow: auto;
-	margin-bottom: 75px;
-*/
-}
-
-#logmsgs-inner-box {
-	position: relative;
-	left: 0px;
-	right: 0px;
-	top: 0px;
-	bottom: 0px;
-}
-
-#logmsgs {
-	position: absolute;
-	left: 0px;
-	right: 0px;
-	top: 0px;
-	bottom: 0px;
-	font-size: smaller;
-	overflow: auto;
-	margin-bottom: 380px;
-}
-
-
-#trace-events {
-	overflow: auto;
-	position: absolute;
-	right: 250px;
-	left: 250px;
-	top: 0px;
-	bottom: 0px;
-	margin-bottom: 75px;
-}
+#controls, #menu { flex: 1; }
+#middle { flex: 3; }
+#controls { min-width: 300px; }
+#menu { min-width: 200px; }
 
 /*******************************************************************/
 /* setting for apis */
@@ -139,6 +98,8 @@ body.on #params, body.off #main { display: none; }
 
 /*******************************************************************/
 /* display of logmsg */
+
+#experts.closed ~ #expert-pane { visibility: hidden; }
 
 /*******************************************************************/
 /* close box */
@@ -167,7 +128,7 @@ body.on #params, body.off #main { display: none; }
 }
 
 .traceevent .time {
-	float: left;
+	float: right;
 }
 
 .traceevent.closed:hover {
@@ -183,9 +144,26 @@ body.on #params, body.off #main { display: none; }
 .traceevent.closed:hover .content {
 	display: block;
 	background: inherit;
+	overflow: hidden;
 	left: 40%;
 	max-width: 55%;
 	position: absolute;
+	animation-name: display-block;
+	animation-duration: 2s;
+	-webkit-animation-name: display-block;
+	-webkit-animation-duration: 2s;
+}
+
+@-webkit-keyframes display-block {
+	from { opacity: 0; }
+	50% { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes display-block {
+	from { opacity: 0; }
+	50% { opacity: 0; }
+	to { opacity: 1; }
 }
 
 .traceevent .content {

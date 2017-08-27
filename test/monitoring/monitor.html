@@ -23,22 +23,15 @@
     <script type="text/javascript" src="AFB.js"></script>
     <script type="text/javascript" src="monitor.js"></script>
 
-<body id="root" class="on" onload="init();">
+<body id="root" class="-flex-v on" onload="init();">
   <div id="head" class="clearfix">
     <div id="logo"></div>
     <div id="connected">Not Connected</div>
     <div id="title">Monitoring</div>
   </div>
-  <div id="work">
-    <div id="params" class="clearfix">
-      <div id="connect" class="x-button">connect</div>
-      <div>host: <input type="text" id="param-host" size="50" value="localhost"></input></div>
-      <div>port: <input type="text" id="param-port" size="10" value="1234"></input></div>
-      <div>token: <input type="text" id="param-token" size="33" value="hello"></input></div>
-    </div>
-    <div id="main">
-      <div class="fillfix"></div>
-      <div id="controls">
+  <div id="work" class="-flex-fill -flex-h">
+    <div id="controls" class="-box-out">
+      <div class="-box-in">
         <div id="all" class="api opened" data-api="*">
           <div class="opclo"></div>
           <div class="name">{ALL}</div>
@@ -58,27 +51,37 @@
         <div id="apis">
         </div>
       </div>
-      <div id="logmsg-box">
+    </div>
+    <div id="middle" class="-flex-v">
+      <div id="params" class="clearfix">
+        <div>host: <input type="text" id="param-host" size="50" value="localhost"></input></div>
+        <div>port: <input type="text" id="param-port" size="10" value="1234"></input></div>
+        <div>token: <input type="text" id="param-token" size="33" value="hello"></input></div>
+      </div>
+      <div class="-flex-fill -box-out">
+        <div id="trace-events" class="-box-in">
+        </div>
+      </div>
+    </div>
+
+      <div id="menu" class="-flex-v">
+        <div id="connect" class="x-button">Connect</div>
         <div id="disconnect" class="x-button">Disconnect</div>
         <div id="autoscroll" class="x-button">Stop scroll</div>
         <div id="addsep" class="x-button">Add separator</div>
         <div id="droptracevts" class="x-button">Clear traces</div>
-        <div id="expert-pane" class="closed">
+        <div id="experts" class="x-button closed">
           <div class="opclo"></div>
-          <div class="expert">{EXPERT}</div>
-          <div class="closedoff">
-            <div id="stopmsgs" class="x-button">Stop logs</div>
-            <div id="dropmsgs" class="x-button">Clear logs</div>
-            <div id="logmsgs-inner-box">
-              <div class="fillfix"></div>
-              <div id="logmsgs"></div>
-            </div>
+          {EXPERTS}
+        </div>
+        <div id="expert-pane" class="-flex-fill -flex-v">
+          <div id="stopmsgs" class="x-button">Stop logs</div>
+          <div id="dropmsgs" class="x-button">Clear logs</div>
+          <div class="-flex-fill -box-out">
+              <div id="logmsgs" class="-box-in"></div>
           </div>
         </div>
       </div>
-      <div id="trace-events">
-      </div>
-    </div>
   </div>
 
 <!-- template for APIS -->

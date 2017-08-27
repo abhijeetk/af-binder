@@ -47,34 +47,38 @@ _.templateSettings = { interpolate: /\{\{(.+?)\}\}/g };
 
 function untrace_all() {
 	do_call("monitor/trace", {drop: true});
-	for_all_nodes(null, ".trace-item input[type=radio]", function(n){n.checked = n.value == "no";});
 }
 
-function disconnect() {
-	untrace_all();
-	apis = {};
-	apis_node.innerHTML = "";
-	root_node.className = "off";
+function disconnect(status) {
+	class_toggle(root_node, { on: "off" }, "off");
 	connected_node.innerHTML = "Connection Closed";
-	connected_node.className = "ok";
-	ws && ws.close();
-	afb = null;
+	connected_node.className = status;
+	if (ws) {
+		untrace_all();
+		ws.onclose = ws.onabort = null;
+		ws.close();
+	}
 	ws = null;
+	if (afb)
+		at("param-token").value = afb.context.token;
+	afb = null;
 }
 
-function connect(args) {
-	drop_all_trace_events();
-	drop_all_logmsgs();
+function on_disconnect() {
+	disconnect("ok");
+}
+
+function connect() {
 	ws && ws.close();
-	afb = new AFB(args);
+	afb = new AFB({
+		host: at("param-host").value + ":" + at("param-port").value,
+		token: at("param-token").value
+	});
 	ws = new afb.ws(onopen, onabort);
 }
 
 function on_connect(evt) {
-	connect({
-		host: at("param-host").value + ":" + at("param-port").value,
-		token: at("param-token").value
-	});
+	connect();
 }
 
 function init() {
@@ -103,7 +107,7 @@ function init() {
 	for_all_nodes(root_node, ".opclo ~ :not(.closedoff)", function(n){n.onclick = on_toggle_opclo});
 	for_all_nodes(root_node, ".verbosity select", function(n){n.onchange = set_verbosity});
 	for_all_nodes(root_node, ".trace-item input", function(n){n.onchange = on_trace_change});
-	at("disconnect").onclick = disconnect;
+	at("disconnect").onclick = on_disconnect;
 	at("connect").onclick = on_connect;
 	at("droptracevts").onclick = drop_all_trace_events;
 	at("dropmsgs").onclick = drop_all_logmsgs;
@@ -113,6 +117,14 @@ function init() {
 	at("autoscroll").onclick = toggle_autoscroll;
 	start_autoscroll(true);
 	at("addsep").onclick = add_separator;
+	at("experts").onclick = toggle_experts;
+
+	at("param-host").value = document.location.hostname;
+	at("param-port").value = document.location.port;
+	var args = new URLSearchParams(document.location.search.substring(1));
+	at("param-token").value = args.get("x-afb-token") || args.get("token") || "hello";
+
+	document.onbeforeunload = on_disconnect;
 
 	connect();
 }
@@ -137,17 +149,18 @@ function plug(target, sel, node) {
 }
 
 function onopen() {
-	root_node.className = "on";
+	class_toggle(root_node, { off: "on" }, "on");
 	connected_node.innerHTML = "Connected " + ws.url;
 	connected_node.className = "ok";
 	ws.onevent("*", gotevent);
 	ws.onclose = onabort;
+	untrace_all();
+	for_all_nodes(all_node, ".trace-box", update_trace_box);
 	do_call("monitor/get", {apis:true,verbosity:true}, on_got_apis, on_error_apis);
 }
+
 function onabort() {
-	root_node.className = "off";
-	connected_node.innerHTML = "Connection Closed";
-	connected_node.className = "error";
+	disconnect("error");
 }
 
 function start_autoscroll(val) {
@@ -163,6 +176,12 @@ function add_separator() {
 	trace_events_node.append(x);
 	if (autoscroll)
 		x.scrollIntoView();
+	if (msgs) {
+		x = document.importNode(t_separator, true);
+		logmsgs_node.append(x);
+		if (autoscroll)
+			x.scrollIntoView();
+	}
 }
 
 function start_logmsgs(val) {
@@ -249,10 +268,14 @@ function set_verbosity(evt) {
 /* show all apis */
 function on_got_apis(obj) {
 	inhibit = true;
+	var saved_apis = apis;
+	apis = {};
+	apis_node.innerHTML = "";
 	_.each(obj.response.apis, function(api_desc, api_name){
 		if (api_name == "monitor") return;
-		var api = apis[api_name];
+		var api = saved_apis[api_name];
 		if (!api) {
+			/* create the node */
 			api = {
 				node: document.importNode(t_api, true),
 				verbs: {},
@@ -261,42 +284,45 @@ function on_got_apis(obj) {
 			api.node.API = api;
 			api.node.dataset.api = api_name;
 			api.vnode = get(".verbs", api.node);
-			apis[api_name] = api;
 			get(".name", api.node).textContent = api_name;
-			get(".desc", api.node).textContent = api_desc.info.description || "";
-			for_all_nodes(api.node, ".opclo", function(n){n.onclick = on_toggle_opclo});
-			for_all_nodes(api.node, ".opclo ~ :not(.closedoff)", function(n){n.onclick = on_toggle_opclo});
-			for_all_nodes(api.node, ".trace-item input", function(n){n.onchange = on_trace_change});
-			apis_node.append(api.node);
-			_.each(api_desc.paths, function(verb_desc, path_name){
-				var verb_name = path_name.substring(1);
-				var verb = api.verbs[verb_name];
-				if (!verb) {
-					verb = {
-						node: document.importNode(t_verb, true),
-						name: verb_name,
-						api: api
-					};
-					verb.node.VERB = verb;
-					verb.node.dataset.verb = verb_name;
-					api.verbs[verb_name] = verb;
-					get(".name", verb.node).textContent = verb_name;
-					var g = verb_desc.get ||{};
-					var r = g["responses"] || {};
-					var t = r["200"] || {};
-					var d = t.description || "";
-					get(".desc", verb.node).textContent = d;
-					if (show_perms) {
-						var p = g["x-permissions"] || "";
-						get(".perm", verb.node).textContent = p ? JSON.stringify(p, null, 1) : "";
-					}
-					api.vnode.append(verb.node);
-				}
-			});
 			var s = get(".verbosity select", api.node);
 			s.API = api;
 			s.onchange = set_verbosity;
+			for_all_nodes(api.node, ".opclo", function(n){n.onclick = on_toggle_opclo});
+			for_all_nodes(api.node, ".opclo ~ :not(.closedoff)", function(n){n.onclick = on_toggle_opclo});
+			for_all_nodes(api.node, ".trace-item input", function(n){n.onchange = on_trace_change});
+		} else {
+			/* reactivate the expected traces */
+			for_all_nodes(api.node, ".trace-box", update_trace_box);
 		}
+		apis[api_name] = api;
+		get(".desc", api.node).textContent = api_desc.info.description || "";
+		_.each(api_desc.paths, function(verb_desc, path_name){
+			var verb_name = path_name.substring(1);
+			var verb = api.verbs[verb_name];
+			if (!verb) {
+				verb = {
+					node: document.importNode(t_verb, true),
+					name: verb_name,
+					api: api
+				};
+				verb.node.VERB = verb;
+				verb.node.dataset.verb = verb_name;
+				api.verbs[verb_name] = verb;
+				get(".name", verb.node).textContent = verb_name;
+				var g = verb_desc.get ||{};
+				var r = g["responses"] || {};
+				var t = r["200"] || {};
+				var d = t.description || "";
+				get(".desc", verb.node).textContent = d;
+				if (show_perms) {
+					var p = g["x-permissions"] || "";
+					get(".perm", verb.node).textContent = p ? JSON.stringify(p, null, 1) : "";
+				}
+				api.vnode.append(verb.node);
+			}
+		});
+		apis_node.append(api.node);
 	});
 	inhibit = false;
 	on_got_verbosities(obj);
@@ -306,35 +332,40 @@ function on_toggle_opclo(evt) {
 	toggle_opened_closed(evt.target.parentElement);
 }
 
-function on_trace_change(evt) {
-	var obj = evt.target;
-	var tra = obj.parentElement;
-	while (tra && !tra.dataset.trace)
-		tra = tra.parentElement;
-	var api = tra;
+function toggle_experts(evt) {
+	toggle_opened_closed(evt.target);
+}
+
+function update_trace_box(node) {
+	set_trace_box(node, false);
+}
+
+function set_trace_box(node, clear) {
+	var api = node;
 	while (api && !api.dataset.api)
 		api = api.parentElement;
-	var tag = api.dataset.api + "/" + tra.dataset.trace;
-	if (tra) {
-		var drop = false;
-		for_all_nodes(tra, "input", function(n){
-			if (n.checked) {
-				n.checked = false;
-				if (n != obj && n.value != "no")
-					drop = true;
-			}
-		});
-		if (drop)
-			do_call("monitor/trace", {drop: {tag: tag}});
-		obj.checked = true;
-		if (obj.value != "no") {
-			var spec = {tag: tag, name: "trace"};
-			spec[tra.dataset.trace] = obj.value;
-			if (api.dataset.api != "*")
-				spec.api = api.dataset.api;
-			do_call("monitor/trace", {add: spec});
-		}
+	var tag = api.dataset.api + "/" + node.dataset.trace;
+	var value = false;
+	for_all_nodes(node, "input", function(n){ if (n.checked) value = n.value; });
+	if (clear)
+		do_call("monitor/trace", {drop: {tag: tag}});
+	if (value != "no") {
+		var spec = {tag: tag, name: "trace"};
+		spec[node.dataset.trace] = value;
+		if (api.dataset.api != "*")
+			spec.api = api.dataset.api;
+		do_call("monitor/trace", {add: spec});
 	}
+}
+
+function on_trace_change(evt) {
+	var obj = evt.target;
+	var box = obj.parentElement;
+	while (box && !box.dataset.trace)
+		box = box.parentElement;
+	for_all_nodes(box, "input", function(n){n.checked = false;});
+	obj.checked = true;
+	set_trace_box(box, true);
 }
 
 function makecontent(node, deep, val) {
@@ -348,7 +379,7 @@ function makecontent(node, deep, val) {
 			return;
 		}
 	}
-	node.innerHTML = obj2html(val);
+	node.innerHTML = '<pre>' + obj2html(val) + '</pre>';
 }
 
 function makearritem(tbl, deep, val) {
@@ -424,21 +455,23 @@ function gottraceevent(obj) {
 		x.scrollIntoView();
 }
 
-function toggle_opened_closed(node, defval) {
+function class_toggle(node, assoc, defval) {
 	var matched = false;
 	var cs = node.className.split(" ").map(
 		function(x){
-			if (!matched) {
-				switch(x) {
-				case "closed": matched = true; return "opened";
-				case "opened": matched = true; return "closed";
-				}
+			if (!matched && (x in assoc)) {
+				matched = true;
+				return assoc[x];
 			}
-			return x;
+			return x == defval ? "" : x;
 		}).join(" ");
-	if (!matched)
-		cs = cs + " " + (defval || "closed");
+	if (!matched && defval)
+		cs = cs + " " + defval;
 	node.className = cs;
+}
+
+function toggle_opened_closed(node, defval) {
+	class_toggle(node, { closed: "opened", opened: "closed" }, defval);
 }
 
 function on_toggle_traceevent(evt) {
