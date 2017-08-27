@@ -90,6 +90,9 @@
 #define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
+#if defined(WITH_MONITORING_OTPION)
+#define SET_MONITORING     'M'
+#endif
 #define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
@@ -103,6 +106,9 @@
 
 const char shortopts[] =
 	"c:D:E:ehp:qrT:t:u:Vvw:"
+#if defined(WITH_MONITORING_OTPION)
+	"M"
+#endif
 ;
 
 // Command line structure hold cli --command + help text
@@ -167,6 +173,9 @@ static AFB_options cliOptions[] = {
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
+#if defined(WITH_MONITORING_OTPION)
+	{SET_MONITORING,    0, "monitoring",  "enable HTTP monitoring at <ROOT>/monitoring/monitor.html"},
+#endif
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
 };
@@ -570,7 +579,12 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 		case SET_RNDTOKEN:
 			config->token = random_token();
+
+#if defined(WITH_MONITORING_OTPION)
+		case SET_MONITORING:
+			config->monitoring = 1;
 			break;
+#endif
 
 		case DISPLAY_VERSION:
 			noarg(optc);
@@ -634,6 +648,11 @@ static void config_set_default(struct afb_config *config)
 
 	if (config->ldpaths == NULL && config->weak_ldpaths == NULL && !config->no_ldpaths)
 		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
+
+#if defined(WITH_MONITORING_OTPION)
+	if (config->monitoring)
+		list_add(&config->aliases, strdup("/monitoring:"BINDING_INSTALL_DIR"/monitoring"));
+#endif
 
 	// if no config dir create a default path from uploaddir
 	if (config->console == NULL) {

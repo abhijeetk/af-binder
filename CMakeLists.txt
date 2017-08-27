@@ -112,6 +112,20 @@ SET(link_libraries
 
 SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
+###########################################################################
+# activates the monitoring by default
+set(INCLUDE_MONITORING ON CACHE BOOL "Activates installation of monitoring")
+if(INCLUDE_MONITORING)
+	add_definitions(-DWITH_MONITORING_OTPION)
+	INSTALL(DIRECTORY
+		${CMAKE_CURRENT_SOURCE_DIR}/test/monitoring
+		DESTINATION
+		${binding_install_dir}
+	)
+endif()
+
+###########################################################################
+
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(bindings)
