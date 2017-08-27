@@ -64,6 +64,7 @@ struct afb_config {
 	unsigned no_ldpaths: 1;		/* disable default ldpaths */
 	unsigned noHttpd: 1;
 	unsigned background: 1;		/* run in backround mode */
+	unsigned monitoring: 1;		/* activates monitoring */
 };
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);

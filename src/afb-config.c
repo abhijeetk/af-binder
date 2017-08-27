@@ -56,7 +56,6 @@
 #define SET_BACKGROUND     2
 #define SET_FORGROUND      3
 
-#define SET_TCP_PORT       5
 #define SET_ROOT_DIR       6
 #define SET_ROOT_BASE      7
 #define SET_ROOT_API       8
@@ -91,6 +90,7 @@
 #define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
+#define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
 #define SET_TRACESVC       'S'
@@ -101,7 +101,9 @@
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
 
-#define SHORTOPTS	"c:D:E:ehqrT:t:u:Vvw:"
+const char shortopts[] =
+	"c:D:E:ehp:qrT:t:u:Vvw:"
+;
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -418,7 +420,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	}
 
 	// get all options from command line
-	while ((optc = getopt_long(argc, argv, SHORTOPTS, gnuOptions, NULL)) != EOF) {
+	while ((optc = getopt_long(argc, argv, shortopts, gnuOptions, NULL)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
 			verbosity++;
