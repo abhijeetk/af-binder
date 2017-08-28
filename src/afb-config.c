@@ -87,7 +87,7 @@
 #define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
-#if defined(WITH_MONITORING_OTPION)
+#if defined(WITH_MONITORING_OPTION)
 #define SET_MONITORING     'M'
 #endif
 #define SET_TCP_PORT       'p'
@@ -103,7 +103,7 @@
 
 const char shortopts[] =
 	"c:D:E:ehp:qrT:t:u:Vvw:"
-#if defined(WITH_MONITORING_OTPION)
+#if defined(WITH_MONITORING_OPTION)
 	"M"
 #endif
 ;
@@ -170,7 +170,7 @@ static AFB_options cliOptions[] = {
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
-#if defined(WITH_MONITORING_OTPION)
+#if defined(WITH_MONITORING_OPTION)
 	{SET_MONITORING,    0, "monitoring",  "enable HTTP monitoring at <ROOT>/monitoring/"},
 #endif
 	{0, 0, NULL, NULL}
@@ -483,7 +483,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 
 		case SET_SESSION_DIR:
 			/* config->sessiondir = argvalstr(optc); */
-			WARNING("Obsolete otpion %s ignored", name_of_option(optc));
+			WARNING("Obsolete option %s ignored", name_of_option(optc));
 			break;
 
 		case SET_UPLOAD_DIR:
@@ -566,7 +566,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->random_token = 1;
 			break;
 
-#if defined(WITH_MONITORING_OTPION)
+#if defined(WITH_MONITORING_OPTION)
 		case SET_MONITORING:
 			config->monitoring = 1;
 			break;
@@ -634,7 +634,7 @@ static void fulfill_config(struct afb_config *config)
 	if (config->ldpaths == NULL && config->weak_ldpaths == NULL && !config->no_ldpaths)
 		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
 
-#if defined(WITH_MONITORING_OTPION)
+#if defined(WITH_MONITORING_OPTION)
 	if (config->monitoring)
 		list_add(&config->aliases, strdup("/monitoring:"BINDING_INSTALL_DIR"/monitoring"));
 #endif
