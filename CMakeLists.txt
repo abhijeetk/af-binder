@@ -114,7 +114,6 @@ SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
 ###########################################################################
 # activates the monitoring by default
-set(INCLUDE_MONITORING ON CACHE BOOL "Activates installation of monitoring")
 if(INCLUDE_MONITORING)
 	add_definitions(-DWITH_MONITORING_OPTION)
 	INSTALL(DIRECTORY
