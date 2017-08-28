@@ -2,7 +2,7 @@ Priority: optional
 Maintainer: unknown <unknown@debian.org>
 Source: agl-app-framework-binder
 Build-Depends: debhelper (>= 5),	
- libmicrohttpd-dev (>= 0.9.54),
+ libmicrohttpd-dev (>= 0.9.55),
  cmake,
  libsystemd-dev (>= 222),
  libssl-dev,
@@ -16,6 +16,7 @@ Homepage: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/app-fra
 Package: agl-app-framework-binder-bin
 Section: libs
 Architecture: any
+Depends: libmicrohttpd (>= 0.9.55)
 Description: agl-app-framework-binder
 
 Package: agl-app-framework-binder-dev
