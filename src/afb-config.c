@@ -393,6 +393,31 @@ static void noarg(int optc)
 	}
 }
 
+static char **make_exec(char **argv)
+{
+	char **result, *iter;
+	size_t length;
+	int i;
+
+	length = 0;
+	for (i = 0 ; argv[i] ; i++)
+		length += strlen(argv[i]) + 1;
+
+	result = malloc(length + ((unsigned)(i + 1)) * sizeof *result);
+	if (result == NULL) {
+		ERROR("can't alloc memory");
+		exit(1);
+	}
+
+	iter = (char*)&result[i+1];
+	for (i = 0 ; argv[i] ; i++) {
+		result[i] = iter;
+		iter = stpcpy(iter, argv[i]) + 1;
+	}
+	result[i] = NULL;
+	return result;
+}
+
 /*---------------------------------------------------------
  |   Parse option and launch action
  +--------------------------------------------------------- */
@@ -565,8 +590,8 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_EXEC:
-			config->exec = &argv[optind];
-			optind = argc;
+			config->exec = make_exec(&argv[optind]);
+			optind = argc; /* stop option scanning */
 			break;
 
 		case SET_RNDTOKEN:
