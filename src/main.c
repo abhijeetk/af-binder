@@ -650,12 +650,12 @@ int main(int argc, char *argv[])
 
 	// ------------- Build session handler & init config -------
 	config = afb_config_parse_arguments(argc, argv);
-
-	afb_debug("main-args");
 	if (config->name) {
+		verbose_set_name(config->name, 0);
 		process_name_set_name(config->name);
 		process_name_replace_cmdline(argv, config->name);
 	}
+	afb_debug("main-args");
 
 	// --------- run -----------
 	if (config->background) {
