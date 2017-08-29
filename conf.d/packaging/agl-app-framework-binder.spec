@@ -88,8 +88,12 @@ EOF
 %{_libdir}/afb/demoPost.so
 %{_libdir}/afb/helloWorld.so
 %{_libdir}/afb/tic-tac-toe.so
-
+%{_libdir}/afb/monitoring/*
 %{_sysconfdir}/profile.d/AGL_%{name}.sh
+
+#app-framework-binder monitoring
+%dir %{_libdir}/afb/monitoring
+%{_libdir}/afb/monitoring/*
 
 %files devel
 %defattr(-,root,root)
