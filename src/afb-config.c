@@ -682,20 +682,28 @@ void afb_config_dump(struct afb_config *config)
 	L(ws_servers)
 	L(so_bindings)
 	L(ldpaths)
+	L(weak_ldpaths)
 	L(calls)
 
 	V(exec)
 
 	D(httpdPort)
-	B(background)
 	D(cacheTimeout)
 	D(apiTimeout)
 	D(cntxTimeout)
 	D(nbSessionMax)
+
 	E(mode,mode_desc)
 	E(tracereq,tracereq_desc)
 	E(traceditf,traceditf_desc)
+	E(tracesvc,tracesvc_desc)
+	E(traceevt,traceevt_desc)
+
+	B(no_ldpaths)
 	B(noHttpd)
+	B(background)
+	B(monitoring)
+	B(random_token)
 	P("---END-OF-CONFIG---\n");
 
 #undef V

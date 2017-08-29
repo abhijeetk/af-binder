@@ -54,6 +54,8 @@ struct afb_config {
 	int apiTimeout;
 	int cntxTimeout;	// Client Session Context timeout
 	int nbSessionMax;	// max count of sessions
+
+	/* enums */
 	int mode;		// mode of listening
 	int tracereq;
 	int traceditf;
