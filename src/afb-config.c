@@ -90,6 +90,7 @@
 #if defined(WITH_MONITORING_OPTION)
 #define SET_MONITORING     'M'
 #endif
+#define SET_NAME           'n'
 #define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
@@ -102,7 +103,7 @@
 #define SET_WORK_DIR       'w'
 
 const char shortopts[] =
-	"c:D:E:ehp:qrT:t:u:Vvw:"
+	"c:D:E:ehn:p:qrT:t:u:Vvw:"
 #if defined(WITH_MONITORING_OPTION)
 	"M"
 #endif
@@ -124,6 +125,8 @@ static AFB_options cliOptions[] = {
 
 	{SET_FORGROUND,     0, "foreground",  "Get all in foreground mode"},
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
+
+	{SET_NAME,          1, "name",        "Set the visible name"},
 
 	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default 1234]"},
 	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
@@ -512,6 +515,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->background = 1;
 			break;
 
+		case SET_NAME:
+			config->name = argvalstr(optc);
+			break;
+
 		case SET_MODE:
 			config->mode = argvalenum(optc, mode_desc);
 			break;
@@ -674,6 +681,7 @@ void afb_config_dump(struct afb_config *config)
 	S(workdir)
 	S(uploaddir)
 	S(token)
+	S(name)
 
 	L(aliases)
 	L(dbus_clients)

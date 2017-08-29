@@ -54,6 +54,7 @@
 #include "afb-hook.h"
 #include "sd-fds.h"
 #include "afb-debug.h"
+#include "process-name.h"
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -651,6 +652,10 @@ int main(int argc, char *argv[])
 	config = afb_config_parse_arguments(argc, argv);
 
 	afb_debug("main-args");
+	if (config->name) {
+		process_name_set_name(config->name);
+		process_name_replace_cmdline(argv, config->name);
+	}
 
 	// --------- run -----------
 	if (config->background) {

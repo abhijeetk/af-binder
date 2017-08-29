@@ -64,6 +64,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-xreq.c
 	jobs.c
 	locale-root.c
+	process-name.c
 	sd-fds.c
 	sig-monitor.c
 	subpath.c

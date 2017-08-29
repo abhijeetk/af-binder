@@ -35,6 +35,7 @@ struct afb_config {
 	char *workdir;		// where to run the program
 	char *uploaddir;	// where to store transient files
 	char *token;		// initial authentication token [default NULL no session]
+	char *name;		/* name to set to the daemon */
 
 	struct afb_config_list *aliases;
 	struct afb_config_list *dbus_clients;
