@@ -429,7 +429,7 @@ function gotevent(obj) {
 
 function gottraceevent(obj) {
 	var data = obj.data;
-	var type = _.find(["request", "service", "daemon", "event"],function(x){return x in data;});
+	var type = data.type;
 	var desc = data[type];
 	if (!show_monitor_events) {
 		if (type == "event" ? desc.name.startsWith("monitor/") : desc.api == "monitor")

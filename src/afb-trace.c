@@ -188,7 +188,7 @@ static const char *verbosity_level_name(int level)
 }
 
 /* generic hook */
-static void emit(void *closure, const char *type, const char *fmt1, const char *fmt2, va_list ap2, ...)
+static void emit(void *closure, unsigned hookid, const char *type, const char *fmt1, const char *fmt2, va_list ap2, ...)
 {
 	struct hook *hook = closure;
 	struct json_object *event, *data1, *data2;
@@ -201,9 +201,11 @@ static void emit(void *closure, const char *type, const char *fmt1, const char *
 	if (fmt2)
 		wrap_json_vpack(&data2, fmt2, ap2);
 
-	wrap_json_pack(&event, "{so ss so so*}",
+	wrap_json_pack(&event, "{so ss ss si so so*}",
 					"time", timestamp(),
 					"tag", hook->tag->tag,
+					"type", type,
+					"id", (int)(hookid & INT_MAX),
 					type, data1,
 					"data", data2);
 
@@ -258,7 +260,7 @@ static int get_xreq_flag(const char *name)
 	return get_flag(name, xreq_flags, (int)(sizeof xreq_flags / sizeof *xreq_flags));
 }
 
-static void hook_xreq(void *closure, const struct afb_xreq *xreq, const char *action, const char *format, ...)
+static void hook_xreq(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *action, const char *format, ...)
 {
 	struct json_object *cred = NULL;
 	const char *session = NULL;
@@ -277,7 +279,7 @@ static void hook_xreq(void *closure, const struct afb_xreq *xreq, const char *ac
 						"id", xreq->cred->id
 					);
 	va_start(ap, format);
-	emit(closure, "request", "{si ss ss ss so* ss*}", format, ap,
+	emit(closure, hookid, "request", "{si ss ss ss so* ss*}", format, ap,
 					"index", xreq->hookindex,
 					"api", xreq->api,
 					"verb", xreq->verb,
@@ -287,126 +289,126 @@ static void hook_xreq(void *closure, const struct afb_xreq *xreq, const char *ac
 	va_end(ap);
 }
 
-static void hook_xreq_begin(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_begin(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "begin", NULL);
+	hook_xreq(closure, hookid, xreq, "begin", NULL);
 }
 
-static void hook_xreq_end(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_end(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "end", NULL);
+	hook_xreq(closure, hookid, xreq, "end", NULL);
 }
 
-static void hook_xreq_json(void *closure, const struct afb_xreq *xreq, struct json_object *obj)
+static void hook_xreq_json(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct json_object *obj)
 {
-	hook_xreq(closure, xreq, "json", "{sO?}",
+	hook_xreq(closure, hookid, xreq, "json", "{sO?}",
 						"result", obj);
 }
 
-static void hook_xreq_get(void *closure, const struct afb_xreq *xreq, const char *name, struct afb_arg arg)
+static void hook_xreq_get(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *name, struct afb_arg arg)
 {
-	hook_xreq(closure, xreq, "get", "{ss? ss? ss? ss?}",
+	hook_xreq(closure, hookid, xreq, "get", "{ss? ss? ss? ss?}",
 						"query", name,
 						"name", arg.name,
 						"value", arg.value,
 						"path", arg.path);
 }
 
-static void hook_xreq_success(void *closure, const struct afb_xreq *xreq, struct json_object *obj, const char *info)
+static void hook_xreq_success(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct json_object *obj, const char *info)
 {
-	hook_xreq(closure, xreq, "success", "{sO? ss?}",
+	hook_xreq(closure, hookid, xreq, "success", "{sO? ss?}",
 						"result", obj,
 						"info", info);
 }
 
-static void hook_xreq_fail(void *closure, const struct afb_xreq *xreq, const char *status, const char *info)
+static void hook_xreq_fail(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *status, const char *info)
 {
-	hook_xreq(closure, xreq, "fail", "{ss? ss?}",
+	hook_xreq(closure, hookid, xreq, "fail", "{ss? ss?}",
 						"status", status,
 						"info", info);
 }
 
-static void hook_xreq_context_get(void *closure, const struct afb_xreq *xreq, void *value)
+static void hook_xreq_context_get(void *closure, unsigned hookid, const struct afb_xreq *xreq, void *value)
 {
-	hook_xreq(closure, xreq, "context_get", NULL);
+	hook_xreq(closure, hookid, xreq, "context_get", NULL);
 }
 
-static void hook_xreq_context_set(void *closure, const struct afb_xreq *xreq, void *value, void (*free_value)(void*))
+static void hook_xreq_context_set(void *closure, unsigned hookid, const struct afb_xreq *xreq, void *value, void (*free_value)(void*))
 {
-	hook_xreq(closure, xreq, "context_set", NULL);
+	hook_xreq(closure, hookid, xreq, "context_set", NULL);
 }
 
-static void hook_xreq_addref(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_addref(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "addref", NULL);
+	hook_xreq(closure, hookid, xreq, "addref", NULL);
 }
 
-static void hook_xreq_unref(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_unref(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "unref", NULL);
+	hook_xreq(closure, hookid, xreq, "unref", NULL);
 }
 
-static void hook_xreq_session_close(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_session_close(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "session_close", NULL);
+	hook_xreq(closure, hookid, xreq, "session_close", NULL);
 }
 
-static void hook_xreq_session_set_LOA(void *closure, const struct afb_xreq *xreq, unsigned level, int result)
+static void hook_xreq_session_set_LOA(void *closure, unsigned hookid, const struct afb_xreq *xreq, unsigned level, int result)
 {
-	hook_xreq(closure, xreq, "session_set_LOA", "{si si}",
+	hook_xreq(closure, hookid, xreq, "session_set_LOA", "{si si}",
 					"level", level,
 					"result", result);
 }
 
-static void hook_xreq_subscribe(void *closure, const struct afb_xreq *xreq, struct afb_event event, int result)
+static void hook_xreq_subscribe(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	hook_xreq(closure, xreq, "subscribe", "{s{ss si} si}",
+	hook_xreq(closure, hookid, xreq, "subscribe", "{s{ss si} si}",
 					"event",
 						"name", afb_evt_event_name(event),
 						"id", afb_evt_event_id(event),
 					"result", result);
 }
 
-static void hook_xreq_unsubscribe(void *closure, const struct afb_xreq *xreq, struct afb_event event, int result)
+static void hook_xreq_unsubscribe(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_event event, int result)
 {
-	hook_xreq(closure, xreq, "unsubscribe", "{s{ss? si} si}",
+	hook_xreq(closure, hookid, xreq, "unsubscribe", "{s{ss? si} si}",
 					"event",
 						"name", afb_evt_event_name(event),
 						"id", afb_evt_event_id(event),
 					"result", result);
 }
 
-static void hook_xreq_subcall(void *closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+static void hook_xreq_subcall(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	hook_xreq(closure, xreq, "subcall", "{ss? ss? sO?}",
+	hook_xreq(closure, hookid, xreq, "subcall", "{ss? ss? sO?}",
 					"api", api,
 					"verb", verb,
 					"args", args);
 }
 
-static void hook_xreq_subcall_result(void *closure, const struct afb_xreq *xreq, int status, struct json_object *result)
+static void hook_xreq_subcall_result(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result)
 {
-	hook_xreq(closure, xreq, "subcall_result", "{si sO?}",
+	hook_xreq(closure, hookid, xreq, "subcall_result", "{si sO?}",
 					"status", status,
 					"result", result);
 }
 
-static void hook_xreq_subcallsync(void *closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+static void hook_xreq_subcallsync(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	hook_xreq(closure, xreq, "subcallsync", "{ss? ss? sO?}",
+	hook_xreq(closure, hookid, xreq, "subcallsync", "{ss? ss? sO?}",
 					"api", api,
 					"verb", verb,
 					"args", args);
 }
 
-static void hook_xreq_subcallsync_result(void *closure, const struct afb_xreq *xreq, int status, struct json_object *result)
+static void hook_xreq_subcallsync_result(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result)
 {
-	hook_xreq(closure, xreq, "subcallsync_result", "{si sO?}",
+	hook_xreq(closure, hookid, xreq, "subcallsync_result", "{si sO?}",
 					"status", status,
 					"result", result);
 }
 
-static void hook_xreq_vverbose(void *closure, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+static void hook_xreq_vverbose(void *closure, unsigned hookid, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
 	struct json_object *pos;
 	int len;
@@ -423,7 +425,7 @@ static void hook_xreq_vverbose(void *closure, const struct afb_xreq *xreq, int l
 	if (file)
 		wrap_json_pack(&pos, "{ss si ss*}", "file", file, "line", line, "function", func);
 
-	hook_xreq(closure, xreq, "vverbose", "{si ss* ss? so*}",
+	hook_xreq(closure, hookid, xreq, "vverbose", "{si ss* ss? so*}",
 					"level", level,
  					"type", verbosity_level_name(level),
 					len < 0 ? "format" : "message", len < 0 ? fmt : msg,
@@ -432,27 +434,27 @@ static void hook_xreq_vverbose(void *closure, const struct afb_xreq *xreq, int l
 	free(msg);
 }
 
-static void hook_xreq_store(void *closure, const struct afb_xreq *xreq, struct afb_stored_req *sreq)
+static void hook_xreq_store(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_stored_req *sreq)
 {
-	hook_xreq(closure, xreq, "store", NULL);
+	hook_xreq(closure, hookid, xreq, "store", NULL);
 }
 
-static void hook_xreq_unstore(void *closure, const struct afb_xreq *xreq)
+static void hook_xreq_unstore(void *closure, unsigned hookid, const struct afb_xreq *xreq)
 {
-	hook_xreq(closure, xreq, "unstore", NULL);
+	hook_xreq(closure, hookid, xreq, "unstore", NULL);
 }
 
-static void hook_xreq_subcall_req(void *closure, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
+static void hook_xreq_subcall_req(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	hook_xreq(closure, xreq, "subcall_req", "{ss? ss? sO?}",
+	hook_xreq(closure, hookid, xreq, "subcall_req", "{ss? ss? sO?}",
 					"api", api,
 					"verb", verb,
 					"args", args);
 }
 
-static void hook_xreq_subcall_req_result(void *closure, const struct afb_xreq *xreq, int status, struct json_object *result)
+static void hook_xreq_subcall_req_result(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result)
 {
-	hook_xreq(closure, xreq, "subcall_req_result", "{si sO?}",
+	hook_xreq(closure, hookid, xreq, "subcall_req_result", "{si sO?}",
 					"status", status,
 					"result", result);
 }
@@ -513,45 +515,45 @@ static int get_ditf_flag(const char *name)
 }
 
 
-static void hook_ditf(void *closure, const struct afb_ditf *ditf, const char *action, const char *format, ...)
+static void hook_ditf(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *action, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-	emit(closure, "daemon", "{ss ss}", format, ap,
+	emit(closure, hookid, "daemon", "{ss ss}", format, ap,
 					"api", ditf->api,
 					"action", action);
 	va_end(ap);
 }
 
-static void hook_ditf_event_broadcast_before(void *closure, const struct afb_ditf *ditf, const char *name, struct json_object *object)
+static void hook_ditf_event_broadcast_before(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object)
 {
-	hook_ditf(closure, ditf, "event_broadcast_before", "{ss sO*}",
+	hook_ditf(closure, hookid, ditf, "event_broadcast_before", "{ss sO*}",
 			"name", name, "data", object);
 }
 
-static void hook_ditf_event_broadcast_after(void *closure, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
+static void hook_ditf_event_broadcast_after(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
 {
-	hook_ditf(closure, ditf, "event_broadcast_after", "{ss sO* si}",
+	hook_ditf(closure, hookid, ditf, "event_broadcast_after", "{ss sO* si}",
 			"name", name, "data", object, "result", result);
 }
 
-static void hook_ditf_get_event_loop(void *closure, const struct afb_ditf *ditf, struct sd_event *result)
+static void hook_ditf_get_event_loop(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_event *result)
 {
-	hook_ditf(closure, ditf, "get_event_loop", NULL);
+	hook_ditf(closure, hookid, ditf, "get_event_loop", NULL);
 }
 
-static void hook_ditf_get_user_bus(void *closure, const struct afb_ditf *ditf, struct sd_bus *result)
+static void hook_ditf_get_user_bus(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_bus *result)
 {
-	hook_ditf(closure, ditf, "get_user_bus", NULL);
+	hook_ditf(closure, hookid, ditf, "get_user_bus", NULL);
 }
 
-static void hook_ditf_get_system_bus(void *closure, const struct afb_ditf *ditf, struct sd_bus *result)
+static void hook_ditf_get_system_bus(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_bus *result)
 {
-	hook_ditf(closure, ditf, "get_system_bus", NULL);
+	hook_ditf(closure, hookid, ditf, "get_system_bus", NULL);
 }
 
-static void hook_ditf_vverbose(void*closure, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+static void hook_ditf_vverbose(void *closure, unsigned hookid, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	struct json_object *pos;
 	int len;
@@ -568,7 +570,7 @@ static void hook_ditf_vverbose(void*closure, const struct afb_ditf *ditf, int le
 	if (file)
 		wrap_json_pack(&pos, "{ss si ss*}", "file", file, "line", line, "function", function);
 
-	hook_ditf(closure, ditf, "vverbose", "{si ss* ss? so*}",
+	hook_ditf(closure, hookid, ditf, "vverbose", "{si ss* ss? so*}",
 					"level", level,
  					"type", verbosity_level_name(level),
 					len < 0 ? "format" : "message", len < 0 ? fmt : msg,
@@ -577,13 +579,13 @@ static void hook_ditf_vverbose(void*closure, const struct afb_ditf *ditf, int le
 	free(msg);
 }
 
-static void hook_ditf_event_make(void *closure, const struct afb_ditf *ditf, const char *name, struct afb_event result)
+static void hook_ditf_event_make(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct afb_event result)
 {
-	hook_ditf(closure, ditf, "event_make", "{ss ss si}",
+	hook_ditf(closure, hookid, ditf, "event_make", "{ss ss si}",
 			"name", name, "event", afb_evt_event_name(result), "id", afb_evt_event_id(result));
 }
 
-static void hook_ditf_rootdir_get_fd(void *closure, const struct afb_ditf *ditf, int result)
+static void hook_ditf_rootdir_get_fd(void *closure, unsigned hookid, const struct afb_ditf *ditf, int result)
 {
 	char path[PATH_MAX];
 
@@ -592,12 +594,12 @@ static void hook_ditf_rootdir_get_fd(void *closure, const struct afb_ditf *ditf,
 		readlink(path, path, sizeof path);
 	}
 
-	hook_ditf(closure, ditf, "rootdir_get_fd", "{ss}",
+	hook_ditf(closure, hookid, ditf, "rootdir_get_fd", "{ss}",
 			result < 0 ? "path" : "error",
 			result < 0 ? strerror(errno) : path);
 }
 
-static void hook_ditf_rootdir_open_locale(void *closure, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
+static void hook_ditf_rootdir_open_locale(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
 {
 	char path[PATH_MAX];
 
@@ -606,7 +608,7 @@ static void hook_ditf_rootdir_open_locale(void *closure, const struct afb_ditf *
 		readlink(path, path, sizeof path);
 	}
 
-	hook_ditf(closure, ditf, "rootdir_open_locale", "{ss si ss* ss}",
+	hook_ditf(closure, hookid, ditf, "rootdir_open_locale", "{ss si ss* ss}",
 			"file", filename,
 			"flags", flags,
 			"locale", locale,
@@ -614,24 +616,24 @@ static void hook_ditf_rootdir_open_locale(void *closure, const struct afb_ditf *
 			result < 0 ? strerror(errno) : path);
 }
 
-static void hook_ditf_queue_job(void *closure, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+static void hook_ditf_queue_job(void *closure, unsigned hookid, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
 {
-	hook_ditf(closure, ditf, "queue_job", "{ss}", "result", result);
+	hook_ditf(closure, hookid, ditf, "queue_job", "{ss}", "result", result);
 }
 
-static void hook_ditf_unstore_req(void * closure,  const struct afb_ditf *ditf, struct afb_stored_req *sreq)
+static void hook_ditf_unstore_req(void * closure, unsigned hookid, const struct afb_ditf *ditf, struct afb_stored_req *sreq)
 {
-	hook_ditf(closure, ditf, "unstore_req", NULL);
+	hook_ditf(closure, hookid, ditf, "unstore_req", NULL);
 }
 
-static void hook_ditf_require_api(void *closure, const struct afb_ditf *ditf, const char *name, int initialized)
+static void hook_ditf_require_api(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, int initialized)
 {
-	hook_ditf(closure, ditf, "require_api", "{ss sb}", "name", name, "initialized", initialized);
+	hook_ditf(closure, hookid, ditf, "require_api", "{ss sb}", "name", name, "initialized", initialized);
 }
 
-static void hook_ditf_require_api_result(void *closure, const struct afb_ditf *ditf, const char *name, int initialized, int result)
+static void hook_ditf_require_api_result(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result)
 {
-	hook_ditf(closure, ditf, "require_api_result", "{ss sb si}", "name", name, "initialized", initialized, "result", result);
+	hook_ditf(closure, hookid, ditf, "require_api_result", "{ss sb si}", "name", name, "initialized", initialized, "result", result);
 }
 
 static struct afb_hook_ditf_itf hook_ditf_itf = {
@@ -672,60 +674,60 @@ static int get_svc_flag(const char *name)
 	return get_flag(name, svc_flags, (int)(sizeof svc_flags / sizeof *svc_flags));
 }
 
-static void hook_svc(void *closure, const struct afb_svc *svc, const char *action, const char *format, ...)
+static void hook_svc(void *closure, unsigned hookid, const struct afb_svc *svc, const char *action, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-	emit(closure, "service", "{ss ss}", format, ap,
+	emit(closure, hookid, "service", "{ss ss}", format, ap,
 					"api", svc->api,
 					"action", action);
 	va_end(ap);
 }
 
-static void hook_svc_start_before(void *closure, const struct afb_svc *svc)
+static void hook_svc_start_before(void *closure, unsigned hookid, const struct afb_svc *svc)
 {
-	hook_svc(closure, svc, "start_before", NULL);
+	hook_svc(closure, hookid, svc, "start_before", NULL);
 }
 
-static void hook_svc_start_after(void *closure, const struct afb_svc *svc, int status)
+static void hook_svc_start_after(void *closure, unsigned hookid, const struct afb_svc *svc, int status)
 {
-	hook_svc(closure, svc, "start_after", "{si}", "result", status);
+	hook_svc(closure, hookid, svc, "start_after", "{si}", "result", status);
 }
 
-static void hook_svc_on_event_before(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_before(void *closure, unsigned hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
 {
-	hook_svc(closure, svc, "on_event_before", "{ss si sO*}",
+	hook_svc(closure, hookid, svc, "on_event_before", "{ss si sO*}",
 			"event", event, "id", eventid, "data", object);
 }
 
-static void hook_svc_on_event_after(void *closure, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_after(void *closure, unsigned hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
 {
-	hook_svc(closure, svc, "on_event_after", "{ss si sO*}",
+	hook_svc(closure, hookid, svc, "on_event_after", "{ss si sO*}",
 			"event", event, "id", eventid, "data", object);
 }
 
-static void hook_svc_call(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+static void hook_svc_call(void *closure, unsigned hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
 {
-	hook_svc(closure, svc, "call", "{ss ss sO*}",
+	hook_svc(closure, hookid, svc, "call", "{ss ss sO*}",
 			"api", api, "verb", verb, "args", args);
 }
 
-static void hook_svc_call_result(void *closure, const struct afb_svc *svc, int status, struct json_object *result)
+static void hook_svc_call_result(void *closure, unsigned hookid, const struct afb_svc *svc, int status, struct json_object *result)
 {
-	hook_svc(closure, svc, "call_result", "{si sO*}",
+	hook_svc(closure, hookid, svc, "call_result", "{si sO*}",
 			"status", status, "result", result);
 }
 
-static void hook_svc_callsync(void *closure, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+static void hook_svc_callsync(void *closure, unsigned hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
 {
-	hook_svc(closure, svc, "callsync", "{ss ss sO*}",
+	hook_svc(closure, hookid, svc, "callsync", "{ss ss sO*}",
 			"api", api, "verb", verb, "args", args);
 }
 
-static void hook_svc_callsync_result(void *closure, const struct afb_svc *svc, int status, struct json_object *result)
+static void hook_svc_callsync_result(void *closure, unsigned hookid, const struct afb_svc *svc, int status, struct json_object *result)
 {
-	hook_svc(closure, svc, "callsync_result", "{si sO*}",
+	hook_svc(closure, hookid, svc, "callsync_result", "{si sO*}",
 			"status", status, "result", result);
 }
 
@@ -763,52 +765,52 @@ static int get_evt_flag(const char *name)
 	return get_flag(name, evt_flags, (int)(sizeof evt_flags / sizeof *evt_flags));
 }
 
-static void hook_evt(void *closure, const char *evt, int id, const char *action, const char *format, ...)
+static void hook_evt(void *closure, unsigned hookid, const char *evt, int id, const char *action, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-	emit(closure, "event", "{si ss ss}", format, ap,
+	emit(closure, hookid, "event", "{si ss ss}", format, ap,
 					"id", id,
 					"name", evt,
 					"action", action);
 	va_end(ap);
 }
 
-static void hook_evt_create(void *closure, const char *evt, int id)
+static void hook_evt_create(void *closure, unsigned hookid, const char *evt, int id)
 {
-	hook_evt(closure, evt, id, "create", NULL);
+	hook_evt(closure, hookid, evt, id, "create", NULL);
 }
 
-static void hook_evt_push_before(void *closure, const char *evt, int id, struct json_object *obj)
+static void hook_evt_push_before(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj)
 {
-	hook_evt(closure, evt, id, "push_before", "{sO*}", "data", obj);
+	hook_evt(closure, hookid, evt, id, "push_before", "{sO*}", "data", obj);
 }
 
 
-static void hook_evt_push_after(void *closure, const char *evt, int id, struct json_object *obj, int result)
+static void hook_evt_push_after(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj, int result)
 {
-	hook_evt(closure, evt, id, "push_after", "{sO* si}", "data", obj, "result", result);
+	hook_evt(closure, hookid, evt, id, "push_after", "{sO* si}", "data", obj, "result", result);
 }
 
-static void hook_evt_broadcast_before(void *closure, const char *evt, int id, struct json_object *obj)
+static void hook_evt_broadcast_before(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj)
 {
-	hook_evt(closure, evt, id, "broadcast_before", "{sO*}", "data", obj);
+	hook_evt(closure, hookid, evt, id, "broadcast_before", "{sO*}", "data", obj);
 }
 
-static void hook_evt_broadcast_after(void *closure, const char *evt, int id, struct json_object *obj, int result)
+static void hook_evt_broadcast_after(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj, int result)
 {
-	hook_evt(closure, evt, id, "broadcast_after", "{sO* si}", "data", obj, "result", result);
+	hook_evt(closure, hookid, evt, id, "broadcast_after", "{sO* si}", "data", obj, "result", result);
 }
 
-static void hook_evt_name(void *closure, const char *evt, int id)
+static void hook_evt_name(void *closure, unsigned hookid, const char *evt, int id)
 {
-	hook_evt(closure, evt, id, "name", NULL);
+	hook_evt(closure, hookid, evt, id, "name", NULL);
 }
 
-static void hook_evt_drop(void *closure, const char *evt, int id)
+static void hook_evt_drop(void *closure, unsigned hookid, const char *evt, int id)
 {
-	hook_evt(closure, evt, id, "drop", NULL);
+	hook_evt(closure, hookid, evt, id, "drop", NULL);
 }
 
 static struct afb_hook_evt_itf hook_evt_itf = {
