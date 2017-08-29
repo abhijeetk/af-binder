@@ -224,6 +224,7 @@ body {
 .traceevent.daemon, .trace-box.daemon { background: #fdf; }
 .traceevent.service, .trace-box.service { background: #ddf; }
 .traceevent.event, .trace-box.event { background: #dfd; }
+.traceevent.global, .trace-box.global { background: #eee; }
 
 .traceevent.closed {
 	max-height: 16px;

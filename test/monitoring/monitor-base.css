@@ -88,8 +88,7 @@ body.on #params, body.on #connect, body.off #disconnect { display: none; }
 /*******************************************************************/
 /* setting for traces */
 
-#apis .trace-evt {
-	visibility: hidden;
+#apis .event, #apis .global {
 	display: none;
 }
 

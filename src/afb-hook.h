@@ -32,6 +32,11 @@ struct afb_svc;
 struct afb_stored_req;
 struct sd_bus;
 struct sd_event;
+struct afb_hook_xreq;
+struct afb_hook_ditf;
+struct afb_hook_svc;
+struct afb_hook_evt;
+struct afb_hook_global;
 
 /*********************************************************
 * section hookid
@@ -45,7 +50,6 @@ struct afb_hookid
 /*********************************************************
 * section hooking xreq
 *********************************************************/
-struct afb_hook_xreq;
 
 /* individual flags */
 #define afb_hook_flag_req_begin			0x000001
@@ -301,7 +305,23 @@ extern void afb_hook_evt_name(const char *evt, int id);
 extern void afb_hook_evt_drop(const char *evt, int id);
 
 extern int afb_hook_flags_evt(const char *name);
-extern struct afb_hook_evt *afb_hook_create_evt(const char *name, int flags, struct afb_hook_evt_itf *itf, void *closure);
+extern struct afb_hook_evt *afb_hook_create_evt(const char *pattern, int flags, struct afb_hook_evt_itf *itf, void *closure);
 extern struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook);
 extern void afb_hook_unref_evt(struct afb_hook_evt *hook);
+
+/*********************************************************
+* section hooking global (global interface)
+*********************************************************/
+
+#define afb_hook_flag_global_vverbose			0x000001
+
+#define afb_hook_flags_global_all	(afb_hook_flag_global_vverbose)
+
+struct afb_hook_global_itf {
+	void (*hook_global_vverbose)(void *closure, const struct afb_hookid *hookid, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
+};
+
+extern struct afb_hook_global *afb_hook_create_global(int flags, struct afb_hook_global_itf *itf, void *closure);
+extern struct afb_hook_global *afb_hook_addref_global(struct afb_hook_global *hook);
+extern void afb_hook_unref_global(struct afb_hook_global *hook);
 

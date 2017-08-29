@@ -98,6 +98,7 @@ enum trace_type
 	Trace_Type_Ditf,	/* ditf hooks */
 	Trace_Type_Svc,		/* svc hooks */
 	Trace_Type_Evt,		/* evt hooks */
+	Trace_Type_Global,	/* global hooks */
 	Trace_Type_Count	/* count of types of hooks */
 };
 
@@ -821,6 +822,60 @@ static struct afb_hook_evt_itf hook_evt_itf = {
 };
 
 /*******************************************************************************/
+/*****  trace the globals                                                  *****/
+/*******************************************************************************/
+
+static struct flag global_flags[] = { /* must be sorted by names */
+		{ "all",		afb_hook_flags_global_all },
+		{ "vverbose",		afb_hook_flag_global_vverbose },
+};
+
+/* get the global value for flag of 'name' */
+static int get_global_flag(const char *name)
+{
+	return get_flag(name, global_flags, (int)(sizeof global_flags / sizeof *global_flags));
+}
+
+static void hook_global(void *closure, const struct afb_hookid *hookid, const char *action, const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
+	emit(closure, hookid, "global", "{ss}", format, ap, "action", action);
+	va_end(ap);
+}
+
+static void hook_global_vverbose(void *closure, const struct afb_hookid *hookid, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+{
+	struct json_object *pos;
+	int len;
+	char *msg;
+	va_list ap;
+
+	pos = NULL;
+	msg = NULL;
+
+	va_copy(ap, args);
+	len = vasprintf(&msg, fmt, ap);
+	va_end(ap);
+
+	if (file)
+		wrap_json_pack(&pos, "{ss si ss*}", "file", file, "line", line, "function", function);
+
+	hook_global(closure, hookid, "vverbose", "{si ss* ss? so*}",
+					"level", level,
+ 					"type", verbosity_level_name(level),
+					len < 0 ? "format" : "message", len < 0 ? fmt : msg,
+					"position", pos);
+
+	free(msg);
+}
+
+static struct afb_hook_global_itf hook_global_itf = {
+	.hook_global_vverbose = hook_global_vverbose,
+};
+
+/*******************************************************************************/
 /*****  abstract types                                                     *****/
 /*******************************************************************************/
 
@@ -856,7 +911,13 @@ abstracting[Trace_Type_Count] =
 		.name = "event",
 		.unref =  (void(*)(void*))afb_hook_unref_evt,
 		.get_flag = get_evt_flag
-	}
+	},
+	[Trace_Type_Global] =
+	{
+		.name = "global",
+		.unref =  (void(*)(void*))afb_hook_unref_global,
+		.get_flag = get_global_flag
+	},
 };
 
 /*******************************************************************************/
@@ -1149,6 +1210,9 @@ static void addhook(struct desc *desc, enum trace_type type)
 	case Trace_Type_Evt:
 		hook->handler = afb_hook_create_evt(desc->pattern, desc->flags[type], &hook_evt_itf, hook);
 		break;
+	case Trace_Type_Global:
+		hook->handler = afb_hook_create_global(desc->flags[type], &hook_global_itf, hook);
+		break;
 	default:
 		break;
 	}
@@ -1214,17 +1278,22 @@ static void add_evt_flags(void *closure, struct json_object *object)
 	add_flags(closure, object, Trace_Type_Evt);
 }
 
+static void add_global_flags(void *closure, struct json_object *object)
+{
+	add_flags(closure, object, Trace_Type_Global);
+}
+
 /* add hooks */
 static void add(void *closure, struct json_object *object)
 {
 	int rc;
 	struct desc desc;
-	struct json_object *request, *event, *daemon, *service, *sub;
+	struct json_object *request, *event, *daemon, *service, *sub, *global;
 
 	memcpy (&desc, closure, sizeof desc);
-	request = event = daemon = service = sub = NULL;
+	request = event = daemon = service = sub = global = NULL;
 
-	rc = wrap_json_unpack(object, "{s?s s?s s?s s?s s?s s?s s?o s?o s?o s?o s?o}",
+	rc = wrap_json_unpack(object, "{s?s s?s s?s s?s s?s s?s s?o s?o s?o s?o s?o s?o}",
 			"name", &desc.name,
 			"tag", &desc.tag,
 			"api", &desc.api,
@@ -1235,6 +1304,7 @@ static void add(void *closure, struct json_object *object)
 			"daemon", &daemon,
 			"service", &service,
 			"event", &event,
+			"global", &global,
 			"for", &sub);
 
 	if (!rc) {
@@ -1260,6 +1330,9 @@ static void add(void *closure, struct json_object *object)
 
 		if (event)
 			wrap_json_optarray_for_all(event, add_evt_flags, &desc);
+
+		if (global)
+			wrap_json_optarray_for_all(global, add_global_flags, &desc);
 
 		/* apply */
 		if (sub)

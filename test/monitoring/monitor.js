@@ -445,6 +445,7 @@ function gottraceevent(obj) {
 		service: function(r) { return r.api + "@" + r.action; },
 		daemon: function(r) { return r.api + ":" + r.action; },
 		event: function(r) { return r.name + "!" + r.action; },
+		global: function(r) { return "$" + r.action; },
 		})[type](desc);
 	var tab = makeobj(desc, 4);
 	if ("data" in data)

@@ -90,6 +90,17 @@ struct afb_hook_evt {
 	void *closure; /**< closure for callbacks */
 };
 
+/**
+ * Definition of a hook for global
+ */
+struct afb_hook_global {
+	struct afb_hook_global *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	unsigned flags; /**< hook flags */
+	struct afb_hook_global_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
+};
+
 /* synchronisation across threads */
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -104,6 +115,9 @@ static struct afb_hook_svc *list_of_svc_hooks = NULL;
 
 /* list of hooks for evt */
 static struct afb_hook_evt *list_of_evt_hooks = NULL;
+
+/* list of hooks for global */
+static struct afb_hook_global *list_of_global_hooks = NULL;
 
 /* hook id */
 static unsigned next_hookid = 0;
@@ -1159,7 +1173,7 @@ static struct afb_hook_evt_itf hook_evt_default_itf = {
 };
 
 /******************************************************************************
- * section: hooks for tracing service interface (evt)
+ * section: hooks for tracing events interface (evt)
  *****************************************************************************/
 
 #define _HOOK_EVT_(what,...)   \
@@ -1300,3 +1314,144 @@ void afb_hook_unref_evt(struct afb_hook_evt *hook)
 		}
 	}
 }
+
+/******************************************************************************
+ * section: default callbacks for globals (global)
+ *****************************************************************************/
+
+static void _hook_global_(const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	_hook_("global", format, ap);
+	va_end(ap);
+}
+
+static void hook_global_vverbose_default_cb(void *closure, const struct afb_hookid *hookid, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	int len;
+	char *msg;
+	va_list ap;
+
+	va_copy(ap, args);
+	len = vasprintf(&msg, fmt, ap);
+	va_end(ap);
+
+	if (len < 0)
+		_hook_global_("vverbose(%d, %s, %d, %s) -> %s ? ? ?", level, file, line, func, fmt);
+	else {
+		_hook_global_("vverbose(%d, %s, %d, %s) -> %s", level, file, line, func, msg);
+		free(msg);
+	}
+}
+
+static struct afb_hook_global_itf hook_global_default_itf = {
+	.hook_global_vverbose = hook_global_vverbose_default_cb
+};
+
+/******************************************************************************
+ * section: hooks for tracing globals (global)
+ *****************************************************************************/
+
+#define _HOOK_GLOBAL_(what,...)   \
+	struct afb_hook_global *hook; \
+	struct afb_hookid hookid; \
+	pthread_rwlock_rdlock(&rwlock); \
+	init_hookid(&hookid); \
+	hook = list_of_global_hooks; \
+	while (hook) { \
+		if (hook->itf->hook_global_##what \
+		 && (hook->flags & afb_hook_flag_global_##what) != 0) { \
+			hook->itf->hook_global_##what(hook->closure, &hookid, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
+
+static void afb_hook_global_vverbose(int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+{
+	_HOOK_GLOBAL_(vverbose, level, file ?: "?", line, func ?: "?", fmt, args);
+}
+
+/******************************************************************************
+ * section: hooking globals (global)
+ *****************************************************************************/
+
+static void update_global()
+{
+	struct afb_hook_global *hook;
+	int flags = 0;
+
+	pthread_rwlock_rdlock(&rwlock);
+	hook = list_of_global_hooks;
+	while (hook) {
+		flags = hook->flags;
+		hook = hook->next;
+	}
+	verbose_observer = (flags & afb_hook_flag_global_vverbose) ? afb_hook_global_vverbose : NULL;
+	pthread_rwlock_unlock(&rwlock);
+}
+
+struct afb_hook_global *afb_hook_create_global(int flags, struct afb_hook_global_itf *itf, void *closure)
+{
+	struct afb_hook_global *hook;
+
+	/* alloc the result */
+	hook = calloc(1, sizeof *hook);
+	if (hook == NULL)
+		return NULL;
+
+	/* initialise the rest */
+	hook->refcount = 1;
+	hook->flags = flags;
+	hook->itf = itf ? itf : &hook_global_default_itf;
+	hook->closure = closure;
+
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
+	hook->next = list_of_global_hooks;
+	list_of_global_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* update hooking */
+	update_global();
+
+	/* returns it */
+	return hook;
+}
+
+struct afb_hook_global *afb_hook_addref_global(struct afb_hook_global *hook)
+{
+	pthread_rwlock_wrlock(&rwlock);
+	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
+	return hook;
+}
+
+void afb_hook_unref_global(struct afb_hook_global *hook)
+{
+	struct afb_hook_global **prv;
+
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_global_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook);
+
+			/* update hooking */
+			update_global();
+		}
+	}
+}
+

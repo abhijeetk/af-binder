@@ -132,12 +132,16 @@ void verbose(int loglevel, const char *file, int line, const char *function, con
 
 void vverbose(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
-	if (verbose_observer) {
+	void (*observer)(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args) = verbose_observer;
+
+	if (!observer)
+		_vverbose_(loglevel, file, line, function, fmt, args);
+	else {
 		va_list ap;
 		va_copy(ap, args);
-		verbose_observer(loglevel, file, line, function, fmt, ap);
+		_vverbose_(loglevel, file, line, function, fmt, args);
+		observer(loglevel, file, line, function, fmt, ap);
 		va_end(ap);
 	}
-	_vverbose_(loglevel, file, line, function, fmt, args);
 }
 

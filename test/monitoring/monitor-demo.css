@@ -244,6 +244,7 @@ html {
 .traceevent.daemon, .trace-box.daemon { color: #5af; }
 .traceevent.service, .trace-box.service { color: #0f0; }
 .traceevent.event, .trace-box.event { color: #f52; }
+.traceevent.global, .trace-box.global { color: white; }
 
 .traceevent.closed {
 	max-height: 16px;
