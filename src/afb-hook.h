@@ -18,6 +18,7 @@
 #pragma once
 
 #include <stdarg.h>
+#include <time.h>
 
 struct req;
 struct afb_context;
@@ -31,6 +32,15 @@ struct afb_svc;
 struct afb_stored_req;
 struct sd_bus;
 struct sd_event;
+
+/*********************************************************
+* section hookid
+*********************************************************/
+struct afb_hookid
+{
+	unsigned id;		/* id of the hook event */
+	struct timespec time;	/* time of the hook event */
+};
 
 /*********************************************************
 * section hooking xreq
@@ -86,29 +96,29 @@ struct afb_hook_xreq;
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
 
 struct afb_hook_xreq_itf {
-	void (*hook_xreq_begin)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_end)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_json)(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct json_object *obj);
-	void (*hook_xreq_get)(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *name, struct afb_arg arg);
-	void (*hook_xreq_success)(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct json_object *obj, const char *info);
-	void (*hook_xreq_fail)(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *status, const char *info);
-	void (*hook_xreq_context_get)(void *closure, unsigned hookid, const struct afb_xreq *xreq, void *value);
-	void (*hook_xreq_context_set)(void *closure, unsigned hookid, const struct afb_xreq *xreq, void *value, void (*free_value)(void*));
-	void (*hook_xreq_addref)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_unref)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_session_close)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_session_set_LOA)(void *closure, unsigned hookid, const struct afb_xreq *xreq, unsigned level, int result);
-	void (*hook_xreq_subscribe)(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_event event, int result);
-	void (*hook_xreq_unsubscribe)(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_event event, int result);
-	void (*hook_xreq_subcall)(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
-	void (*hook_xreq_subcall_result)(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
-	void (*hook_xreq_subcallsync)(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
-	void (*hook_xreq_subcallsync_result)(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
-	void (*hook_xreq_vverbose)(void *closure, unsigned hookid, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
-	void (*hook_xreq_store)(void *closure, unsigned hookid, const struct afb_xreq *xreq, struct afb_stored_req *sreq);
-	void (*hook_xreq_unstore)(void *closure, unsigned hookid, const struct afb_xreq *xreq);
-	void (*hook_xreq_subcall_req)(void *closure, unsigned hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
-	void (*hook_xreq_subcall_req_result)(void *closure, unsigned hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_begin)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_end)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_json)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *obj);
+	void (*hook_xreq_get)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *name, struct afb_arg arg);
+	void (*hook_xreq_success)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *obj, const char *info);
+	void (*hook_xreq_fail)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *status, const char *info);
+	void (*hook_xreq_context_get)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, void *value);
+	void (*hook_xreq_context_set)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, void *value, void (*free_value)(void*));
+	void (*hook_xreq_addref)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_unref)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_session_close)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_session_set_LOA)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, unsigned level, int result);
+	void (*hook_xreq_subscribe)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_event event, int result);
+	void (*hook_xreq_unsubscribe)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_event event, int result);
+	void (*hook_xreq_subcall)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+	void (*hook_xreq_subcall_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_subcallsync)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+	void (*hook_xreq_subcallsync_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_vverbose)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args);
+	void (*hook_xreq_store)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_stored_req *sreq);
+	void (*hook_xreq_unstore)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
+	void (*hook_xreq_subcall_req)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
+	void (*hook_xreq_subcall_req_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -177,19 +187,19 @@ extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int st
 #define afb_hook_flags_ditf_all		(afb_hook_flags_ditf_common|afb_hook_flags_ditf_extra)
 
 struct afb_hook_ditf_itf {
-	void (*hook_ditf_event_broadcast_before)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object);
-	void (*hook_ditf_event_broadcast_after)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result);
-	void (*hook_ditf_get_event_loop)(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_event *result);
-	void (*hook_ditf_get_user_bus)(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_bus *result);
-	void (*hook_ditf_get_system_bus)(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct sd_bus *result);
-	void (*hook_ditf_vverbose)(void *closure, unsigned hookid, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
-	void (*hook_ditf_event_make)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, struct afb_event result);
-	void (*hook_ditf_rootdir_get_fd)(void *closure, unsigned hookid, const struct afb_ditf *ditf, int result);
-	void (*hook_ditf_rootdir_open_locale)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
-	void (*hook_ditf_queue_job)(void *closure, unsigned hookid, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
-	void (*hook_ditf_unstore_req)(void *closure, unsigned hookid, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
-	void (*hook_ditf_require_api)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, int initialized);
-	void (*hook_ditf_require_api_result)(void *closure, unsigned hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result);
+	void (*hook_ditf_event_broadcast_before)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object);
+	void (*hook_ditf_event_broadcast_after)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result);
+	void (*hook_ditf_get_event_loop)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_event *result);
+	void (*hook_ditf_get_user_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result);
+	void (*hook_ditf_get_system_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result);
+	void (*hook_ditf_vverbose)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
+	void (*hook_ditf_event_make)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct afb_event result);
+	void (*hook_ditf_rootdir_get_fd)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int result);
+	void (*hook_ditf_rootdir_open_locale)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
+	void (*hook_ditf_queue_job)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
+	void (*hook_ditf_unstore_req)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
+	void (*hook_ditf_require_api)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized);
+	void (*hook_ditf_require_api_result)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result);
 };
 
 extern void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object);
@@ -230,14 +240,14 @@ extern void afb_hook_unref_ditf(struct afb_hook_ditf *hook);
 					|afb_hook_flag_svc_callsync|afb_hook_flag_svc_callsync_result)
 
 struct afb_hook_svc_itf {
-	void (*hook_svc_start_before)(void *closure, unsigned hookid, const struct afb_svc *svc);
-	void (*hook_svc_start_after)(void *closure, unsigned hookid, const struct afb_svc *svc, int status);
-	void (*hook_svc_on_event_before)(void *closure, unsigned hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-	void (*hook_svc_on_event_after)(void *closure, unsigned hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-	void (*hook_svc_call)(void *closure, unsigned hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-	void (*hook_svc_call_result)(void *closure, unsigned hookid, const struct afb_svc *svc, int status, struct json_object *result);
-	void (*hook_svc_callsync)(void *closure, unsigned hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-	void (*hook_svc_callsync_result)(void *closure, unsigned hookid, const struct afb_svc *svc, int status, struct json_object *result);
+	void (*hook_svc_start_before)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc);
+	void (*hook_svc_start_after)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status);
+	void (*hook_svc_on_event_before)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_on_event_after)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_call)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_call_result)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result);
+	void (*hook_svc_callsync)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_callsync_result)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result);
 };
 
 extern void afb_hook_svc_start_before(const struct afb_svc *svc);
@@ -273,13 +283,13 @@ extern void afb_hook_unref_svc(struct afb_hook_svc *hook);
 #define afb_hook_flags_evt_all		(afb_hook_flags_evt_extra|afb_hook_flag_evt_name)
 
 struct afb_hook_evt_itf {
-	void (*hook_evt_create)(void *closure, unsigned hookid, const char *evt, int id);
-	void (*hook_evt_push_before)(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj);
-	void (*hook_evt_push_after)(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj, int result);
-	void (*hook_evt_broadcast_before)(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj);
-	void (*hook_evt_broadcast_after)(void *closure, unsigned hookid, const char *evt, int id, struct json_object *obj, int result);
-	void (*hook_evt_name)(void *closure, unsigned hookid, const char *evt, int id);
-	void (*hook_evt_drop)(void *closure, unsigned hookid, const char *evt, int id);
+	void (*hook_evt_create)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
+	void (*hook_evt_push_before)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj);
+	void (*hook_evt_push_after)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj, int result);
+	void (*hook_evt_broadcast_before)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj);
+	void (*hook_evt_broadcast_after)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj, int result);
+	void (*hook_evt_name)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
+	void (*hook_evt_drop)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
 };
 
 extern void afb_hook_evt_create(const char *evt, int id);
