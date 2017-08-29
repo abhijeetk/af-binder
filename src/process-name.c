@@ -29,7 +29,6 @@ int process_name_set_name(const char *name)
 int process_name_replace_cmdline(char **argv, const char *name)
 {
 	char *beg, *end, **av, c;
-	size_t length;
 
 	/* update the command line */
 	av = argv;
