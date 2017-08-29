@@ -74,6 +74,7 @@ body.on #params, body.on #connect, body.off #disconnect { display: none; }
 /*******************************************************************/
 /* main area */
 
+#work { overflow-x: auto; }
 #controls, #menu { flex: 1; }
 #middle { flex: 3; }
 #controls { min-width: 300px; }
