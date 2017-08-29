@@ -27,9 +27,10 @@
    ----------------+------------------------
     lesser than 0  : no message at all
          0         : ERROR
-         1         : ERROR, WARNING, NOTICE
-         2         : ERROR, WARNING, NOTICE, INFO
-    greater than 2 : ERROR, WARNING, NOTICE, INFO, DEBUG
+         1         : ERROR, WARNING
+         2         : ERROR, WARNING, NOTICE
+         3         : ERROR, WARNING, NOTICE, INFO
+    greater than 3 : ERROR, WARNING, NOTICE, INFO, DEBUG
 
 */
 extern int verbosity;
@@ -38,9 +39,9 @@ enum verbosity_levels
 {
 	Verbosity_Level_Error = 0,
 	Verbosity_Level_Warning = 1,
-	Verbosity_Level_Notice = 1,
-	Verbosity_Level_Info = 2,
-	Verbosity_Level_Debug = 3
+	Verbosity_Level_Notice = 2,
+	Verbosity_Level_Info = 3,
+	Verbosity_Level_Debug = 4
 };
 
 extern void verbose_set_name(const char *name, int authority);
