@@ -38,6 +38,11 @@ INCLUDE(GNUInstallDirs)
 INCLUDE(CTest)
 
 ###########################################################################
+# possible settings
+set(AGL_DEVEL OFF CACHE BOOL "Activates developping features")
+set(INCLUDE_MONITORING OFF CACHE BOOL "Activates installation of monitoring")
+
+###########################################################################
 
 link_libraries(-Wl,--as-needed -Wl,--gc-sections -Wl,--no-undefined)
 
@@ -81,6 +86,10 @@ PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.55)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
 PKG_CHECK_MODULES(cynara cynara-client)
+
+IF(AGL_DEVEL)
+	ADD_DEFINITIONS(-DAGL_DEVEL)
+endif()
 
 IF(cynara_FOUND)
 	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
