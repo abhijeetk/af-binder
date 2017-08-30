@@ -64,6 +64,7 @@ struct events
 	struct events *next;
 	struct sd_event *event;
 	uint64_t timeout;
+	unsigned used: 1;
 	unsigned runs: 1;
 };
 
@@ -203,7 +204,7 @@ static inline struct job *job_get()
 static inline struct events *events_get()
 {
 	struct events *events = first_events;
-	while (events && events->runs)
+	while (events && events->used)
 		events = events->next;
 	return events;
 }
@@ -285,7 +286,7 @@ static void events_call(int signum, void *arg)
  */
 static void thread_run(volatile struct thread *me)
 {
-	struct thread **prv;
+	struct thread **prv, *thr;
 	struct job *job;
 	struct events *events;
 	uint64_t evto;
@@ -330,13 +331,16 @@ static void thread_run(volatile struct thread *me)
 			/* release event if any */
 			events = me->events;
 			if (events) {
-				events->runs = 0;
+				events->used = 0;
 				me->events = NULL;
 			}
 		} else {
 			/* no job, check events */
-			events = events_get();
-			if (events) {
+			thr = (struct thread*)me;
+			events = NULL;
+			while (thr && !(events = thr->events))
+				thr = thr->upper;
+			if (events && !events->runs) {
 				/* run the events */
 				events->runs = 1;
 				events->timeout = evto;
@@ -347,12 +351,28 @@ static void thread_run(volatile struct thread *me)
 				events->runs = 0;
 				me->events = NULL;
 			} else {
-				/* no job and not events */
-				waiting++;
-				me->waits = 1;
-				pthread_cond_wait(&cond, &mutex);
-				me->waits = 0;
-				waiting--;
+				/* no owned event, check events */
+				events = events_get();
+				if (events) {
+					/* run the events */
+					events->used = 1;
+					events->runs = 1;
+					events->timeout = evto;
+					me->events = events;
+					pthread_mutex_unlock(&mutex);
+					sig_monitor(0, events_call, events);
+					pthread_mutex_lock(&mutex);
+					events->used = 0;
+					events->runs = 0;
+					me->events = NULL;
+				} else {
+					/* no job and not events */
+					waiting++;
+					me->waits = 1;
+					pthread_cond_wait(&cond, &mutex);
+					me->waits = 0;
+					waiting--;
+				}
 			}
 		}
 	}
@@ -644,6 +664,7 @@ struct sd_event *jobs_get_sd_event()
 				events = malloc(sizeof *events);
 				if (events && (rc = sd_event_new(&events->event)) >= 0) {
 					if (nevents < started || start_one_thread() >= 0) {
+						events->used = 0;
 						events->runs = 0;
 						events->next = first_events;
 						first_events = events;
@@ -667,10 +688,9 @@ struct sd_event *jobs_get_sd_event()
 			}
 		}
 		if (events) {
-			/* */
 			me = current;
 			if (me) {
-				events->runs = 1;
+				events->used = 1;
 				me->events = events;
 			} else {
 				WARNING("event returned for unknown thread!");
