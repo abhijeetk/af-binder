@@ -296,32 +296,36 @@ function on_got_apis(obj) {
 			for_all_nodes(api.node, ".trace-box", update_trace_box);
 		}
 		apis[api_name] = api;
-		get(".desc", api.node).textContent = api_desc.info.description || "";
-		_.each(api_desc.paths, function(verb_desc, path_name){
-			var verb_name = path_name.substring(1);
-			var verb = api.verbs[verb_name];
-			if (!verb) {
-				verb = {
-					node: document.importNode(t_verb, true),
-					name: verb_name,
-					api: api
-				};
-				verb.node.VERB = verb;
-				verb.node.dataset.verb = verb_name;
-				api.verbs[verb_name] = verb;
-				get(".name", verb.node).textContent = verb_name;
-				var g = verb_desc.get ||{};
-				var r = g["responses"] || {};
-				var t = r["200"] || {};
-				var d = t.description || "";
-				get(".desc", verb.node).textContent = d;
-				if (show_perms) {
-					var p = g["x-permissions"] || "";
-					get(".perm", verb.node).textContent = p ? JSON.stringify(p, null, 1) : "";
+		if (api_desc == null) {
+			get(".desc", api.node).textContent = "?? unrecoverable ??";
+		} else {
+			get(".desc", api.node).textContent = api_desc.info.description || "";
+			_.each(api_desc.paths, function(verb_desc, path_name){
+				var verb_name = path_name.substring(1);
+				var verb = api.verbs[verb_name];
+				if (!verb) {
+					verb = {
+						node: document.importNode(t_verb, true),
+						name: verb_name,
+						api: api
+					};
+					verb.node.VERB = verb;
+					verb.node.dataset.verb = verb_name;
+					api.verbs[verb_name] = verb;
+					get(".name", verb.node).textContent = verb_name;
+					var g = verb_desc.get ||{};
+					var r = g["responses"] || {};
+					var t = r["200"] || {};
+					var d = t.description || "";
+					get(".desc", verb.node).textContent = d;
+					if (show_perms) {
+						var p = g["x-permissions"] || "";
+						get(".perm", verb.node).textContent = p ? JSON.stringify(p, null, 1) : "";
+					}
+					api.vnode.append(verb.node);
 				}
-				api.vnode.append(verb.node);
-			}
-		});
+			});
+		}
 		apis_node.append(api.node);
 	});
 	inhibit = false;

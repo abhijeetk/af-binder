@@ -66,28 +66,28 @@ static int decode_verbosity(struct json_object *v)
 	int level = -1;
 
 	if (!wrap_json_unpack(v, "i", &level)) {
-		level = level < 0 ? 0 : level > 3 ? 3 : level;
+		level = level < Verbosity_Level_Error ? Verbosity_Level_Error : level > Verbosity_Level_Debug ? Verbosity_Level_Debug : level;
 	} else if (!wrap_json_unpack(v, "s", &s)) {
 		switch(*s&~' ') {
 		case 'D':
 			if (!strcasecmp(s, _debug_))
-				level = 3;
+				level = Verbosity_Level_Debug;
 			break;
 		case 'I':
 			if (!strcasecmp(s, _info_))
-				level = 2;
+				level = Verbosity_Level_Info;
 			break;
 		case 'N':
 			if (!strcasecmp(s, _notice_))
-				level = 1;
+				level = Verbosity_Level_Notice;
 			break;
 		case 'W':
 			if (!strcasecmp(s, _warning_))
-				level = 1;
+				level = Verbosity_Level_Warning;
 			break;
 		case 'E':
 			if (!strcasecmp(s, _error_))
-				level = 0;
+				level = Verbosity_Level_Error;
 			break;
 		}
 	}
@@ -155,10 +155,11 @@ static void set_verbosity(struct json_object *spec)
 static struct json_object *encode_verbosity(int level)
 {
 	switch(level) {
-	case 0:	return json_object_new_string(_error_);
-	case 1:	return json_object_new_string(_notice_);
-	case 2:	return json_object_new_string(_info_);
-	case 3:	return json_object_new_string(_debug_);
+	case Verbosity_Level_Error:	return json_object_new_string(_error_);
+	case Verbosity_Level_Warning:	return json_object_new_string(_warning_);
+	case Verbosity_Level_Notice:	return json_object_new_string(_notice_);
+	case Verbosity_Level_Info:	return json_object_new_string(_info_);
+	case Verbosity_Level_Debug:	return json_object_new_string(_debug_);
 	default: return json_object_new_int(level);
 	}
 }
