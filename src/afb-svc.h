@@ -50,20 +50,17 @@ struct afb_svc
 	int hookflags;
 };
 
-extern struct afb_svc *afb_svc_create_v1(
-			const char *api,
-			struct afb_apiset *apiset,
-			int share_session,
-			int (*start)(struct afb_service service),
-			void (*on_event)(const char *event, struct json_object *object));
+extern void afb_svc_destroy(struct afb_svc *svc, struct afb_service *service);
 
-extern struct afb_svc *afb_svc_create_v2(
+extern struct afb_svc *afb_svc_create(
 			const char *api,
 			struct afb_apiset *apiset,
 			int share_session,
-			int (*start)(),
 			void (*on_event)(const char *event, struct json_object *object),
-			struct afb_binding_data_v2 *data);
+			struct afb_service *service);
+
+extern int afb_svc_start_v1(struct afb_svc *svc, int (*start)(struct afb_service));
+extern int afb_svc_start_v2(struct afb_svc *svc, int (*start)());
 
 extern void afb_svc_update_hook(struct afb_svc *svc);
 

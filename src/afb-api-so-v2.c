@@ -103,6 +103,7 @@ static void call_sync_cb(void *closure, struct afb_xreq *xreq)
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
+	int rc;
 	int (*start)();
 	void (*onevent)(const char *event, struct json_object *object);
 
@@ -133,12 +134,23 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* get the event handler if any */
-	desc->service = afb_svc_create_v2(desc->binding->api, apiset, share_session, start, onevent, desc->data);
+	desc->service = afb_svc_create(desc->binding->api, apiset, share_session, onevent, &desc->data->service);
 	if (desc->service == NULL) {
 		/* starting error */
 		ERROR("Starting service %s failed", desc->binding->api);
 		return -1;
 	}
+
+	/* Starts the service */
+	rc = afb_svc_start_v2(desc->service, start);
+	if (rc < 0) {
+		/* initialisation error */
+		ERROR("Initialisation of service %s failed (%d): %m", desc->binding->api, rc);
+		afb_svc_destroy(desc->service, &desc->data->service);
+		desc->service = NULL;
+		return rc;
+	}
+
 
 	return 0;
 }

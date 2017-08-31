@@ -101,23 +101,29 @@ static inline struct afb_service to_afb_service(struct afb_svc *svc)
 /*
  * Frees a service
  */
-static void svc_free(struct afb_svc *svc)
+void afb_svc_destroy(struct afb_svc *svc, struct afb_service *service)
 {
-	if (svc->listener != NULL)
-		afb_evt_listener_unref(svc->listener);
-	if (svc->session)
-		afb_session_unref(svc->session);
-	afb_apiset_unref(svc->apiset);
-	free(svc);
+	if (service)
+		*service = (struct afb_service){ .itf = NULL, .closure = NULL };
+	if (svc) {
+		if (svc->listener != NULL)
+			afb_evt_listener_unref(svc->listener);
+		if (svc->session)
+			afb_session_unref(svc->session);
+		afb_apiset_unref(svc->apiset);
+		free(svc);
+	}
 }
 
 /*
- * Allocates a new service
+ * Creates a new service
  */
-static struct afb_svc *afb_svc_alloc(
+struct afb_svc *afb_svc_create(
 			const char *api,
 			struct afb_apiset *apiset,
-			int share_session
+			int share_session,
+			void (*on_event)(const char *event, struct json_object *object),
+			struct afb_service *service
 )
 {
 	struct afb_svc *svc;
@@ -150,31 +156,8 @@ static struct afb_svc *afb_svc_alloc(
 	}
 
 	svc->hookflags = afb_hook_flags_svc(svc->api);
-	return svc;
-
-error:
-	svc_free(svc);
-	return NULL;
-}
-
-/*
- * Creates a new service
- */
-struct afb_svc *afb_svc_create_v1(
-			const char *api,
-			struct afb_apiset *apiset,
-			int share_session,
-			int (*start)(struct afb_service service),
-			void (*on_event)(const char *event, struct json_object *object)
-)
-{
-	int rc;
-	struct afb_svc *svc;
-
-	/* allocates the svc handler */
-	svc = afb_svc_alloc(api, apiset, share_session);
-	if (svc == NULL)
-		goto error;
+	if (service)
+		*service = to_afb_service(svc);
 
 	/* initialises the listener if needed */
 	if (on_event) {
@@ -184,67 +167,42 @@ struct afb_svc *afb_svc_create_v1(
 			goto error;
 	}
 
-	/* initialises the svc now */
-	if (start) {
-		HOOK(start_before, svc);
-		rc = start(to_afb_service(svc));
-		HOOK(start_after, svc, rc);
-		if (rc < 0)
-			goto error;
-	}
-
 	return svc;
 
 error:
-	svc_free(svc);
+	afb_svc_destroy(svc, service);
 	return NULL;
 }
 
 /*
- * Creates a new service
+ * Starts a new service (v1)
  */
-struct afb_svc *afb_svc_create_v2(
-			const char *api,
-			struct afb_apiset *apiset,
-			int share_session,
-			int (*start)(),
-			void (*on_event)(const char *event, struct json_object *object),
-			struct afb_binding_data_v2 *data
-)
+int afb_svc_start_v1(struct afb_svc *svc, int (*start)(struct afb_service))
 {
 	int rc;
-	struct afb_svc *svc;
 
-	/* allocates the svc handler */
-	svc = afb_svc_alloc(api, apiset, share_session);
-	if (svc == NULL)
-		goto error;
-	data->service = to_afb_service(svc);
-
-	/* initialises the listener if needed */
-	if (on_event) {
-		svc->on_event = on_event;
-		svc->listener = afb_evt_listener_create(&evt_itf, svc);
-		if (svc->listener == NULL)
-			goto error;
-	}
-
-	/* starts the svc if needed */
-	if (start) {
-		HOOK(start_before, svc);
-		rc = start();
-		HOOK(start_after, svc, rc);
-		if (rc < 0)
-			goto error;
-	}
-
-	return svc;
-
-error:
-	svc_free(svc);
-	return NULL;
+	HOOK(start_before, svc);
+	rc = start(to_afb_service(svc));
+	HOOK(start_after, svc, rc);
+	return rc;
 }
 
+/*
+ * Starts a new service (v2)
+ */
+int afb_svc_start_v2(struct afb_svc *svc, int (*start)())
+{
+	int rc;
+
+	HOOK(start_before, svc);
+	rc = start();
+	HOOK(start_after, svc, rc);
+	return rc;
+}
+
+/*
+ * Request to updates the hooks
+ */
 void afb_svc_update_hook(struct afb_svc *svc)
 {
 	svc->hookflags = afb_hook_flags_svc(svc->api);
