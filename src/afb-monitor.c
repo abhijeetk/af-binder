@@ -243,7 +243,7 @@ static void get_one_api(struct json_object *resu, const char *name, struct json_
 	struct json_object *o;
 
 	o = afb_apiset_describe(main_apiset, name);
-	if (o || afb_apiset_has(main_apiset, name))
+	if (o || afb_apiset_has(main_apiset, name, 0))
 		json_object_object_add(resu, name, o);
 }
 

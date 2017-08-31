@@ -112,8 +112,7 @@ static struct afb_req unstore_req_cb(void *closure, struct afb_stored_req *sreq)
 
 static int require_api_cb(void *closure, const char *name, int initialized)
 {
-	struct afb_api a;
-	return (initialized ? afb_apiset_get_started : afb_apiset_get)(main_apiset, name, &a);
+	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(main_apiset, name, 1);
 }
 
 /**********************************************

@@ -286,68 +286,46 @@ int afb_apiset_del(struct afb_apiset *set, const char *name)
 }
 
 /**
- * Get from the 'set' the API of 'name' in 'api'
+ * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
  * @param set the set of API
  * @param name the name of the API to get
  * @param api the structure where to store data about the API of name
  * @return 0 in case of success or -1 in case of error
  */
-int afb_apiset_lookup(struct afb_apiset *set, const char *name, struct afb_api *api)
+static struct api_desc *lookup(struct afb_apiset *set, const char *name, int rec)
 {
-	const struct api_desc *i;
+	struct api_desc *i = search(set, name);
+	return i || !rec || !set->subset ? i : lookup(set->subset, name, rec);
+}
 
-	i = search(set, name);
-	if (i) {
-		*api = i->api;
-		return 0;
-	}
+/**
+ * Get from the 'set' the API of 'name' in 'api'
+ * @param set the set of API
+ * @param name the name of the API to get
+ * @param rec if not zero look also recursively in subsets
+ * @return 0 in case of success or -1 in case of error
+ */
+const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name, int rec)
+{
+	struct api_desc *i;
 
+	i = lookup(set, name, rec);
+	if (i)
+		return &i->api;
 	errno = ENOENT;
-	return -1;
+	return NULL;
 }
 
 /**
  * Check whether the 'set' has the API of 'name'
  * @param set the set of API
  * @param name the name of the API to get
+ * @param rec if not zero look also recursively in subsets
  * @return 1 if the api exist or 0 otherwise
  */
-int afb_apiset_has(struct afb_apiset *set, const char *name)
+int afb_apiset_has(struct afb_apiset *set, const char *name, int rec)
 {
-	return !!search(set, name);
-}
-
-/**
- * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
- * @param set the set of API
- * @param name the name of the API to get
- * @param api the structure where to store data about the API of name
- * @return 0 in case of success or -1 in case of error
- */
-static struct api_desc *get_api(struct afb_apiset *set, const char *name)
-{
-	struct api_desc *i = search(set, name);
-	return i || !set->subset ? i : get_api(set->subset, name);
-}
-
-/**
- * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
- * @param set the set of API
- * @param name the name of the API to get
- * @param api the structure where to store data about the API of name
- * @return 0 in case of success or -1 in case of error
- */
-int afb_apiset_get(struct afb_apiset *set, const char *name, struct afb_api *api)
-{
-	const struct api_desc *i;
-
-	i = get_api(set, name);
-	if (!i) {
-		errno = ENOENT;
-		return -1;
-	}
-	*api = i->api;
-	return 0;
+	return !!afb_apiset_lookup(set, name, rec);
 }
 
 /**
@@ -391,23 +369,21 @@ static int start_api(struct afb_apiset *set, struct api_desc *api, int share_ses
 }
 
 /**
- * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
+ * Get from the 'set' the API of 'name' in 'api'
  * @param set the set of API
  * @param name the name of the API to get
- * @param api the structure where to store data about the API of name
+ * @param rec if not zero look also recursively in subsets
  * @return 0 in case of success or -1 in case of error
  */
-int afb_apiset_get_started(struct afb_apiset *set, const char *name, struct afb_api *api)
+const struct afb_api *afb_apiset_lookup_started(struct afb_apiset *set, const char *name, int rec)
 {
 	struct api_desc *i;
 
-	i = get_api(set, name);
-	if (!i) {
-		errno = ENOENT;
-		return -1;
-	}
-	*api = i->api;
-	return i->status ? start_api(set, i, 1, 1) : 0;
+	i = lookup(set, name, rec);
+	if (i)
+		return i->status && start_api(set, i, 1, 1) ? NULL : &i->api;
+	errno = ENOENT;
+	return NULL;
 }
 
 /**

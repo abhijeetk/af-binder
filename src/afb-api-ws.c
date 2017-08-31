@@ -318,7 +318,6 @@ int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
 {
 	int rc;
 	struct api_ws *apiws;
-	struct afb_api api;
 
 	/* creates the ws api object */
 	apiws = api_ws_make(path);
@@ -326,7 +325,7 @@ int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
 		goto error;
 
 	/* check api name */
-	if (afb_apiset_get(apiset, apiws->api, &api)) {
+	if (afb_apiset_has(apiset, apiws->api, 1)) {
 		ERROR("Can't provide ws-server for %s: API %s doesn't exist", path, apiws->api);
 		goto error2;
 	}
