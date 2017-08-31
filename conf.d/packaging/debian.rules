@@ -30,7 +30,7 @@ build: build-stamp
 build-stamp: configure-stamp
 	dh_testdir
 	mkdir -p build
-	export PKG_CONFIG_PATH=/opt/AGL/lib/$(DEB_HOST_MULTIARCH)/pkgconfig;cd build;cmake ../ -DCMAKE_INSTALL_PREFIX:PATH=/opt/AGL -DCMAKE_INSTALL_LIBDIR:PATH=lib/$(DEB_HOST_MULTIARCH);$(MAKE)
+	export PKG_CONFIG_PATH=/opt/AGL/lib/$(DEB_HOST_MULTIARCH)/pkgconfig;cd build;cmake ../ -DCMAKE_INSTALL_PREFIX:PATH=/opt/AGL -DCMAKE_INSTALL_LIBDIR:PATH=lib/$(DEB_HOST_MULTIARCH) -DAGL_DEVEL=1 -DINCLUDE_MONITORING=ON;$(MAKE)
 	touch build-stamp
 
 clean:

@@ -44,7 +44,7 @@ app-framework-binder-devel
 
 %build
 export PKG_CONFIG_PATH=%{_libdir}/pkgconfig
-%cmake
+%cmake  -DAGL_DEVEL=1 -DINCLUDE_MONITORING=ON
 %__make %{?_smp_mflags}
 
 
