@@ -884,15 +884,15 @@ static void process_sync(struct afb_xreq *xreq)
 		afb_hook_xreq_begin(xreq);
 
 	/* search the api */
-	api = afb_apiset_lookup_started(xreq->apiset, xreq->api, 1);
-	if (!api) {
+	api = (const struct afb_api*)xreq->context.api_key;
+	if (api)
+		api->itf->call(api->closure, xreq);
+	else {
+		api = afb_apiset_lookup_started(xreq->apiset, xreq->api, 1);
 		if (errno == ENOENT)
 			afb_xreq_fail_f(xreq, "unknown-api", "api %s not found", xreq->api);
 		else
 			afb_xreq_fail_f(xreq, "bad-api-state", "api %s not started correctly: %m", xreq->api);
-	} else {
-		xreq->context.api_key = api->closure;
-		api->itf->call(api->closure, xreq);
 	}
 }
 
@@ -910,10 +910,14 @@ static void process_async(int signum, void *arg)
 
 void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 {
+	const struct afb_api *api;
+
 	xreq->apiset = apiset;
+	api = afb_apiset_lookup_started(apiset, xreq->api, 1);
+	xreq->context.api_key = (void*)api;
 
 	xreq_addref(xreq);
-	if (jobs_queue(NULL, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
+	if (jobs_queue(api && api->noconcurrency ? (void*)api : NULL, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");

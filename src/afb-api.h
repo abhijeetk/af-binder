@@ -35,6 +35,7 @@ struct afb_api
 {
 	void *closure;
 	struct afb_api_itf *itf;
+	unsigned noconcurrency: 1;
 };
 
 extern int afb_api_is_valid_name(const char *name);

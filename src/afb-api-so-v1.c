@@ -304,6 +304,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	afb_ditf_rename(&desc->ditf, desc->binding->v1.prefix);
 	afb_api.closure = desc;
 	afb_api.itf = &so_v1_api_itf;
+	afb_api.noconcurrency = 0;
 	if (afb_apiset_add(apiset, desc->binding->v1.prefix, afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error2;
