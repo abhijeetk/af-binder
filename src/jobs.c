@@ -300,17 +300,18 @@ static void thread_run(volatile struct thread *me)
 	if (current) {
 		current->lowered = 1;
 		evto = EVENT_TIMEOUT_CHILD;
+		me->events = current->events;
 	} else {
 		started++;
 		sig_monitor_init_timeouts();
 		evto = EVENT_TIMEOUT_TOP;
+		me->events = NULL;
 	}
 	me->next = threads;
 	threads = (struct thread*)me;
 	current = (struct thread*)me;
 
 	/* loop until stopped */
-	me->events = NULL;
 	while (!me->stop) {
 		/* get a job */
 		job = job_get(first_job);
@@ -336,43 +337,33 @@ static void thread_run(volatile struct thread *me)
 			}
 		} else {
 			/* no job, check events */
-			thr = (struct thread*)me;
-			events = NULL;
-			while (thr && !(events = thr->events))
-				thr = thr->upper;
-			if (events && !events->runs) {
+			events = me->events;
+			if (!events || events->runs)
+				events = events_get();
+			if (events) {
 				/* run the events */
+				events->used = 1;
 				events->runs = 1;
 				events->timeout = evto;
 				me->events = events;
 				pthread_mutex_unlock(&mutex);
 				sig_monitor(0, events_call, events);
 				pthread_mutex_lock(&mutex);
+				events->used = 0;
 				events->runs = 0;
 				me->events = NULL;
-			} else {
-				/* no owned event, check events */
-				events = events_get();
-				if (events) {
-					/* run the events */
-					events->used = 1;
-					events->runs = 1;
-					events->timeout = evto;
-					me->events = events;
-					pthread_mutex_unlock(&mutex);
-					sig_monitor(0, events_call, events);
-					pthread_mutex_lock(&mutex);
-					events->used = 0;
-					events->runs = 0;
-					me->events = NULL;
-				} else {
-					/* no job and not events */
-					waiting++;
-					me->waits = 1;
-					pthread_cond_wait(&cond, &mutex);
-					me->waits = 0;
-					waiting--;
+				thr = me->upper;
+				while (thr && thr->events == events) {
+					thr->events = NULL;
+					thr = thr->upper;
 				}
+			} else {
+				/* no job and not events */
+				waiting++;
+				me->waits = 1;
+				pthread_cond_wait(&cond, &mutex);
+				me->waits = 0;
+				waiting--;
 			}
 		}
 	}
