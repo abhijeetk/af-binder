@@ -40,6 +40,7 @@
 #include "afb-trace.h"
 
 #include "wrap-json.h"
+#include "verbose.h"
 
 /*******************************************************************************/
 /*****  default names                                                      *****/
@@ -182,7 +183,7 @@ static const char *verbosity_level_name(int level)
 		"debug"
 	};
 
-	return level >= 3 && level <= 7 ? names[level - 3] : NULL;
+	return level >= Log_Level_Error && level <= Log_Level_Debug ? names[level - Log_Level_Error] : NULL;
 }
 
 /* generic hook */
