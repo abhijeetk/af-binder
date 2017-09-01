@@ -397,6 +397,7 @@ static int execute_command()
 {
 	struct sigaction siga;
 	char port[20];
+	const char *token;
 	int rc;
 
 	/* check whether a command is to execute or not */
@@ -427,8 +428,9 @@ static int execute_command()
 	}
 	else {
 		/* instanciate arguments and environment */
-		if (instanciate_command_args(port, config->token) >= 0
-		 && instanciate_environ(port, config->token) >= 0) {
+		token = afb_session_initial_token();
+		if (instanciate_command_args(port, token) >= 0
+		 && instanciate_environ(port, token) >= 0) {
 			/* run */
 			if (!SELF_PGROUP)
 				setpgid(0, 0);

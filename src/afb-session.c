@@ -135,6 +135,11 @@ void afb_session_init (int max_session_count, int timeout, const char *initok)
 	}
 }
 
+const char *afb_session_initial_token()
+{
+	return sessions.initok;
+}
+
 static struct afb_session *search (const char* uuid)
 {
 	int  idx;
