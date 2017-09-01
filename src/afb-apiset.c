@@ -289,8 +289,8 @@ int afb_apiset_del(struct afb_apiset *set, const char *name)
  * Get from the 'set' the API of 'name' in 'api' with fallback to subset or default api
  * @param set the set of API
  * @param name the name of the API to get
- * @param api the structure where to store data about the API of name
- * @return 0 in case of success or -1 in case of error
+ * @param rec if not zero look also recursively in subsets
+ * @return the api pointer in case of success or NULL in case of error
  */
 static struct api_desc *lookup(struct afb_apiset *set, const char *name, int rec)
 {
@@ -303,7 +303,7 @@ static struct api_desc *lookup(struct afb_apiset *set, const char *name, int rec
  * @param set the set of API
  * @param name the name of the API to get
  * @param rec if not zero look also recursively in subsets
- * @return 0 in case of success or -1 in case of error
+ * @return the api pointer in case of success or NULL in case of error
  */
 const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name, int rec)
 {
@@ -314,18 +314,6 @@ const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name
 		return &i->api;
 	errno = ENOENT;
 	return NULL;
-}
-
-/**
- * Check whether the 'set' has the API of 'name'
- * @param set the set of API
- * @param name the name of the API to get
- * @param rec if not zero look also recursively in subsets
- * @return 1 if the api exist or 0 otherwise
- */
-int afb_apiset_has(struct afb_apiset *set, const char *name, int rec)
-{
-	return !!afb_apiset_lookup(set, name, rec);
 }
 
 /**
@@ -552,11 +540,21 @@ const char **afb_apiset_get_names(struct afb_apiset *set)
  * @param callback the function to call for each name
  * @param closure the closure for the callback
  */
-void afb_apiset_enum(struct afb_apiset *set, void (*callback)(struct afb_apiset *set, const char *name, void *closure), void *closure)
+void afb_apiset_enum(struct afb_apiset *set, int rec, void (*callback)(struct afb_apiset *set, const char *name, void *closure), void *closure)
 {
-	int i;
+	struct afb_apiset *iset;
+	struct api_desc *i, *e;
 
-	for (i = 0 ; i < set->count ; i++)
-		callback(set, set->apis[i].name, closure);
+	iset = set;
+	while (iset) {
+		i = iset->apis;
+		e = &i[iset->count];
+		while (i != e) {
+			if (lookup(set, i->name, 1) == i)
+				callback(iset, i->name, closure);
+			i++;
+		}
+		iset = rec ? iset->subset : NULL;
+	}
 }
 

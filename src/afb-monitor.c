@@ -115,7 +115,7 @@ static void set_verbosity_to(const char *name, int level)
 	if (!name || !name[0])
 		verbosity = level;
 	else if (name[0] == '*' && !name[1])
-		afb_apiset_enum(main_apiset, set_verbosity_to_all_cb, (void*)(intptr_t)level);
+		afb_apiset_enum(main_apiset, 1, set_verbosity_to_all_cb, (void*)(intptr_t)level);
 	else
 		afb_apiset_set_verbosity(main_apiset, name, level);
 }
@@ -189,7 +189,7 @@ static void get_verbosity_of(struct json_object *resu, const char *name)
 	if (!name || !name[0])
 		json_object_object_add(resu, "", encode_verbosity(verbosity));
 	else if (name[0] == '*' && !name[1])
-		afb_apiset_enum(main_apiset, get_verbosity_of_all_cb, resu);
+		afb_apiset_enum(main_apiset, 1, get_verbosity_of_all_cb, resu);
 	else {
 		l = afb_apiset_get_verbosity(main_apiset, name);
 		if (l >= 0)
@@ -243,7 +243,7 @@ static void get_one_api(struct json_object *resu, const char *name, struct json_
 	struct json_object *o;
 
 	o = afb_apiset_describe(main_apiset, name);
-	if (o || afb_apiset_has(main_apiset, name, 0))
+	if (o || afb_apiset_lookup(main_apiset, name, 1))
 		json_object_object_add(resu, name, o);
 }
 
@@ -285,7 +285,7 @@ static struct json_object *get_apis(struct json_object *spec)
 	} else if (json_object_is_type(spec, json_type_string)) {
 		get_one_api(resu, json_object_get_string(spec), NULL);
 	} else if (json_object_get_boolean(spec)) {
-		afb_apiset_enum(main_apiset, get_apis_of_all_cb, resu);
+		afb_apiset_enum(main_apiset, 1, get_apis_of_all_cb, resu);
 	}
 	return resu;
 }
