@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2017 "IoT.bzh"
+ * Author: José Bollo <jose.bollo@iot.bzh>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 AFB = function(base, initialtoken){
 
 if (typeof base != "object")
@@ -5,7 +21,7 @@ if (typeof base != "object")
 
 var initial = {
 	base: base.base || "api",
-	token: base.token || "hello",
+	token: base.token || initialtoken || "hello",
 	host: base.host || window.location.host,
 	url: base.url || undefined
 };
@@ -50,7 +66,7 @@ var AFB_websocket;
 
 	var PROTO1 = "x-afb-ws-json1";
 
-	AFB_websocket = function(onopen, onabort) {
+	AFB_websocket = function(on_open, on_abort) {
 		var u = urlws;
 		if (AFB_context.token) {
 			u = u + '?x-afb-token=' + AFB_context.token;
@@ -66,8 +82,8 @@ var AFB_websocket;
 		this.ws.onerror = onerror.bind(this);
 		this.ws.onclose = onclose.bind(this);
 		this.ws.onmessage = onmessage.bind(this);
-		this.onopen = onopen;
-		this.onabort = onabort;
+		this.onopen = on_open;
+		this.onabort = on_abort;
 	}
 
 	function onerror(event) {

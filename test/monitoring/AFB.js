@@ -66,7 +66,7 @@ var AFB_websocket;
 
 	var PROTO1 = "x-afb-ws-json1";
 
-	AFB_websocket = function(onopen, onabort) {
+	AFB_websocket = function(on_open, on_abort) {
 		var u = urlws;
 		if (AFB_context.token) {
 			u = u + '?x-afb-token=' + AFB_context.token;
@@ -82,8 +82,8 @@ var AFB_websocket;
 		this.ws.onerror = onerror.bind(this);
 		this.ws.onclose = onclose.bind(this);
 		this.ws.onmessage = onmessage.bind(this);
-		this.onopen = onopen;
-		this.onabort = onabort;
+		this.onopen = on_open;
+		this.onabort = on_abort;
 	}
 
 	function onerror(event) {
