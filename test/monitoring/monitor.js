@@ -499,6 +499,7 @@ function obj2html(json) {
 					cls = 'key';
 				} else {
 					cls = 'string';
+					match = match.replace(/\\n/g, "\\n<br>");
 				}
 			} else if (/true|false/.test(match)) {
 				cls = 'boolean';

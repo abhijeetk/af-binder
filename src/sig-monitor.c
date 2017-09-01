@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <setjmp.h>
@@ -41,19 +42,35 @@ static _Thread_local timer_t thread_timerid;
 /*
  * Dumps the current stack
  */
-static void dumpstack(int crop)
+static void dumpstack(int crop, int signum)
 {
-	int idx, count;
-	void *addresses[1000];
+	int idx, count, rc;
+	void *addresses[100];
 	char **locations;
+	char buffer[8000];
+	size_t pos, length;
 
 	count = backtrace(addresses, sizeof addresses / sizeof *addresses);
-	locations = backtrace_symbols(addresses, count);
+	if (count <= crop)
+		crop = 0;
+	count -= crop;
+	locations = backtrace_symbols(&addresses[crop], count);
 	if (locations == NULL)
 		ERROR("can't get the backtrace (returned %d addresses)", count);
 	else {
-		for (idx = crop; idx < count; idx++)
-			ERROR("[BACKTRACE %d/%d] %s", idx - crop + 1, count - crop, locations[idx]);
+		length = sizeof buffer - 1;
+		pos = 0;
+		idx = 0;
+		while (pos < length && idx < count) {
+			rc = snprintf(&buffer[pos], length - pos, " [%d/%d] %s\n", idx + 1, count, locations[idx]);
+			pos += rc >= 0 ? rc : 0;
+			idx++;
+		}
+		buffer[length] = 0;
+		if (signum)
+			ERROR("BACKTRACE due to signal %s/%d:\n%s", strsignal(signum), signum, buffer);
+		else
+			ERROR("BACKTRACE:\n%s", buffer);
 		free(locations);
 	}
 }
@@ -131,7 +148,7 @@ static void on_signal_terminate (int signum)
 {
 	ERROR("Terminating signal %d received: %s", signum, strsignal(signum));
 	if (signum == SIGABRT)
-		dumpstack(3);
+		dumpstack(3, signum);
 	exit(1);
 }
 
@@ -144,7 +161,7 @@ static void on_signal_error(int signum)
 	if (error_handler == NULL && signum == SIG_FOR_TIMER)
 		return;
 
-	dumpstack(3);
+	dumpstack(3, signum);
 
 	// unlock signal to allow a new signal to come
 	if (error_handler != NULL) {

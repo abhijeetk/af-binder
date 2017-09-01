@@ -168,6 +168,7 @@ body.on #params, body.on #connect, body.off #disconnect { display: none; }
 
 .traceevent .content {
 	clear: both;
+	overflow-x: auto;
 }
 
 .traceevent, .x-button {
