@@ -20,4 +20,4 @@
 struct afb_auth;
 struct afb_xreq;
 
-extern int afb_auth_check(const struct afb_auth *auth, struct afb_xreq *xreq);
+extern int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth);

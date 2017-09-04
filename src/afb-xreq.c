@@ -823,7 +823,7 @@ static int xreq_session_check_apply_v2(struct afb_xreq *xreq, uint32_t sessionfl
 		return -1;
 	}
 
-	if (auth && !afb_auth_check(auth, xreq)) {
+	if (auth && !afb_auth_check(xreq, auth)) {
 		afb_xreq_fail_f(xreq, "denied", "authorisation refused");
 		errno = EPERM;
 		return -1;
