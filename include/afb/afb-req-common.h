@@ -74,6 +74,8 @@ struct afb_req_itf
 	void (*vverbose)(void *closure, int level, const char *file, int line, const char * func, const char *fmt, va_list args);
 	struct afb_stored_req *(*store)(void *closure);
 	void (*subcall_req)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure);
+
+	int (*has_permission)(void *closure, const char *permission);
 };
 
 /*
@@ -431,3 +433,15 @@ static inline void afb_req_verbose(struct afb_req req, int level, const char *fi
 #else
 #define AFB_REQ_VERBOSE(req,level,...) afb_req_verbose(req,level,NULL,0,NULL,__VA_ARGS__)
 #endif
+
+/*
+ * Check whether the 'permission' is granted or not to the client
+ * identified by 'req'.
+ *
+ * Returns 1 if the permission is granted or 0 otherwise.
+ */
+static inline int afb_req_has_permission(struct afb_req req, const char *permission)
+{
+	return req.itf->has_permission(req.closure, permission);
+}
+

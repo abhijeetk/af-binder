@@ -43,7 +43,7 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 		return afb_context_check_loa(&xreq->context, auth->loa);
 
 	case afb_auth_Permission:
-		return afb_auth_check_permission(xreq, auth->text);
+		return afb_auth_has_permission(xreq, auth->text);
 
 	case afb_auth_Or:
 		return afb_auth_check(xreq, auth->first) || afb_auth_check(xreq, auth->next);
@@ -68,7 +68,7 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 static cynara *handle;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
+int afb_auth_has_permission(struct afb_xreq *xreq, const char *permission)
 {
 	int rc;
 
@@ -103,7 +103,7 @@ int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 
 /*********************************************************************************/
 #else
-int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
+int afb_auth_has_permission(struct afb_xreq *xreq, const char *permission)
 {
 	WARNING("Granting permission %s by default of backend", permission ?: "(null)");
 	return !!permission;

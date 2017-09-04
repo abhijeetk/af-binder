@@ -412,6 +412,15 @@ static void broadcast(afb_req request)
 	json_object_put(object);
 }
 
+static void hasperm (afb_req request)
+{
+	const char *perm = afb_req_value(request, "perm");
+	if (afb_req_has_permission(request, perm))
+		afb_req_success_f(request, NULL, "permission %s granted", perm?:"(null)");
+	else
+		afb_req_fail_f(request, "not-granted", "permission %s NOT granted", perm?:"(null)");
+}
+
 static int preinit()
 {
 	AFB_NOTICE("hello binding comes to live");
@@ -450,6 +459,7 @@ static const afb_verb_v2 verbs[]= {
   { .verb="callsync",    .callback=callsync },
   { .verb="verbose",     .callback=verbose },
   { .verb="broadcast",   .callback=broadcast },
+  { .verb="hasperm",     .callback=hasperm },
   { .verb="exit",        .callback=exitnow },
   { .verb=NULL}
 };

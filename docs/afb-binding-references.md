@@ -677,6 +677,20 @@ Instead, you should use the macros:
 void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...);
 ```
 
+The function below allows a binding to check whether a client
+has a permission of not.
+
+```C
+
+/*
+ * Check whether the 'permission' is granted or not to the client
+ * identified by 'req'.
+ *
+ * Returns 1 if the permission is granted or 0 otherwise.
+ */
+int afb_req_has_permission(struct afb_req req, const char *permission);
+```
+
 ## Logging macros
 
 The following macros must be used for logging:

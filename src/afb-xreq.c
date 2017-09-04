@@ -448,6 +448,12 @@ static struct afb_stored_req *xreq_store_cb(void *closure)
 	return closure;
 }
 
+static int xreq_has_permission_cb(void*closure, const char *permission)
+{
+	struct afb_xreq *xreq = closure;
+	return afb_auth_has_permission(xreq, permission);
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
@@ -627,6 +633,13 @@ static struct afb_stored_req *xreq_hooked_store_cb(void *closure)
 	return r;
 }
 
+static int xreq_hooked_has_permission_cb(void*closure, const char *permission)
+{
+	struct afb_xreq *xreq = closure;
+	int r = xreq_has_permission_cb(closure, permission);
+	return afb_hook_xreq_has_permission(xreq, permission, r);
+}
+
 /******************************************************************************/
 
 const struct afb_req_itf xreq_itf = {
@@ -648,7 +661,8 @@ const struct afb_req_itf xreq_itf = {
 	.subcallsync = xreq_subcallsync_cb,
 	.vverbose = xreq_vverbose_cb,
 	.store = xreq_store_cb,
-	.subcall_req = xreq_subcall_req_cb
+	.subcall_req = xreq_subcall_req_cb,
+	.has_permission = xreq_has_permission_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -670,7 +684,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.subcallsync = xreq_hooked_subcallsync_cb,
 	.vverbose = xreq_hooked_vverbose_cb,
 	.store = xreq_hooked_store_cb,
-	.subcall_req = xreq_hooked_subcall_req_cb
+	.subcall_req = xreq_hooked_subcall_req_cb,
+	.has_permission = xreq_hooked_has_permission_cb
 };
 
 /******************************************************************************/

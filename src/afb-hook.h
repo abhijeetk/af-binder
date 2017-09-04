@@ -52,29 +52,30 @@ struct afb_hookid
 *********************************************************/
 
 /* individual flags */
-#define afb_hook_flag_req_begin			0x000001
-#define afb_hook_flag_req_end			0x000002
-#define afb_hook_flag_req_json			0x000004
-#define afb_hook_flag_req_get			0x000008
-#define afb_hook_flag_req_success		0x000010
-#define afb_hook_flag_req_fail			0x000020
-#define afb_hook_flag_req_context_get		0x000040
-#define afb_hook_flag_req_context_set		0x000080
-#define afb_hook_flag_req_addref		0x000100
-#define afb_hook_flag_req_unref			0x000200
-#define afb_hook_flag_req_session_close		0x000400
-#define afb_hook_flag_req_session_set_LOA	0x000800
-#define afb_hook_flag_req_subscribe		0x001000
-#define afb_hook_flag_req_unsubscribe		0x002000
-#define afb_hook_flag_req_subcall		0x004000
-#define afb_hook_flag_req_subcall_result	0x008000
-#define afb_hook_flag_req_subcallsync		0x010000
-#define afb_hook_flag_req_subcallsync_result	0x020000
-#define afb_hook_flag_req_vverbose		0x040000
-#define afb_hook_flag_req_store			0x080000
-#define afb_hook_flag_req_unstore		0x100000
-#define afb_hook_flag_req_subcall_req		0x200000
-#define afb_hook_flag_req_subcall_req_result	0x400000
+#define afb_hook_flag_req_begin			0x00000001
+#define afb_hook_flag_req_end			0x00000002
+#define afb_hook_flag_req_json			0x00000004
+#define afb_hook_flag_req_get			0x00000008
+#define afb_hook_flag_req_success		0x00000010
+#define afb_hook_flag_req_fail			0x00000020
+#define afb_hook_flag_req_context_get		0x00000040
+#define afb_hook_flag_req_context_set		0x00000080
+#define afb_hook_flag_req_addref		0x00000100
+#define afb_hook_flag_req_unref			0x00000200
+#define afb_hook_flag_req_session_close		0x00000400
+#define afb_hook_flag_req_session_set_LOA	0x00000800
+#define afb_hook_flag_req_subscribe		0x00001000
+#define afb_hook_flag_req_unsubscribe		0x00002000
+#define afb_hook_flag_req_subcall		0x00004000
+#define afb_hook_flag_req_subcall_result	0x00008000
+#define afb_hook_flag_req_subcallsync		0x00010000
+#define afb_hook_flag_req_subcallsync_result	0x00020000
+#define afb_hook_flag_req_vverbose		0x00040000
+#define afb_hook_flag_req_store			0x00080000
+#define afb_hook_flag_req_unstore		0x00100000
+#define afb_hook_flag_req_subcall_req		0x00200000
+#define afb_hook_flag_req_subcall_req_result	0x00400000
+#define afb_hook_flag_req_has_permission	0x00800000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -94,7 +95,7 @@ struct afb_hookid
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
 					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcalls\
-					|afb_hook_flag_req_vverbose)
+					|afb_hook_flag_req_vverbose|afb_hook_flag_req_has_permission)
 #define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context\
 					|afb_hook_flags_req_stores)
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
@@ -123,6 +124,7 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_unstore)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq);
 	void (*hook_xreq_subcall_req)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 	void (*hook_xreq_subcall_req_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
+	void (*hook_xreq_has_permission)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *permission, int result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -155,6 +157,7 @@ extern void afb_hook_xreq_store(const struct afb_xreq *xreq, struct afb_stored_r
 extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
 extern void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result);
+extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result);
 
 /*********************************************************
 * section hooking ditf (daemon interface)

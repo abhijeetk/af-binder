@@ -317,6 +317,11 @@ static void hook_xreq_subcall_req_result_default_cb(void *closure, const struct 
 	_hook_xreq_(xreq, "    ...subcall_req... -> %d: %s", status, json_object_to_json_string(result));
 }
 
+static void hook_xreq_has_permission_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *permission, int result)
+{
+	_hook_xreq_(xreq, "has_permission(%s) -> %d", permission, result);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -340,7 +345,8 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_store = hook_xreq_store_default_cb,
 	.hook_xreq_unstore = hook_xreq_unstore_default_cb,
 	.hook_xreq_subcall_req = hook_xreq_subcall_req_default_cb,
-	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result_default_cb
+	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result_default_cb,
+	.hook_xreq_has_permission = hook_xreq_has_permission_default_cb
 };
 
 /******************************************************************************
@@ -486,6 +492,12 @@ void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *api, con
 void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result)
 {
 	_HOOK_XREQ_(subcall_req_result, xreq, status, result);
+}
+
+int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result)
+{
+	_HOOK_XREQ_(has_permission, xreq, permission, result);
+	return result;
 }
 
 /******************************************************************************
