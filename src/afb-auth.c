@@ -43,10 +43,7 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 		return afb_context_check_loa(&xreq->context, auth->loa);
 
 	case afb_auth_Permission:
-		if (xreq->cred && auth->text)
-			return afb_auth_check_permission(xreq, auth->text);
-		/* TODO: handle case of self permission */
-		return 1;
+		return afb_auth_check_permission(xreq, auth->text);
 
 	case afb_auth_Or:
 		return afb_auth_check(xreq, auth->first) || afb_auth_check(xreq, auth->next);
@@ -75,6 +72,15 @@ int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 {
 	int rc;
 
+	if (!xreq->cred) {
+		/* case of permission for self */
+		return 1;
+	}
+	if (!permission) {
+		ERROR("Got a null permission!");
+		return 0;
+	}
+
 	/* cynara isn't reentrant */
 	pthread_mutex_lock(&mutex);
 
@@ -99,8 +105,8 @@ int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 #else
 int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 {
-	WARNING("Granting permission %s by default of backend", permission);
-	return 1;
+	WARNING("Granting permission %s by default of backend", permission ?: "(null)");
+	return !!permission;
 }
 #endif
 
