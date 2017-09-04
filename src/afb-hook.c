@@ -752,6 +752,11 @@ static void hook_ditf_require_api_result_cb(void *closure, const struct afb_hook
 	_hook_ditf_(ditf, "...require_api(%s, %d) -> %d", name, initialized, result);
 }
 
+static void hook_ditf_rename_api_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *oldname, const char *newname, int result)
+{
+	_hook_ditf_(ditf, "rename_api(%s -> %s) -> %d", oldname, newname, result);
+}
+
 static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_event_broadcast_before = hook_ditf_event_broadcast_before_cb,
 	.hook_ditf_event_broadcast_after = hook_ditf_event_broadcast_after_cb,
@@ -765,7 +770,8 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 	.hook_ditf_queue_job = hook_ditf_queue_job_cb,
 	.hook_ditf_unstore_req = hook_ditf_unstore_req_cb,
 	.hook_ditf_require_api = hook_ditf_require_api_cb,
-	.hook_ditf_require_api_result = hook_ditf_require_api_result_cb
+	.hook_ditf_require_api_result = hook_ditf_require_api_result_cb,
+	.hook_ditf_rename_api = hook_ditf_rename_api_cb
 };
 
 /******************************************************************************
@@ -859,6 +865,12 @@ void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, in
 int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result)
 {
 	_HOOK_DITF_(require_api_result, ditf, name, initialized, result);
+	return result;
+}
+
+int afb_hook_ditf_rename_api(const struct afb_ditf *ditf, const char *oldname, const char *newname, int result)
+{
+	_HOOK_DITF_(rename_api, ditf, oldname, newname, result);
 	return result;
 }
 

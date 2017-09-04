@@ -90,7 +90,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 			goto done;
 
 		/* already started: it is an error */
-		ERROR("Service %s already started", desc->binding->api);
+		ERROR("Service %s already started", desc->ditf.api);
 		return -1;
 	}
 
@@ -103,15 +103,15 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 			goto done;
 
 		/* no initialisation method */
-		ERROR("Binding %s is not a service", desc->binding->api);
+		ERROR("Binding %s is not a service", desc->ditf.api);
 		return -1;
 	}
 
 	/* get the event handler if any */
-	desc->service = afb_svc_create(desc->binding->api, apiset, share_session, onevent, &desc->data->service);
+	desc->service = afb_svc_create(desc->ditf.api, apiset, share_session, onevent, &desc->data->service);
 	if (desc->service == NULL) {
 		/* starting error */
-		ERROR("Starting service %s failed", desc->binding->api);
+		ERROR("Starting service %s failed", desc->ditf.api);
 		return -1;
 	}
 
@@ -120,7 +120,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	rc = afb_svc_start_v2(desc->service, start);
 	if (rc < 0) {
 		/* initialisation error */
-		ERROR("Initialisation of service %s failed (%d): %m", desc->binding->api, rc);
+		ERROR("Initialisation of service %s failed (%d): %m", desc->ditf.api, rc);
 		afb_svc_destroy(desc->service, &desc->data->service);
 		desc->service = NULL;
 		return rc;
@@ -196,9 +196,9 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 
 	i = json_object_new_object();
 	json_object_object_add(r, "info", i);
-	json_object_object_add(i, "title", json_object_new_string(desc->binding->api));
+	json_object_object_add(i, "title", json_object_new_string(desc->ditf.api));
 	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
-	json_object_object_add(i, "description", json_object_new_string(desc->binding->info ?: desc->binding->api));
+	json_object_object_add(i, "description", json_object_new_string(desc->binding->info ?: desc->ditf.api));
 
 	p = json_object_new_object();
 	json_object_object_add(r, "paths", p);
@@ -288,7 +288,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 		INFO("binding %s calling preinit function", binding->api);
 		rc = binding->preinit();
 		if (rc < 0) {
-			ERROR("binding %s preinit function failed...", binding->api);
+			ERROR("binding %s preinit function failed...", desc->ditf.api);
 			goto error2;
 		}
 	}
@@ -297,11 +297,11 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	afb_api.closure = desc;
 	afb_api.itf = &so_v2_api_itf;
 	afb_api.noconcurrency = binding->noconcurrency;
-	if (afb_apiset_add(apiset, binding->api, afb_api) < 0) {
-		ERROR("binding %s can't be registered to set %s...", binding->api, afb_apiset_name(apiset));
+	if (afb_apiset_add(apiset, desc->ditf.api, afb_api) < 0) {
+		ERROR("binding %s can't be registered to set %s...", desc->ditf.api, afb_apiset_name(apiset));
 		goto error2;
 	}
-	INFO("binding %s added to set %s", binding->api, afb_apiset_name(apiset));
+	INFO("binding %s added to set %s", desc->ditf.api, afb_apiset_name(apiset));
 	return 1;
 
 error2:

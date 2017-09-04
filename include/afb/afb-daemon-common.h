@@ -42,6 +42,7 @@ struct afb_daemon_itf
 	void (*vverbose_v2)(void*closure, int level, const char *file, int line, const char * func, const char *fmt, va_list args);
 	struct afb_req (*unstore_req)(void*closure, struct afb_stored_req *sreq);
 	int (*require_api)(void*closure, const char *name, int initialized);
+	int (*rename_api)(void*closure, const char *name);
 };
 
 /*

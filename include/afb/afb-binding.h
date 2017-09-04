@@ -161,6 +161,7 @@ typedef struct afb_service_itf          afb_service_itf;
 #define afb_daemon_rootdir_open_locale	afb_daemon_rootdir_open_locale_v1
 #define afb_daemon_queue_job		afb_daemon_queue_job_v1
 #define afb_daemon_require_api		afb_daemon_require_api_v1
+#define afb_daemon_rename_api		afb_daemon_rename_api_v1
 
 #define afb_service_call		afb_service_call_v1
 #define afb_service_call_sync		afb_service_call_sync_v1
@@ -216,6 +217,7 @@ typedef struct afb_service_itf          afb_service_itf;
 #define afb_daemon_queue_job		afb_daemon_queue_job_v2
 #define afb_daemon_unstore_req		afb_daemon_unstore_req_v2
 #define afb_daemon_require_api		afb_daemon_require_api_v2
+#define afb_daemon_rename_api		afb_daemon_rename_api_v2
 
 #define afb_service_call		afb_service_call_v2
 #define afb_service_call_sync		afb_service_call_sync_v2

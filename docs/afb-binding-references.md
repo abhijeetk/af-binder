@@ -238,6 +238,18 @@ bindings at its initialization.
 int afb_daemon_require_api(const char *name, int initialized)
 ```
 
+This function allows to give a different name to the binding.
+It can be called during pre-init.
+
+```C
+/*
+ * Set the name of the API to 'name'.
+ * Calling this function is only allowed within preinit.
+ * Returns 0 in case of success or -1 in case of error.
+ */
+int afb_daemon_rename_api(const char *name);
+```
+
 ## Functions of class afb_service
 
 The following functions allow services to call verbs of other

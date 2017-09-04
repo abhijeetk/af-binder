@@ -137,6 +137,24 @@ static int require_api_cb(void *closure, const char *name, int initialized)
 	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(main_apiset, name, 1);
 }
 
+static int rename_api_cb(void *closure, const char *name)
+{
+	struct afb_ditf *ditf = closure;
+	if (ditf->state != Daemon_Pre_Init) {
+		ERROR("[API %s] Bad call to 'afb_daemon_rename(%s)', must be in PreInit", ditf->api, name);
+		errno = EINVAL;
+		return -1;
+	}
+	if (!afb_api_is_valid_name(name)) {
+		ERROR("[API %s] Can't rename to %s: bad API name", ditf->api, name);
+		errno = EINVAL;
+		return -1;
+	}
+	NOTICE("[API %s] renamed to [API %s]", ditf->api, name);
+	afb_ditf_rename(ditf, name);
+	return 0;
+}
+
 /**********************************************
 * hooked flow
 **********************************************/
@@ -232,6 +250,14 @@ static int hooked_require_api_cb(void *closure, const char *name, int initialize
 	return afb_hook_ditf_require_api_result(ditf, name, initialized, result);
 }
 
+static int hooked_rename_api_cb(void *closure, const char *name)
+{
+	struct afb_ditf *ditf = closure;
+	const char *oldname = ditf->api;
+	int result = rename_api_cb(closure, name);
+	return afb_hook_ditf_rename_api(ditf, oldname, name, result);
+}
+
 /**********************************************
 * vectors
 **********************************************/
@@ -247,7 +273,8 @@ static const struct afb_daemon_itf daemon_itf = {
 	.rootdir_open_locale = rootdir_open_locale_cb,
 	.queue_job = queue_job_cb,
 	.unstore_req = unstore_req_cb,
-	.require_api = require_api_cb
+	.require_api = require_api_cb,
+	.rename_api = rename_api_cb
 };
 
 static const struct afb_daemon_itf hooked_daemon_itf = {
@@ -262,7 +289,8 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.rootdir_open_locale = hooked_rootdir_open_locale_cb,
 	.queue_job = hooked_queue_job_cb,
 	.unstore_req = hooked_unstore_req_cb,
-	.require_api = hooked_require_api_cb
+	.require_api = hooked_require_api_cb,
+	.rename_api = hooked_rename_api_cb
 };
 
 void afb_ditf_init_v2(struct afb_ditf *ditf, const char *api, struct afb_binding_data_v2 *data)

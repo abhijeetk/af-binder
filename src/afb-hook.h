@@ -176,11 +176,13 @@ extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char 
 #define afb_hook_flag_ditf_unstore_req			0x000400
 #define afb_hook_flag_ditf_require_api			0x000800
 #define afb_hook_flag_ditf_require_api_result		0x001000
+#define afb_hook_flag_ditf_rename_api			0x002000
 
 #define afb_hook_flags_ditf_common	(afb_hook_flag_ditf_vverbose\
 					|afb_hook_flag_ditf_event_make\
 					|afb_hook_flag_ditf_event_broadcast_before\
-					|afb_hook_flag_ditf_event_broadcast_after)
+					|afb_hook_flag_ditf_event_broadcast_after\
+					|afb_hook_flag_ditf_rename_api)
 #define afb_hook_flags_ditf_extra	(afb_hook_flag_ditf_get_event_loop\
 					|afb_hook_flag_ditf_get_user_bus\
 					|afb_hook_flag_ditf_get_system_bus\
@@ -207,6 +209,7 @@ struct afb_hook_ditf_itf {
 	void (*hook_ditf_unstore_req)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
 	void (*hook_ditf_require_api)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized);
 	void (*hook_ditf_require_api_result)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result);
+	void (*hook_ditf_rename_api)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *oldname, const char *newname, int result);
 };
 
 extern void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object);
@@ -222,6 +225,7 @@ extern int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)
 extern void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq);
 extern void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, int initialized);
 extern int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result);
+extern int afb_hook_ditf_rename_api(const struct afb_ditf *ditf, const char *oldname, const char *newname, int result);
 
 extern int afb_hook_flags_ditf(const char *api);
 extern struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure);

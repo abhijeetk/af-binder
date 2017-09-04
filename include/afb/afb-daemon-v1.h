@@ -180,3 +180,14 @@ static inline int afb_daemon_require_api_v1(struct afb_daemon daemon, const char
 {
 	return daemon.itf->require_api(daemon.closure, name, initialized);
 }
+
+/*
+ * Set the name of the API to 'name'.
+ * Calling this function is only allowed within preinit.
+ * Returns 0 in case of success or -1 in case of error.
+ */
+static inline int afb_daemon_rename_api_v1(struct afb_daemon daemon, const char *name)
+{
+	return daemon.itf->rename_api(daemon.closure, name);
+}
+

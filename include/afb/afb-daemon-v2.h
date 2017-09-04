@@ -157,3 +157,14 @@ static inline int afb_daemon_require_api_v2(const char *name, int initialized)
 {
 	return afb_get_daemon_v2().itf->require_api(afb_get_daemon_v2().closure, name, initialized);
 }
+
+/*
+ * Set the name of the API to 'name'.
+ * Calling this function is only allowed within preinit.
+ * Returns 0 in case of success or -1 in case of error.
+ */
+static inline int afb_daemon_rename_api_v2(const char *name)
+{
+	return afb_get_daemon_v2().itf->rename_api(afb_get_daemon_v2().closure, name);
+}
+
