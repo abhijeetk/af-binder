@@ -46,7 +46,7 @@ static void vverbose_cb(void *closure, int level, const char *file, int line, co
 	char *p;
 	struct afb_ditf *ditf = closure;
 
-	if (vasprintf(&p, fmt, args) < 0)
+	if (!fmt || vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, function, fmt, args);
 	else {
 		verbose(level, file, line, function, "[API %s] %s", ditf->api, p);

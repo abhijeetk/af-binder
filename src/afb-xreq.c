@@ -16,7 +16,6 @@
  */
 
 #define _GNU_SOURCE
-#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -438,8 +437,15 @@ static int xreq_subcallsync_cb(void *closure, const char *api, const char *verb,
 
 static void xreq_vverbose_cb(void*closure, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
-	/* TODO: improves the implementation. example: on condition make a list of log messages that will be returned */
-	vverbose(level, file, line, func, fmt, args);
+	char *p;
+	struct afb_xreq *xreq = closure;
+
+	if (!fmt || vasprintf(&p, fmt, args) < 0)
+		vverbose(level, file, line, func, fmt, args);
+	else {
+		verbose(level, file, line, func, "[REQ/API %s] %s", xreq->api, p);
+		free(p);
+	}
 }
 
 static struct afb_stored_req *xreq_store_cb(void *closure)

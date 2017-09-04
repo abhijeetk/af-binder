@@ -92,42 +92,62 @@ struct afb_binding_data_v2 AFB_BINDING_DATA_NAME_V2  __attribute__ ((weak));
 /*
  * Macros for logging messages
  */
-#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
-#  define _AFB_LOGGING_V2_(vlevel,llevel,...) \
+#if defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DATA)
+
+# define _AFB_LOGGING_V2_(vlevel,llevel,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) {\
+			if (llevel <= AFB_VERBOSITY_LEVEL_ERROR) \
+				afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+			else \
+				afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,NULL,NULL); \
+		} \
+	}while(0)
+# define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
 	do{ \
 		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
-			afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+			afb_req_verbose(req,llevel,__FILE__,__LINE__,NULL,NULL); \
 	}while(0)
-#  define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
+
+#elif defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
+
+# define _AFB_LOGGING_V2_(vlevel,llevel,...) \
 	do{ \
 		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
-			afb_req_verbose(req,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
-	}while(0)
-# else
-#  define _AFB_LOGGING_V2_(vlevel,llevel,...) \
-	do{ \
-		if(afbBindingV2data.verbosity>=vlevel) \
 			afb_daemon_verbose_v2(llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
-#  define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
+# define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
 	do{ \
 		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
 			afb_req_verbose(req,llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
-# endif
-# include "afb-verbosity.h"
-# define AFB_ERROR_V2(...)       _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
-# define AFB_WARNING_V2(...)     _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
-# define AFB_NOTICE_V2(...)      _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
-# define AFB_INFO_V2(...)        _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
-# define AFB_DEBUG_V2(...)       _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
-# define AFB_REQ_ERROR_V2(...)   _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
-# define AFB_REQ_WARNING_V2(...) _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
-# define AFB_REQ_NOTICE_V2(...)  _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
-# define AFB_REQ_INFO_V2(...)    _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
-# define AFB_REQ_DEBUG_V2(...)   _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
+
+#else
+
+# define _AFB_LOGGING_V2_(vlevel,llevel,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
+			afb_daemon_verbose_v2(llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
+# define _AFB_REQ_LOGGING_V2_(vlevel,llevel,req,...) \
+	do{ \
+		if(AFB_BINDING_DATA_NAME_V2.verbosity>=vlevel) \
+			afb_req_verbose(req,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
+
 #endif
+
+#include "afb-verbosity.h"
+#define AFB_ERROR_V2(...)       _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
+#define AFB_WARNING_V2(...)     _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
+#define AFB_NOTICE_V2(...)      _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
+#define AFB_INFO_V2(...)        _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
+#define AFB_DEBUG_V2(...)       _AFB_LOGGING_V2_(AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
+#define AFB_REQ_ERROR_V2(...)   _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
+#define AFB_REQ_WARNING_V2(...) _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
+#define AFB_REQ_NOTICE_V2(...)  _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
+#define AFB_REQ_INFO_V2(...)    _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
+#define AFB_REQ_DEBUG_V2(...)   _AFB_REQ_LOGGING_V2_(AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
 
 #include "afb-daemon-v2.h"
 #include "afb-service-v2.h"

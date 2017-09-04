@@ -147,30 +147,51 @@ struct afb_binding_interface_v1
 /*
  * Macros for logging messages
  */
-#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
-#  define _AFB_LOGGING_V1_(itf,vlevel,llevel,...) \
+#if defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DATA)
+
+# define _AFB_LOGGING_V1_(itf,vlevel,llevel,...) \
+	do{ \
+		if(itf->verbosity>=vlevel) {\
+			if (llevel <= AFB_VERBOSITY_LEVEL_ERROR) \
+				afb_daemon_verbose2_v1(itf->daemon,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+			else \
+				afb_daemon_verbose2_v1(itf->daemon,llevel,__FILE__,__LINE__,NULL,NULL); \
+		} \
+	}while(0)
+# define _AFB_REQ_LOGGING_V1_(itf,vlevel,llevel,req,...) \
 	do{ \
 		if(itf->verbosity>=vlevel) \
-			afb_daemon_verbose2_v1(itf->daemon,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+			afb_req_verbose(req,llevel,__FILE__,__LINE__,NULL,NULL); \
 	}while(0)
-#  define _AFB_REQ_LOGGING_V1_(itf,vlevel,llevel,req,...) \
+
+#elif defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DETAILS)
+
+# define _AFB_LOGGING_V1_(itf,vlevel,llevel,...) \
 	do{ \
 		if(itf->verbosity>=vlevel) \
-			afb_req_verbose(req,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+			afb_daemon_verbose2_v1(itf->daemon,llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
-# else
-#  define _AFB_LOGGING_V1_(itf,vlevel,llevel,...) \
-	do{ \
-		if(itf->verbosity>=vlevel) \
-			afb_daemon_verbose_v1(itf->daemon,llevel,NULL,0,NULL,__VA_ARGS__); \
-	}while(0)
-#  define _AFB_REQ_LOGGING_V1_(itf,vlevel,llevel,req,...) \
+# define _AFB_REQ_LOGGING_V1_(itf,vlevel,llevel,req,...) \
 	do{ \
 		if(itf->verbosity>=vlevel) \
 			afb_req_verbose(req,llevel,NULL,0,NULL,__VA_ARGS__); \
 	}while(0)
-# endif
+
+#else
+
+# define _AFB_LOGGING_V1_(itf,vlevel,llevel,...) \
+	do{ \
+		if(itf->verbosity>=vlevel) \
+			afb_daemon_verbose2_v1(itf->daemon,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
+# define _AFB_REQ_LOGGING_V1_(itf,vlevel,llevel,req,...) \
+	do{ \
+		if(itf->verbosity>=vlevel) \
+			afb_req_verbose(req,llevel,__FILE__,__LINE__,__func__,__VA_ARGS__); \
+	}while(0)
+
+#endif
+
 # include "afb-verbosity.h"
 # define AFB_ERROR_V1(itf,...)       _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_ERROR,_AFB_SYSLOG_LEVEL_ERROR_,__VA_ARGS__)
 # define AFB_WARNING_V1(itf,...)     _AFB_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_WARNING,_AFB_SYSLOG_LEVEL_WARNING_,__VA_ARGS__)
@@ -182,5 +203,4 @@ struct afb_binding_interface_v1
 # define AFB_REQ_NOTICE_V1(itf,...)  _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_NOTICE,_AFB_SYSLOG_LEVEL_NOTICE_,__VA_ARGS__)
 # define AFB_REQ_INFO_V1(itf,...)    _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_INFO,_AFB_SYSLOG_LEVEL_INFO_,__VA_ARGS__)
 # define AFB_REQ_DEBUG_V1(itf,...)   _AFB_REQ_LOGGING_V1_(itf,AFB_VERBOSITY_LEVEL_DEBUG,_AFB_SYSLOG_LEVEL_DEBUG_,__VA_ARGS__)
-#endif
 

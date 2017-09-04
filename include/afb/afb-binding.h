@@ -139,21 +139,17 @@ typedef struct afb_service_itf          afb_service_itf;
 # define AFB_SESSION_LOA_GE_2	AFB_SESSION_LOA_GE_2_V1
 # define AFB_SESSION_LOA_GE_3	AFB_SESSION_LOA_GE_3_V1
 
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+# define AFB_ERROR		AFB_ERROR_V1
+# define AFB_WARNING		AFB_WARNING_V1
+# define AFB_NOTICE		AFB_NOTICE_V1
+# define AFB_INFO		AFB_INFO_V1
+# define AFB_DEBUG		AFB_DEBUG_V1
 
-#  define AFB_ERROR		AFB_ERROR_V1
-#  define AFB_WARNING		AFB_WARNING_V1
-#  define AFB_NOTICE		AFB_NOTICE_V1
-#  define AFB_INFO		AFB_INFO_V1
-#  define AFB_DEBUG		AFB_DEBUG_V1
-
-#  define AFB_REQ_ERROR		AFB_REQ_ERROR_V1
-#  define AFB_REQ_WARNING	AFB_REQ_WARNING_V1
-#  define AFB_REQ_NOTICE	AFB_REQ_NOTICE_V1
-#  define AFB_REQ_INFO		AFB_REQ_INFO_V1
-#  define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V1
-
-# endif
+# define AFB_REQ_ERROR		AFB_REQ_ERROR_V1
+# define AFB_REQ_WARNING	AFB_REQ_WARNING_V1
+# define AFB_REQ_NOTICE		AFB_REQ_NOTICE_V1
+# define AFB_REQ_INFO		AFB_REQ_INFO_V1
+# define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V1
 
 #define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v1
 #define afb_daemon_get_user_bus		afb_daemon_get_user_bus_v1
@@ -197,21 +193,17 @@ typedef struct afb_service_itf          afb_service_itf;
 # define AFB_SESSION_LOA_2	AFB_SESSION_LOA_2_V2
 # define AFB_SESSION_LOA_3	AFB_SESSION_LOA_3_V2
 
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
+# define AFB_ERROR		AFB_ERROR_V2
+# define AFB_WARNING		AFB_WARNING_V2
+# define AFB_NOTICE		AFB_NOTICE_V2
+# define AFB_INFO		AFB_INFO_V2
+# define AFB_DEBUG		AFB_DEBUG_V2
 
-#  define AFB_ERROR		AFB_ERROR_V2
-#  define AFB_WARNING		AFB_WARNING_V2
-#  define AFB_NOTICE		AFB_NOTICE_V2
-#  define AFB_INFO		AFB_INFO_V2
-#  define AFB_DEBUG		AFB_DEBUG_V2
-
-#  define AFB_REQ_ERROR		AFB_REQ_ERROR_V2
-#  define AFB_REQ_WARNING	AFB_REQ_WARNING_V2
-#  define AFB_REQ_NOTICE	AFB_REQ_NOTICE_V2
-#  define AFB_REQ_INFO		AFB_REQ_INFO_V2
-#  define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V2
-
-# endif
+# define AFB_REQ_ERROR		AFB_REQ_ERROR_V2
+# define AFB_REQ_WARNING	AFB_REQ_WARNING_V2
+# define AFB_REQ_NOTICE		AFB_REQ_NOTICE_V2
+# define AFB_REQ_INFO		AFB_REQ_INFO_V2
+# define AFB_REQ_DEBUG		AFB_REQ_DEBUG_V2
 
 #define afb_daemon_get_event_loop	afb_daemon_get_event_loop_v2
 #define afb_daemon_get_user_bus		afb_daemon_get_user_bus_v2
@@ -237,32 +229,27 @@ typedef struct afb_service_itf          afb_service_itf;
 
 #if AFB_BINDING_VERSION >= 2
 
-# define afb_verbose_error()	(afb_get_verbosity() >= 0)
-# define afb_verbose_warning()	(afb_get_verbosity() >= 1)
-# define afb_verbose_notice()	(afb_get_verbosity() >= 1)
-# define afb_verbose_info()	(afb_get_verbosity() >= 2)
-# define afb_verbose_debug()	(afb_get_verbosity() >= 3)
+# define afb_verbose_error()	(afb_get_verbosity() >= AFB_VERBOSITY_LEVEL_ERROR)
+# define afb_verbose_warning()	(afb_get_verbosity() >= AFB_VERBOSITY_LEVEL_WARNING)
+# define afb_verbose_notice()	(afb_get_verbosity() >= AFB_VERBOSITY_LEVEL_NOTICE)
+# define afb_verbose_info()	(afb_get_verbosity() >= AFB_VERBOSITY_LEVEL_INFO)
+# define afb_verbose_debug()	(afb_get_verbosity() >= AFB_VERBOSITY_LEVEL_DEBUG)
 
-# if !defined(AFB_BINDING_PRAGMA_KEEP_VERBOSE_UNPREFIX) && !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX)
-#  define AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX
-# endif
 #endif
 
 /***************************************************************************************************/
 
-#if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_UNPREFIX)
-# if !defined(AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO)
-#  define ERROR			AFB_ERROR
-#  define WARNING		AFB_WARNING
-#  define NOTICE		AFB_NOTICE
-#  define INFO			AFB_INFO
-#  define DEBUG			AFB_DEBUG
+#if defined(AFB_BINDING_PRAGMA_KEEP_VERBOSE_UNPREFIX)
+# define ERROR			AFB_ERROR
+# define WARNING		AFB_WARNING
+# define NOTICE			AFB_NOTICE
+# define INFO			AFB_INFO
+# define DEBUG			AFB_DEBUG
 
-#  define REQ_ERROR		AFB_REQ_ERROR
-#  define REQ_WARNING		AFB_REQ_WARNING
-#  define REQ_NOTICE		AFB_REQ_NOTICE
-#  define REQ_INFO		AFB_REQ_INFO
-#  define REQ_DEBUG		AFB_REQ_DEBUG
-# endif
+# define REQ_ERROR		AFB_REQ_ERROR
+# define REQ_WARNING		AFB_REQ_WARNING
+# define REQ_NOTICE		AFB_REQ_NOTICE
+# define REQ_INFO		AFB_REQ_INFO
+# define REQ_DEBUG		AFB_REQ_DEBUG
 #endif
 
