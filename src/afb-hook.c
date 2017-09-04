@@ -177,24 +177,24 @@ static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
 #else /* new behaviour: emits directly to stderr */
 static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
 {
-	static const char chars[] = "[HOOK ] \n";
+	static const char chars[] = "HOOK: [] \n";
 	char *mem1, *mem2, buf1[256], buf2[2000];
 	struct iovec iov[5];
 	va_list arg1;
 
 	iov[0].iov_base = (void*)&chars[0];
-	iov[0].iov_len = 6;
+	iov[0].iov_len = 7;
 
 	va_start(arg1, arg2);
 	iov[1].iov_base = _pbuf_(fmt1, arg1, &mem1, buf1, sizeof buf1, &iov[1].iov_len);
 	va_end(arg1);
 
-	iov[2].iov_base = (void*)&chars[6];
+	iov[2].iov_base = (void*)&chars[7];
 	iov[2].iov_len = 2;
 
 	iov[3].iov_base = _pbuf_(fmt2, arg2, &mem2, buf2, sizeof buf2, &iov[3].iov_len);
 
-	iov[4].iov_base = (void*)&chars[8];
+	iov[4].iov_base = (void*)&chars[9];
 	iov[4].iov_len = 1;
 
 	writev(2, iov, 5);
