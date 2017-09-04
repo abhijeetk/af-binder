@@ -83,6 +83,8 @@ void verbose_set_name(const char *name, int authority)
 
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
+#include <sys/uio.h>
 
 static const char *appname;
 
@@ -99,18 +101,76 @@ static const char *prefixes[] = {
 	"<7> DEBUG"
 };
 
+static int tty;
+
+static const char chars[] = { '\n', '?', ':', ' ', '[', ',', ']' };
+
 static void _vverbose_(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
-	int saverr = errno;
-	int tty = isatty(fileno(stderr));
-	errno = saverr;
+	char buffer[4000];
+	char lino[40];
+	int saverr, n, rc;
+	struct iovec iov[20];
 
-	fprintf(stderr, "%s: ", prefixes[CROP_LOGLEVEL(loglevel)] + (tty ? 4 : 0));
-	vfprintf(stderr, fmt, args);
-	if (file != NULL && (!tty || verbosity > 2))
-		fprintf(stderr, " [%s:%d,%s]\n", file, line, function);
-	else
-		fprintf(stderr, "\n");
+	saverr = errno;
+
+	if (!tty)
+		tty = 1 + isatty(STDERR_FILENO);
+
+	iov[0].iov_base = (void*)prefixes[CROP_LOGLEVEL(loglevel)] + (tty - 1 ? 4 : 0);
+	iov[0].iov_len = strlen(iov[0].iov_base);
+
+	iov[1].iov_base = (void*)&chars[2];
+	iov[1].iov_len = 2;
+
+	n = 2;
+	if (fmt) {
+		iov[n].iov_base = buffer;
+		rc = vsnprintf(buffer, sizeof buffer, fmt, args);
+		if (rc < 0)
+			rc = 0;
+		else if ((size_t)rc > sizeof buffer) {
+			rc = (int)sizeof buffer;
+			buffer[rc - 1] = buffer[rc - 2]  = buffer[rc - 3] = '.';
+		}
+		iov[n++].iov_len = (size_t)rc;
+	}
+	if (file && (!fmt || tty == 1 || loglevel <= Log_Level_Warning)) {
+		iov[n].iov_base = (void*)&chars[3 + !fmt];
+		iov[n++].iov_len = 2 - !fmt;
+		iov[n].iov_base = (void*)file;
+		iov[n++].iov_len = strlen(file);
+		iov[n].iov_base = (void*)&chars[2];
+		iov[n++].iov_len = 1;
+		if (line) {
+			iov[n].iov_base = lino;
+			iov[n++].iov_len = snprintf(lino, sizeof lino, "%d", line);
+		} else {
+			iov[n].iov_base = (void*)&chars[1];
+			iov[n++].iov_len = 1;
+		}
+		iov[n].iov_base = (void*)&chars[5];
+		iov[n++].iov_len = 1;
+		if (function) {
+			iov[n].iov_base = (void*)function;
+			iov[n++].iov_len = strlen(function);
+		} else {
+			iov[n].iov_base = (void*)&chars[1];
+			iov[n++].iov_len = 1;
+		}
+		iov[n].iov_base = (void*)&chars[6];
+		iov[n++].iov_len = 1;
+	}
+	if (n == 2) {
+		iov[n].iov_base = (void*)&chars[1];
+		iov[n++].iov_len = 1;
+	}
+	iov[n].iov_base = (void*)&chars[0];
+	iov[n++].iov_len = 1;
+
+	writev(STDERR_FILENO, iov, n);
+
+	errno = saverr;
 }
 
 void verbose_set_name(const char *name, int authority)

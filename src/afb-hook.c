@@ -1415,7 +1415,7 @@ static struct afb_hook_global_itf hook_global_default_itf = {
 
 static void afb_hook_global_vverbose(int level, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
-	_HOOK_GLOBAL_(vverbose, level, file ?: "?", line, func ?: "?", fmt, args);
+	_HOOK_GLOBAL_(vverbose, level, file ?: "?", line, func ?: "?", fmt ?: "", args);
 }
 
 /******************************************************************************
