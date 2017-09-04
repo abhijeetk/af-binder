@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <fnmatch.h>
+#include <sys/uio.h>
 
 #include <json-c/json.h>
 
@@ -135,7 +136,7 @@ static void init_hookid(struct afb_hookid *hookid)
  * section: default callbacks for tracing requests
  *****************************************************************************/
 
-static char *_pbuf_(const char *fmt, va_list args, char **palloc, char *sbuf, size_t szsbuf)
+static char *_pbuf_(const char *fmt, va_list args, char **palloc, char *sbuf, size_t szsbuf, size_t *outlen)
 {
 	int rc;
 	va_list cp;
@@ -151,18 +152,21 @@ static char *_pbuf_(const char *fmt, va_list args, char **palloc, char *sbuf, si
 			sbuf = *palloc;
 	}
 	va_end(cp);
+	if (rc >= 0 && outlen)
+		*outlen = (size_t)rc;
 	return sbuf;
 }
 
+#if 0 /* old behaviour: use NOTICE */
 static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
 {
 	char *tag, *data, *mem1, *mem2, buf1[256], buf2[2000];
 	va_list arg1;
 
-	data = _pbuf_(fmt2, arg2, &mem2, buf2, sizeof buf2);
+	data = _pbuf_(fmt2, arg2, &mem2, buf2, sizeof buf2, NULL);
 
 	va_start(arg1, arg2);
-	tag = _pbuf_(fmt1, arg1, &mem1, buf1, sizeof buf1);
+	tag = _pbuf_(fmt1, arg1, &mem1, buf1, sizeof buf1, NULL);
 	va_end(arg1);
 
 	NOTICE("[HOOK %s] %s", tag, data);
@@ -170,6 +174,35 @@ static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
 	free(mem1);
 	free(mem2);
 }
+#else /* new behaviour: emits directly to stderr */
+static void _hook_(const char *fmt1, const char *fmt2, va_list arg2, ...)
+{
+	static const char chars[] = "[HOOK ] \n";
+	char *mem1, *mem2, buf1[256], buf2[2000];
+	struct iovec iov[5];
+	va_list arg1;
+
+	iov[0].iov_base = (void*)&chars[0];
+	iov[0].iov_len = 6;
+
+	va_start(arg1, arg2);
+	iov[1].iov_base = _pbuf_(fmt1, arg1, &mem1, buf1, sizeof buf1, &iov[1].iov_len);
+	va_end(arg1);
+
+	iov[2].iov_base = (void*)&chars[6];
+	iov[2].iov_len = 2;
+
+	iov[3].iov_base = _pbuf_(fmt2, arg2, &mem2, buf2, sizeof buf2, &iov[3].iov_len);
+
+	iov[4].iov_base = (void*)&chars[8];
+	iov[4].iov_len = 1;
+
+	writev(2, iov, 5);
+
+	free(mem1);
+	free(mem2);
+}
+#endif
 
 static void _hook_xreq_(const struct afb_xreq *xreq, const char *format, ...)
 {
