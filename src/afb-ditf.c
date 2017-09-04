@@ -56,7 +56,7 @@ static void vverbose_cb(void *closure, int level, const char *file, int line, co
 
 static void old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
-	vverbose_cb(closure, level, file, line, "?", fmt, args);
+	vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
 static struct afb_event event_make_cb(void *closure, const char *name)
@@ -152,7 +152,7 @@ static void hooked_vverbose_cb(void *closure, int level, const char *file, int l
 
 static void hooked_old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
-	hooked_vverbose_cb(closure, level, file, line, "?", fmt, args);
+	hooked_vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
 static struct afb_event hooked_event_make_cb(void *closure, const char *name)
