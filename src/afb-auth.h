@@ -21,3 +21,5 @@ struct afb_auth;
 struct afb_xreq;
 
 extern int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth);
+extern int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission);
+

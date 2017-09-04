@@ -29,8 +29,6 @@
 #include "afb-cred.h"
 #include "verbose.h"
 
-static int check_permission(struct afb_xreq *xreq, const char *permission);
-
 int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 {
 	switch (auth->type) {
@@ -46,7 +44,7 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 
 	case afb_auth_Permission:
 		if (xreq->cred && auth->text)
-			return check_permission(xreq, auth->text);
+			return afb_auth_check_permission(xreq, auth->text);
 		/* TODO: handle case of self permission */
 		return 1;
 
@@ -73,7 +71,7 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 static cynara *handle;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static int check_permission(struct afb_xreq *xreq, const char *permission)
+int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 {
 	int rc;
 
@@ -99,7 +97,7 @@ static int check_permission(struct afb_xreq *xreq, const char *permission)
 
 /*********************************************************************************/
 #else
-static int check_permission(struct afb_xreq *xreq, const char *permission)
+int afb_auth_check_permission(struct afb_xreq *xreq, const char *permission)
 {
 	WARNING("Granting permission %s by default of backend", permission);
 	return 1;
