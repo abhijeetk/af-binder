@@ -142,12 +142,16 @@ Broadcasting an event send it to any possible listener.
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  *
+ * Calling this function is only forbidden during preinit.
+ *
  * Returns the count of clients that received the event.
  */
 int afb_daemon_broadcast_event(const char *name, struct json_object *object);
 
 /*
  * Creates an event of 'name' and returns it.
+ *
+ * Calling this function is only forbidden during preinit.
  *
  * See afb_event_is_valid to check if there is an error.
  */
@@ -228,6 +232,7 @@ bindings at its initialization.
 /*
  * Tells that it requires the API of "name" to exist
  * and if 'initialized' is not null to be initialized.
+ * Calling this function is only allowed within init.
  * Returns 0 in case of success or -1 in case of error.
  */
 int afb_daemon_require_api(const char *name, int initialized)

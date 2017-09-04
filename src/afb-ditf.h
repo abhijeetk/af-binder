@@ -20,9 +20,17 @@
 struct afb_binding_interface_v1;
 struct afb_binding_data_v2;
 
+enum afb_ditf_state
+{
+	Daemon_Pre_Init,
+	Daemon_Init,
+	Daemon_Run
+};
+
 struct afb_ditf
 {
 	int version;
+	enum afb_ditf_state state;
 	const char *api;
 	union {
 		struct afb_binding_interface_v1 *v1;

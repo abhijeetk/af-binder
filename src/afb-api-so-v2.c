@@ -88,7 +88,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	if (desc->service != NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
-			return 0;
+			goto done;
 
 		/* already started: it is an error */
 		ERROR("Service %s already started", desc->binding->api);
@@ -101,7 +101,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	if (start == NULL && onevent == NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
-			return 0;
+			goto done;
 
 		/* no initialisation method */
 		ERROR("Binding %s is not a service", desc->binding->api);
@@ -117,6 +117,7 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	}
 
 	/* Starts the service */
+	desc->ditf.state = Daemon_Init;
 	rc = afb_svc_start_v2(desc->service, start);
 	if (rc < 0) {
 		/* initialisation error */
@@ -126,7 +127,8 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 		return rc;
 	}
 
-
+done:
+	desc->ditf.state = Daemon_Run;
 	return 0;
 }
 

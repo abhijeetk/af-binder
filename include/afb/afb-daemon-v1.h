@@ -55,6 +55,8 @@ static inline struct sd_bus *afb_daemon_get_system_bus_v1(struct afb_daemon daem
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  *
+ * Calling this function is only forbidden during preinit.
+ *
  * Returns the count of clients that received the event.
  */
 static inline int afb_daemon_broadcast_event_v1(struct afb_daemon daemon, const char *name, struct json_object *object)
@@ -65,6 +67,10 @@ static inline int afb_daemon_broadcast_event_v1(struct afb_daemon daemon, const 
 /*
  * Creates an event of 'name' and returns it.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
+ *
+ * Calling this function is only forbidden during preinit.
+ *
+ * See afb_event_is_valid to check if there is an error.
  */
 static inline struct afb_event afb_daemon_make_event_v1(struct afb_daemon daemon, const char *name)
 {
@@ -167,6 +173,7 @@ static inline int afb_daemon_queue_job_v1(struct afb_daemon daemon, void (*callb
 /*
  * Tells that it requires the API of "name" to exist
  * and if 'initialized' is not null to be initialized.
+ * Calling this function is only allowed within init.
  * Returns 0 in case of success or -1 in case of error.
  */
 static inline int afb_daemon_require_api_v1(struct afb_daemon daemon, const char *name, int initialized)

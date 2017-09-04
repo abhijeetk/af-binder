@@ -65,6 +65,14 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 	char *event;
 	struct afb_ditf *ditf = closure;
 
+	/* check daemon state */
+	if (ditf->state == Daemon_Pre_Init) {
+		
+		ERROR("[API %s] Bad call to 'afb_daemon_event_make(%s)', must not be in PreInit", ditf->api, name);
+		errno = EINVAL;
+		return (struct afb_event){ .itf = NULL, .closure = NULL };
+	}
+
 	/* makes the event name */
 	plen = strlen(ditf->api);
 	nlen = strlen(name);
@@ -82,6 +90,14 @@ static int event_broadcast_cb(void *closure, const char *name, struct json_objec
 	size_t plen, nlen;
 	char *event;
 	struct afb_ditf *ditf = closure;
+
+	/* check daemon state */
+	if (ditf->state == Daemon_Pre_Init) {
+		
+		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit", ditf->api, name, json_object_to_json_string(object));
+		errno = EINVAL;
+		return 0;
+	}
 
 	/* makes the event name */
 	plen = strlen(ditf->api);
@@ -112,6 +128,12 @@ static struct afb_req unstore_req_cb(void *closure, struct afb_stored_req *sreq)
 
 static int require_api_cb(void *closure, const char *name, int initialized)
 {
+	struct afb_ditf *ditf = closure;
+	if (ditf->state != Daemon_Init) {
+		ERROR("[API %s] Bad call to 'afb_daemon_require(%s, %d)', must be in Init", ditf->api, name, initialized);
+		errno = EINVAL;
+		return -1;
+	}
 	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(main_apiset, name, 1);
 }
 
@@ -246,6 +268,7 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 void afb_ditf_init_v2(struct afb_ditf *ditf, const char *api, struct afb_binding_data_v2 *data)
 {
 	ditf->version = 2;
+	ditf->state = Daemon_Pre_Init;
 	ditf->v2 = data;
 	data->daemon.closure = ditf;
 	afb_ditf_rename(ditf, api);
@@ -254,6 +277,7 @@ void afb_ditf_init_v2(struct afb_ditf *ditf, const char *api, struct afb_binding
 void afb_ditf_init_v1(struct afb_ditf *ditf, const char *api, struct afb_binding_interface_v1 *itf)
 {
 	ditf->version = 1;
+	ditf->state = Daemon_Pre_Init;
 	ditf->v1 = itf;
 	itf->verbosity = verbosity;
 	itf->mode = AFB_MODE_LOCAL;
