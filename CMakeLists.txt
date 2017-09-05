@@ -16,20 +16,21 @@
 # limitations under the License.
 ###########################################################################
 
-PROJECT(afb-daemon C)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
-SET(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
+PROJECT(afb-daemon C)
 
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
 SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application framework")
-SET(PROJECT_VERSION "1.0")
+SET(PROJECT_VERSION "4.1")
 SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
 
 SET(LIBAFBWSC_VERSION "1.0")
 SET(LIBAFBWSC_SOVERSION "1")
+
+SET(CMAKE_BUILD_TYPE Debug)
+SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
@@ -94,6 +95,8 @@ endif()
 IF(cynara_FOUND)
 	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
 ENDIF(cynara_FOUND)
+
+ADD_DEFINITIONS(-DAFB_VERSION="${PROJECT_VERSION}")
 
 INCLUDE_DIRECTORIES(
 	${INCLUDE_DIRS}
