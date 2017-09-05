@@ -24,7 +24,7 @@ SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
 SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application framework")
 SET(PROJECT_VERSION "4.1")
-SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
+set(PROJECT_URL "https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=summary")
 
 SET(LIBAFBWSC_VERSION "1.0")
 SET(LIBAFBWSC_SOVERSION "1")
