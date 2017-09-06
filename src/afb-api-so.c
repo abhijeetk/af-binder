@@ -28,6 +28,35 @@
 #include "afb-api-so-v1.h"
 #include "afb-api-so-v2.h"
 #include "verbose.h"
+#include "sig-monitor.h"
+
+struct safe_dlopen
+{
+	const char *path;
+	void *handle;
+	int flags;
+};
+
+static void safe_dlopen_cb(int sig, void *closure)
+{
+	struct safe_dlopen *sd = closure;
+	if (!sig)
+		sd->handle = dlopen(sd->path, sd->flags);
+	else {
+		ERROR("dlopen of %s raised signal %s", sd->path, strsignal(sig));
+		sd->handle = NULL;
+	}
+}
+
+static void *safe_dlopen(const char *filename, int flags)
+{
+	struct safe_dlopen sd;
+	sd.path = filename;
+	sd.flags = flags;
+	sd.handle = NULL;
+	sig_monitor(0, safe_dlopen_cb, &sd);
+	return sd.handle;
+}
 
 static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 {
@@ -36,7 +65,7 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 
 	// This is a loadable library let's check if it's a binding
 	rc = -!!force;
-	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+	handle = safe_dlopen(path, RTLD_NOW | RTLD_LOCAL);
 	if (handle == NULL) {
 		if (force)
 			ERROR("binding [%s] not loadable: %s", path, dlerror());
@@ -117,9 +146,9 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, i
 			/* case of directories */
 			if (dent->d_name[0] == '.') {
 				if (len == 1)
-					continue;
+					continue; /* . */
 				if (dent->d_name[1] == '.' && len == 2)
-					continue;
+					continue; /* .. */
 			}
 			memcpy(&path[end], dent->d_name, len+1);
 			rc = adddirs(path, end+len, apiset, failstops);
