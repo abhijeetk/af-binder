@@ -65,7 +65,7 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 
 	// This is a loadable library let's check if it's a binding
 	rc = -!!force;
-	handle = safe_dlopen(path, RTLD_NOW | RTLD_LOCAL);
+	handle = safe_dlopen(path, RTLD_NOW | RTLD_LOCAL | RTLD_DEEPBIND);
 	if (handle == NULL) {
 		if (force)
 			ERROR("binding [%s] not loadable: %s", path, dlerror());
