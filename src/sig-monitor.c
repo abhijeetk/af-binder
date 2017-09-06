@@ -34,6 +34,7 @@
 
 /* local handler */
 static _Thread_local sigjmp_buf *error_handler;
+static _Thread_local int in_safe_dumpstack;
 
 /* local timers */
 static _Thread_local int thread_timer_set;
@@ -73,6 +74,24 @@ static void dumpstack(int crop, int signum)
 			ERROR("BACKTRACE:\n%s", buffer);
 		free(locations);
 	}
+}
+
+static void safe_dumpstack_cb(int signum, void *closure)
+{
+	int *args = closure;
+	if (signum)
+		ERROR("Can't provide backtrace: raised signal %s", strsignal(signum));
+	else
+		dumpstack(args[0], args[1]);
+}
+
+static void safe_dumpstack(int crop, int signum)
+{
+	int args[2] = { crop, signum };
+
+	in_safe_dumpstack = 1;
+	sig_monitor(0, safe_dumpstack_cb, args);
+	in_safe_dumpstack = 0;
 }
 
 /*
@@ -146,9 +165,11 @@ static inline void timeout_delete()
 /* Handles signals that terminate the process */
 static void on_signal_terminate (int signum)
 {
-	ERROR("Terminating signal %d received: %s", signum, strsignal(signum));
-	if (signum == SIGABRT)
-		dumpstack(3, signum);
+	if (!in_safe_dumpstack) {
+		ERROR("Terminating signal %d received: %s", signum, strsignal(signum));
+		if (signum == SIGABRT)
+			safe_dumpstack(3, signum);
+	}
 	exit(1);
 }
 
@@ -157,19 +178,19 @@ static void on_signal_error(int signum)
 {
 	sigset_t sigset;
 
+	if (in_safe_dumpstack)
+		longjmp(*error_handler, signum);
+
 	ERROR("ALERT! signal %d received: %s", signum, strsignal(signum));
 	if (error_handler == NULL && signum == SIG_FOR_TIMER)
 		return;
 
-	dumpstack(3, signum);
+	safe_dumpstack(3, signum);
 
 	// unlock signal to allow a new signal to come
-	if (error_handler != NULL) {
-		sigemptyset(&sigset);
-		sigaddset(&sigset, signum);
-		sigprocmask(SIG_UNBLOCK, &sigset, 0);
+	if (error_handler != NULL)
 		longjmp(*error_handler, signum);
-	}
+
 	ERROR("Unmonitored signal %d received: %s", signum, strsignal(signum));
 	exit(2);
 }
@@ -178,9 +199,14 @@ static void on_signal_error(int signum)
 static int install(void (*handler)(int), int *signals)
 {
 	int result = 1;
+	struct sigaction sa;
+
+	sa.sa_handler = handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_NODEFER;
 	while(*signals > 0) {
-		if (signal(*signals, handler) == SIG_ERR) {
-			ERROR("failed to install signal handler for signal %s", strsignal(*signals));
+		if (sigaction(*signals, &sa, NULL) < 0) {
+			ERROR("failed to install signal handler for signal %s: %m", strsignal(*signals));
 			result = 0;
 		}
 		signals++;
