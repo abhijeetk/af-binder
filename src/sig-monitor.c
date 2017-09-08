@@ -176,8 +176,6 @@ static void on_signal_terminate (int signum)
 /* Handles monitored signals that can be continued */
 static void on_signal_error(int signum)
 {
-	sigset_t sigset;
-
 	if (in_safe_dumpstack)
 		longjmp(*error_handler, signum);
 
