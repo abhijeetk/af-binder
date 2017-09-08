@@ -99,9 +99,19 @@ struct afb_ws
 static inline struct buf aws_pick_buffer(struct afb_ws *ws)
 {
 	struct buf result = ws->buffer;
+	if (result.buffer)
+		result.buffer[result.size] = 0;
 	ws->buffer.buffer = NULL;
 	ws->buffer.size = 0;
 	return result;
+}
+
+/*
+ * Clear the current buffer
+ */
+static inline void aws_clear_buffer(struct afb_ws *ws)
+{
+	ws->buffer.size = 0;
 }
 
 /*
@@ -116,7 +126,7 @@ static void aws_disconnect(struct afb_ws *ws, int call_on_hangup)
 		sd_event_source_unref(ws->evsrc);
 		ws->evsrc = NULL;
 		websock_destroy(wsi);
-		free(aws_pick_buffer(ws).buffer);
+		free(ws->buffer.buffer);
 		ws->state = waiting;
 		if (call_on_hangup && ws->itf->on_hangup)
 			ws->itf->on_hangup(ws->closure);
@@ -425,7 +435,7 @@ static void aws_on_close(struct afb_ws *ws, uint16_t code, size_t size)
 	struct buf b;
 
 	ws->state = waiting;
-	free(aws_pick_buffer(ws).buffer);
+	aws_clear_buffer(ws);
 	if (ws->itf->on_close == NULL) {
 		websock_drop(ws->ws);
 		afb_ws_hangup(ws);
@@ -443,7 +453,7 @@ static void aws_on_close(struct afb_ws *ws, uint16_t code, size_t size)
 static void aws_drop_error(struct afb_ws *ws, uint16_t code)
 {
 	ws->state = waiting;
-	free(aws_pick_buffer(ws).buffer);
+	aws_clear_buffer(ws);
 	websock_drop(ws->ws);
 	websock_error(ws->ws, code, NULL, 0);
 }
@@ -462,7 +472,6 @@ static void aws_continue(struct afb_ws *ws, int last, size_t size)
 		istxt = ws->state == reading_text;
 		ws->state = waiting;
 		b = aws_pick_buffer(ws);
-		b.buffer[b.size] = 0;
 		(istxt ? ws->itf->on_text : ws->itf->on_binary)(ws->closure, b.buffer, b.size);
 	}
 }
