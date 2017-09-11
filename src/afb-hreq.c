@@ -330,6 +330,8 @@ void afb_hreq_addref(struct afb_hreq *hreq)
 
 void afb_hreq_unref(struct afb_hreq *hreq)
 {
+	if (hreq->replied)
+		hreq->xreq.replied = 1;
 	afb_xreq_unref(&hreq->xreq);
 }
 
