@@ -718,7 +718,7 @@ void p(const char *desc, ...)
 	va_start(args, desc);
 	rc = wrap_json_vpack(&result, desc, args);
 	va_end(args);
-	if (!rc) 
+	if (!rc)
 		printf("  SUCCESS %s\n\n", json_object_to_json_string(result));
 	else
 		printf("  ERROR[char %d err %d] %s\n\n", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
@@ -749,7 +749,7 @@ void u(const char *value, const char *desc, ...)
 	va_start(args, desc);
 	rc = wrap_json_vunpack(obj, desc, args);
 	va_end(args);
-	if (rc) 
+	if (rc)
 		printf("  ERROR[char %d err %d] %s\n\n", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
 	else {
 		value = NULL;

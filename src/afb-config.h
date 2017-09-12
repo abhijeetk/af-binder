@@ -17,7 +17,7 @@
 #pragma once
 
 /*
- * other definitions --------------------------------------------------- 
+ * other definitions ---------------------------------------------------
  */
 
 struct afb_config_list {

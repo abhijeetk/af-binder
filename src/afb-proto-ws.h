@@ -24,7 +24,7 @@ struct afb_proto_ws_subcall;
 struct afb_proto_ws_describe;
 
 struct afb_proto_ws_client_itf
-{  
+{
 	void (*on_reply_success)(void *closure, void *request, struct json_object *result, const char *info);
 	void (*on_reply_fail)(void *closure, void *request, const char *status, const char *info);
 

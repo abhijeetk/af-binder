@@ -418,7 +418,7 @@ int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
 			return rc;
 		i++;
 	}
-	
+
 	return set->subset ? afb_apiset_start_all_services(set->subset, share_session) : 0;
 }
 

@@ -85,7 +85,7 @@ int main(int ac, char **av, char **env)
 
 			else if (!strcmp(av[1], "--raw")) /* request for raw output */
 				raw = 1;
-		
+
 			/* emit usage and exit */
 			else
 				usage(!!strcmp(av[1], "--help"), a0);

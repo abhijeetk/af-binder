@@ -55,7 +55,7 @@ The client can require the following actions:
 
   - ask for description
 
-The server must reply to the previous actions by 
+The server must reply to the previous actions by
 
   - answering success or failure of the call
 

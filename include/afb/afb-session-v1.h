@@ -45,12 +45,12 @@ enum afb_session_flags_v1
        AFB_SESSION_LOA_LE_1_V1 = AFB_SESSION_LOA_LE_V1 | AFB_SESSION_LOA_1_V1, /* check LOA <= 1 */
        AFB_SESSION_LOA_LE_2_V1 = AFB_SESSION_LOA_LE_V1 | AFB_SESSION_LOA_2_V1, /* check LOA <= 2 */
        AFB_SESSION_LOA_LE_3_V1 = AFB_SESSION_LOA_LE_V1 | AFB_SESSION_LOA_3_V1, /* check LOA <= 3 */
-                                                                             
+
        AFB_SESSION_LOA_EQ_0_V1 = AFB_SESSION_LOA_EQ_V1 | AFB_SESSION_LOA_0_V1, /* check LOA == 0 */
        AFB_SESSION_LOA_EQ_1_V1 = AFB_SESSION_LOA_EQ_V1 | AFB_SESSION_LOA_1_V1, /* check LOA == 1 */
        AFB_SESSION_LOA_EQ_2_V1 = AFB_SESSION_LOA_EQ_V1 | AFB_SESSION_LOA_2_V1, /* check LOA == 2 */
        AFB_SESSION_LOA_EQ_3_V1 = AFB_SESSION_LOA_EQ_V1 | AFB_SESSION_LOA_3_V1, /* check LOA == 3 */
-                                                                             
+
        AFB_SESSION_LOA_GE_0_V1 = AFB_SESSION_LOA_GE_V1 | AFB_SESSION_LOA_0_V1, /* check LOA >= 0 */
        AFB_SESSION_LOA_GE_1_V1 = AFB_SESSION_LOA_GE_V1 | AFB_SESSION_LOA_1_V1, /* check LOA >= 1 */
        AFB_SESSION_LOA_GE_2_V1 = AFB_SESSION_LOA_GE_V1 | AFB_SESSION_LOA_2_V1, /* check LOA >= 2 */

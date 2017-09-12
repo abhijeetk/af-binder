@@ -283,7 +283,6 @@ static struct afb_hsrv *start_http_server()
 
 /*---------------------------------------------------------
  | execute_command
- |   
  +--------------------------------------------------------- */
 
 static void on_sigchld(int signum, siginfo_t *info, void *uctx)

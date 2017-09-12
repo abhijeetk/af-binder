@@ -960,7 +960,7 @@ static void trace_cleanup(struct afb_trace *trace)
 	psession = &trace->sessions;
 	while ((session = *psession)) {
 		/* search for session */
-		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++) 
+		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++)
 			for (hook = trace->hooks[i] ; hook && hook->session != session ; hook = hook->next);
 		/* keep or free whether used or not */
 		if (hook)
@@ -976,7 +976,7 @@ static void trace_cleanup(struct afb_trace *trace)
 	ptag = &trace->tags;
 	while ((tag = *ptag)) {
 		/* search for tag */
-		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++) 
+		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++)
 			for (hook = trace->hooks[i] ; hook && hook->tag != tag ; hook = hook->next);
 		/* keep or free whether used or not */
 		if (hook)
@@ -990,7 +990,7 @@ static void trace_cleanup(struct afb_trace *trace)
 	pevent = &trace->events;
 	while ((event = *pevent)) {
 		/* search for event */
-		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++) 
+		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++)
 			for (hook = trace->hooks[i] ; hook && hook->event != event ; hook = hook->next);
 		/* keep or free whether used or not */
 		if (hook)

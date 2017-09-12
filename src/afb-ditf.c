@@ -67,7 +67,6 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 
 	/* check daemon state */
 	if (ditf->state == Daemon_Pre_Init) {
-		
 		ERROR("[API %s] Bad call to 'afb_daemon_event_make(%s)', must not be in PreInit", ditf->api, name);
 		errno = EINVAL;
 		return (struct afb_event){ .itf = NULL, .closure = NULL };
@@ -93,7 +92,6 @@ static int event_broadcast_cb(void *closure, const char *name, struct json_objec
 
 	/* check daemon state */
 	if (ditf->state == Daemon_Pre_Init) {
-		
 		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit", ditf->api, name, json_object_to_json_string(object));
 		errno = EINVAL;
 		return 0;

@@ -674,7 +674,7 @@ struct sd_event *jobs_get_sd_event()
 						ERROR("creation of sd_event failed: %m");
 						events = NULL;
 						errno = -rc;
-					} 
+					}
 				}
 			}
 		}

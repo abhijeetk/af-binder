@@ -34,7 +34,7 @@
  *      "b": "int"
  *    }
  *  }
- * 
+ *
  * Invocation:   program  [file|-]...
  *
  * without arguments, it reads the input.
@@ -95,7 +95,7 @@ struct json_object *search(const char *path)
 	d = strtok(d, "/");
 	while(i && d) {
 		if (!json_object_object_get_ex(i, d, &i))
-			return NULL; 
+			return NULL;
 		d = strtok(NULL, "/");
 	}
 	return i;
@@ -109,7 +109,7 @@ struct json_object *expand_$ref(struct path path)
 	struct path *p;
 	struct json_object *o, *x;
 	int n, i;
-	struct json_object_iterator ji, jn; 
+	struct json_object_iterator ji, jn;
 
 	/* expansion depends of the type of the node */
 	switch (json_object_get_type(path.object)) {
@@ -305,7 +305,7 @@ struct json_object *new_perm(struct json_object *obj, const char *desc)
 		if (!d_perms) {
 			d_perms = json_object_new_object();
 			a_perms = json_object_new_array();
-		}	
+		}
 
 		asprintf(&b, "&_afb_auths_v2_%s[%d]", capi, json_object_array_length(a_perms));
 		x = json_object_new_string(desc);
@@ -698,7 +698,7 @@ int main(int ac, char **av)
 		process("-");
 	else {
 		do { process(*av); } while(*++av);
-	}	
+	}
 	return 0;
 }
 

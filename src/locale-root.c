@@ -146,7 +146,7 @@ static struct locale_folder *search_folder(struct locale_container *container, c
 			return f;
 		if (c >= 0)
 			high = mid;
-		else	
+		else
 			low = mid + 1;
 	}
 	return NULL;

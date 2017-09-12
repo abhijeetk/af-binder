@@ -169,7 +169,6 @@ static int api_ws_socket_inet(const char *path, int server)
 	}
 	freeaddrinfo(rai);
 	return -1;
-	
 }
 
 static int api_ws_socket(const char *path, int server)

@@ -543,12 +543,12 @@ static void on_describe(void *closure, struct afb_proto_ws_describe *describe)
 /*****************************************************/
 
 static const struct afb_proto_ws_client_itf client_itf =
-{  
+{
 	.on_reply_success = on_reply_success,
 	.on_reply_fail = on_reply_fail,
 	.on_event_create = on_event_create,
 	.on_event_remove = on_event_remove,
-	.on_event_subscribe = on_event_subscribe, 
+	.on_event_subscribe = on_event_subscribe,
 	.on_event_unsubscribe = on_event_unsubscribe,
 	.on_event_push = on_event_push,
 	.on_event_broadcast = on_event_broadcast,

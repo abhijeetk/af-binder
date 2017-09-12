@@ -34,7 +34,7 @@
  *      "b": "int"
  *    }
  *  }
- * 
+ *
  * Invocation:   program  [file|-]...
  *
  * without arguments, it reads the input.
@@ -167,7 +167,7 @@ int main(int ac, char **av)
 		process("-");
 	else {
 		do { process(*av); } while(*++av);
-	}	
+	}
 	return 0;
 }
 

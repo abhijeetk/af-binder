@@ -148,7 +148,7 @@ static void set_verbosity(struct json_object *spec)
 
 /**
  * Translate verbosity level to a protocol indication.
- * @param level the verbosity 
+ * @param level the verbosity
  * @return the encoded verbosity
  */
 static struct json_object *encode_verbosity(int level)
