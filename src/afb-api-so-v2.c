@@ -185,6 +185,35 @@ static struct json_object *addperm_key_valint(struct json_object *o, const char 
 	return addperm_key_val(o, key, json_object_new_int(val));
 }
 
+static struct json_object *addauth_or_array(struct json_object *o, const struct afb_auth *auth);
+
+static struct json_object *addauth(struct json_object *o, const struct afb_auth *auth)
+{
+	switch(auth->type) {
+	case afb_auth_No: return addperm(o, json_object_new_boolean(0));
+	case afb_auth_Token: return addperm_key_valstr(o, "session", "check");
+	case afb_auth_LOA: return addperm_key_valint(o, "LOA", auth->loa);
+	case afb_auth_Permission: return addperm_key_valstr(o, "permission", auth->text);
+	case afb_auth_Or: return addperm_key_val(o, "anyOf", addauth_or_array(json_object_new_array(), auth));
+	case afb_auth_And: return addauth(addauth(o, auth->first), auth->next);
+	case afb_auth_Not: return addperm_key_val(o, "not", addauth(NULL, auth->first));
+	case afb_auth_Yes: return addperm(o, json_object_new_boolean(1));
+	}
+	return o;
+}
+
+static struct json_object *addauth_or_array(struct json_object *o, const struct afb_auth *auth)
+{
+	if (auth->type != afb_auth_Or)
+		json_object_array_add(o, addauth(NULL, auth));
+	else {
+		addauth_or_array(o, auth->first);
+		addauth_or_array(o, auth->next);
+	}
+
+	return o;
+}
+
 static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 {
 	char buffer[256];
@@ -221,10 +250,8 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 			a = addperm_key_valstr(a, "token", "refresh");
 		if (verb->session & AFB_SESSION_LOA_MASK_V2)
 			a = addperm_key_valint(a, "LOA", verb->session & AFB_SESSION_LOA_MASK_V2);
-#if 0
 		if (verb->auth)
-			a = 
-#endif
+			a = addauth(a, verb->auth);
 		if (a)
 			json_object_object_add(g, "x-permissions", a);
 
