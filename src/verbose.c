@@ -126,6 +126,7 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 	n = 2;
 	if (fmt) {
 		iov[n].iov_base = buffer;
+		errno = saverr;
 		rc = vsnprintf(buffer, sizeof buffer, fmt, args);
 		if (rc < 0)
 			rc = 0;
