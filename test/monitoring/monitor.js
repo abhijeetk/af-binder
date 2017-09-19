@@ -39,6 +39,8 @@ var logmsgs_node;
 var apis_node;
 var all_node;
 
+var styles;
+
 /* flags */
 var show_perms = false;
 var show_monitor_events = false;
@@ -81,7 +83,14 @@ function on_connect(evt) {
 	connect();
 }
 
+function next_style(evt) {
+	styles.next();
+}
+
 function init() {
+	styles = makecss();
+	at("style").onclick = next_style;
+
 	/* prepare the DOM templates */
 	t_api = at("t-api").content.firstElementChild;
 	t_verb = at("t-verb").content.firstElementChild;
@@ -508,5 +517,46 @@ function obj2html(json) {
 			}
 			return '<span class="json ' + cls + '">' + match + '</span>';
 		});
+}
+
+function makecss()
+{
+	var i, l, a, links, x;
+
+	x = { idx: 0, byidx: [], byname: {}, names: [] };
+	links = document.getElementsByTagName("link");
+	for (i = 0 ; i < links.length ; i++) {
+		l = links[i];
+		if (l.title && l.rel.indexOf( "stylesheet" ) != -1) {
+			if (!(l.title in x.byname)) {
+				x.byname[l.title] = x.byidx.length;
+				x.names.push(l.title);
+				x.byidx.push([]);
+			}
+			x.byidx[x.byname[l.title]].push(l);
+		}
+	}
+
+	x.set = function(id) {
+		if (id in x.byname)
+			id = x.byname[id];
+		if (id in x.byidx) {
+			var i, j, a, b;
+			x.idx = id;
+			a = x.byidx;
+			for (i = 0 ; i < a.length ; i++) {
+				b = a[i];
+				for (j = 0 ; j < b.length ; j++)
+					b[j].disabled = i != id;
+			}
+		}
+	};
+
+	x.next = function() {
+		x.set((x.idx + 1) % x.byidx.length);
+	};
+
+	x.set(0);
+	return x;
 }
 
