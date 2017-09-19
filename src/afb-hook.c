@@ -36,8 +36,7 @@
 #include "afb-session.h"
 #include "afb-cred.h"
 #include "afb-xreq.h"
-#include "afb-ditf.h"
-#include "afb-svc.h"
+#include "afb-export.h"
 #include "afb-evt.h"
 #include "verbose.h"
 
@@ -56,7 +55,7 @@ struct afb_hook_xreq {
 };
 
 /**
- * Definition of a hook for ditf
+ * Definition of a hook for export
  */
 struct afb_hook_ditf {
 	struct afb_hook_ditf *next; /**< next hook */
@@ -68,7 +67,7 @@ struct afb_hook_ditf {
 };
 
 /**
- * Definition of a hook for svc
+ * Definition of a hook for export
  */
 struct afb_hook_svc {
 	struct afb_hook_svc *next; /**< next hook */
@@ -108,10 +107,10 @@ static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 /* list of hooks for xreq */
 static struct afb_hook_xreq *list_of_xreq_hooks = NULL;
 
-/* list of hooks for ditf */
+/* list of hooks for export */
 static struct afb_hook_ditf *list_of_ditf_hooks = NULL;
 
-/* list of hooks for svc */
+/* list of hooks for export */
 static struct afb_hook_svc *list_of_svc_hooks = NULL;
 
 /* list of hooks for evt */
@@ -650,40 +649,40 @@ void afb_hook_unref_xreq(struct afb_hook_xreq *hook)
  * section: default callbacks for tracing daemon interface
  *****************************************************************************/
 
-static void _hook_ditf_(const struct afb_ditf *ditf, const char *format, ...)
+static void _hook_ditf_(const struct afb_export *export, const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
-	_hook_("ditf-%s", format, ap, ditf->api);
+	_hook_("export-%s", format, ap, afb_export_apiname(export));
 	va_end(ap);
 }
 
-static void hook_ditf_event_broadcast_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object)
+static void hook_ditf_event_broadcast_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object)
 {
-	_hook_ditf_(ditf, "event_broadcast.before(%s, %s)....", name, json_object_to_json_string(object));
+	_hook_ditf_(export, "event_broadcast.before(%s, %s)....", name, json_object_to_json_string(object));
 }
 
-static void hook_ditf_event_broadcast_after_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
+static void hook_ditf_event_broadcast_after_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object, int result)
 {
-	_hook_ditf_(ditf, "event_broadcast.after(%s, %s) -> %d", name, json_object_to_json_string(object), result);
+	_hook_ditf_(export, "event_broadcast.after(%s, %s) -> %d", name, json_object_to_json_string(object), result);
 }
 
-static void hook_ditf_get_event_loop_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_event *result)
+static void hook_ditf_get_event_loop_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_event *result)
 {
-	_hook_ditf_(ditf, "get_event_loop() -> %p", result);
+	_hook_ditf_(export, "get_event_loop() -> %p", result);
 }
 
-static void hook_ditf_get_user_bus_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result)
+static void hook_ditf_get_user_bus_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_bus *result)
 {
-	_hook_ditf_(ditf, "get_user_bus() -> %p", result);
+	_hook_ditf_(export, "get_user_bus() -> %p", result);
 }
 
-static void hook_ditf_get_system_bus_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result)
+static void hook_ditf_get_system_bus_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_bus *result)
 {
-	_hook_ditf_(ditf, "get_system_bus() -> %p", result);
+	_hook_ditf_(export, "get_system_bus() -> %p", result);
 }
 
-static void hook_ditf_vverbose_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+static void hook_ditf_vverbose_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	int len;
 	char *msg;
@@ -694,67 +693,67 @@ static void hook_ditf_vverbose_cb(void *closure, const struct afb_hookid *hookid
 	va_end(ap);
 
 	if (len < 0)
-		_hook_ditf_(ditf, "vverbose(%d, %s, %d, %s) -> %s ? ? ?", level, file, line, function, fmt);
+		_hook_ditf_(export, "vverbose(%d, %s, %d, %s) -> %s ? ? ?", level, file, line, function, fmt);
 	else {
-		_hook_ditf_(ditf, "vverbose(%d, %s, %d, %s) -> %s", level, file, line, function, msg);
+		_hook_ditf_(export, "vverbose(%d, %s, %d, %s) -> %s", level, file, line, function, msg);
 		free(msg);
 	}
 }
 
-static void hook_ditf_event_make_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct afb_event result)
+static void hook_ditf_event_make_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_event result)
 {
-	_hook_ditf_(ditf, "event_make(%s) -> %s:%d", name, afb_evt_event_name(result), afb_evt_event_id(result));
+	_hook_ditf_(export, "event_make(%s) -> %s:%d", name, afb_evt_event_name(result), afb_evt_event_id(result));
 }
 
-static void hook_ditf_rootdir_get_fd_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int result)
+static void hook_ditf_rootdir_get_fd_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)
 {
 	char path[PATH_MAX];
 	if (result < 0)
-		_hook_ditf_(ditf, "rootdir_get_fd() -> %d, %m", result);
+		_hook_ditf_(export, "rootdir_get_fd() -> %d, %m", result);
 	else {
 		sprintf(path, "/proc/self/fd/%d", result);
 		readlink(path, path, sizeof path);
-		_hook_ditf_(ditf, "rootdir_get_fd() -> %d = %s", result, path);
+		_hook_ditf_(export, "rootdir_get_fd() -> %d = %s", result, path);
 	}
 }
 
-static void hook_ditf_rootdir_open_locale_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
+static void hook_ditf_rootdir_open_locale_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *filename, int flags, const char *locale, int result)
 {
 	char path[PATH_MAX];
 	if (!locale)
 		locale = "(null)";
 	if (result < 0)
-		_hook_ditf_(ditf, "rootdir_open_locale(%s, %d, %s) -> %d, %m", filename, flags, locale, result);
+		_hook_ditf_(export, "rootdir_open_locale(%s, %d, %s) -> %d, %m", filename, flags, locale, result);
 	else {
 		sprintf(path, "/proc/self/fd/%d", result);
 		readlink(path, path, sizeof path);
-		_hook_ditf_(ditf, "rootdir_open_locale(%s, %d, %s) -> %d = %s", filename, flags, locale, result, path);
+		_hook_ditf_(export, "rootdir_open_locale(%s, %d, %s) -> %d = %s", filename, flags, locale, result, path);
 	}
 }
 
-static void hook_ditf_queue_job_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+static void hook_ditf_queue_job_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
 {
-	_hook_ditf_(ditf, "queue_job(%p, %p, %p, %d) -> %d", callback, argument, group, timeout, result);
+	_hook_ditf_(export, "queue_job(%p, %p, %p, %d) -> %d", callback, argument, group, timeout, result);
 }
 
-static void hook_ditf_unstore_req_cb(void *closure, const struct afb_hookid *hookid,  const struct afb_ditf *ditf, struct afb_stored_req *sreq)
+static void hook_ditf_unstore_req_cb(void *closure, const struct afb_hookid *hookid,  const struct afb_export *export, struct afb_stored_req *sreq)
 {
-	_hook_ditf_(ditf, "unstore_req(%p)", sreq);
+	_hook_ditf_(export, "unstore_req(%p)", sreq);
 }
 
-static void hook_ditf_require_api_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized)
+static void hook_ditf_require_api_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, int initialized)
 {
-	_hook_ditf_(ditf, "require_api(%s, %d)...", name, initialized);
+	_hook_ditf_(export, "require_api(%s, %d)...", name, initialized);
 }
 
-static void hook_ditf_require_api_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result)
+static void hook_ditf_require_api_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, int initialized, int result)
 {
-	_hook_ditf_(ditf, "...require_api(%s, %d) -> %d", name, initialized, result);
+	_hook_ditf_(export, "...require_api(%s, %d) -> %d", name, initialized, result);
 }
 
-static void hook_ditf_rename_api_cb(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *oldname, const char *newname, int result)
+static void hook_ditf_rename_api_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *oldname, const char *newname, int result)
 {
-	_hook_ditf_(ditf, "rename_api(%s -> %s) -> %d", oldname, newname, result);
+	_hook_ditf_(export, "rename_api(%s -> %s) -> %d", oldname, newname, result);
 }
 
 static struct afb_hook_ditf_itf hook_ditf_default_itf = {
@@ -775,107 +774,108 @@ static struct afb_hook_ditf_itf hook_ditf_default_itf = {
 };
 
 /******************************************************************************
- * section: hooks for tracing daemon interface (ditf)
+ * section: hooks for tracing daemon interface (export)
  *****************************************************************************/
 
 #define _HOOK_DITF_(what,...)   \
 	struct afb_hook_ditf *hook; \
 	struct afb_hookid hookid; \
+	const char *apiname = afb_export_apiname(export); \
 	pthread_rwlock_rdlock(&rwlock); \
 	init_hookid(&hookid); \
 	hook = list_of_ditf_hooks; \
 	while (hook) { \
 		if (hook->itf->hook_ditf_##what \
 		 && (hook->flags & afb_hook_flag_ditf_##what) != 0 \
-		 && (!hook->api || !strcasecmp(hook->api, ditf->api))) { \
+		 && (!hook->api || !strcasecmp(hook->api, apiname))) { \
 			hook->itf->hook_ditf_##what(hook->closure, &hookid, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
 	} \
 	pthread_rwlock_unlock(&rwlock);
 
-void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object)
+void afb_hook_ditf_event_broadcast_before(const struct afb_export *export, const char *name, struct json_object *object)
 {
-	_HOOK_DITF_(event_broadcast_before, ditf, name, object);
+	_HOOK_DITF_(event_broadcast_before, export, name, object);
 }
 
-int afb_hook_ditf_event_broadcast_after(const struct afb_ditf *ditf, const char *name, struct json_object *object, int result)
+int afb_hook_ditf_event_broadcast_after(const struct afb_export *export, const char *name, struct json_object *object, int result)
 {
-	_HOOK_DITF_(event_broadcast_after, ditf, name, object, result);
+	_HOOK_DITF_(event_broadcast_after, export, name, object, result);
 	return result;
 }
 
-struct sd_event *afb_hook_ditf_get_event_loop(const struct afb_ditf *ditf, struct sd_event *result)
+struct sd_event *afb_hook_ditf_get_event_loop(const struct afb_export *export, struct sd_event *result)
 {
-	_HOOK_DITF_(get_event_loop, ditf, result);
+	_HOOK_DITF_(get_event_loop, export, result);
 	return result;
 }
 
-struct sd_bus *afb_hook_ditf_get_user_bus(const struct afb_ditf *ditf, struct sd_bus *result)
+struct sd_bus *afb_hook_ditf_get_user_bus(const struct afb_export *export, struct sd_bus *result)
 {
-	_HOOK_DITF_(get_user_bus, ditf, result);
+	_HOOK_DITF_(get_user_bus, export, result);
 	return result;
 }
 
-struct sd_bus *afb_hook_ditf_get_system_bus(const struct afb_ditf *ditf, struct sd_bus *result)
+struct sd_bus *afb_hook_ditf_get_system_bus(const struct afb_export *export, struct sd_bus *result)
 {
-	_HOOK_DITF_(get_system_bus, ditf, result);
+	_HOOK_DITF_(get_system_bus, export, result);
 	return result;
 }
 
-void afb_hook_ditf_vverbose(const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+void afb_hook_ditf_vverbose(const struct afb_export *export, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
-	_HOOK_DITF_(vverbose, ditf, level, file, line, function, fmt, args);
+	_HOOK_DITF_(vverbose, export, level, file, line, function, fmt, args);
 }
 
-struct afb_event afb_hook_ditf_event_make(const struct afb_ditf *ditf, const char *name, struct afb_event result)
+struct afb_event afb_hook_ditf_event_make(const struct afb_export *export, const char *name, struct afb_event result)
 {
-	_HOOK_DITF_(event_make, ditf, name, result);
+	_HOOK_DITF_(event_make, export, name, result);
 	return result;
 }
 
-int afb_hook_ditf_rootdir_get_fd(const struct afb_ditf *ditf, int result)
+int afb_hook_ditf_rootdir_get_fd(const struct afb_export *export, int result)
 {
-	_HOOK_DITF_(rootdir_get_fd, ditf, result);
+	_HOOK_DITF_(rootdir_get_fd, export, result);
 	return result;
 }
 
-int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result)
+int afb_hook_ditf_rootdir_open_locale(const struct afb_export *export, const char *filename, int flags, const char *locale, int result)
 {
-	_HOOK_DITF_(rootdir_open_locale, ditf, filename, flags, locale, result);
+	_HOOK_DITF_(rootdir_open_locale, export, filename, flags, locale, result);
 	return result;
 }
 
-int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
+int afb_hook_ditf_queue_job(const struct afb_export *export, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
 {
-	_HOOK_DITF_(queue_job, ditf, callback, argument, group, timeout, result);
+	_HOOK_DITF_(queue_job, export, callback, argument, group, timeout, result);
 	return result;
 }
 
-void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq)
+void afb_hook_ditf_unstore_req(const struct afb_export *export, struct afb_stored_req *sreq)
 {
-	_HOOK_DITF_(unstore_req, ditf, sreq);
+	_HOOK_DITF_(unstore_req, export, sreq);
 }
 
-void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, int initialized)
+void afb_hook_ditf_require_api(const struct afb_export *export, const char *name, int initialized)
 {
-	_HOOK_DITF_(require_api, ditf, name, initialized);
+	_HOOK_DITF_(require_api, export, name, initialized);
 }
 
-int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result)
+int afb_hook_ditf_require_api_result(const struct afb_export *export, const char *name, int initialized, int result)
 {
-	_HOOK_DITF_(require_api_result, ditf, name, initialized, result);
+	_HOOK_DITF_(require_api_result, export, name, initialized, result);
 	return result;
 }
 
-int afb_hook_ditf_rename_api(const struct afb_ditf *ditf, const char *oldname, const char *newname, int result)
+int afb_hook_ditf_rename_api(const struct afb_export *export, const char *oldname, const char *newname, int result)
 {
-	_HOOK_DITF_(rename_api, ditf, oldname, newname, result);
+	_HOOK_DITF_(rename_api, export, oldname, newname, result);
 	return result;
 }
 
 /******************************************************************************
- * section: hooking ditf
+ * section: hooking export
  *****************************************************************************/
 
 int afb_hook_flags_ditf(const char *api)
@@ -961,55 +961,55 @@ void afb_hook_unref_ditf(struct afb_hook_ditf *hook)
 }
 
 /******************************************************************************
- * section: default callbacks for tracing service interface (svc)
+ * section: default callbacks for tracing service interface (export)
  *****************************************************************************/
 
-static void _hook_svc_(const struct afb_svc *svc, const char *format, ...)
+static void _hook_svc_(const struct afb_export *export, const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
-	_hook_("svc-%s", format, ap, svc->api);
+	_hook_("export-%s", format, ap, afb_export_apiname(export));
 	va_end(ap);
 }
 
-static void hook_svc_start_before_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc)
+static void hook_svc_start_before_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export)
 {
-	_hook_svc_(svc, "start.before");
+	_hook_svc_(export, "start.before");
 }
 
-static void hook_svc_start_after_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status)
+static void hook_svc_start_after_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status)
 {
-	_hook_svc_(svc, "start.after -> %d", status);
+	_hook_svc_(export, "start.after -> %d", status);
 }
 
-static void hook_svc_on_event_before_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_before_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object)
 {
-	_hook_svc_(svc, "on_event.before(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
+	_hook_svc_(export, "on_event.before(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
 }
 
-static void hook_svc_on_event_after_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_after_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object)
 {
-	_hook_svc_(svc, "on_event.after(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
+	_hook_svc_(export, "on_event.after(%s, %d, %s)", event, eventid, json_object_to_json_string(object));
 }
 
-static void hook_svc_call_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+static void hook_svc_call_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_svc_(svc, "call(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_svc_(export, "call(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
 }
 
-static void hook_svc_call_result_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result)
+static void hook_svc_call_result_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status, struct json_object *result)
 {
-	_hook_svc_(svc, "    ...call... -> %d: %s", status, json_object_to_json_string(result));
+	_hook_svc_(export, "    ...call... -> %d: %s", status, json_object_to_json_string(result));
 }
 
-static void hook_svc_callsync_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+static void hook_svc_callsync_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_svc_(svc, "callsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_svc_(export, "callsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
 }
 
-static void hook_svc_callsync_result_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result)
+static void hook_svc_callsync_result_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status, struct json_object *result)
 {
-	_hook_svc_(svc, "    ...callsync... -> %d: %s", status, json_object_to_json_string(result));
+	_hook_svc_(export, "    ...callsync... -> %d: %s", status, json_object_to_json_string(result));
 }
 
 static struct afb_hook_svc_itf hook_svc_default_itf = {
@@ -1024,69 +1024,70 @@ static struct afb_hook_svc_itf hook_svc_default_itf = {
 };
 
 /******************************************************************************
- * section: hooks for tracing service interface (svc)
+ * section: hooks for tracing service interface (export)
  *****************************************************************************/
 
 #define _HOOK_SVC_(what,...)   \
 	struct afb_hook_svc *hook; \
 	struct afb_hookid hookid; \
+	const char *apiname = afb_export_apiname(export); \
 	pthread_rwlock_rdlock(&rwlock); \
 	init_hookid(&hookid); \
 	hook = list_of_svc_hooks; \
 	while (hook) { \
 		if (hook->itf->hook_svc_##what \
 		 && (hook->flags & afb_hook_flag_svc_##what) != 0 \
-		 && (!hook->api || !strcasecmp(hook->api, svc->api))) { \
+		 && (!hook->api || !strcasecmp(hook->api, apiname))) { \
 			hook->itf->hook_svc_##what(hook->closure, &hookid, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
 	} \
 	pthread_rwlock_unlock(&rwlock);
 
-void afb_hook_svc_start_before(const struct afb_svc *svc)
+void afb_hook_svc_start_before(const struct afb_export *export)
 {
-	_HOOK_SVC_(start_before, svc);
+	_HOOK_SVC_(start_before, export);
 }
 
-int afb_hook_svc_start_after(const struct afb_svc *svc, int status)
+int afb_hook_svc_start_after(const struct afb_export *export, int status)
 {
-	_HOOK_SVC_(start_after, svc, status);
+	_HOOK_SVC_(start_after, export, status);
 	return status;
 }
 
-void afb_hook_svc_on_event_before(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+void afb_hook_svc_on_event_before(const struct afb_export *export, const char *event, int eventid, struct json_object *object)
 {
-	_HOOK_SVC_(on_event_before, svc, event, eventid, object);
+	_HOOK_SVC_(on_event_before, export, event, eventid, object);
 }
 
-void afb_hook_svc_on_event_after(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
+void afb_hook_svc_on_event_after(const struct afb_export *export, const char *event, int eventid, struct json_object *object)
 {
-	_HOOK_SVC_(on_event_after, svc, event, eventid, object);
+	_HOOK_SVC_(on_event_after, export, event, eventid, object);
 }
 
-void afb_hook_svc_call(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+void afb_hook_svc_call(const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_HOOK_SVC_(call, svc, api, verb, args);
+	_HOOK_SVC_(call, export, api, verb, args);
 }
 
-void afb_hook_svc_call_result(const struct afb_svc *svc, int status, struct json_object *result)
+void afb_hook_svc_call_result(const struct afb_export *export, int status, struct json_object *result)
 {
-	_HOOK_SVC_(call_result, svc, status, result);
+	_HOOK_SVC_(call_result, export, status, result);
 }
 
-void afb_hook_svc_callsync(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args)
+void afb_hook_svc_callsync(const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_HOOK_SVC_(callsync, svc, api, verb, args);
+	_HOOK_SVC_(callsync, export, api, verb, args);
 }
 
-int afb_hook_svc_callsync_result(const struct afb_svc *svc, int status, struct json_object *result)
+int afb_hook_svc_callsync_result(const struct afb_export *export, int status, struct json_object *result)
 {
-	_HOOK_SVC_(callsync_result, svc, status, result);
+	_HOOK_SVC_(callsync_result, export, status, result);
 	return status;
 }
 
 /******************************************************************************
- * section: hooking services (svc)
+ * section: hooking services (export)
  *****************************************************************************/
 
 int afb_hook_flags_svc(const char *api)

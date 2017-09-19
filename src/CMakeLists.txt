@@ -43,8 +43,8 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-context.c
 	afb-cred.c
 	afb-debug.c
-	afb-ditf.c
 	afb-evt.c
+	afb-export.c
 	afb-hook.c
 	afb-hreq.c
 	afb-hsrv.c
@@ -55,7 +55,6 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-proto-ws.c
 	afb-session.c
 	afb-stub-ws.c
-	afb-svc.c
 	afb-trace.c
 	afb-websock.c
 	afb-ws-client.c

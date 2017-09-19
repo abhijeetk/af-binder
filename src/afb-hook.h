@@ -27,8 +27,7 @@ struct afb_arg;
 struct afb_event;
 struct afb_session;
 struct afb_xreq;
-struct afb_ditf;
-struct afb_svc;
+struct afb_export;
 struct afb_stored_req;
 struct sd_bus;
 struct sd_event;
@@ -160,7 +159,7 @@ extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int st
 extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result);
 
 /*********************************************************
-* section hooking ditf (daemon interface)
+* section hooking export (daemon interface)
 *********************************************************/
 
 #define afb_hook_flag_ditf_vverbose			0x000001
@@ -196,36 +195,36 @@ extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char 
 #define afb_hook_flags_ditf_all		(afb_hook_flags_ditf_common|afb_hook_flags_ditf_extra)
 
 struct afb_hook_ditf_itf {
-	void (*hook_ditf_event_broadcast_before)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object);
-	void (*hook_ditf_event_broadcast_after)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct json_object *object, int result);
-	void (*hook_ditf_get_event_loop)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_event *result);
-	void (*hook_ditf_get_user_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result);
-	void (*hook_ditf_get_system_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct sd_bus *result);
-	void (*hook_ditf_vverbose)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
-	void (*hook_ditf_event_make)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, struct afb_event result);
-	void (*hook_ditf_rootdir_get_fd)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, int result);
-	void (*hook_ditf_rootdir_open_locale)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
-	void (*hook_ditf_queue_job)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
-	void (*hook_ditf_unstore_req)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, struct afb_stored_req *sreq);
-	void (*hook_ditf_require_api)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized);
-	void (*hook_ditf_require_api_result)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *name, int initialized, int result);
-	void (*hook_ditf_rename_api)(void *closure, const struct afb_hookid *hookid, const struct afb_ditf *ditf, const char *oldname, const char *newname, int result);
+	void (*hook_ditf_event_broadcast_before)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object);
+	void (*hook_ditf_event_broadcast_after)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object, int result);
+	void (*hook_ditf_get_event_loop)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_event *result);
+	void (*hook_ditf_get_user_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_bus *result);
+	void (*hook_ditf_get_system_bus)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_bus *result);
+	void (*hook_ditf_vverbose)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
+	void (*hook_ditf_event_make)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_event result);
+	void (*hook_ditf_rootdir_get_fd)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result);
+	void (*hook_ditf_rootdir_open_locale)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *filename, int flags, const char *locale, int result);
+	void (*hook_ditf_queue_job)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
+	void (*hook_ditf_unstore_req)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct afb_stored_req *sreq);
+	void (*hook_ditf_require_api)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, int initialized);
+	void (*hook_ditf_require_api_result)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, int initialized, int result);
+	void (*hook_ditf_rename_api)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *oldname, const char *newname, int result);
 };
 
-extern void afb_hook_ditf_event_broadcast_before(const struct afb_ditf *ditf, const char *name, struct json_object *object);
-extern int afb_hook_ditf_event_broadcast_after(const struct afb_ditf *ditf, const char *name, struct json_object *object, int result);
-extern struct sd_event *afb_hook_ditf_get_event_loop(const struct afb_ditf *ditf, struct sd_event *result);
-extern struct sd_bus *afb_hook_ditf_get_user_bus(const struct afb_ditf *ditf, struct sd_bus *result);
-extern struct sd_bus *afb_hook_ditf_get_system_bus(const struct afb_ditf *ditf, struct sd_bus *result);
-extern void afb_hook_ditf_vverbose(const struct afb_ditf *ditf, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
-extern struct afb_event afb_hook_ditf_event_make(const struct afb_ditf *ditf, const char *name, struct afb_event result);
-extern int afb_hook_ditf_rootdir_get_fd(const struct afb_ditf *ditf, int result);
-extern int afb_hook_ditf_rootdir_open_locale(const struct afb_ditf *ditf, const char *filename, int flags, const char *locale, int result);
-extern int afb_hook_ditf_queue_job(const struct afb_ditf *ditf, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
-extern void afb_hook_ditf_unstore_req(const struct afb_ditf *ditf, struct afb_stored_req *sreq);
-extern void afb_hook_ditf_require_api(const struct afb_ditf *ditf, const char *name, int initialized);
-extern int afb_hook_ditf_require_api_result(const struct afb_ditf *ditf, const char *name, int initialized, int result);
-extern int afb_hook_ditf_rename_api(const struct afb_ditf *ditf, const char *oldname, const char *newname, int result);
+extern void afb_hook_ditf_event_broadcast_before(const struct afb_export *export, const char *name, struct json_object *object);
+extern int afb_hook_ditf_event_broadcast_after(const struct afb_export *export, const char *name, struct json_object *object, int result);
+extern struct sd_event *afb_hook_ditf_get_event_loop(const struct afb_export *export, struct sd_event *result);
+extern struct sd_bus *afb_hook_ditf_get_user_bus(const struct afb_export *export, struct sd_bus *result);
+extern struct sd_bus *afb_hook_ditf_get_system_bus(const struct afb_export *export, struct sd_bus *result);
+extern void afb_hook_ditf_vverbose(const struct afb_export *export, int level, const char *file, int line, const char *function, const char *fmt, va_list args);
+extern struct afb_event afb_hook_ditf_event_make(const struct afb_export *export, const char *name, struct afb_event result);
+extern int afb_hook_ditf_rootdir_get_fd(const struct afb_export *export, int result);
+extern int afb_hook_ditf_rootdir_open_locale(const struct afb_export *export, const char *filename, int flags, const char *locale, int result);
+extern int afb_hook_ditf_queue_job(const struct afb_export *export, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result);
+extern void afb_hook_ditf_unstore_req(const struct afb_export *export, struct afb_stored_req *sreq);
+extern void afb_hook_ditf_require_api(const struct afb_export *export, const char *name, int initialized);
+extern int afb_hook_ditf_require_api_result(const struct afb_export *export, const char *name, int initialized, int result);
+extern int afb_hook_ditf_rename_api(const struct afb_export *export, const char *oldname, const char *newname, int result);
 
 extern int afb_hook_flags_ditf(const char *api);
 extern struct afb_hook_ditf *afb_hook_create_ditf(const char *api, int flags, struct afb_hook_ditf_itf *itf, void *closure);
@@ -233,7 +232,7 @@ extern struct afb_hook_ditf *afb_hook_addref_ditf(struct afb_hook_ditf *hook);
 extern void afb_hook_unref_ditf(struct afb_hook_ditf *hook);
 
 /*********************************************************
-* section hooking svc (service interface)
+* section hooking export (service interface)
 *********************************************************/
 
 #define afb_hook_flag_svc_start_before			0x000001
@@ -251,24 +250,24 @@ extern void afb_hook_unref_ditf(struct afb_hook_ditf *hook);
 					|afb_hook_flag_svc_callsync|afb_hook_flag_svc_callsync_result)
 
 struct afb_hook_svc_itf {
-	void (*hook_svc_start_before)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc);
-	void (*hook_svc_start_after)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status);
-	void (*hook_svc_on_event_before)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-	void (*hook_svc_on_event_after)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-	void (*hook_svc_call)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-	void (*hook_svc_call_result)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result);
-	void (*hook_svc_callsync)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-	void (*hook_svc_callsync_result)(void *closure, const struct afb_hookid *hookid, const struct afb_svc *svc, int status, struct json_object *result);
+	void (*hook_svc_start_before)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export);
+	void (*hook_svc_start_after)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status);
+	void (*hook_svc_on_event_before)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_on_event_after)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object);
+	void (*hook_svc_call)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_call_result)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status, struct json_object *result);
+	void (*hook_svc_callsync)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args);
+	void (*hook_svc_callsync_result)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status, struct json_object *result);
 };
 
-extern void afb_hook_svc_start_before(const struct afb_svc *svc);
-extern int afb_hook_svc_start_after(const struct afb_svc *svc, int status);
-extern void afb_hook_svc_on_event_before(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-extern void afb_hook_svc_on_event_after(const struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
-extern void afb_hook_svc_call(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-extern void afb_hook_svc_call_result(const struct afb_svc *svc, int status, struct json_object *result);
-extern void afb_hook_svc_callsync(const struct afb_svc *svc, const char *api, const char *verb, struct json_object *args);
-extern int afb_hook_svc_callsync_result(const struct afb_svc *svc, int status, struct json_object *result);
+extern void afb_hook_svc_start_before(const struct afb_export *export);
+extern int afb_hook_svc_start_after(const struct afb_export *export, int status);
+extern void afb_hook_svc_on_event_before(const struct afb_export *export, const char *event, int eventid, struct json_object *object);
+extern void afb_hook_svc_on_event_after(const struct afb_export *export, const char *event, int eventid, struct json_object *object);
+extern void afb_hook_svc_call(const struct afb_export *export, const char *api, const char *verb, struct json_object *args);
+extern void afb_hook_svc_call_result(const struct afb_export *export, int status, struct json_object *result);
+extern void afb_hook_svc_callsync(const struct afb_export *export, const char *api, const char *verb, struct json_object *args);
+extern int afb_hook_svc_callsync_result(const struct afb_export *export, int status, struct json_object *result);
 
 extern int afb_hook_flags_svc(const char *api);
 extern struct afb_hook_svc *afb_hook_create_svc(const char *api, int flags, struct afb_hook_svc_itf *itf, void *closure);

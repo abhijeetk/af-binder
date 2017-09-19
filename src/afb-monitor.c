@@ -26,7 +26,6 @@
 #include "afb-api.h"
 #include "afb-apiset.h"
 #include "afb-api-so-v2.h"
-#include "afb-ditf.h"
 #include "afb-evt.h"
 #include "afb-xreq.h"
 #include "afb-trace.h"

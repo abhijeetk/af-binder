@@ -28,8 +28,7 @@
 #include "afb-api.h"
 #include "afb-api-so-v2.h"
 #include "afb-apiset.h"
-#include "afb-svc.h"
-#include "afb-ditf.h"
+#include "afb-export.h"
 #include "afb-evt.h"
 #include "afb-common.h"
 #include "afb-context.h"
@@ -49,10 +48,8 @@ static const char afb_api_so_v2_data[] = "afbBindingV2data";
  */
 struct api_so_v2 {
 	const struct afb_binding_v2 *binding;	/* descriptor */
-	struct afb_binding_data_v2 *data;	/* data */
-	void *handle;			/* context of dlopen */
-	struct afb_svc *service;	/* handler for service started */
-	struct afb_ditf ditf;		/* daemon interface */
+	void *handle;				/* context of dlopen */
+	struct afb_export *export;		/* exportations */
 };
 
 static const struct afb_verb_v2 *search(struct api_so_v2 *desc, const char *name)
@@ -84,71 +81,64 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	struct api_so_v2 *desc = closure;
 
 	/* check state */
-	if (desc->service != NULL) {
+	if (afb_export_is_started(desc->export)) {
 		/* not an error when onneed */
 		if (onneed != 0)
 			goto done;
 
 		/* already started: it is an error */
-		ERROR("Service %s already started", desc->ditf.api);
+		ERROR("Service %s already started", afb_export_apiname(desc->export));
 		return -1;
 	}
 
 	/* get the initialisation */
 	start = desc->binding->init;
 	onevent = desc->binding->onevent;
-	if (start == NULL && onevent == NULL) {
-		/* not an error when onneed */
-		if (onneed != 0)
-			goto done;
 
-		/* no initialisation method */
-		ERROR("Binding %s is not a service", desc->ditf.api);
-		return -1;
+	/* unshare the session if asked */
+	if (!share_session) {
+		rc = afb_export_unshare_session(desc->export);
+		if (rc < 0) {
+			ERROR("Can't unshare the session for %s", afb_export_apiname(desc->export));
+			return -1;
+		}
 	}
 
-	/* get the event handler if any */
-	desc->service = afb_svc_create(desc->ditf.api, apiset, share_session, onevent, &desc->data->service);
-	if (desc->service == NULL) {
-		/* starting error */
-		ERROR("Starting service %s failed", desc->ditf.api);
+	/* set event handling */
+	rc = afb_export_handle_events(desc->export, onevent);
+	if (rc < 0) {
+		ERROR("Can't set event handler for %s", afb_export_apiname(desc->export));
 		return -1;
 	}
 
 	/* Starts the service */
-	desc->ditf.state = Daemon_Init;
-	rc = afb_svc_start_v2(desc->service, start);
+	rc = afb_export_start_v2(desc->export, start);
 	if (rc < 0) {
 		/* initialisation error */
-		ERROR("Initialisation of service %s failed (%d): %m", desc->ditf.api, rc);
-		afb_svc_destroy(desc->service, &desc->data->service);
-		desc->service = NULL;
+		ERROR("Initialisation of service %s failed (%d): %m", afb_export_apiname(desc->export), rc);
 		return rc;
 	}
 
 done:
-	desc->ditf.state = Daemon_Run;
 	return 0;
 }
 
 static void update_hooks_cb(void *closure)
 {
 	struct api_so_v2 *desc = closure;
-	afb_ditf_update_hook(&desc->ditf);
-	if (desc->service)
-		afb_svc_update_hook(desc->service);
+	afb_export_update_hook(desc->export);
 }
 
 static int get_verbosity_cb(void *closure)
 {
 	struct api_so_v2 *desc = closure;
-	return desc->data->verbosity;
+	return afb_export_verbosity_get(desc->export);
 }
 
 static void set_verbosity_cb(void *closure, int level)
 {
 	struct api_so_v2 *desc = closure;
-	desc->data->verbosity = level;
+	afb_export_verbosity_set(desc->export, level);
 }
 
 static struct json_object *addperm(struct json_object *o, struct json_object *x)
@@ -225,9 +215,9 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 
 	i = json_object_new_object();
 	json_object_object_add(r, "info", i);
-	json_object_object_add(i, "title", json_object_new_string(desc->ditf.api));
+	json_object_object_add(i, "title", json_object_new_string(afb_export_apiname(desc->export)));
 	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
-	json_object_object_add(i, "description", json_object_new_string(desc->binding->info ?: desc->ditf.api));
+	json_object_object_add(i, "description", json_object_new_string(desc->binding->info ?: afb_export_apiname(desc->export)));
 
 	p = json_object_new_object();
 	json_object_object_add(r, "paths", p);
@@ -288,6 +278,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	int rc;
 	struct api_so_v2 *desc;
 	struct afb_api afb_api;
+	struct afb_export *export;
 
 	/* basic checks */
 	assert(binding);
@@ -296,27 +287,23 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	assert(data);
 
 	/* allocates the description */
+	export = afb_export_create_v2(binding->api, data);
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL) {
 		ERROR("out of memory");
 		goto error;
 	}
 	desc->binding = binding;
-	desc->data = data;
 	desc->handle = handle;
-	desc->service = NULL;
-
-	/* init the interface */
-	desc->data->verbosity = verbosity;
-	afb_ditf_init_v2(&desc->ditf, binding->api, data);
+	desc->export = export;
 
 	/* init the binding */
 	if (binding->preinit) {
 		INFO("binding %s calling preinit function", binding->api);
 		rc = binding->preinit();
 		if (rc < 0) {
-			ERROR("binding %s preinit function failed...", desc->ditf.api);
-			goto error2;
+			ERROR("binding %s preinit function failed...", afb_export_apiname(desc->export));
+			goto error;
 		}
 	}
 
@@ -324,16 +311,17 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	afb_api.closure = desc;
 	afb_api.itf = &so_v2_api_itf;
 	afb_api.noconcurrency = binding->noconcurrency;
-	if (afb_apiset_add(apiset, desc->ditf.api, afb_api) < 0) {
-		ERROR("binding %s can't be registered to set %s...", desc->ditf.api, afb_apiset_name(apiset));
-		goto error2;
+	if (afb_apiset_add(apiset, afb_export_apiname(desc->export), afb_api) < 0) {
+		ERROR("binding %s can't be registered to set %s...", afb_export_apiname(desc->export), afb_apiset_name(apiset));
+		goto error;
 	}
-	INFO("binding %s added to set %s", desc->ditf.api, afb_apiset_name(apiset));
+	INFO("binding %s added to set %s", afb_export_apiname(desc->export), afb_apiset_name(apiset));
 	return 1;
 
-error2:
-	free(desc);
 error:
+	afb_export_destroy(export);
+	free(desc);
+
 	return -1;
 }
 

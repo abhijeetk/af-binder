@@ -29,13 +29,12 @@
 #include "afb-api.h"
 #include "afb-api-so-v1.h"
 #include "afb-apiset.h"
-#include "afb-svc.h"
-#include "afb-evt.h"
+#include "afb-export.h"
+//#include "afb-evt.h"
 #include "afb-common.h"
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
-#include "afb-ditf.h"
 #include "verbose.h"
 
 /*
@@ -51,9 +50,7 @@ static const char afb_api_so_v1_service_event[] = "afbBindingV1ServiceEvent";
 struct api_so_v1 {
 	struct afb_binding_v1 *binding;	/* descriptor */
 	void *handle;			/* context of dlopen */
-	struct afb_svc *service;	/* handler for service started */
-	struct afb_binding_interface_v1 interface;
-	struct afb_ditf ditf;		/* daemon interface */
+	struct afb_export *export;	/* export */
 };
 
 static const struct afb_verb_desc_v1 *search(struct api_so_v1 *desc, const char *name)
@@ -84,70 +81,64 @@ static int service_start_cb(void *closure, int share_session, int onneed, struct
 	struct api_so_v1 *desc = closure;
 
 	/* check state */
-	if (desc->service != NULL) {
+	if (afb_export_is_started(desc->export)) {
 		/* not an error when onneed */
 		if (onneed != 0)
 			goto done;
 
 		/* already started: it is an error */
-		ERROR("Service %s already started", desc->ditf.api);
+		ERROR("Service %s already started", afb_export_apiname(desc->export));
 		return -1;
 	}
 
 	/* get the initialisation */
 	init = dlsym(desc->handle, afb_api_so_v1_service_init);
 	onevent = dlsym(desc->handle, afb_api_so_v1_service_event);
-	if (init == NULL && onevent == NULL) {
-		/* not an error when onneed */
-		if (onneed != 0)
-			goto done;
 
-		/* no initialisation method */
-		ERROR("Binding %s is not a service", desc->ditf.api);
-		return -1;
+	/* unshare the session if asked */
+	if (!share_session) {
+		rc = afb_export_unshare_session(desc->export);
+		if (rc < 0) {
+			ERROR("Can't unshare the session for %s", afb_export_apiname(desc->export));
+			return -1;
+		}
 	}
 
-	/* get the event handler if any */
-	desc->service = afb_svc_create(desc->ditf.api, apiset, share_session, onevent, NULL);
-	if (desc->service == NULL) {
-		ERROR("Creation of service %s failed", desc->ditf.api);
+	/* set event handling */
+	rc = afb_export_handle_events(desc->export, onevent);
+	if (rc < 0) {
+		ERROR("Can't set event handler for %s", afb_export_apiname(desc->export));
 		return -1;
 	}
 
 	/* Starts the service */
-	desc->ditf.state = Daemon_Init;
-	rc = afb_svc_start_v1(desc->service, init);
+	rc = afb_export_start_v1(desc->export, init);
 	if (rc < 0) {
 		/* initialisation error */
-		ERROR("Initialisation of service %s failed (%d): %m", desc->ditf.api, rc);
-		afb_svc_destroy(desc->service, NULL);
-		desc->service = NULL;
+		ERROR("Initialisation of service %s failed (%d): %m", afb_export_apiname(desc->export), rc);
 		return rc;
 	}
 
 done:
-	desc->ditf.state = Daemon_Run;
 	return 0;
 }
 
 static void update_hooks_cb(void *closure)
 {
 	struct api_so_v1 *desc = closure;
-	afb_ditf_update_hook(&desc->ditf);
-	if (desc->service)
-		afb_svc_update_hook(desc->service);
+	afb_export_update_hook(desc->export);
 }
 
 static int get_verbosity_cb(void *closure)
 {
 	struct api_so_v1 *desc = closure;
-	return desc->interface.verbosity;
+	return afb_export_verbosity_get(desc->export);
 }
 
 static void set_verbosity_cb(void *closure, int level)
 {
 	struct api_so_v1 *desc = closure;
-	desc->interface.verbosity = level;
+	afb_export_verbosity_set(desc->export, level);
 }
 
 static struct json_object *addperm(struct json_object *o, struct json_object *x)
@@ -195,9 +186,9 @@ static struct json_object *make_description_openAPIv3(struct api_so_v1 *desc)
 
 	i = json_object_new_object();
 	json_object_object_add(r, "info", i);
-	json_object_object_add(i, "title", json_object_new_string(desc->ditf.api));
+	json_object_object_add(i, "title", json_object_new_string(afb_export_apiname(desc->export)));
 	json_object_object_add(i, "version", json_object_new_string("0.0.0"));
-	json_object_object_add(i, "description", json_object_new_string(desc->binding->v1.info ?: desc->ditf.api));
+	json_object_object_add(i, "description", json_object_new_string(desc->binding->v1.info ?: afb_export_apiname(desc->export)));
 
 	p = json_object_new_object();
 	json_object_object_add(r, "paths", p);
@@ -254,6 +245,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	struct api_so_v1 *desc;
 	struct afb_binding_v1 *(*register_function) (const struct afb_binding_interface_v1 *interface);
 	struct afb_api afb_api;
+	struct afb_export *export;
 
 	/* retrieves the register function */
 	register_function = dlsym(handle, afb_api_so_v1_register);
@@ -262,62 +254,62 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	INFO("binding [%s] is a valid AFB binding V1", path);
 
 	/* allocates the description */
+	export = afb_export_create_v1(path);
 	desc = calloc(1, sizeof *desc);
-	if (desc == NULL) {
+	if (desc == NULL || export == NULL) {
 		ERROR("out of memory");
 		goto error;
 	}
+	desc->export = export;
 	desc->handle = handle;
-
-	/* init the interface */
-	afb_ditf_init_v1(&desc->ditf, path, &desc->interface);
 
 	/* init the binding */
 	INFO("binding [%s] calling registering function %s", path, afb_api_so_v1_register);
-	desc->binding = register_function(&desc->interface);
+	desc->binding = afb_export_register_v1(desc->export, register_function);
 	if (desc->binding == NULL) {
 		ERROR("binding [%s] register function failed. continuing...", path);
-		goto error2;
+		goto error;
 	}
 
 	/* check the returned structure */
 	if (desc->binding->type != AFB_BINDING_VERSION_1) {
 		ERROR("binding [%s] invalid type %d...", path, desc->binding->type);
-		goto error2;
+		goto error;
 	}
 	if (desc->binding->v1.prefix == NULL || *desc->binding->v1.prefix == 0) {
 		ERROR("binding [%s] bad prefix...", path);
-		goto error2;
+		goto error;
 	}
 	if (!afb_api_is_valid_name(desc->binding->v1.prefix)) {
 		ERROR("binding [%s] invalid prefix...", path);
-		goto error2;
+		goto error;
 	}
 	if (desc->binding->v1.info == NULL || *desc->binding->v1.info == 0) {
 		ERROR("binding [%s] bad description...", path);
-		goto error2;
+		goto error;
 	}
 	if (desc->binding->v1.verbs == NULL) {
 		ERROR("binding [%s] no APIs...", path);
-		goto error2;
+		goto error;
 	}
 
 	/* records the binding */
-	if (desc->ditf.api == path)
-		afb_ditf_rename(&desc->ditf, desc->binding->v1.prefix);
+	if (!strcmp(path, afb_export_apiname(desc->export)))
+		afb_export_rename(desc->export, desc->binding->v1.prefix);
 	afb_api.closure = desc;
 	afb_api.itf = &so_v1_api_itf;
 	afb_api.noconcurrency = 0;
-	if (afb_apiset_add(apiset, desc->ditf.api, afb_api) < 0) {
+	if (afb_apiset_add(apiset, afb_export_apiname(desc->export), afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
-		goto error2;
+		goto error;
 	}
-	INFO("binding %s loaded with API prefix %s", path, desc->ditf.api);
+	INFO("binding %s loaded with API prefix %s", path, afb_export_apiname(desc->export));
 	return 1;
 
-error2:
-	free(desc);
 error:
+	afb_export_destroy(export);
+	free(desc);
+
 	return -1;
 }
 
