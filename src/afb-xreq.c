@@ -52,6 +52,8 @@ static inline void xreq_unref(struct afb_xreq *xreq)
 			afb_xreq_fail(xreq, "error", "no reply");
 		if (xreq->hookflags)
 			afb_hook_xreq_end(xreq);
+		if (xreq->caller)
+			xreq_unref(xreq->caller);
 		xreq->queryitf->unref(xreq);
 	}
 }
@@ -71,7 +73,6 @@ static inline struct afb_req to_req(struct afb_xreq *xreq)
 struct subcall
 {
 	struct afb_xreq xreq;
-	struct afb_xreq *caller;
 
 	void (*completion)(struct subcall*, int, struct json_object*);
 
@@ -95,14 +96,14 @@ static int subcall_subscribe_cb(struct afb_xreq *xreq, struct afb_event event)
 {
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
-	return afb_xreq_subscribe(subcall->caller, event);
+	return afb_xreq_subscribe(subcall->xreq.caller, event);
 }
 
 static int subcall_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event event)
 {
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
-	return afb_xreq_unsubscribe(subcall->caller, event);
+	return afb_xreq_unsubscribe(subcall->xreq.caller, event);
 }
 
 static void subcall_reply_cb(struct afb_xreq *xreq, int status, struct json_object *result)
@@ -120,7 +121,6 @@ static void subcall_destroy_cb(struct afb_xreq *xreq)
 
 	json_object_put(subcall->xreq.json);
 	afb_cred_unref(subcall->xreq.cred);
-	xreq_unref(subcall->caller);
 	free(subcall);
 }
 
@@ -161,7 +161,7 @@ static struct subcall *subcall_alloc(
 		subcall->xreq.json = args;
 		subcall->xreq.api = api;
 		subcall->xreq.verb = verb;
-		subcall->caller = caller;
+		subcall->xreq.caller = caller;
 		xreq_addref(caller);
 	}
 	return subcall;
@@ -175,18 +175,18 @@ static void subcall_on_reply(struct subcall *subcall, int status, struct json_ob
 
 static void subcall_req_on_reply(struct subcall *subcall, int status, struct json_object *result)
 {
-	subcall->callback2(subcall->closure, status, result, to_req(subcall->caller));
+	subcall->callback2(subcall->closure, status, result, to_req(subcall->xreq.caller));
 }
 
 static void subcall_hooked_on_reply(struct subcall *subcall, int status, struct json_object *result)
 {
-	afb_hook_xreq_subcall_result(subcall->caller, status, result);
+	afb_hook_xreq_subcall_result(subcall->xreq.caller, status, result);
 	subcall_on_reply(subcall, status, result);
 }
 
 static void subcall_req_hooked_on_reply(struct subcall *subcall, int status, struct json_object *result)
 {
-	afb_hook_xreq_subcall_req_result(subcall->caller, status, result);
+	afb_hook_xreq_subcall_req_result(subcall->xreq.caller, status, result);
 	subcall_req_on_reply(subcall, status, result);
 }
 
@@ -206,13 +206,13 @@ static void subcall_reply_direct_cb(void *closure, int status, struct json_objec
 static void subcall_process(struct subcall *subcall, void (*completion)(struct subcall*, int, struct json_object*))
 {
 	subcall->completion = completion;
-	if (subcall->caller->queryitf->subcall) {
-		subcall->caller->queryitf->subcall(
-			subcall->caller, subcall->xreq.api, subcall->xreq.verb,
+	if (subcall->xreq.caller->queryitf->subcall) {
+		subcall->xreq.caller->queryitf->subcall(
+			subcall->xreq.caller, subcall->xreq.api, subcall->xreq.verb,
 			subcall->xreq.json, subcall_reply_direct_cb, &subcall->xreq);
 	} else {
 		afb_xreq_addref(&subcall->xreq);
-		afb_xreq_process(&subcall->xreq, subcall->caller->apiset);
+		afb_xreq_process(&subcall->xreq, subcall->xreq.caller->apiset);
 	}
 }
 
@@ -982,19 +982,37 @@ static void process_async(int signum, void *arg)
 
 void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 {
+	const void *jobkey;
 	const struct afb_api *api;
+	struct afb_xreq *caller;
 
 	xreq->apiset = apiset;
 	api = afb_apiset_lookup_started(apiset, xreq->api, 1);
-	xreq->context.api_key = (void*)api;
+	xreq->context.api_key = api;
 
+	if (!api || !api->noconcurrency)
+		jobkey = NULL;
+	else {
+		caller = xreq->caller;
+		while (caller) {
+			if (caller->context.api_key == api) {
+				/* noconcurrency lock detected */
+				ERROR("self-lock detected in call stack for API %s", xreq->api);
+				afb_xreq_fail_f(xreq, "cancelled", "recursive self lock, API %s", xreq->api);
+				goto end;
+			}
+			caller = caller->caller;
+		}
+		jobkey = api;
+	}
 	xreq_addref(xreq);
-	if (jobs_queue(api && api->noconcurrency ? (void*)api : NULL, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
+	if (jobs_queue(jobkey, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		afb_xreq_fail_f(xreq, "cancelled", "not able to create a job for the task");
 		xreq_unref(xreq);
 	}
+end:
 	xreq_unref(xreq);
 }
 
