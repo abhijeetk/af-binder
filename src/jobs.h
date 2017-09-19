@@ -21,13 +21,13 @@ struct sd_event;
 struct jobloop;
 
 extern int jobs_queue(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int signum, void* arg),
 		void *arg);
 
 extern int jobs_enter(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int signum, void *closure, struct jobloop *jobloop),
 		void *closure);
@@ -35,7 +35,7 @@ extern int jobs_enter(
 extern int jobs_leave(struct jobloop *jobloop);
 
 extern int jobs_call(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int, void*),
 		void *arg);

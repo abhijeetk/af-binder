@@ -50,7 +50,7 @@ typedef void (*job_cb_t)(int, void*);
 struct job
 {
 	struct job *next;    /**< link to the next job enqueued */
-	void *group;         /**< group of the request */
+	const void *group;   /**< group of the request */
 	job_cb_t callback;   /**< processing callback */
 	void *arg;           /**< argument */
 	int timeout;         /**< timeout in second for processing the request */
@@ -125,7 +125,7 @@ static struct job *free_jobs;
  * @return the created job unblock or NULL when no more memory
  */
 static struct job *job_create(
-		void *group,
+		const void *group,
 		int timeout,
 		job_cb_t callback,
 		void *arg)
@@ -164,7 +164,7 @@ end:
  */
 static void job_add(struct job *job)
 {
-	void *group;
+	const void *group;
 	struct job *ijob, **pjob;
 
 	/* prepare to add */
@@ -218,7 +218,7 @@ static inline struct events *events_get()
 static inline void job_release(struct job *job)
 {
 	struct job *ijob, **pjob;
-	void *group;
+	const void *group;
 
 	/* first unqueue the job */
 	pjob = &first_job;
@@ -433,7 +433,7 @@ static int start_one_thread()
  * @return 0 in case of success or -1 in case of error
  */
 int jobs_queue(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int, void*),
 		void *arg)
@@ -515,7 +515,7 @@ static void call_cb(int signum, void *closure)
  * @see jobs_call, jobs_enter, jobs_leave
  */
 static int do_sync(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*sync_cb)(int signum, void *closure),
 		struct sync *sync
@@ -559,7 +559,7 @@ static int do_sync(
  * @return 0 on success or -1 in case of error
  */
 int jobs_enter(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int signum, void *closure, struct jobloop *jobloop),
 		void *closure
@@ -611,7 +611,7 @@ int jobs_leave(struct jobloop *jobloop)
  * @return 0 in case of success or -1 in case of error
  */
 int jobs_call(
-		void *group,
+		const void *group,
 		int timeout,
 		void (*callback)(int, void*),
 		void *arg)
