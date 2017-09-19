@@ -11,3 +11,4 @@
 * [Annexes](annexes.md)
   * [Installing the binder on a desktop](afb-desktop-package.md)
   * [Options of afb-daemon](afb-daemon-options.md)
+  * [Debugging afb-daemon](afb-daemon-debugging.md)
