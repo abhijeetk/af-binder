@@ -22,7 +22,7 @@ struct afb_session;
 struct afb_context
 {
 	struct afb_session *session;
-	void *api_key;
+	const void *api_key;
 	struct afb_context *super;
 	union {
 		unsigned flags;

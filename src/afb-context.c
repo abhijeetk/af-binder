@@ -163,9 +163,9 @@ int afb_context_check_loa(struct afb_context *context, unsigned loa)
 	return afb_context_get_loa(context) >= loa;
 }
 
-static inline void *loa_key(struct afb_context *context)
+static inline const void *loa_key(struct afb_context *context)
 {
-	return (void*)(1+(intptr_t)(context->api_key));
+	return (const void*)(1+(intptr_t)(context->api_key));
 }
 
 static inline void *loa2ptr(unsigned loa)
