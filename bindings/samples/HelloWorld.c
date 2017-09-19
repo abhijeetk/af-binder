@@ -421,6 +421,13 @@ static void hasperm (afb_req request)
 		afb_req_fail_f(request, "not-granted", "permission %s NOT granted", perm?:"(null)");
 }
 
+static void appid (afb_req request)
+{
+	char *aid = afb_req_get_application_id(request);
+	afb_req_success_f(request, aid ? json_object_new_string(aid) : NULL, "application is %s", aid?:"?");
+	free(aid);
+}
+
 static int preinit()
 {
 	AFB_NOTICE("hello binding comes to live");
@@ -460,6 +467,7 @@ static const afb_verb_v2 verbs[]= {
   { .verb="verbose",     .callback=verbose },
   { .verb="broadcast",   .callback=broadcast },
   { .verb="hasperm",     .callback=hasperm },
+  { .verb="appid",       .callback=appid },
   { .verb="exit",        .callback=exitnow },
   { .verb=NULL}
 };

@@ -75,6 +75,7 @@ struct afb_hookid
 #define afb_hook_flag_req_subcall_req		0x00200000
 #define afb_hook_flag_req_subcall_req_result	0x00400000
 #define afb_hook_flag_req_has_permission	0x00800000
+#define afb_hook_flag_req_get_application_id	0x01000000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -85,6 +86,7 @@ struct afb_hookid
 #define afb_hook_flags_req_subcalls	(afb_hook_flag_req_subcall|afb_hook_flag_req_subcall_result\
 					|afb_hook_flag_req_subcall_req|afb_hook_flag_req_subcall_req_result\
 					|afb_hook_flag_req_subcallsync|afb_hook_flag_req_subcallsync_result)
+#define afb_hook_flags_req_security	(afb_hook_flag_req_has_permission|afb_hook_flag_req_get_application_id)
 
 /* extra flags */
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
@@ -94,7 +96,7 @@ struct afb_hookid
 /* predefined groups */
 #define afb_hook_flags_req_common	(afb_hook_flags_req_life|afb_hook_flags_req_args|afb_hook_flags_req_result\
 					|afb_hook_flags_req_session|afb_hook_flags_req_event|afb_hook_flags_req_subcalls\
-					|afb_hook_flag_req_vverbose|afb_hook_flag_req_has_permission)
+					|afb_hook_flag_req_vverbose|afb_hook_flags_req_security)
 #define afb_hook_flags_req_extra	(afb_hook_flags_req_common|afb_hook_flags_req_ref|afb_hook_flags_req_context\
 					|afb_hook_flags_req_stores)
 #define afb_hook_flags_req_all		(afb_hook_flags_req_extra)
@@ -124,6 +126,7 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_subcall_req)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 	void (*hook_xreq_subcall_req_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
 	void (*hook_xreq_has_permission)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *permission, int result);
+	void (*hook_xreq_get_application_id)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, char *result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -157,6 +160,7 @@ extern void afb_hook_xreq_unstore(const struct afb_xreq *xreq);
 extern void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args);
 extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result);
+extern char *afb_hook_xreq_get_application_id(const struct afb_xreq *xreq, char *result);
 
 /*********************************************************
 * section hooking export (daemon interface)

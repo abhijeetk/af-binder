@@ -694,11 +694,11 @@ Instead, you should use the macros:
 void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...);
 ```
 
-The function below allows a binding to check whether a client
-has a permission of not.
+The functions below allow a binding involved in the platform security
+to explicitely check a permission of a client or to get the calling
+application identity.
 
 ```C
-
 /*
  * Check whether the 'permission' is granted or not to the client
  * identified by 'req'.
@@ -706,6 +706,18 @@ has a permission of not.
  * Returns 1 if the permission is granted or 0 otherwise.
  */
 int afb_req_has_permission(struct afb_req req, const char *permission);
+
+/*
+ * Get the application identifier of the client application for the
+ * request 'req'.
+ *
+ * Returns the application identifier or NULL when the application
+ * can not be identified.
+ *
+ * The returned value if not NULL must be freed by the caller
+ */
+inline char *afb_req_get_application_id(struct afb_req req);
+
 ```
 
 ## Logging macros

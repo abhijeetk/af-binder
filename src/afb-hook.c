@@ -354,6 +354,11 @@ static void hook_xreq_has_permission_default_cb(void *closure, const struct afb_
 	_hook_xreq_(xreq, "has_permission(%s) -> %d", permission, result);
 }
 
+static void hook_xreq_get_application_id_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, char *result)
+{
+	_hook_xreq_(xreq, "get_application_id() -> %s", result);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -378,7 +383,8 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_unstore = hook_xreq_unstore_default_cb,
 	.hook_xreq_subcall_req = hook_xreq_subcall_req_default_cb,
 	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result_default_cb,
-	.hook_xreq_has_permission = hook_xreq_has_permission_default_cb
+	.hook_xreq_has_permission = hook_xreq_has_permission_default_cb,
+	.hook_xreq_get_application_id = hook_xreq_get_application_id_default_cb
 };
 
 /******************************************************************************
@@ -529,6 +535,12 @@ void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, s
 int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result)
 {
 	_HOOK_XREQ_(has_permission, xreq, permission, result);
+	return result;
+}
+
+char *afb_hook_xreq_get_application_id(const struct afb_xreq *xreq, char *result)
+{
+	_HOOK_XREQ_(get_application_id, xreq, result);
 	return result;
 }
 

@@ -76,6 +76,7 @@ struct afb_req_itf
 	void (*subcall_req)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure);
 
 	int (*has_permission)(void *closure, const char *permission);
+	char *(*get_application_id)(void *closure);
 };
 
 /*
@@ -443,5 +444,19 @@ static inline void afb_req_verbose(struct afb_req req, int level, const char *fi
 static inline int afb_req_has_permission(struct afb_req req, const char *permission)
 {
 	return req.itf->has_permission(req.closure, permission);
+}
+
+/*
+ * Get the application identifier of the client application for the
+ * request 'req'.
+ *
+ * Returns the application identifier or NULL when the application
+ * can not be identified.
+ *
+ * The returned value if not NULL must be freed by the caller
+ */
+static inline char *afb_req_get_application_id(struct afb_req req)
+{
+	return req.itf->get_application_id(req.closure);
 }
 

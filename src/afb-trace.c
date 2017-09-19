@@ -227,10 +227,13 @@ static struct flag xreq_flags[] = { /* must be sorted by names */
 		{ "extra",		afb_hook_flags_req_extra },
 		{ "fail",		afb_hook_flag_req_fail },
 		{ "get",		afb_hook_flag_req_get },
+		{ "get_application_id",	afb_hook_flag_req_get_application_id },
+		{ "has_permission",	afb_hook_flag_req_has_permission },
 		{ "json",		afb_hook_flag_req_json },
 		{ "life",		afb_hook_flags_req_life },
 		{ "ref",		afb_hook_flags_req_ref },
 		{ "result",		afb_hook_flags_req_result },
+		{ "security",		afb_hook_flags_req_security },
 		{ "session",		afb_hook_flags_req_session },
 		{ "session_close",	afb_hook_flag_req_session_close },
 		{ "session_set_LOA",	afb_hook_flag_req_session_set_LOA },
@@ -456,6 +459,19 @@ static void hook_xreq_subcall_req_result(void *closure, const struct afb_hookid 
 					"result", result);
 }
 
+static void hook_xreq_has_permission(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *permission, int result)
+{
+	hook_xreq(closure, hookid, xreq, "has_permission", "{ss sb}",
+					"permission", permission,
+					"result", result);
+}
+
+static void hook_xreq_get_application_id(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, char *result)
+{
+	hook_xreq(closure, hookid, xreq, "get_application_id", "{ss?}",
+					"result", result);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_begin = hook_xreq_begin,
 	.hook_xreq_end = hook_xreq_end,
@@ -479,7 +495,9 @@ static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_store = hook_xreq_store,
 	.hook_xreq_unstore = hook_xreq_unstore,
 	.hook_xreq_subcall_req = hook_xreq_subcall_req,
-	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result
+	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result,
+	.hook_xreq_has_permission = hook_xreq_has_permission,
+	.hook_xreq_get_application_id = hook_xreq_get_application_id
 };
 
 /*******************************************************************************/

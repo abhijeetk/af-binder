@@ -520,6 +520,12 @@ static int xreq_has_permission_cb(void*closure, const char *permission)
 	return afb_auth_has_permission(xreq, permission);
 }
 
+static char *xreq_get_application_id_cb(void*closure)
+{
+	struct afb_xreq *xreq = closure;
+	return xreq->cred && xreq->cred->id ? strdup(xreq->cred->id) : NULL;
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
@@ -682,6 +688,13 @@ static int xreq_hooked_has_permission_cb(void*closure, const char *permission)
 	return afb_hook_xreq_has_permission(xreq, permission, r);
 }
 
+static char *xreq_hooked_get_application_id_cb(void*closure)
+{
+	struct afb_xreq *xreq = closure;
+	char *r = xreq_get_application_id_cb(closure);
+	return afb_hook_xreq_get_application_id(xreq, r);
+}
+
 /******************************************************************************/
 
 const struct afb_req_itf xreq_itf = {
@@ -704,7 +717,8 @@ const struct afb_req_itf xreq_itf = {
 	.vverbose = xreq_vverbose_cb,
 	.store = xreq_store_cb,
 	.subcall_req = xreq_subcall_req_cb,
-	.has_permission = xreq_has_permission_cb
+	.has_permission = xreq_has_permission_cb,
+	.get_application_id = xreq_get_application_id_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -727,7 +741,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.vverbose = xreq_hooked_vverbose_cb,
 	.store = xreq_hooked_store_cb,
 	.subcall_req = xreq_hooked_subcall_req_cb,
-	.has_permission = xreq_hooked_has_permission_cb
+	.has_permission = xreq_hooked_has_permission_cb,
+	.get_application_id = xreq_hooked_get_application_id_cb
 };
 
 /******************************************************************************/
