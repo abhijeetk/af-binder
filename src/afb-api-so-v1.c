@@ -30,7 +30,6 @@
 #include "afb-api-so-v1.h"
 #include "afb-apiset.h"
 #include "afb-export.h"
-//#include "afb-evt.h"
 #include "afb-common.h"
 #include "afb-context.h"
 #include "afb-api-so.h"

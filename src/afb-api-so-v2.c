@@ -34,7 +34,6 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
-#include "jobs.h"
 #include "verbose.h"
 
 /*
