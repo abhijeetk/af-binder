@@ -94,6 +94,8 @@ struct afb_xreq
 extern struct afb_req afb_xreq_unstore(struct afb_stored_req *sreq);
 extern void afb_xreq_addref(struct afb_xreq *xreq);
 extern void afb_xreq_unref(struct afb_xreq *xreq);
+extern void afb_xreq_unhooked_addref(struct afb_xreq *xreq);
+extern void afb_xreq_unhooked_unref(struct afb_xreq *xreq);
 
 extern struct json_object *afb_xreq_json(struct afb_xreq *xreq);
 

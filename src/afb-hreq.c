@@ -325,14 +325,14 @@ static void req_destroy(struct afb_xreq *xreq)
 
 void afb_hreq_addref(struct afb_hreq *hreq)
 {
-	afb_xreq_addref(&hreq->xreq);
+	afb_xreq_unhooked_addref(&hreq->xreq);
 }
 
 void afb_hreq_unref(struct afb_hreq *hreq)
 {
 	if (hreq->replied)
 		hreq->xreq.replied = 1;
-	afb_xreq_unref(&hreq->xreq);
+	afb_xreq_unhooked_unref(&hreq->xreq);
 }
 
 /*
@@ -923,7 +923,7 @@ void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char 
 	} else if (afb_hreq_init_context(hreq) < 0) {
 		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	} else {
-		afb_xreq_addref(&hreq->xreq); /* TODO check if needed */
+		afb_xreq_unhooked_addref(&hreq->xreq);
 		afb_xreq_process(&hreq->xreq, apiset);
 	}
 }

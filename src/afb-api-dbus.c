@@ -238,7 +238,7 @@ static struct dbus_memo *api_dbus_client_memo_make(struct api_dbus *api, struct 
 
 	memo = malloc(sizeof *memo);
 	if (memo != NULL) {
-		afb_xreq_addref(xreq);
+		afb_xreq_unhooked_addref(xreq);
 		memo->xreq = xreq;
 		memo->msgid = 0;
 		memo->api = api;
@@ -262,7 +262,7 @@ static void api_dbus_client_memo_destroy(struct dbus_memo *memo)
 		prv = &(*prv)->next;
 	}
 
-	afb_xreq_unref(memo->xreq);
+	afb_xreq_unhooked_unref(memo->xreq);
 	free(memo);
 }
 

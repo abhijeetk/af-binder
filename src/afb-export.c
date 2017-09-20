@@ -551,12 +551,12 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 		callreq->result = NULL;
 		callreq->status = 0;
 		callreq->async = 0;
-		afb_xreq_addref(&callreq->xreq);
+		afb_xreq_unhooked_addref(&callreq->xreq); /* avoid early callreq destruction */
 		rc = jobs_enter(NULL, 0, callreq_sync_enter, callreq);
 		if (rc >= 0)
 			rc = callreq->status;
 		resu = (rc >= 0 || callreq->result) ? callreq->result : afb_msg_json_internal_error();
-		afb_xreq_unref(&callreq->xreq);
+		afb_xreq_unhooked_unref(&callreq->xreq);
 	}
 	if (result)
 		*result = resu;

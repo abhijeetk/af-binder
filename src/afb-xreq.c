@@ -40,22 +40,26 @@
 
 /******************************************************************************/
 
-static inline void xreq_addref(struct afb_xreq *xreq)
+static void xreq_finalize(struct afb_xreq *xreq)
+{
+	if (!xreq->replied)
+		afb_xreq_fail(xreq, "error", "no reply");
+	if (xreq->hookflags)
+		afb_hook_xreq_end(xreq);
+	if (xreq->caller)
+		afb_xreq_unhooked_unref(xreq->caller);
+	xreq->queryitf->unref(xreq);
+}
+
+inline void afb_xreq_unhooked_addref(struct afb_xreq *xreq)
 {
 	__atomic_add_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED);
 }
 
-static inline void xreq_unref(struct afb_xreq *xreq)
+inline void afb_xreq_unhooked_unref(struct afb_xreq *xreq)
 {
-	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED)) {
-		if (!xreq->replied)
-			afb_xreq_fail(xreq, "error", "no reply");
-		if (xreq->hookflags)
-			afb_hook_xreq_end(xreq);
-		if (xreq->caller)
-			xreq_unref(xreq->caller);
-		xreq->queryitf->unref(xreq);
-	}
+	if (!__atomic_sub_fetch(&xreq->refcount, 1, __ATOMIC_RELAXED))
+		xreq_finalize(xreq);
 }
 
 /******************************************************************************/
@@ -109,7 +113,7 @@ static void subcall_reply_cb(struct afb_xreq *xreq, int status, struct json_obje
 
 	subcall->completion(subcall, status, result);
 	json_object_put(result);
-	afb_xreq_unref(&subcall->xreq);
+	afb_xreq_unhooked_unref(&subcall->xreq);
 }
 
 static void subcall_destroy_cb(struct afb_xreq *xreq)
@@ -159,7 +163,7 @@ static struct subcall *subcall_alloc(
 		subcall->xreq.api = api;
 		subcall->xreq.verb = verb;
 		subcall->xreq.caller = caller;
-		xreq_addref(caller);
+		afb_xreq_unhooked_addref(caller);
 	}
 	return subcall;
 }
@@ -208,7 +212,7 @@ static void subcall_process(struct subcall *subcall, void (*completion)(struct s
 			subcall->xreq.caller, subcall->xreq.api, subcall->xreq.verb,
 			subcall->xreq.json, subcall_reply_direct_cb, &subcall->xreq);
 	} else {
-		afb_xreq_addref(&subcall->xreq);
+		afb_xreq_unhooked_addref(&subcall->xreq);
 		afb_xreq_process(&subcall->xreq, subcall->xreq.caller->apiset);
 	}
 }
@@ -274,14 +278,14 @@ static int subcallsync(struct subcall *subcall, struct json_object **result)
 {
 	int rc;
 
-	afb_xreq_addref(&subcall->xreq);
+	afb_xreq_unhooked_addref(&subcall->xreq);
 	rc = jobs_enter(NULL, 0, subcall_sync_enter, subcall);
 	*result = subcall->result;
 	if (rc < 0 || subcall->status < 0) {
 		*result = *result ?: afb_msg_json_internal_error();
 		rc = -1;
 	}
-	afb_xreq_unref(&subcall->xreq);
+	afb_xreq_unhooked_unref(&subcall->xreq);
 	return rc;
 }
 
@@ -384,13 +388,13 @@ static void xreq_context_set_cb(void *closure, void *value, void (*free_value)(v
 static void xreq_addref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	xreq_addref(xreq);
+	afb_xreq_unhooked_addref(xreq);
 }
 
 static void xreq_unref_cb(void *closure)
 {
 	struct afb_xreq *xreq = closure;
-	xreq_unref(xreq);
+	afb_xreq_unhooked_unref(xreq);
 }
 
 static void xreq_session_close_cb(void *closure)
@@ -967,7 +971,7 @@ static void process_async(int signum, void *arg)
 		api->itf->call(api->closure, xreq);
 	}
 	/* release the request */
-	xreq_unref(xreq);
+	afb_xreq_unhooked_unref(xreq);
 }
 
 /**
@@ -1027,14 +1031,14 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 	}
 
 	/* queue the request job */
-	xreq_addref(xreq);
+	afb_xreq_unhooked_addref(xreq);
 	if (jobs_queue(api, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		early_failure(xreq, "cancelled", "not able to create a job for the task");
-		xreq_unref(xreq);
+		afb_xreq_unhooked_unref(xreq);
 	}
 end:
-	xreq_unref(xreq);
+	afb_xreq_unhooked_unref(xreq);
 }
 

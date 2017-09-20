@@ -260,7 +260,7 @@ static void client_call_cb(void * closure, struct afb_xreq *xreq)
 	struct afb_stub_ws *stubws = closure;
 
 	afb_proto_ws_client_call(stubws->proto, xreq->verb, afb_xreq_json(xreq), afb_session_uuid(xreq->context.session), xreq);
-	afb_xreq_addref(xreq);
+	afb_xreq_unhooked_addref(xreq);
 }
 
 static void client_on_description_cb(void *closure, struct json_object *data)
@@ -334,7 +334,7 @@ static void on_reply_success(void *closure, void *request, struct json_object *r
 	struct afb_xreq *xreq = request;
 
 	afb_xreq_success(xreq, result, *info ? info : NULL);
-	afb_xreq_unref(xreq);
+	afb_xreq_unhooked_unref(xreq);
 }
 
 static void on_reply_fail(void *closure, void *request, const char *status, const char *info)
@@ -342,7 +342,7 @@ static void on_reply_fail(void *closure, void *request, const char *status, cons
 	struct afb_xreq *xreq = request;
 
 	afb_xreq_fail(xreq, status, *info ? info : NULL);
-	afb_xreq_unref(xreq);
+	afb_xreq_unhooked_unref(xreq);
 }
 
 static void on_event_create(void *closure, const char *event_name, int event_id)
