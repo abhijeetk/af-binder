@@ -48,7 +48,7 @@ extern const char *afb_context_uuid(struct afb_context *context);
 
 extern void *afb_context_get(struct afb_context *context);
 extern int afb_context_set(struct afb_context *context, void *value, void (*free_value)(void*));
-extern void *afb_context_data(struct afb_context *context, void *(*make_value)(void), void (*free_value)(void*));
+extern void *afb_context_make(struct afb_context *context, int replace, void *(*make_value)(void *closure), void (*free_value)(void *item), void *closure);
 
 extern void afb_context_close(struct afb_context *context);
 extern void afb_context_refresh(struct afb_context *context);

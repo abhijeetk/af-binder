@@ -433,7 +433,7 @@ static struct cookie *cookie_add(struct afb_session *session, int idx, const voi
 	return cookie;
 }
 
-void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void), void (*freecb)(void*))
+void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace)
 {
 	int idx;
 	void *value;
@@ -441,11 +441,19 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 
 	lock(session);
 	cookie = cookie_search(session, key, &idx);
-	if (cookie)
-		value = cookie->value;
-	else {
-		value = makecb ? makecb() : NULL;
-		if (makecb || freecb) {
+	if (cookie) {
+		if (!replace)
+			value = cookie->value;
+		else {
+			value = makecb ? makecb(closure) : closure;
+			if (cookie->value != value && cookie->freecb)
+				cookie->freecb(cookie->value);
+			cookie->value = value;
+			cookie->freecb = freecb;
+		}
+	} else {
+		value = makecb ? makecb(closure) : closure;
+		if (replace || makecb || freecb) {
 			cookie = cookie_add(session, idx, key, value, freecb);
 			if (!cookie) {
 				if (makecb && freecb)

@@ -77,6 +77,8 @@ struct afb_req_itf
 
 	int (*has_permission)(void *closure, const char *permission);
 	char *(*get_application_id)(void *closure);
+
+	void *(*context_make)(void *closure, int replace, void *(*create_value)(void *creation_closure), void (*free_value)(void*), void *creation_closure);
 };
 
 /*
@@ -257,12 +259,22 @@ static inline void afb_req_context_set(struct afb_req req, void *context, void (
  */
 static inline void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*))
 {
-	void *result = afb_req_context_get(req);
-	if (!result) {
-		result = create_context();
-		afb_req_context_set(req, result, free_context);
-	}
-	return result;
+	return req.itf->context_make(req.closure, 0, (void *(*)(void*))(void*)create_context, free_context, 0);
+}
+
+/*
+ * Gets the pointer stored by the binding for the session of 'request'.
+ * If no previous pointer is stored or if 'replace' is not zero, a new value
+ * is generated using the function 'create_context' called with the 'closure'.
+ * If 'create_context' is NULL the generated value is 'closure'.
+ * When a value is created, the function 'free_context' is recorded and will
+ * be called (with the created value as argument) to free the created value when
+ * it is not more used.
+ * This function is atomic: it ensures that 2 threads will not race together.
+ */
+static inline void *afb_req_context_make(struct afb_req req, int replace, void *(*create_context)(void *closure), void (*free_context)(void*), void *closure)
+{
+	return req.itf->context_make(req.closure, replace, create_context, free_context, closure);
 }
 
 /*

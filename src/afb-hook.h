@@ -76,6 +76,7 @@ struct afb_hookid
 #define afb_hook_flag_req_subcall_req_result	0x00400000
 #define afb_hook_flag_req_has_permission	0x00800000
 #define afb_hook_flag_req_get_application_id	0x01000000
+#define afb_hook_flag_req_context_make		0x02000000
 
 /* common flags */
 #define afb_hook_flags_req_life		(afb_hook_flag_req_begin|afb_hook_flag_req_end)
@@ -90,7 +91,8 @@ struct afb_hookid
 
 /* extra flags */
 #define afb_hook_flags_req_ref		(afb_hook_flag_req_addref|afb_hook_flag_req_unref)
-#define afb_hook_flags_req_context	(afb_hook_flag_req_context_get|afb_hook_flag_req_context_set)
+#define afb_hook_flags_req_context	(afb_hook_flag_req_context_get|afb_hook_flag_req_context_set\
+					|afb_hook_flag_req_context_make)
 #define afb_hook_flags_req_stores	(afb_hook_flag_req_store|afb_hook_flag_req_unstore)
 
 /* predefined groups */
@@ -127,6 +129,7 @@ struct afb_hook_xreq_itf {
 	void (*hook_xreq_subcall_req_result)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *result);
 	void (*hook_xreq_has_permission)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *permission, int result);
 	void (*hook_xreq_get_application_id)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, char *result);
+	void (*hook_xreq_context_make)(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure, void *result);
 };
 
 extern void afb_hook_init_xreq(struct afb_xreq *xreq);
@@ -161,6 +164,7 @@ extern void afb_hook_xreq_subcall_req(const struct afb_xreq *xreq, const char *a
 extern void afb_hook_xreq_subcall_req_result(const struct afb_xreq *xreq, int status, struct json_object *result);
 extern int afb_hook_xreq_has_permission(const struct afb_xreq *xreq, const char *permission, int result);
 extern char *afb_hook_xreq_get_application_id(const struct afb_xreq *xreq, char *result);
+extern void *afb_hook_xreq_context_make(const struct afb_xreq *xreq, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure, void *result);
 
 /*********************************************************
 * section hooking export (daemon interface)

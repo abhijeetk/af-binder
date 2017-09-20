@@ -221,6 +221,7 @@ static struct flag xreq_flags[] = { /* must be sorted by names */
 		{ "common",		afb_hook_flags_req_common },
 		{ "context",		afb_hook_flags_req_context },
 		{ "context_get",	afb_hook_flag_req_context_get },
+		{ "context_make",	afb_hook_flag_req_context_make },
 		{ "context_set",	afb_hook_flag_req_context_set },
 		{ "end",		afb_hook_flag_req_end },
 		{ "event",		afb_hook_flags_req_event },
@@ -472,6 +473,21 @@ static void hook_xreq_get_application_id(void *closure, const struct afb_hookid 
 					"result", result);
 }
 
+static void hook_xreq_context_make(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure, void *result)
+{
+	char pc[50], pf[50], pv[50], pr[50];
+	snprintf(pc, sizeof pc, "%p", create_value);
+	snprintf(pf, sizeof pf, "%p", free_value);
+	snprintf(pv, sizeof pv, "%p", create_closure);
+	snprintf(pr, sizeof pr, "%p", result);
+	hook_xreq(closure, hookid, xreq, "context_make", "{sb ss ss ss ss}",
+					"replace", replace,
+					"create", pc,
+					"free", pf,
+					"closure", pv,
+					"result", pr);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_begin = hook_xreq_begin,
 	.hook_xreq_end = hook_xreq_end,
@@ -497,7 +513,8 @@ static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_subcall_req = hook_xreq_subcall_req,
 	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result,
 	.hook_xreq_has_permission = hook_xreq_has_permission,
-	.hook_xreq_get_application_id = hook_xreq_get_application_id
+	.hook_xreq_get_application_id = hook_xreq_get_application_id,
+	.hook_xreq_context_make = hook_xreq_context_make
 };
 
 /*******************************************************************************/

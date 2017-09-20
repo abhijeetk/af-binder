@@ -527,6 +527,12 @@ static char *xreq_get_application_id_cb(void*closure)
 	return xreq->cred && xreq->cred->id ? strdup(xreq->cred->id) : NULL;
 }
 
+static void *xreq_context_make_cb(void *closure, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure)
+{
+	struct afb_xreq *xreq = closure;
+	return afb_context_make(&xreq->context, replace, create_value, free_value, create_closure);
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(void *closure)
@@ -696,6 +702,13 @@ static char *xreq_hooked_get_application_id_cb(void*closure)
 	return afb_hook_xreq_get_application_id(xreq, r);
 }
 
+static void *xreq_hooked_context_make_cb(void *closure, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure)
+{
+	struct afb_xreq *xreq = closure;
+	void *result = xreq_context_make_cb(closure, replace, create_value, free_value, create_closure);
+	return afb_hook_xreq_context_make(xreq, replace, create_value, free_value, create_closure, result);
+}
+
 /******************************************************************************/
 
 const struct afb_req_itf xreq_itf = {
@@ -719,7 +732,8 @@ const struct afb_req_itf xreq_itf = {
 	.store = xreq_store_cb,
 	.subcall_req = xreq_subcall_req_cb,
 	.has_permission = xreq_has_permission_cb,
-	.get_application_id = xreq_get_application_id_cb
+	.get_application_id = xreq_get_application_id_cb,
+	.context_make = xreq_context_make_cb
 };
 
 const struct afb_req_itf xreq_hooked_itf = {
@@ -743,7 +757,8 @@ const struct afb_req_itf xreq_hooked_itf = {
 	.store = xreq_hooked_store_cb,
 	.subcall_req = xreq_hooked_subcall_req_cb,
 	.has_permission = xreq_hooked_has_permission_cb,
-	.get_application_id = xreq_hooked_get_application_id_cb
+	.get_application_id = xreq_hooked_get_application_id_cb,
+	.context_make = xreq_hooked_context_make_cb
 };
 
 /******************************************************************************/

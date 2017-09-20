@@ -36,6 +36,6 @@ extern void afb_session_new_token(struct afb_session *session);
 extern const char *afb_session_token(struct afb_session *session);
 
 extern void *afb_session_get_cookie(struct afb_session *session, const void *key);
-extern void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void), void (*freecb)(void*));
+extern void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace);
 extern int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*));
 
