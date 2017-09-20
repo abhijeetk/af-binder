@@ -73,53 +73,8 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
-	int rc;
-	int (*start)();
-	void (*onevent)(const char *event, struct json_object *object);
-
 	struct api_so_v2 *desc = closure;
-
-	/* check state */
-	if (afb_export_is_started(desc->export)) {
-		/* not an error when onneed */
-		if (onneed != 0)
-			goto done;
-
-		/* already started: it is an error */
-		ERROR("Service %s already started", afb_export_apiname(desc->export));
-		return -1;
-	}
-
-	/* get the initialisation */
-	start = desc->binding->init;
-	onevent = desc->binding->onevent;
-
-	/* unshare the session if asked */
-	if (!share_session) {
-		rc = afb_export_unshare_session(desc->export);
-		if (rc < 0) {
-			ERROR("Can't unshare the session for %s", afb_export_apiname(desc->export));
-			return -1;
-		}
-	}
-
-	/* set event handling */
-	rc = afb_export_handle_events(desc->export, onevent);
-	if (rc < 0) {
-		ERROR("Can't set event handler for %s", afb_export_apiname(desc->export));
-		return -1;
-	}
-
-	/* Starts the service */
-	rc = afb_export_start_v2(desc->export, start);
-	if (rc < 0) {
-		/* initialisation error */
-		ERROR("Initialisation of service %s failed (%d): %m", afb_export_apiname(desc->export), rc);
-		return rc;
-	}
-
-done:
-	return 0;
+	return afb_export_start(desc->export, share_session, onneed, apiset);
 }
 
 static void update_hooks_cb(void *closure)
@@ -286,7 +241,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	assert(data);
 
 	/* allocates the description */
-	export = afb_export_create_v2(binding->api, data);
+	export = afb_export_create_v2(binding->api, data, binding->init, binding->onevent);
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL) {
 		ERROR("out of memory");

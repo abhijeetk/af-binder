@@ -24,8 +24,8 @@ struct afb_service;
 struct afb_binding_data_v2;
 struct afb_binding_interface_v1;
 
-extern struct afb_export *afb_export_create_v1(const char *apiname);
-extern struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data);
+extern struct afb_export *afb_export_create_v1(const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*));
+extern struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*));
 extern void afb_export_destroy(struct afb_export *export);
 
 extern const char *afb_export_apiname(const struct afb_export *export);
@@ -36,12 +36,10 @@ extern int afb_export_unshare_session(struct afb_export *export);
 extern void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *apiset);
 extern struct afb_apiset *afb_export_get_apiset(struct afb_export *export);
 	
-extern int afb_export_is_started(const struct afb_export *export);
 extern struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*));
-extern int afb_export_start_v1(struct afb_export *export, int (*start)(struct afb_service));
-extern int afb_export_start_v2(struct afb_export *export, int (*start)());
+extern int afb_export_handle_events_v12(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object));
 
-extern int afb_export_handle_events(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object));
+extern int afb_export_start(struct afb_export *export, int share_session, int onneed, struct afb_apiset *apiset);
 
 extern int afb_export_verbosity_get(const struct afb_export *export);
 extern void afb_export_verbosity_set(struct afb_export *export, int level);

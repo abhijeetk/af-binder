@@ -84,8 +84,16 @@ struct afb_export
 	/* event listener for service or NULL */
 	struct afb_evt_listener *listener;
 
-	/* event callback for service */
-	void (*on_event)(const char *event, struct json_object *object);
+	/* start function */
+	union {
+		int (*v1)(struct afb_service);
+		int (*v2)();
+	} init;
+
+	/* event handling */
+	union {
+		void (*v12)(const char *event, struct json_object *object);
+	} on_event;
 
 	/* exported data */
 	union {
@@ -651,22 +659,22 @@ static const struct afb_service_itf hooked_service_itf = {
 /*
  * Propagates the event to the service
  */
-static void export_on_event(void *closure, const char *event, int eventid, struct json_object *object)
+static void export_on_event_v12(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	struct afb_export *export = closure;
 
 	if (export->hooksvc & afb_hook_flag_svc_on_event_before)
 		afb_hook_svc_on_event_before(export, event, eventid, object);
-	export->on_event(event, object);
+	export->on_event.v12(event, object);
 	if (export->hooksvc & afb_hook_flag_svc_on_event_after)
 		afb_hook_svc_on_event_after(export, event, eventid, object);
 	json_object_put(object);
 }
 
 /* the interface for events */
-static const struct afb_evt_itf evt_itf = {
-	.broadcast = export_on_event,
-	.push = export_on_event
+static const struct afb_evt_itf evt_v12_itf = {
+	.broadcast = export_on_event_v12,
+	.push = export_on_event_v12
 };
 
 /*************************************************************************************************************
@@ -715,10 +723,12 @@ void afb_export_destroy(struct afb_export *export)
 	}
 }
 
-struct afb_export *afb_export_create_v1(const char *apiname)
+struct afb_export *afb_export_create_v1(const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*))
 {
 	struct afb_export *export = create(apiname, Api_Version_1);
 	if (export) {
+		export->init.v1 = init;
+		export->on_event.v12 = onevent;
 		export->export.v1.verbosity = verbosity;
 		export->export.v1.mode = AFB_MODE_LOCAL;
 		export->export.v1.daemon.closure = export;
@@ -727,10 +737,12 @@ struct afb_export *afb_export_create_v1(const char *apiname)
 	return export;
 }
 
-struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data)
+struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*))
 {
 	struct afb_export *export = create(apiname, Api_Version_2);
 	if (export) {
+		export->init.v2 = init;
+		export->on_event.v12 = onevent;
 		export->export.v2 = data;
 		data->daemon.closure = export;
 		data->service.closure = export;
@@ -801,29 +813,34 @@ struct afb_apiset *afb_export_get_apiset(struct afb_export *export)
 /*
  * Creates a new service
  */
-int afb_export_handle_events(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object))
+int afb_export_handle_events_v12(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object))
 {
-	if (on_event != export->on_event) {
-		if (!on_event) {
+	/* check version */
+	switch (export->version) {
+	case Api_Version_1: case Api_Version_2: break;
+	default:
+		ERROR("invalid version 12 for API %s", export->apiname);
+		errno = EINVAL;
+		return -1;
+	}
+
+	/* set the event handler */
+	if (!on_event) {
+		if (export->listener) {
 			afb_evt_listener_unref(export->listener);
 			export->listener = NULL;
-		} else if (!export->listener) {
-			export->listener = afb_evt_listener_create(&evt_itf, export);
+		}
+		export->on_event.v12 = on_event;
+	} else {
+		export->on_event.v12 = on_event;
+		if (!export->listener) {
+			export->listener = afb_evt_listener_create(&evt_v12_itf, export);
 			if (export->listener == NULL)
 				return -1;
 		}
-		export->on_event = on_event;
 	}
 	return 0;
 }
-
-
-
-int afb_export_is_started(const struct afb_export *export)
-{
-	return export->state != Api_State_Pre_Init;
-}
-
 
 /*
  * Starts a new service (v1)
@@ -831,40 +848,6 @@ int afb_export_is_started(const struct afb_export *export)
 struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*))
 {
 	return regfun(&export->export.v1);
-}
-
-int afb_export_start_v1(struct afb_export *export, int (*start)(struct afb_service))
-{
-	int rc;
-	struct afb_service svc = { .itf = &hooked_service_itf, .closure = export };
-
-	if (export->hooksvc & afb_hook_flag_svc_start_before)
-		afb_hook_svc_start_before(export);
-	export->state = Api_State_Init;
-	rc = start ? start(svc) : 0;
-	export->state = Api_State_Run;
-	if (export->hooksvc & afb_hook_flag_svc_start_after)
-		afb_hook_svc_start_after(export, rc);
-	return rc;
-}
-
-/*
- * Starts a new service (v2)
- */
-int afb_export_start_v2(struct afb_export *export, int (*start)())
-{
-	int rc;
-
-	if (export->hooksvc & afb_hook_flag_svc_start_before)
-		afb_hook_svc_start_before(export);
-	export->state = Api_State_Init;
-	rc = start ? start() : 0;
-	export->state = Api_State_Run;
-	if (export->hooksvc & afb_hook_flag_svc_start_after)
-		afb_hook_svc_start_after(export, rc);
-	if (rc >= 0)
-		export->state = Api_State_Run;
-	return rc;
 }
 
 int afb_export_verbosity_get(const struct afb_export *export)
@@ -882,5 +865,81 @@ void afb_export_verbosity_set(struct afb_export *export, int level)
 	case Api_Version_1: export->export.v1.verbosity = level; break;
 	case Api_Version_2: export->export.v2->verbosity = level; break;
 	}
+}
+
+/*************************************************************************************************************
+ *************************************************************************************************************
+ *************************************************************************************************************
+ *************************************************************************************************************
+                                           N E W
+ *************************************************************************************************************
+ *************************************************************************************************************
+ *************************************************************************************************************
+ *************************************************************************************************************/
+
+int afb_export_start(struct afb_export *export, int share_session, int onneed, struct afb_apiset *apiset)
+{
+	int rc;
+
+	/* check state */
+	if (export->state != Api_State_Pre_Init) {
+		/* not an error when onneed */
+		if (onneed != 0)
+			goto done;
+
+		/* already started: it is an error */
+		ERROR("Service of API %s already started", export->apiname);
+		return -1;
+	}
+
+	/* unshare the session if asked */
+	if (!share_session) {
+		rc = afb_export_unshare_session(export);
+		if (rc < 0) {
+			ERROR("Can't unshare the session for %s", export->apiname);
+			return -1;
+		}
+	}
+
+	/* set event handling */
+	switch (export->version) {
+	case Api_Version_1:
+	case Api_Version_2:
+		rc = afb_export_handle_events_v12(export, export->on_event.v12);
+		break;
+	default:
+		rc = 0;
+		break;
+	}
+	if (rc < 0) {
+		ERROR("Can't set event handler for %s", export->apiname);
+		return -1;
+	}
+
+	/* Starts the service */
+	if (export->hooksvc & afb_hook_flag_svc_start_before)
+		afb_hook_svc_start_before(export);
+	export->state = Api_State_Init;
+	switch (export->version) {
+	case Api_Version_1:
+		rc = export->init.v1 ? export->init.v1((struct afb_service){ .itf = &hooked_service_itf, .closure = export }) : 0;
+		break;
+	case Api_Version_2:
+		rc = export->init.v2 ? export->init.v2() : 0;
+		break;
+	default:
+		break;
+	}
+	export->state = Api_State_Run;
+	if (export->hooksvc & afb_hook_flag_svc_start_after)
+		afb_hook_svc_start_after(export, rc);
+	if (rc < 0) {
+		/* initialisation error */
+		ERROR("Initialisation of service API %s failed (%d): %m", export->apiname, rc);
+		return rc;
+	}
+
+done:
+	return 0;
 }
 

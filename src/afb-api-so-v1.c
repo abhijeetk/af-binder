@@ -73,53 +73,8 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 
 static int service_start_cb(void *closure, int share_session, int onneed, struct afb_apiset *apiset)
 {
-	int rc;
-	int (*init)(struct afb_service service);
-	void (*onevent)(const char *event, struct json_object *object);
-
 	struct api_so_v1 *desc = closure;
-
-	/* check state */
-	if (afb_export_is_started(desc->export)) {
-		/* not an error when onneed */
-		if (onneed != 0)
-			goto done;
-
-		/* already started: it is an error */
-		ERROR("Service %s already started", afb_export_apiname(desc->export));
-		return -1;
-	}
-
-	/* get the initialisation */
-	init = dlsym(desc->handle, afb_api_so_v1_service_init);
-	onevent = dlsym(desc->handle, afb_api_so_v1_service_event);
-
-	/* unshare the session if asked */
-	if (!share_session) {
-		rc = afb_export_unshare_session(desc->export);
-		if (rc < 0) {
-			ERROR("Can't unshare the session for %s", afb_export_apiname(desc->export));
-			return -1;
-		}
-	}
-
-	/* set event handling */
-	rc = afb_export_handle_events(desc->export, onevent);
-	if (rc < 0) {
-		ERROR("Can't set event handler for %s", afb_export_apiname(desc->export));
-		return -1;
-	}
-
-	/* Starts the service */
-	rc = afb_export_start_v1(desc->export, init);
-	if (rc < 0) {
-		/* initialisation error */
-		ERROR("Initialisation of service %s failed (%d): %m", afb_export_apiname(desc->export), rc);
-		return rc;
-	}
-
-done:
-	return 0;
+	return afb_export_start(desc->export, share_session, onneed, apiset);
 }
 
 static void update_hooks_cb(void *closure)
@@ -243,6 +198,8 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 {
 	struct api_so_v1 *desc;
 	struct afb_binding_v1 *(*register_function) (const struct afb_binding_interface_v1 *interface);
+	int (*init)(struct afb_service service);
+	void (*onevent)(const char *event, struct json_object *object);
 	struct afb_api afb_api;
 	struct afb_export *export;
 
@@ -253,7 +210,9 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	INFO("binding [%s] is a valid AFB binding V1", path);
 
 	/* allocates the description */
-	export = afb_export_create_v1(path);
+	init = dlsym(handle, afb_api_so_v1_service_init);
+	onevent = dlsym(handle, afb_api_so_v1_service_event);
+	export = afb_export_create_v1(path, init, onevent);
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL || export == NULL) {
 		ERROR("out of memory");
