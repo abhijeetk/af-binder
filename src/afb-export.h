@@ -34,6 +34,7 @@ extern void afb_export_update_hook(struct afb_export *export);
 
 extern int afb_export_unshare_session(struct afb_export *export);
 extern void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *apiset);
+extern struct afb_apiset *afb_export_get_apiset(struct afb_export *export);
 	
 extern int afb_export_is_started(const struct afb_export *export);
 extern struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*));

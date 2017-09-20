@@ -74,7 +74,7 @@ struct afb_export
 	/* hooking flags */
 	int hookditf;
 	int hooksvc;
-	
+
 	/* session for service */
 	struct afb_session *session;
 
@@ -792,7 +792,12 @@ void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *apiset)
 	export->apiset = afb_apiset_addref(apiset);
 	afb_apiset_unref(prvset);
 }
-	
+
+struct afb_apiset *afb_export_get_apiset(struct afb_export *export)
+{
+	return export->apiset;
+}
+
 /*
  * Creates a new service
  */
@@ -826,7 +831,6 @@ int afb_export_is_started(const struct afb_export *export)
 struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*))
 {
 	return regfun(&export->export.v1);
-	
 }
 
 int afb_export_start_v1(struct afb_export *export, int (*start)(struct afb_service))
