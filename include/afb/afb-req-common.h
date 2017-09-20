@@ -89,7 +89,7 @@ struct afb_req
 };
 
 /*
- * Checks wether the request 'req' is valid or not.
+ * Checks whether the request 'req' is valid or not.
  *
  * Returns 0 if not valid or 1 if valid.
  */

@@ -28,6 +28,8 @@ struct afb_event;
 struct afb_verb_desc_v1;
 struct afb_verb_v2;
 struct afb_req;
+struct afb_req_itf;
+struct afb_request;
 struct afb_stored_req;
 
 struct afb_xreq_query_itf {
@@ -53,6 +55,7 @@ struct afb_xreq_query_itf {
  */
 struct afb_xreq
 {
+	const struct afb_req_itf *itf;	/**< interface functions */
 	struct afb_context context;	/**< context of the request */
 	struct afb_apiset *apiset;	/**< apiset of the xreq */
 	const char *api;		/**< the requested API */
@@ -62,7 +65,7 @@ struct afb_xreq
 	int refcount;			/**< current ref count */
 	int replied;			/**< is replied? */
 	int hookflags;			/**< flags for hooking */
-	int hookindex;			/**< index for hooking */
+	int hookindex;			/**< hook index of the request if hooked */
 	struct afb_evt_listener *listener; /**< event listener for the request */
 	struct afb_cred *cred;		/**< client credential if revelant */
 	struct afb_xreq *caller;	/**< caller request if any */

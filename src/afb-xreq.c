@@ -60,12 +60,9 @@ static inline void xreq_unref(struct afb_xreq *xreq)
 
 /******************************************************************************/
 
-extern const struct afb_req_itf xreq_itf;
-extern const struct afb_req_itf xreq_hooked_itf;
-
 static inline struct afb_req to_req(struct afb_xreq *xreq)
 {
-	return (struct afb_req){ .itf = xreq->hookflags ? &xreq_hooked_itf : &xreq_itf, .closure = xreq };
+	return (struct afb_req){ .itf = xreq->itf, .closure = xreq };
 }
 
 /******************************************************************************/
@@ -927,6 +924,7 @@ void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb
 void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)
 {
 	memset(xreq, 0, sizeof *xreq);
+	xreq->itf = &xreq_hooked_itf; /* hook by default */
 	xreq->refcount = 1;
 	xreq->queryitf = queryitf;
 }
@@ -946,6 +944,8 @@ static void init_hooking(struct afb_xreq *xreq)
 	afb_hook_init_xreq(xreq);
 	if (xreq->hookflags)
 		afb_hook_xreq_begin(xreq);
+	else
+		xreq->itf = &xreq_itf; /* unhook the interface */
 }
 
 /**
