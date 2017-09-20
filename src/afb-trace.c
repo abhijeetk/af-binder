@@ -188,17 +188,17 @@ static const char *verbosity_level_name(int level)
 static void emit(void *closure, const struct afb_hookid *hookid, const char *type, const char *fmt1, const char *fmt2, va_list ap2, ...)
 {
 	struct hook *hook = closure;
-	struct json_object *event, *data1, *data2;
+	struct json_object *data, *data1, *data2;
 	va_list ap1;
 
-	data1 = data2 = event = NULL;
+	data1 = data2 = data = NULL;
 	va_start(ap1, ap2);
 	wrap_json_vpack(&data1, fmt1, ap1);
 	va_end(ap1);
 	if (fmt2)
 		wrap_json_vpack(&data2, fmt2, ap2);
 
-	wrap_json_pack(&event, "{so ss ss si so so*}",
+	wrap_json_pack(&data, "{so ss ss si so so*}",
 					"time", timestamp(hookid),
 					"tag", hook->tag->tag,
 					"type", type,
@@ -206,7 +206,7 @@ static void emit(void *closure, const struct afb_hookid *hookid, const char *typ
 					type, data1,
 					"data", data2);
 
-	afb_evt_unhooked_push(hook->event->event, event);
+	afb_evt_unhooked_push(hook->event->event, data);
 }
 
 /*******************************************************************************/
