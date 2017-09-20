@@ -449,7 +449,7 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 			cookie = cookie_add(session, idx, key, value, freecb);
 			if (!cookie) {
 				if (makecb && freecb)
-					free(value);
+					freecb(value);
 				value = NULL;
 			}
 		}
