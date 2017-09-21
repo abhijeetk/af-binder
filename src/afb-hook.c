@@ -29,7 +29,7 @@
 #include <json-c/json.h>
 
 #include <afb/afb-req-common.h>
-#include <afb/afb-event-itf.h>
+#include <afb/afb-event.h>
 
 #include "afb-context.h"
 #include "afb-hook.h"

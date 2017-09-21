@@ -19,7 +19,7 @@
 
 #include <stdarg.h>
 
-#include "afb-event-itf.h"
+#include "afb-event.h"
 
 struct json_object;
 struct afb_stored_req;

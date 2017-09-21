@@ -17,102 +17,10 @@
 
 #pragma once
 
-/* avoid inclusion of <json-c/json.h> */
-struct json_object;
+#pragma GCC warning "\n\n\
+    This header file <afb/afb-event-itf.h> is OBSOLETE.\n\
+    It is provided for COMPATIBILITY ONLY.\n\n\
+    Please USE <afb/afb-binding.h> and ADAPT YOUR CODE to new names.\n"
 
-/*
- * Interface for handling requests.
- * It records the functions to be called for the request.
- * Don't use this structure directly.
- * Use the helper functions documented below.
- */
-struct afb_event_itf
-{
-	/* CAUTION: respect the order, add at the end */
-
-	int (*broadcast)(void *closure, struct json_object *obj);
-	int (*push)(void *closure, struct json_object *obj);
-	void (*unref)(void *closure);
-	const char *(*name)(void *closure);
-	void (*addref)(void *closure);
-};
-
-/*
- * Describes the request of afb-daemon for bindings
- */
-struct afb_event
-{
-	const struct afb_event_itf *itf;	/* the interface to use */
-	void *closure;				/* the closure argument for functions of 'itf' */
-};
-
-/*
- * Checks wether the 'event' is valid or not.
- *
- * Returns 0 if not valid or 1 if valid.
- */
-static inline int afb_event_is_valid(struct afb_event event)
-{
-	return !!event.itf;
-}
-
-/*
- * Broadcasts widely the 'event' with the data 'object'.
- * 'object' can be NULL.
- *
- * For convenience, the function calls 'json_object_put' for 'object'.
- * Thus, in the case where 'object' should remain available after
- * the function returns, the function 'json_object_get' shall be used.
- *
- * Returns the count of clients that received the event.
- */
-static inline int afb_event_broadcast(struct afb_event event, struct json_object *object)
-{
-	return event.itf->broadcast(event.closure, object);
-}
-
-/*
- * Pushes the 'event' with the data 'object' to its observers.
- * 'object' can be NULL.
- *
- * For convenience, the function calls 'json_object_put' for 'object'.
- * Thus, in the case where 'object' should remain available after
- * the function returns, the function 'json_object_get' shall be used.
- *
- * Returns the count of clients that received the event.
- */
-static inline int afb_event_push(struct afb_event event, struct json_object *object)
-{
-	return event.itf->push(event.closure, object);
-}
-
-/* OBSOLETE */
-#define afb_event_drop afb_event_unref
-
-/*
- * Gets the name associated to the 'event'.
- */
-static inline const char *afb_event_name(struct afb_event event)
-{
-	return event.itf->name(event.closure);
-}
-
-/*
- * Decrease the count of reference to 'event' and
- * destroys the event when the reference count falls to zero.
- */
-static inline void afb_event_unref(struct afb_event event)
-{
-	event.itf->unref(event.closure);
-}
-
-/*
- * remove one reference to the data associated to the 'event'
- * After calling this function, the event
- * MUST NOT BE USED ANYMORE.
- */
-static inline void afb_event_addref(struct afb_event event)
-{
-	event.itf->addref(event.closure);
-}
+#include "afb-binding.h"
 

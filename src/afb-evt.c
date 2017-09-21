@@ -25,7 +25,8 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
-#include <afb/afb-event-itf.h>
+#include <afb/afb-eventid-itf.h>
+#include <afb/afb-event.h>
 
 #include "afb-evt.h"
 #include "afb-hook.h"
@@ -63,7 +64,7 @@ struct afb_evt_listener {
 struct afb_evtid {
 
 	/* interface */
-	struct afb_event_itf *itf;
+	struct afb_eventid eventid;
 
 	/* next event */
 	struct afb_evtid *next;
@@ -71,8 +72,8 @@ struct afb_evtid {
 	/* head of the list of listeners watching the event */
 	struct afb_evt_watch *watchs;
 
-	/* id of the event */
-	int id;
+	/* mutex of the event */
+	pthread_mutex_t mutex;
 
 	/* hooking */
 	int hookflags;
@@ -80,8 +81,8 @@ struct afb_evtid {
 	/* refcount */
 	int refcount;
 
-	/* mutex of the event */
-	pthread_mutex_t mutex;
+	/* id of the event */
+	int id;
 
 	/* fullname of the event */
 	char fullname[1];
@@ -109,7 +110,7 @@ struct afb_evt_watch {
 };
 
 /* the interface for events */
-static struct afb_event_itf afb_evt_event_itf = {
+static struct afb_eventid_itf afb_evt_eventid_itf = {
 	.broadcast = (void*)afb_evt_evtid_broadcast,
 	.push = (void*)afb_evt_evtid_push,
 	.unref = (void*)afb_evt_evtid_unref,
@@ -118,7 +119,7 @@ static struct afb_event_itf afb_evt_event_itf = {
 };
 
 /* the interface for events */
-static struct afb_event_itf afb_evt_hooked_event_itf = {
+static struct afb_eventid_itf afb_evt_hooked_eventid_itf = {
 	.broadcast = (void*)afb_evt_evtid_hooked_broadcast,
 	.push = (void*)afb_evt_evtid_hooked_push,
 	.unref = (void*)afb_evt_evtid_hooked_unref,
@@ -340,7 +341,7 @@ struct afb_evtid *afb_evt_evtid_create(const char *fullname)
 	pthread_mutex_init(&evtid->mutex, NULL);
 	evtids = evtid;
 	evtid->hookflags = afb_hook_flags_evt(evtid->fullname);
-	evtid->itf = evtid->hookflags ? &afb_evt_hooked_event_itf : &afb_evt_event_itf;
+	evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_eventid_itf;
 	if (evtid->hookflags & afb_hook_flag_evt_create)
 		afb_hook_evt_create(evtid->fullname, evtid->id);
 	pthread_mutex_unlock(&events_mutex);
@@ -629,19 +630,19 @@ void afb_evt_update_hooks()
 	pthread_mutex_lock(&events_mutex);
 	for (evtid = evtids ; evtid ; evtid = evtid->next) {
 		evtid->hookflags = afb_hook_flags_evt(evtid->fullname);
-		evtid->itf = evtid->hookflags ? &afb_evt_hooked_event_itf : &afb_evt_event_itf;
+		evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_eventid_itf;
 	}
 	pthread_mutex_unlock(&events_mutex);
 }
 
 struct afb_evtid *afb_evt_to_evtid(struct afb_event event)
 {
-	return (struct afb_evtid*)(event.itf == &afb_evt_hooked_event_itf ? event.closure : NULL);
+	return (struct afb_evtid*)(event.itf == &afb_evt_hooked_eventid_itf ? event.closure : NULL);
 }
 
 struct afb_event afb_evt_from_evtid(struct afb_evtid *evtid)
 {
-	return (struct afb_event){ .itf = evtid ? &afb_evt_hooked_event_itf : NULL, .closure = evtid };
+	return (struct afb_event){ .itf = evtid ? &afb_evt_hooked_eventid_itf : NULL, .closure = &evtid->eventid };
 }
 
 /*
