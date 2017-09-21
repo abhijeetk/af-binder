@@ -71,7 +71,7 @@ struct tag {
 /* struct for events */
 struct event {
 	struct event *next;		/* link to the next event */
-	struct afb_event event;		/* the event */
+	struct afb_evtid *evtid;		/* the event */
 };
 
 /* struct for sessions */
@@ -206,7 +206,7 @@ static void emit(void *closure, const struct afb_hookid *hookid, const char *typ
 					type, data1,
 					"data", data2);
 
-	afb_evt_unhooked_push(hook->event->event, data);
+	afb_evt_evtid_push(hook->event->evtid, data);
 }
 
 /*******************************************************************************/
@@ -727,16 +727,16 @@ static void hook_svc_start_after(void *closure, const struct afb_hookid *hookid,
 	hook_svc(closure, hookid, export, "start_after", "{si}", "result", status);
 }
 
-static void hook_svc_on_event_before(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_before(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int evtid, struct json_object *object)
 {
 	hook_svc(closure, hookid, export, "on_event_before", "{ss si sO*}",
-			"event", event, "id", eventid, "data", object);
+			"event", event, "id", evtid, "data", object);
 }
 
-static void hook_svc_on_event_after(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int eventid, struct json_object *object)
+static void hook_svc_on_event_after(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int evtid, struct json_object *object)
 {
 	hook_svc(closure, hookid, export, "on_event_after", "{ss si sO*}",
-			"event", event, "id", eventid, "data", object);
+			"event", event, "id", evtid, "data", object);
 }
 
 static void hook_svc_call(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
@@ -1045,7 +1045,7 @@ static void trace_cleanup(struct afb_trace *trace)
 			pevent = &event->next;
 		else {
 			*pevent = event->next;
-			afb_event_drop(event->event);
+			afb_evt_evtid_unref(event->evtid);
 			free(event);
 		}
 	}
@@ -1099,14 +1099,14 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 
 	/* search the event */
 	event = trace->events;
-	while (event && strcmp(afb_event_name(event->event), name))
+	while (event && strcmp(afb_evt_evtid_name(event->evtid), name))
 		event = event->next;
 
 	if (!event && alloc) {
 		event = malloc(sizeof * event);
 		if (event) {
-			event->event = trace->daemon->itf->event_make(trace->daemon->closure, name);
-			if (afb_event_is_valid(event->event)) {
+			event->evtid = afb_evt_to_evtid(trace->daemon->itf->event_make(trace->daemon->closure, name));
+			if (event->evtid) {
 				event->next = trace->events;
 				trace->events = event;
 			} else {
@@ -1271,7 +1271,7 @@ static void addhook(struct desc *desc, enum trace_type type)
 	}
 
 	/* attach and activate the hook */
-	afb_req_subscribe(desc->context->req, hook->event->event);
+	afb_req_subscribe(desc->context->req, afb_evt_from_evtid(hook->event->evtid));
 	trace_attach_hook(trace, hook, type);
 }
 
