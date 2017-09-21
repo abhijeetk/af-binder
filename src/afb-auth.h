@@ -19,7 +19,9 @@
 
 struct afb_auth;
 struct afb_xreq;
+struct json_object;
 
 extern int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth);
 extern int afb_auth_has_permission(struct afb_xreq *xreq, const char *permission);
 
+extern struct json_object *afb_auth_json_v2(const struct afb_auth *auth, int session);

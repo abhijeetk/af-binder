@@ -28,9 +28,9 @@
 #include "afb-api.h"
 #include "afb-api-so-v2.h"
 #include "afb-apiset.h"
+#include "afb-auth.h"
 #include "afb-export.h"
 #include "afb-evt.h"
-#include "afb-common.h"
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
@@ -95,69 +95,6 @@ static void set_verbosity_cb(void *closure, int level)
 	afb_export_verbosity_set(desc->export, level);
 }
 
-static struct json_object *addperm(struct json_object *o, struct json_object *x)
-{
-	struct json_object *a;
-
-	if (!o)
-		return x;
-
-	if (!json_object_object_get_ex(o, "allOf", &a)) {
-		a = json_object_new_array();
-		json_object_array_add(a, o);
-		o = json_object_new_object();
-		json_object_object_add(o, "allOf", a);
-	}
-	json_object_array_add(a, x);
-	return o;
-}
-
-static struct json_object *addperm_key_val(struct json_object *o, const char *key, struct json_object *val)
-{
-	struct json_object *x = json_object_new_object();
-	json_object_object_add(x, key, val);
-	return addperm(o, x);
-}
-
-static struct json_object *addperm_key_valstr(struct json_object *o, const char *key, const char *val)
-{
-	return addperm_key_val(o, key, json_object_new_string(val));
-}
-
-static struct json_object *addperm_key_valint(struct json_object *o, const char *key, int val)
-{
-	return addperm_key_val(o, key, json_object_new_int(val));
-}
-
-static struct json_object *addauth_or_array(struct json_object *o, const struct afb_auth *auth);
-
-static struct json_object *addauth(struct json_object *o, const struct afb_auth *auth)
-{
-	switch(auth->type) {
-	case afb_auth_No: return addperm(o, json_object_new_boolean(0));
-	case afb_auth_Token: return addperm_key_valstr(o, "session", "check");
-	case afb_auth_LOA: return addperm_key_valint(o, "LOA", auth->loa);
-	case afb_auth_Permission: return addperm_key_valstr(o, "permission", auth->text);
-	case afb_auth_Or: return addperm_key_val(o, "anyOf", addauth_or_array(json_object_new_array(), auth));
-	case afb_auth_And: return addauth(addauth(o, auth->first), auth->next);
-	case afb_auth_Not: return addperm_key_val(o, "not", addauth(NULL, auth->first));
-	case afb_auth_Yes: return addperm(o, json_object_new_boolean(1));
-	}
-	return o;
-}
-
-static struct json_object *addauth_or_array(struct json_object *o, const struct afb_auth *auth)
-{
-	if (auth->type != afb_auth_Or)
-		json_object_array_add(o, addauth(NULL, auth));
-	else {
-		addauth_or_array(o, auth->first);
-		addauth_or_array(o, auth->next);
-	}
-
-	return o;
-}
-
 static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 {
 	char buffer[256];
@@ -185,17 +122,7 @@ static struct json_object *make_description_openAPIv3(struct api_so_v2 *desc)
 		g = json_object_new_object();
 		json_object_object_add(f, "get", g);
 
-		a = NULL;
-		if (verb->session & AFB_SESSION_CLOSE_V2)
-			a = addperm_key_valstr(a, "session", "close");
-		if (verb->session & AFB_SESSION_CHECK_V2)
-			a = addperm_key_valstr(a, "session", "check");
-		if (verb->session & AFB_SESSION_REFRESH_V2)
-			a = addperm_key_valstr(a, "token", "refresh");
-		if (verb->session & AFB_SESSION_LOA_MASK_V2)
-			a = addperm_key_valint(a, "LOA", verb->session & AFB_SESSION_LOA_MASK_V2);
-		if (verb->auth)
-			a = addauth(a, verb->auth);
+		a = afb_auth_json_v2(verb->auth, verb->session);
 		if (a)
 			json_object_object_add(g, "x-permissions", a);
 
@@ -243,7 +170,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	/* allocates the description */
 	export = afb_export_create_v2(binding->api, data, binding->init, binding->onevent);
 	desc = calloc(1, sizeof *desc);
-	if (desc == NULL) {
+	if (!desc || !export) {
 		ERROR("out of memory");
 		goto error;
 	}
