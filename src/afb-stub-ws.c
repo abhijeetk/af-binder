@@ -394,7 +394,7 @@ static void on_event_remove(void *closure, const char *event_name, int event_id)
 	*prv = ev->next;
 
 	/* destroys the event */
-	afb_event_drop(ev->event);
+	afb_event_unref(ev->event);
 	free(ev);
 }
 
@@ -585,7 +585,7 @@ static void drop_all_events(struct afb_stub_ws *stubws)
 
 	while (ev) {
 		nxt = ev->next;
-		afb_event_drop(ev->event);
+		afb_event_unref(ev->event);
 		free(ev);
 		ev = nxt;
 	}

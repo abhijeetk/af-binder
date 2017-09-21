@@ -440,7 +440,7 @@ static void api_dbus_client_event_drop(struct api_dbus *api, int id, const char 
 	*prv = ev->next;
 
 	/* destroys the event */
-	afb_event_drop(ev->event);
+	afb_event_unref(ev->event);
 	free(ev);
 }
 

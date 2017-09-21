@@ -32,8 +32,9 @@ struct afb_event_itf
 
 	int (*broadcast)(void *closure, struct json_object *obj);
 	int (*push)(void *closure, struct json_object *obj);
-	void (*drop)(void *closure);
+	void (*unref)(void *closure);
 	const char *(*name)(void *closure);
+	void (*addref)(void *closure);
 };
 
 /*
@@ -85,15 +86,8 @@ static inline int afb_event_push(struct afb_event event, struct json_object *obj
 	return event.itf->push(event.closure, object);
 }
 
-/*
- * Drops the data associated to the 'event'
- * After calling this function, the event
- * MUST NOT BE USED ANYMORE.
- */
-static inline void afb_event_drop(struct afb_event event)
-{
-	event.itf->drop(event.closure);
-}
+/* OBSOLETE */
+#define afb_event_drop afb_event_unref
 
 /*
  * Gets the name associated to the 'event'.
@@ -101,5 +95,24 @@ static inline void afb_event_drop(struct afb_event event)
 static inline const char *afb_event_name(struct afb_event event)
 {
 	return event.itf->name(event.closure);
+}
+
+/*
+ * Decrease the count of reference to 'event' and
+ * destroys the event when the reference count falls to zero.
+ */
+static inline void afb_event_unref(struct afb_event event)
+{
+	event.itf->unref(event.closure);
+}
+
+/*
+ * remove one reference to the data associated to the 'event'
+ * After calling this function, the event
+ * MUST NOT BE USED ANYMORE.
+ */
+static inline void afb_event_addref(struct afb_event event)
+{
+	event.itf->addref(event.closure);
 }
 

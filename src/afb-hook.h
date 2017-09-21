@@ -292,14 +292,13 @@ extern void afb_hook_unref_svc(struct afb_hook_svc *hook);
 #define afb_hook_flag_evt_broadcast_before		0x000008
 #define afb_hook_flag_evt_broadcast_after		0x000010
 #define afb_hook_flag_evt_name				0x000020
-#define afb_hook_flag_evt_drop				0x000040
-#define afb_hook_flag_evt_addref			0x000080
-#define afb_hook_flag_evt_unref				0x000100
+#define afb_hook_flag_evt_addref			0x000040
+#define afb_hook_flag_evt_unref				0x000080
 
 #define afb_hook_flags_evt_common	(afb_hook_flag_evt_push_before|afb_hook_flag_evt_broadcast_before)
 #define afb_hook_flags_evt_extra	(afb_hook_flags_evt_common\
 					|afb_hook_flag_evt_push_after|afb_hook_flag_evt_broadcast_after\
-					|afb_hook_flag_evt_create|afb_hook_flag_evt_drop\
+					|afb_hook_flag_evt_create\
 					|afb_hook_flag_evt_addref|afb_hook_flag_evt_unref)
 #define afb_hook_flags_evt_all		(afb_hook_flags_evt_extra|afb_hook_flag_evt_name)
 
@@ -310,7 +309,6 @@ struct afb_hook_evt_itf {
 	void (*hook_evt_broadcast_before)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj);
 	void (*hook_evt_broadcast_after)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj, int result);
 	void (*hook_evt_name)(void *closure, const struct afb_hookid *hookid, const char *evt, int id, const char *result);
-	void (*hook_evt_drop)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
 	void (*hook_evt_addref)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
 	void (*hook_evt_unref)(void *closure, const struct afb_hookid *hookid, const char *evt, int id);
 };
@@ -321,7 +319,6 @@ extern int afb_hook_evt_push_after(const char *evt, int id, struct json_object *
 extern void afb_hook_evt_broadcast_before(const char *evt, int id, struct json_object *obj);
 extern int afb_hook_evt_broadcast_after(const char *evt, int id, struct json_object *obj, int result);
 extern void afb_hook_evt_name(const char *evt, int id, const char *result);
-extern void afb_hook_evt_drop(const char *evt, int id);
 extern void afb_hook_evt_addref(const char *evt, int id);
 extern void afb_hook_evt_unref(const char *evt, int id);
 

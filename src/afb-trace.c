@@ -785,7 +785,6 @@ static struct flag evt_flags[] = { /* must be sorted by names */
 		{ "broadcast_before",	afb_hook_flag_evt_broadcast_before },
 		{ "common",		afb_hook_flags_evt_common },
 		{ "create",		afb_hook_flag_evt_create },
-		{ "drop",		afb_hook_flag_evt_drop },
 		{ "extra",		afb_hook_flags_evt_extra },
 		{ "name",		afb_hook_flag_evt_name },
 		{ "push_after",		afb_hook_flag_evt_push_after },
@@ -842,11 +841,6 @@ static void hook_evt_name(void *closure, const struct afb_hookid *hookid, const 
 	hook_evt(closure, hookid, evt, id, "name", "{ss}", "result", result);
 }
 
-static void hook_evt_drop(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
-{
-	hook_evt(closure, hookid, evt, id, "drop", NULL);
-}
-
 static void hook_evt_addref(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
 {
 	hook_evt(closure, hookid, evt, id, "addref", NULL);
@@ -864,7 +858,6 @@ static struct afb_hook_evt_itf hook_evt_itf = {
 	.hook_evt_broadcast_before = hook_evt_broadcast_before,
 	.hook_evt_broadcast_after = hook_evt_broadcast_after,
 	.hook_evt_name = hook_evt_name,
-	.hook_evt_drop = hook_evt_drop,
 	.hook_evt_addref = hook_evt_addref,
 	.hook_evt_unref = hook_evt_unref
 };

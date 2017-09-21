@@ -110,7 +110,8 @@ public:
 	int broadcast(json_object *object) const;
 	int push(json_object *object) const;
 
-	void drop();
+	void unref();
+	void addref();
 	const char *name() const;
 };
 
@@ -261,7 +262,8 @@ inline void event::invalidate() { event_.itf = NULL; event_.closure = NULL; }
 inline int event::broadcast(json_object *object) const { return afb_event_broadcast(event_, object); } 
 inline int event::push(json_object *object) const { return afb_event_push(event_, object); }
 
-inline void event::drop() { afb_event_drop(event_); invalidate(); }
+inline void event::unref() { afb_event_unref(event_); invalidate(); }
+inline void event::addref() { afb_event_addref(event_); }
 inline const char *event::name() const { return afb_event_name(event_); }
 
 /* args */

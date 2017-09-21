@@ -59,7 +59,7 @@ static int event_del(const char *tag)
 	*p = e->next;
 
 	/* destroys */
-	afb_event_drop(e->event);
+	afb_event_unref(e->event);
 	free(e);
 	return 0;
 }

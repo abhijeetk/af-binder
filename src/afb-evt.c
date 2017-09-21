@@ -108,23 +108,22 @@ struct afb_evt_watch {
 	unsigned activity;
 };
 
-/* declare functions */
-static void evt_hooked_drop(struct afb_evtid *evtid);
-
 /* the interface for events */
 static struct afb_event_itf afb_evt_event_itf = {
 	.broadcast = (void*)afb_evt_evtid_broadcast,
 	.push = (void*)afb_evt_evtid_push,
-	.drop = (void*)afb_evt_evtid_unref,
-	.name = (void*)afb_evt_evtid_name
+	.unref = (void*)afb_evt_evtid_unref,
+	.name = (void*)afb_evt_evtid_name,
+	.addref = (void*)afb_evt_evtid_addref
 };
 
 /* the interface for events */
 static struct afb_event_itf afb_evt_hooked_event_itf = {
 	.broadcast = (void*)afb_evt_evtid_hooked_broadcast,
 	.push = (void*)afb_evt_evtid_hooked_push,
-	.drop = (void*)evt_hooked_drop,
-	.name = (void*)afb_evt_evtid_hooked_name
+	.unref = (void*)afb_evt_evtid_hooked_unref,
+	.name = (void*)afb_evt_evtid_hooked_name,
+	.addref = (void*)afb_evt_evtid_hooked_addref
 };
 
 /* head of the list of listeners */
@@ -406,10 +405,6 @@ void afb_evt_evtid_unref(struct afb_evtid *evtid)
 				pthread_mutex_unlock(&listener->mutex);
 			}
 
-			/* hook */
-			if (evtid->hookflags & afb_hook_flag_evt_drop)
-				afb_hook_evt_drop(evtid->fullname, evtid->id);
-
 			/* free */
 			pthread_mutex_destroy(&evtid->mutex);
 			free(evtid);
@@ -425,13 +420,6 @@ void afb_evt_evtid_hooked_unref(struct afb_evtid *evtid)
 {
 	if (evtid->hookflags & afb_hook_flag_evt_unref)
 		afb_hook_evt_unref(evtid->fullname, evtid->id);
-	afb_evt_evtid_unref(evtid);
-}
-
-static void evt_hooked_drop(struct afb_evtid *evtid)
-{
-	if (evtid->hookflags & afb_hook_flag_evt_drop)
-		afb_hook_evt_drop(evtid->fullname, evtid->id);
 	afb_evt_evtid_unref(evtid);
 }
 

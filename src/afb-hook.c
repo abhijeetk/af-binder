@@ -1239,11 +1239,6 @@ static void hook_evt_name_default_cb(void *closure, const struct afb_hookid *hoo
 	_hook_evt_(evt, id, "name -> %s", result);
 }
 
-static void hook_evt_drop_default_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
-{
-	_hook_evt_(evt, id, "drop");
-}
-
 static void hook_evt_addref_default_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
 {
 	_hook_evt_(evt, id, "addref");
@@ -1261,7 +1256,6 @@ static struct afb_hook_evt_itf hook_evt_default_itf = {
 	.hook_evt_broadcast_before = hook_evt_broadcast_before_default_cb,
 	.hook_evt_broadcast_after = hook_evt_broadcast_after_default_cb,
 	.hook_evt_name = hook_evt_name_default_cb,
-	.hook_evt_drop = hook_evt_drop_default_cb,
 	.hook_evt_addref = hook_evt_addref_default_cb,
 	.hook_evt_unref = hook_evt_unref_default_cb
 };
@@ -1316,11 +1310,6 @@ int afb_hook_evt_broadcast_after(const char *evt, int id, struct json_object *ob
 void afb_hook_evt_name(const char *evt, int id, const char *result)
 {
 	_HOOK_EVT_(name, evt, id, result);
-}
-
-void afb_hook_evt_drop(const char *evt, int id)
-{
-	_HOOK_EVT_(drop, evt, id);
 }
 
 void afb_hook_evt_addref(const char *evt, int id)
