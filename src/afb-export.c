@@ -137,6 +137,7 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 	size_t plen, nlen;
 	char *event;
 	struct afb_export *export = closure;
+	struct afb_eventid *eventid;
 
 	/* check daemon state */
 	if (export->state == Api_State_Pre_Init) {
@@ -154,7 +155,8 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 	memcpy(event + plen + 1, name, nlen + 1);
 
 	/* create the event */
-	return afb_evt_create_event(event);
+	eventid = afb_evt_create_event(event);
+	return (struct afb_event){ .itf = eventid ? eventid->itf : NULL, .closure = eventid };
 }
 
 static int event_broadcast_cb(void *closure, const char *name, struct json_object *object)
@@ -248,7 +250,8 @@ static struct afb_event hooked_event_make_cb(void *closure, const char *name)
 {
 	struct afb_export *export = closure;
 	struct afb_event r = event_make_cb(closure, name);
-	return afb_hook_ditf_event_make(export, name, r);
+	afb_hook_ditf_event_make(export, name, r.closure);
+	return r;
 }
 
 static int hooked_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
@@ -743,6 +746,7 @@ struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *a
 		export->init.v2 = init;
 		export->on_event.v12 = onevent;
 		export->export.v2 = data;
+		data->verbosity = verbosity;
 		data->daemon.closure = export;
 		data->service.closure = export;
 		afb_export_update_hook(export);

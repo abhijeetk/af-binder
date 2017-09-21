@@ -104,18 +104,18 @@ struct subcall
 	};
 };
 
-static int subcall_subscribe_cb(struct afb_xreq *xreq, struct afb_event event)
+static int subcall_subscribe_cb(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
-	return afb_xreq_subscribe(subcall->xreq.caller, event);
+	return afb_xreq_subscribe(subcall->xreq.caller, eventid);
 }
 
-static int subcall_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event event)
+static int subcall_unsubscribe_cb(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	struct subcall *subcall = CONTAINER_OF_XREQ(struct subcall, xreq);
 
-	return afb_xreq_unsubscribe(subcall->xreq.caller, event);
+	return afb_xreq_unsubscribe(subcall->xreq.caller, eventid);
 }
 
 static void subcall_reply_cb(struct afb_xreq *xreq, int status, struct json_object *result)
@@ -420,35 +420,47 @@ static int xreq_session_set_LOA_cb(struct afb_request *closure, unsigned level)
 	return afb_context_change_loa(&xreq->context, level);
 }
 
+static int xreq_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_subscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	struct afb_xreq *xreq = from_request(closure);
-	return afb_xreq_subscribe(xreq, event);
+	return xreq_subscribe_eventid_cb(closure, event.closure);
 }
 
-int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event)
+static int xreq_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	return afb_xreq_subscribe(xreq, eventid);
+}
+
+int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	if (xreq->listener)
-		return afb_evt_add_watch(xreq->listener, event);
+		return afb_evt_add_watch(xreq->listener, eventid);
 	if (xreq->queryitf->subscribe)
-		return xreq->queryitf->subscribe(xreq, event);
+		return xreq->queryitf->subscribe(xreq, eventid);
 	ERROR("no event listener, subscription impossible");
 	errno = EINVAL;
 	return -1;
 }
 
+static int xreq_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_unsubscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	struct afb_xreq *xreq = from_request(closure);
-	return afb_xreq_unsubscribe(xreq, event);
+	return xreq_unsubscribe_eventid_cb(closure, event.closure);
 }
 
-int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
+static int xreq_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	return afb_xreq_unsubscribe(xreq, eventid);
+}
+
+int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	if (xreq->listener)
-		return afb_evt_remove_watch(xreq->listener, event);
+		return afb_evt_remove_watch(xreq->listener, eventid);
 	if (xreq->queryitf->unsubscribe)
-		return xreq->queryitf->unsubscribe(xreq, event);
+		return xreq->queryitf->unsubscribe(xreq, eventid);
 	ERROR("no event listener, unsubscription impossible");
 	errno = EINVAL;
 	return -1;
@@ -630,14 +642,14 @@ static int xreq_hooked_subscribe_cb(struct afb_request *closure, struct afb_even
 {
 	int r = xreq_subscribe_cb(closure, event);
 	struct afb_xreq *xreq = from_request(closure);
-	return afb_hook_xreq_subscribe(xreq, event, r);
+	return afb_hook_xreq_subscribe(xreq, event.closure, r);
 }
 
 static int xreq_hooked_unsubscribe_cb(struct afb_request *closure, struct afb_event event)
 {
 	int r = xreq_unsubscribe_cb(closure, event);
 	struct afb_xreq *xreq = from_request(closure);
-	return afb_hook_xreq_unsubscribe(xreq, event, r);
+	return afb_hook_xreq_unsubscribe(xreq, event.closure, r);
 }
 
 static void xreq_hooked_subcall_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)

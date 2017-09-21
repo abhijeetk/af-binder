@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2015, 2016, 2017 "IoT.bzh"
- * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -635,50 +634,50 @@ void afb_evt_update_hooks()
 	pthread_mutex_unlock(&events_mutex);
 }
 
-struct afb_evtid *afb_evt_to_evtid(struct afb_event event)
+inline struct afb_evtid *afb_evt_to_evtid(struct afb_eventid *eventid)
 {
-	return (struct afb_evtid*)(event.itf == &afb_evt_hooked_eventid_itf ? event.closure : NULL);
+	return (struct afb_evtid*)eventid;
 }
 
-struct afb_event afb_evt_from_evtid(struct afb_evtid *evtid)
+inline struct afb_eventid *afb_evt_from_evtid(struct afb_evtid *evtid)
 {
-	return (struct afb_event){ .itf = evtid ? &afb_evt_hooked_eventid_itf : NULL, .closure = &evtid->eventid };
+	return &evtid->eventid;
 }
 
 /*
  * Creates an event of 'fullname' and returns it.
  * Returns an event with closure==NULL in case of error.
  */
-struct afb_event afb_evt_create_event(const char *fullname)
+struct afb_eventid *afb_evt_create_event(const char *fullname)
 {
 	return afb_evt_from_evtid(afb_evt_evtid_create(fullname));
 }
 
 /*
- * Returns the fullname of the 'event'
+ * Returns the fullname of the 'eventid'
  */
-const char *afb_evt_event_fullname(struct afb_event event)
+const char *afb_evt_event_fullname(struct afb_eventid *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 	return evtid ? evtid->fullname : NULL;
 }
 
 /*
- * Returns the id of the 'event'
+ * Returns the id of the 'eventid'
  */
-int afb_evt_event_id(struct afb_event event)
+int afb_evt_event_id(struct afb_eventid *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 	return evtid ? evtid->id : 0;
 }
 
 /*
- * Makes the 'listener' watching 'event'
+ * Makes the 'listener' watching 'eventid'
  * Returns 0 in case of success or else -1.
  */
-int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
+int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 
 	/* check parameter */
 	if (!evtid) {
@@ -691,12 +690,12 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 }
 
 /*
- * Avoids the 'listener' to watch 'event'
+ * Avoids the 'listener' to watch 'eventid'
  * Returns 0 in case of success or else -1.
  */
-int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event)
+int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 
 	/* check parameter */
 	if (!evtid) {
@@ -708,21 +707,34 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 	return afb_evt_watch_sub_evtid(listener, evtid);
 }
 
-int afb_evt_push(struct afb_event event, struct json_object *object)
+int afb_evt_push(struct afb_eventid *eventid, struct json_object *object)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 	if (evtid)
 		return afb_evt_evtid_hooked_push(evtid, object);
 	json_object_put(object);
 	return 0;
 }
 
-int afb_evt_unhooked_push(struct afb_event event, struct json_object *object)
+int afb_evt_unhooked_push(struct afb_eventid *eventid, struct json_object *object)
 {
-	struct afb_evtid *evtid = afb_evt_to_evtid(event);
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
 	if (evtid)
 		return afb_evt_evtid_push(evtid, object);
 	json_object_put(object);
 	return 0;
 }
 
+struct afb_event afb_event_from_evtid(struct afb_evtid *evtid)
+{
+	return evtid
+		? (struct afb_event){ .itf = &afb_evt_hooked_eventid_itf, .closure = &evtid->eventid }
+		: (struct afb_event){ .itf = NULL, .closure = NULL };
+}
+
+void afb_evt_event_unref(struct afb_eventid *eventid)
+{
+	struct afb_evtid *evtid = afb_evt_to_evtid(eventid);
+	if (evtid)
+		afb_evt_evtid_unref(evtid);
+}

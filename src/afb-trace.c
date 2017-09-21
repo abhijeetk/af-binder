@@ -361,21 +361,21 @@ static void hook_xreq_session_set_LOA(void *closure, const struct afb_hookid *ho
 					"result", result);
 }
 
-static void hook_xreq_subscribe(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_event event, int result)
+static void hook_xreq_subscribe(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_eventid *eventid, int result)
 {
 	hook_xreq(closure, hookid, xreq, "subscribe", "{s{ss si} si}",
 					"event",
-						"name", afb_evt_event_fullname(event),
-						"id", afb_evt_event_id(event),
+						"name", afb_evt_event_fullname(eventid),
+						"id", afb_evt_event_id(eventid),
 					"result", result);
 }
 
-static void hook_xreq_unsubscribe(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_event event, int result)
+static void hook_xreq_unsubscribe(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_eventid *eventid, int result)
 {
 	hook_xreq(closure, hookid, xreq, "unsubscribe", "{s{ss? si} si}",
 					"event",
-						"name", afb_evt_event_fullname(event),
-						"id", afb_evt_event_id(event),
+						"name", afb_evt_event_fullname(eventid),
+						"id", afb_evt_event_id(eventid),
 					"result", result);
 }
 
@@ -611,7 +611,7 @@ static void hook_ditf_vverbose(void *closure, const struct afb_hookid *hookid, c
 	free(msg);
 }
 
-static void hook_ditf_event_make(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_event result)
+static void hook_ditf_event_make(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_eventid *result)
 {
 	hook_ditf(closure, hookid, export, "event_make", "{ss ss si}",
 			"name", name, "event", afb_evt_event_fullname(result), "id", afb_evt_event_id(result));
@@ -1098,7 +1098,7 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 	if (!event && alloc) {
 		event = malloc(sizeof * event);
 		if (event) {
-			event->evtid = afb_evt_to_evtid(trace->daemon->itf->event_make(trace->daemon->closure, name));
+			event->evtid = afb_evt_to_evtid(trace->daemon->itf->event_make(trace->daemon->closure, name).closure);
 			if (event->evtid) {
 				event->next = trace->events;
 				trace->events = event;
@@ -1264,7 +1264,7 @@ static void addhook(struct desc *desc, enum trace_type type)
 	}
 
 	/* attach and activate the hook */
-	afb_req_subscribe(desc->context->req, afb_evt_from_evtid(hook->event->evtid));
+	afb_req_subscribe(desc->context->req, afb_event_from_evtid(hook->event->evtid));
 	trace_attach_hook(trace, hook, type);
 }
 

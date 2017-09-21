@@ -102,8 +102,8 @@ struct server_req {
 struct client_event
 {
 	struct client_event *next;
-	struct afb_event event;
-	int eventid;
+	struct afb_eventid *eventid;
+	int id;
 	int refcount;
 };
 
@@ -204,7 +204,7 @@ static void server_req_subcall_cb(struct afb_xreq *xreq, const char *api, const 
 		ERROR("error while sending subcall");
 }
 
-static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event event)
+static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_eventid *event)
 {
 	int rc;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
@@ -217,7 +217,7 @@ static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event event
 	return rc;
 }
 
-static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event event)
+static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_eventid *event)
 {
 	int rc, rc2;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
@@ -248,7 +248,7 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 	struct client_event *ev;
 
 	ev = stubws->events;
-	while (ev != NULL && (ev->eventid != eventid || 0 != strcmp(afb_evt_event_fullname(ev->event), name)))
+	while (ev != NULL && (ev->id != eventid || 0 != strcmp(afb_evt_event_fullname(ev->eventid), name)))
 		ev = ev->next;
 
 	return ev;
@@ -360,10 +360,10 @@ static void on_event_create(void *closure, const char *event_name, int event_id)
 	/* no conflict, try to add it */
 	ev = malloc(sizeof *ev);
 	if (ev != NULL) {
-		ev->event = afb_evt_create_event(event_name);
-		if (ev->event.closure != NULL) {
+		ev->eventid = afb_evt_create_event(event_name);
+		if (ev->eventid != NULL) {
 			ev->refcount = 1;
-			ev->eventid = event_id;
+			ev->id = event_id;
 			ev->next = stubws->events;
 			stubws->events = ev;
 			return;
@@ -394,7 +394,7 @@ static void on_event_remove(void *closure, const char *event_name, int event_id)
 	*prv = ev->next;
 
 	/* destroys the event */
-	afb_event_unref(ev->event);
+	afb_evt_event_unref(ev->eventid);
 	free(ev);
 }
 
@@ -409,7 +409,7 @@ static void on_event_subscribe(void *closure, void *request, const char *event_n
 	if (ev == NULL)
 		return;
 
-	if (afb_xreq_subscribe(xreq, ev->event) < 0)
+	if (afb_xreq_subscribe(xreq, ev->eventid) < 0)
 		ERROR("can't subscribe: %m");
 }
 
@@ -424,7 +424,7 @@ static void on_event_unsubscribe(void *closure, void *request, const char *event
 	if (ev == NULL)
 		return;
 
-	if (afb_xreq_unsubscribe(xreq, ev->event) < 0)
+	if (afb_xreq_unsubscribe(xreq, ev->eventid) < 0)
 		ERROR("can't unsubscribe: %m");
 }
 
@@ -436,7 +436,7 @@ static void on_event_push(void *closure, const char *event_name, int event_id, s
 	/* check conflicts */
 	ev = client_event_search(stubws, event_id, event_name);
 	if (ev)
-		afb_event_push(ev->event, data);
+		afb_evt_push(ev->eventid, data);
 	else
 		ERROR("unreadable push event");
 }
@@ -585,7 +585,7 @@ static void drop_all_events(struct afb_stub_ws *stubws)
 
 	while (ev) {
 		nxt = ev->next;
-		afb_event_unref(ev->event);
+		afb_evt_event_unref(ev->eventid);
 		free(ev);
 		ev = nxt;
 	}

@@ -25,7 +25,7 @@ struct afb_evt_listener;
 struct afb_xreq;
 struct afb_cred;
 struct afb_apiset;
-struct afb_event;
+struct afb_eventid;
 struct afb_verb_desc_v1;
 struct afb_verb_v2;
 struct afb_req;
@@ -40,8 +40,8 @@ struct afb_xreq_query_itf {
 	void (*fail)(struct afb_xreq *xreq, const char *status, const char *info);
 	void (*reply)(struct afb_xreq *xreq, int status, struct json_object *obj);
 	void (*unref)(struct afb_xreq *xreq);
-	int (*subscribe)(struct afb_xreq *xreq, struct afb_event event);
-	int (*unsubscribe)(struct afb_xreq *xreq, struct afb_event event);
+	int (*subscribe)(struct afb_xreq *xreq, struct afb_eventid *eventid);
+	int (*unsubscribe)(struct afb_xreq *xreq, struct afb_eventid *eventid);
 	void (*subcall)(
 		struct afb_xreq *xreq,
 		const char *api,
@@ -110,8 +110,8 @@ extern void afb_xreq_fail_unknown_verb(struct afb_xreq *xreq);
 
 extern const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size);
 
-extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_event event);
-extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_event event);
+extern int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_eventid *eventid);
+extern int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_eventid *eventid);
 
 extern void afb_xreq_subcall(
 		struct afb_xreq *xreq,
