@@ -211,7 +211,7 @@ static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event event
 
 	rc = afb_evt_add_watch(wreq->stubws->listener, event);
 	if (rc >= 0)
-		rc = afb_proto_ws_call_subscribe(wreq->call,  afb_evt_event_name(event), afb_evt_event_id(event));
+		rc = afb_proto_ws_call_subscribe(wreq->call,  afb_evt_event_fullname(event), afb_evt_event_id(event));
 	if (rc < 0)
 		ERROR("error while subscribing event");
 	return rc;
@@ -222,7 +222,7 @@ static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event eve
 	int rc, rc2;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
 
-	rc = afb_proto_ws_call_unsubscribe(wreq->call,  afb_evt_event_name(event), afb_evt_event_id(event));
+	rc = afb_proto_ws_call_unsubscribe(wreq->call,  afb_evt_event_fullname(event), afb_evt_event_id(event));
 	rc2 = afb_evt_remove_watch(wreq->stubws->listener, event);
 	if (rc >= 0 && rc2 < 0)
 		rc = rc2;
@@ -248,7 +248,7 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 	struct client_event *ev;
 
 	ev = stubws->events;
-	while (ev != NULL && (ev->eventid != eventid || 0 != strcmp(afb_evt_event_name(ev->event), name)))
+	while (ev != NULL && (ev->eventid != eventid || 0 != strcmp(afb_evt_event_fullname(ev->event), name)))
 		ev = ev->next;
 
 	return ev;

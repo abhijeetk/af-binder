@@ -382,7 +382,7 @@ static struct dbus_event *api_dbus_client_event_search(struct api_dbus *api, int
 	struct dbus_event *ev;
 
 	ev = api->client.events;
-	while (ev != NULL && (ev->id != id || 0 != strcmp(afb_evt_event_name(ev->event), name)))
+	while (ev != NULL && (ev->id != id || 0 != strcmp(afb_evt_event_fullname(ev->event), name)))
 		ev = ev->next;
 
 	return ev;
@@ -850,7 +850,7 @@ static int dbus_req_subscribe(struct afb_xreq *xreq, struct afb_event event)
 
 	rc = afb_evt_add_watch(dreq->listener->listener, event);
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->origin, 'S', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'S', afb_evt_event_fullname(event), afb_evt_event_id(event), "", msgid);
 	return rc;
 }
 
@@ -861,7 +861,7 @@ static int dbus_req_unsubscribe(struct afb_xreq *xreq, struct afb_event event)
 	int rc;
 
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->origin, 'U', afb_evt_event_name(event), afb_evt_event_id(event), "", msgid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'U', afb_evt_event_fullname(event), afb_evt_event_id(event), "", msgid);
 	rc = afb_evt_remove_watch(dreq->listener->listener, event);
 	return rc;
 }

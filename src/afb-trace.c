@@ -365,7 +365,7 @@ static void hook_xreq_subscribe(void *closure, const struct afb_hookid *hookid, 
 {
 	hook_xreq(closure, hookid, xreq, "subscribe", "{s{ss si} si}",
 					"event",
-						"name", afb_evt_event_name(event),
+						"name", afb_evt_event_fullname(event),
 						"id", afb_evt_event_id(event),
 					"result", result);
 }
@@ -374,7 +374,7 @@ static void hook_xreq_unsubscribe(void *closure, const struct afb_hookid *hookid
 {
 	hook_xreq(closure, hookid, xreq, "unsubscribe", "{s{ss? si} si}",
 					"event",
-						"name", afb_evt_event_name(event),
+						"name", afb_evt_event_fullname(event),
 						"id", afb_evt_event_id(event),
 					"result", result);
 }
@@ -614,7 +614,7 @@ static void hook_ditf_vverbose(void *closure, const struct afb_hookid *hookid, c
 static void hook_ditf_event_make(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_event result)
 {
 	hook_ditf(closure, hookid, export, "event_make", "{ss ss si}",
-			"name", name, "event", afb_evt_event_name(result), "id", afb_evt_event_id(result));
+			"name", name, "event", afb_evt_event_fullname(result), "id", afb_evt_event_id(result));
 }
 
 static void hook_ditf_rootdir_get_fd(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)
@@ -779,6 +779,7 @@ static struct afb_hook_svc_itf hook_svc_itf = {
 /*******************************************************************************/
 
 static struct flag evt_flags[] = { /* must be sorted by names */
+		{ "addref",		afb_hook_flag_evt_addref },
 		{ "all",		afb_hook_flags_evt_all },
 		{ "broadcast_after",	afb_hook_flag_evt_broadcast_after },
 		{ "broadcast_before",	afb_hook_flag_evt_broadcast_before },
@@ -789,6 +790,7 @@ static struct flag evt_flags[] = { /* must be sorted by names */
 		{ "name",		afb_hook_flag_evt_name },
 		{ "push_after",		afb_hook_flag_evt_push_after },
 		{ "push_before",	afb_hook_flag_evt_push_before },
+		{ "unref",		afb_hook_flag_evt_unref },
 };
 
 /* get the evt value for flag of 'name' */
@@ -835,14 +837,24 @@ static void hook_evt_broadcast_after(void *closure, const struct afb_hookid *hoo
 	hook_evt(closure, hookid, evt, id, "broadcast_after", "{sO* si}", "data", obj, "result", result);
 }
 
-static void hook_evt_name(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
+static void hook_evt_name(void *closure, const struct afb_hookid *hookid, const char *evt, int id, const char *result)
 {
-	hook_evt(closure, hookid, evt, id, "name", NULL);
+	hook_evt(closure, hookid, evt, id, "name", "{ss}", "result", result);
 }
 
 static void hook_evt_drop(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
 {
 	hook_evt(closure, hookid, evt, id, "drop", NULL);
+}
+
+static void hook_evt_addref(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
+{
+	hook_evt(closure, hookid, evt, id, "addref", NULL);
+}
+
+static void hook_evt_unref(void *closure, const struct afb_hookid *hookid, const char *evt, int id)
+{
+	hook_evt(closure, hookid, evt, id, "unref", NULL);
 }
 
 static struct afb_hook_evt_itf hook_evt_itf = {
@@ -852,7 +864,9 @@ static struct afb_hook_evt_itf hook_evt_itf = {
 	.hook_evt_broadcast_before = hook_evt_broadcast_before,
 	.hook_evt_broadcast_after = hook_evt_broadcast_after,
 	.hook_evt_name = hook_evt_name,
-	.hook_evt_drop = hook_evt_drop
+	.hook_evt_drop = hook_evt_drop,
+	.hook_evt_addref = hook_evt_addref,
+	.hook_evt_unref = hook_evt_unref
 };
 
 /*******************************************************************************/
