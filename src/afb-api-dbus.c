@@ -610,7 +610,7 @@ int afb_api_dbus_add_client(const char *path, struct afb_apiset *apiset)
 	/* record it as an API */
 	afb_api.closure = api;
 	afb_api.itf = &dbus_api_itf;
-	afb_api.noconcurrency = 0;
+	afb_api.group = NULL;
 	if (afb_apiset_add(apiset, api->api, afb_api) < 0)
 		goto error2;
 

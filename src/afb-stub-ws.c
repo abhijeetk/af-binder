@@ -680,7 +680,7 @@ struct afb_api afb_stub_ws_client_api(struct afb_stub_ws *stubws)
 	assert(!stubws->listener); /* check client */
 	api.closure = stubws;
 	api.itf = &ws_api_itf;
-	api.noconcurrency = 0;
+	api.group = NULL;
 	return api;
 }
 

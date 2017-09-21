@@ -256,7 +256,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 		afb_export_rename(desc->export, desc->binding->v1.prefix);
 	afb_api.closure = desc;
 	afb_api.itf = &so_v1_api_itf;
-	afb_api.noconcurrency = 0;
+	afb_api.group = NULL;
 	if (afb_apiset_add(apiset, afb_export_apiname(desc->export), afb_api) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error;

@@ -1030,12 +1030,10 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 	xreq->context.api_key = api;
 
 	/* check self locking */
-	if (!api->noconcurrency)
-		api = NULL;
-	else {
+	if (api->group) {
 		caller = xreq->caller;
 		while (caller) {
-			if (caller->context.api_key == api) {
+			if (((const struct afb_api *)caller->context.api_key)->group == api->group) {
 				/* noconcurrency lock detected */
 				ERROR("self-lock detected in call stack for API %s", xreq->api);
 				early_failure(xreq, "self-locked", "recursive self lock, API %s", xreq->api);
@@ -1047,7 +1045,7 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 
 	/* queue the request job */
 	afb_xreq_unhooked_addref(xreq);
-	if (jobs_queue(api, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
+	if (jobs_queue(api->group, afb_apiset_timeout_get(apiset), process_async, xreq) < 0) {
 		/* TODO: allows or not to proccess it directly as when no threading? (see above) */
 		ERROR("can't process job with threads: %m");
 		early_failure(xreq, "cancelled", "not able to create a job for the task");

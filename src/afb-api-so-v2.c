@@ -264,7 +264,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	/* records the binding */
 	afb_api.closure = desc;
 	afb_api.itf = &so_v2_api_itf;
-	afb_api.noconcurrency = binding->noconcurrency;
+	afb_api.group = binding->noconcurrency ? export : NULL;
 	if (afb_apiset_add(apiset, afb_export_apiname(desc->export), afb_api) < 0) {
 		ERROR("binding %s can't be registered to set %s...", afb_export_apiname(desc->export), afb_apiset_name(apiset));
 		goto error;
