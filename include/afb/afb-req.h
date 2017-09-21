@@ -17,77 +17,17 @@
 
 #pragma once
 
-#include <stdarg.h>
+#include "afb-request-itf.h"
 
 #include "afb-event.h"
-
-struct json_object;
-struct afb_stored_req;
-struct afb_req;
-
-/*
- * Describes an argument (or parameter) of a request
- */
-struct afb_arg
-{
-	const char *name;	/* name of the argument or NULL if invalid */
-	const char *value;	/* string representation of the value of the argument */
-				/* original filename of the argument if path != NULL */
-	const char *path;	/* if not NULL, path of the received file for the argument */
-				/* when the request is finalized this file is removed */
-};
-
-/*
- * Interface for handling requests.
- * It records the functions to be called for the request.
- * Don't use this structure directly.
- * Use the helper functions documented below.
- */
-struct afb_req_itf
-{
-	/* CAUTION: respect the order, add at the end */
-
-	struct json_object *(*json)(void *closure);
-	struct afb_arg (*get)(void *closure, const char *name);
-
-	void (*success)(void *closure, struct json_object *obj, const char *info);
-	void (*fail)(void *closure, const char *status, const char *info);
-
-	void (*vsuccess)(void *closure, struct json_object *obj, const char *fmt, va_list args);
-	void (*vfail)(void *closure, const char *status, const char *fmt, va_list args);
-
-	void *(*context_get)(void *closure);
-	void (*context_set)(void *closure, void *value, void (*free_value)(void*));
-
-	void (*addref)(void *closure);
-	void (*unref)(void *closure);
-
-	void (*session_close)(void *closure);
-	int (*session_set_LOA)(void *closure, unsigned level);
-
-	int (*subscribe)(void *closure, struct afb_event event);
-	int (*unsubscribe)(void *closure, struct afb_event event);
-
-	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
-	int (*subcallsync)(void *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result);
-
-	void (*vverbose)(void *closure, int level, const char *file, int line, const char * func, const char *fmt, va_list args);
-	struct afb_stored_req *(*store)(void *closure);
-	void (*subcall_req)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure);
-
-	int (*has_permission)(void *closure, const char *permission);
-	char *(*get_application_id)(void *closure);
-
-	void *(*context_make)(void *closure, int replace, void *(*create_value)(void *creation_closure), void (*free_value)(void*), void *creation_closure);
-};
 
 /*
  * Describes the request by bindings from afb-daemon
  */
 struct afb_req
 {
-	const struct afb_req_itf *itf;	/* the interface to use */
-	void *closure;			/* the closure argument for functions of 'itf' */
+	const struct afb_request_itf *itf;	/* the interface to use */
+	struct afb_request *closure;		/* the closure argument for functions of 'itf' */
 };
 
 /*

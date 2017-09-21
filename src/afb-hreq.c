@@ -33,7 +33,6 @@
 #endif
 
 #include "afb-method.h"
-#include <afb/afb-req-common.h>
 #include "afb-msg-json.h"
 #include "afb-context.h"
 #include "afb-hreq.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "afb-req-common.h"
+#include "afb-req.h"
 
 /*
  * Stores 'req' on heap for asynchrnous use.

@@ -28,7 +28,7 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-req-common.h>
+#include <afb/afb-req.h>
 #include <afb/afb-event.h>
 
 #include "afb-context.h"

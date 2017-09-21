@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <afb/afb-request-itf.h>
 #include "afb-context.h"
 
 struct json_object;
@@ -55,7 +56,7 @@ struct afb_xreq_query_itf {
  */
 struct afb_xreq
 {
-	const struct afb_req_itf *itf;	/**< interface functions */
+	struct afb_request request;	/**< exported request */
 	struct afb_context context;	/**< context of the request */
 	struct afb_apiset *apiset;	/**< apiset of the xreq */
 	const char *api;		/**< the requested API */

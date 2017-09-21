@@ -19,7 +19,7 @@
 
 struct json_object;
 
-#include "afb-req-common.h"
+#include "afb-req.h"
 #include "afb-event.h"
 #include "afb-service-common.h"
 #include "afb-daemon-common.h"

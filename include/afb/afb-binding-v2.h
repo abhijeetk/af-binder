@@ -21,7 +21,7 @@
 
 #include "afb-auth.h"
 #include "afb-event.h"
-#include "afb-req-common.h"
+#include "afb-req.h"
 #include "afb-service-common.h"
 #include "afb-daemon-common.h"
 
