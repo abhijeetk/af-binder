@@ -212,7 +212,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 	/* allocates the description */
 	init = dlsym(handle, afb_api_so_v1_service_init);
 	onevent = dlsym(handle, afb_api_so_v1_service_event);
-	export = afb_export_create_v1(path, init, onevent);
+	export = afb_export_create_v1(apiset, path, init, onevent);
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL || export == NULL) {
 		ERROR("out of memory");

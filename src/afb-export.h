@@ -24,8 +24,9 @@ struct afb_service;
 struct afb_binding_data_v2;
 struct afb_binding_interface_v1;
 
-extern struct afb_export *afb_export_create_v1(const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*));
-extern struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*));
+extern struct afb_export *afb_export_create_v1(struct afb_apiset *apiset, const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*));
+extern struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*));
+
 extern void afb_export_destroy(struct afb_export *export);
 
 extern const char *afb_export_apiname(const struct afb_export *export);

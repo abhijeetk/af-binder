@@ -168,7 +168,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	assert(data);
 
 	/* allocates the description */
-	export = afb_export_create_v2(binding->api, data, binding->init, binding->onevent);
+	export = afb_export_create_v2(apiset, binding->api, data, binding->init, binding->onevent);
 	desc = calloc(1, sizeof *desc);
 	if (!desc || !export) {
 		ERROR("out of memory");

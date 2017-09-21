@@ -39,7 +39,6 @@
 #include "jobs.h"
 #include "verbose.h"
 
-extern struct afb_apiset *main_apiset;
 
 /*************************************************************************
  * internal types and structures
@@ -206,7 +205,7 @@ static int require_api_cb(void *closure, const char *name, int initialized)
 		errno = EINVAL;
 		return -1;
 	}
-	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(main_apiset, name, 1);
+	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(export->apiset, name, 1);
 }
 
 static int rename_api_cb(void *closure, const char *name)
@@ -687,7 +686,7 @@ static const struct afb_evt_itf evt_v12_itf = {
  *************************************************************************************************************
  *************************************************************************************************************/
 
-static struct afb_export *create(const char *apiname, enum afb_api_version version)
+static struct afb_export *create(struct afb_apiset *apiset, const char *apiname, enum afb_api_version version)
 {
 	struct afb_export *export;
 
@@ -706,7 +705,7 @@ static struct afb_export *create(const char *apiname, enum afb_api_version versi
 		export->version = version;
 		export->state = Api_State_Pre_Init;
 		export->session = afb_session_addref(common_session);
-		export->apiset = afb_apiset_addref(main_apiset);
+		export->apiset = afb_apiset_addref(apiset);
 	}
 	return export;
 }
@@ -723,9 +722,9 @@ void afb_export_destroy(struct afb_export *export)
 	}
 }
 
-struct afb_export *afb_export_create_v1(const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*))
+struct afb_export *afb_export_create_v1(struct afb_apiset *apiset, const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*))
 {
-	struct afb_export *export = create(apiname, Api_Version_1);
+	struct afb_export *export = create(apiset, apiname, Api_Version_1);
 	if (export) {
 		export->init.v1 = init;
 		export->on_event.v12 = onevent;
@@ -737,9 +736,9 @@ struct afb_export *afb_export_create_v1(const char *apiname, int (*init)(struct 
 	return export;
 }
 
-struct afb_export *afb_export_create_v2(const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*))
+struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*))
 {
-	struct afb_export *export = create(apiname, Api_Version_2);
+	struct afb_export *export = create(apiset, apiname, Api_Version_2);
 	if (export) {
 		export->init.v2 = init;
 		export->on_event.v12 = onevent;
