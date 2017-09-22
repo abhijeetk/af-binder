@@ -67,6 +67,7 @@ extern void afb_evt_update_hooks();
 extern struct afb_eventid *afb_evt_eventid_create(const char *fullname);
 extern const char *afb_evt_eventid_fullname(struct afb_eventid *eventid);
 extern int afb_evt_eventid_id(struct afb_eventid *eventid);
+extern struct afb_eventid *afb_evt_eventid_addref(struct afb_eventid *eventid);
 extern void afb_evt_eventid_unref(struct afb_eventid *eventid);
 
 extern int afb_evt_eventid_push(struct afb_eventid *eventid, struct json_object *object);

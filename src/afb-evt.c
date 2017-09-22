@@ -738,3 +738,12 @@ void afb_evt_eventid_unref(struct afb_eventid *eventid)
 	if (evtid)
 		afb_evt_evtid_unref(evtid);
 }
+
+struct afb_eventid *afb_evt_eventid_addref(struct afb_eventid *eventid)
+{
+	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	if (evtid)
+		afb_evt_evtid_addref(evtid);
+	return eventid;
+}
+
