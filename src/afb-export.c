@@ -408,7 +408,6 @@ struct call_req
 	struct jobloop *jobloop;
 	struct json_object *result;
 	int status;
-	int async;
 };
 
 /*
@@ -532,7 +531,6 @@ static void svc_call(void *closure, const char *api, const char *verb, struct js
 	callreq->jobloop = NULL;
 	callreq->callback = callback;
 	callreq->closure = cbclosure;
-	callreq->async = 1;
 
 	/* terminates and frees ressources if needed */
 	afb_xreq_process(&callreq->xreq, export->apiset);
@@ -560,7 +558,6 @@ static int svc_call_sync(void *closure, const char *api, const char *verb, struc
 		callreq->callback = NULL;
 		callreq->result = NULL;
 		callreq->status = 0;
-		callreq->async = 0;
 		afb_xreq_unhooked_addref(&callreq->xreq); /* avoid early callreq destruction */
 		rc = jobs_enter(NULL, 0, callreq_sync_enter, callreq);
 		if (rc >= 0)
