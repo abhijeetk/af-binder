@@ -132,18 +132,17 @@ static void old_vverbose_cb(void *closure, int level, const char *file, int line
 	vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
-static struct afb_event event_make_cb(void *closure, const char *name)
+static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
 {
 	size_t plen, nlen;
 	char *event;
 	struct afb_export *export = closure;
-	struct afb_eventid *eventid;
 
 	/* check daemon state */
 	if (export->state == Api_State_Pre_Init) {
 		ERROR("[API %s] Bad call to 'afb_daemon_event_make(%s)', must not be in PreInit", export->apiname, name);
 		errno = EINVAL;
-		return (struct afb_event){ .itf = NULL, .closure = NULL };
+		return NULL;
 	}
 
 	/* makes the event name */
@@ -155,7 +154,12 @@ static struct afb_event event_make_cb(void *closure, const char *name)
 	memcpy(event + plen + 1, name, nlen + 1);
 
 	/* create the event */
-	eventid = afb_evt_create_event(event);
+	return afb_evt_create_event(event);
+}
+
+static struct afb_event event_make_cb(void *closure, const char *name)
+{
+	struct afb_eventid *eventid = eventid_make_cb(closure, name);
 	return (struct afb_event){ .itf = eventid ? eventid->itf : NULL, .closure = eventid };
 }
 
@@ -246,12 +250,18 @@ static void hooked_old_vverbose_cb(void *closure, int level, const char *file, i
 	hooked_vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
-static struct afb_event hooked_event_make_cb(void *closure, const char *name)
+static struct afb_eventid *hooked_eventid_make_cb(void *closure, const char *name)
 {
 	struct afb_export *export = closure;
-	struct afb_event r = event_make_cb(closure, name);
-	afb_hook_ditf_event_make(export, name, r.closure);
+	struct afb_eventid *r = eventid_make_cb(closure, name);
+	afb_hook_ditf_event_make(export, name, r);
 	return r;
+}
+
+static struct afb_event hooked_event_make_cb(void *closure, const char *name)
+{
+	struct afb_eventid *eventid = hooked_eventid_make_cb(closure, name);
+	return (struct afb_event){ .itf = eventid ? eventid->itf : NULL, .closure = eventid };
 }
 
 static int hooked_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
