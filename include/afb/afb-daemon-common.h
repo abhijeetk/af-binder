@@ -24,6 +24,7 @@ struct sd_event;
 struct sd_bus;
 struct afb_stored_req;
 struct afb_req;
+struct afb_dynapi;
 
 /*
  * Definition of the facilities provided by the daemon.
@@ -43,6 +44,7 @@ struct afb_daemon_itf
 	struct afb_req (*unstore_req)(void*closure, struct afb_stored_req *sreq);
 	int (*require_api)(void*closure, const char *name, int initialized);
 	int (*rename_api)(void*closure, const char *name);
+	int (*new_api)(void *closure, const char *api, const char *info, int (*preinit)(void*, struct afb_dynapi *), void *preinit_closure);
 };
 
 /*

@@ -191,3 +191,12 @@ static inline int afb_daemon_rename_api_v1(struct afb_daemon daemon, const char 
 	return daemon.itf->rename_api(daemon.closure, name);
 }
 
+static inline int afb_daemon_new_api_v1(
+	struct afb_daemon daemon,
+	const char *api,
+	const char *info,
+	int (*preinit)(void*, struct afb_dynapi *),
+	void *closure)
+{
+	return daemon.itf->new_api(daemon.closure, api, info, preinit, closure);
+}

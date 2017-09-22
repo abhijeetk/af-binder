@@ -168,3 +168,12 @@ static inline int afb_daemon_rename_api_v2(const char *name)
 	return afb_get_daemon_v2().itf->rename_api(afb_get_daemon_v2().closure, name);
 }
 
+static inline int afb_daemon_new_api_v2(
+	const char *api,
+	const char *info,
+	int (*preinit)(void*, struct afb_dynapi *),
+	void *closure)
+{
+	return afb_get_daemon_v2().itf->new_api(afb_get_daemon_v2().closure, api, info, preinit, closure);
+}
+

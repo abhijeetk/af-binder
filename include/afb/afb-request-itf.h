@@ -28,6 +28,7 @@ struct json_object;
 struct afb_req;
 struct afb_event;
 struct afb_eventid;
+struct afb_dynapi;
 struct afb_stored_req;
 
 /*
@@ -42,9 +43,16 @@ struct afb_arg
 				/* when the request is finalized this file is removed */
 };
 
+/*
+ * structure for the request
+ */
 struct afb_request
 {
+	/* interface for the request */
 	const struct afb_request_itf *itf;
+
+	/* current dynapi if dynapi (is NULL for bindings v1 and v2) */
+	struct afb_dynapi *dynapi;
 };
 
 /*

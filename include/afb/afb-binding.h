@@ -67,6 +67,7 @@
 
 #include "afb-binding-v1.h"
 #include "afb-binding-v2.h"
+#include "afb-binding-vdyn.h"
 
 typedef struct afb_verb_desc_v1         afb_verb_desc_v1;
 typedef struct afb_binding_desc_v1      afb_binding_desc_v1;
@@ -84,6 +85,10 @@ typedef struct afb_arg                  afb_arg;
 typedef struct afb_req                  afb_req;
 typedef struct afb_stored_req           afb_stored_req;
 typedef struct afb_service              afb_service;
+
+typedef struct afb_dynapi               afb_dynapi;
+typedef struct afb_request              afb_request;
+typedef struct afb_eventid              afb_eventid;
 
 #if 0
 /* these typedef's shouldn't be needed */

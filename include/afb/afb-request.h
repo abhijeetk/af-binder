@@ -19,8 +19,6 @@
 
 #include "afb-request-itf.h"
 
-typedef struct afb_request afb_request;
-
 /*
  * Gets from the request 'request' the argument of 'name'.
  * Returns a PLAIN structure of type 'struct afb_arg'.

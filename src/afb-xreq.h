@@ -25,6 +25,7 @@ struct afb_evt_listener;
 struct afb_xreq;
 struct afb_cred;
 struct afb_apiset;
+struct afb_api_dyn_verb;
 struct afb_eventid;
 struct afb_verb_desc_v1;
 struct afb_verb_v2;
@@ -148,4 +149,4 @@ extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);
 
 extern void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 *verb);
 extern void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb);
-
+extern void afb_xreq_call_verb_vdyn(struct afb_xreq *xreq, const struct afb_api_dyn_verb *verb);

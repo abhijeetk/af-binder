@@ -34,6 +34,7 @@
 #include "afb-cred.h"
 #include "afb-hook.h"
 #include "afb-api.h"
+#include "afb-api-dyn.h"
 #include "afb-apiset.h"
 #include "afb-auth.h"
 #include "jobs.h"
@@ -1037,6 +1038,15 @@ void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb
 	else
 		if (!xreq_session_check_apply_v2(xreq, verb->session, verb->auth))
 			verb->callback(to_req(xreq));
+}
+
+void afb_xreq_call_verb_vdyn(struct afb_xreq *xreq, const struct afb_api_dyn_verb *verb)
+{
+	if (!verb)
+		afb_xreq_fail_unknown_verb(xreq);
+	else
+		if (xreq_session_check_apply_v2(xreq, verb->session, verb->auth) >= 0)
+			verb->callback(to_request(xreq));
 }
 
 void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *queryitf)

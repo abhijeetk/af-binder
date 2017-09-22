@@ -32,6 +32,7 @@ ADD_DEFINITIONS(-DINFER_EXTENSION)
 ADD_LIBRARY(afb-lib STATIC
 	afb-api.c
 	afb-api-dbus.c
+	afb-api-dyn.c
 	afb-api-so.c
 	afb-api-so-v1.c
 	afb-api-so-v2.c

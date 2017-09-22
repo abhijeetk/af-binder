@@ -17,15 +17,20 @@
 
 #pragma once
 
+struct json_object;
+
 struct afb_export;
 struct afb_apiset;
+struct afb_api_dyn;
 
 struct afb_service;
 struct afb_binding_data_v2;
 struct afb_binding_interface_v1;
+struct afb_dynapi;
 
 extern struct afb_export *afb_export_create_v1(struct afb_apiset *apiset, const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*));
 extern struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*));
+extern struct afb_export *afb_export_create_vdyn(struct afb_apiset *apiset, const char *apiname, struct afb_api_dyn *dynapi);
 
 extern void afb_export_destroy(struct afb_export *export);
 
@@ -38,7 +43,11 @@ extern void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *
 extern struct afb_apiset *afb_export_get_apiset(struct afb_export *export);
 	
 extern struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*));
+extern int afb_export_preinit_vdyn(struct afb_export *export, int (*preinit)(void*, struct afb_dynapi*), void *closure);
+
 extern int afb_export_handle_events_v12(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object));
+extern int afb_export_handle_events_vdyn(struct afb_export *export, void (*on_event)(struct afb_dynapi *dynapi, const char *event, struct json_object *object));
+extern int afb_export_handle_init_vdyn(struct afb_export *export, int (*oninit)(struct afb_dynapi *dynapi));
 
 extern int afb_export_start(struct afb_export *export, int share_session, int onneed, struct afb_apiset *apiset);
 
