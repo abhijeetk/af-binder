@@ -316,8 +316,8 @@ static void req_destroy(struct afb_xreq *xreq)
 	}
 	afb_context_disconnect(&hreq->xreq.context);
 	json_object_put(hreq->json);
-	free((char*)hreq->xreq.api);
-	free((char*)hreq->xreq.verb);
+	free((char*)hreq->xreq.request.api);
+	free((char*)hreq->xreq.request.verb);
 	afb_cred_unref(hreq->xreq.cred);
 	free(hreq);
 }
@@ -914,9 +914,9 @@ static void req_success(struct afb_xreq *xreq, json_object *obj, const char *inf
 
 void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
-	hreq->xreq.api = strndup(api, lenapi);
-	hreq->xreq.verb = strndup(verb, lenverb);
-	if (hreq->xreq.api == NULL || hreq->xreq.verb == NULL) {
+	hreq->xreq.request.api = strndup(api, lenapi);
+	hreq->xreq.request.verb = strndup(verb, lenverb);
+	if (hreq->xreq.request.api == NULL || hreq->xreq.request.verb == NULL) {
 		ERROR("Out of memory");
 		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	} else if (afb_hreq_init_context(hreq) < 0) {

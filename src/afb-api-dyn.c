@@ -123,7 +123,7 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 	int i;
 	const char *name;
 
-	name = xreq->verb;
+	name = xreq->request.verb;
 	xreq->request.dynapi = (void*)dynapi->export; /* hack: this avoids to export afb_export structure */
 
 	/* look first in dyna mic verbs */

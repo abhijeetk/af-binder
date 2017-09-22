@@ -259,7 +259,7 @@ static void client_call_cb(void * closure, struct afb_xreq *xreq)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_client_call(stubws->proto, xreq->verb, afb_xreq_json(xreq), afb_session_uuid(xreq->context.session), xreq);
+	afb_proto_ws_client_call(stubws->proto, xreq->request.verb, afb_xreq_json(xreq), afb_session_uuid(xreq->context.session), xreq);
 	afb_xreq_unhooked_addref(xreq);
 }
 
@@ -483,8 +483,8 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 
 	/* makes the call */
 	wreq->xreq.cred = afb_cred_addref(stubws->cred);
-	wreq->xreq.api = stubws->apiname;
-	wreq->xreq.verb = verb;
+	wreq->xreq.request.api = stubws->apiname;
+	wreq->xreq.request.verb = verb;
 	wreq->xreq.json = args;
 	afb_xreq_process(&wreq->xreq, stubws->apiset);
 	return;

@@ -193,8 +193,8 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	afb_wsj1_msg_addref(msg);
 	wsreq->msgj1 = msg;
 	wsreq->xreq.cred = afb_cred_addref(ws->cred);
-	wsreq->xreq.api = api;
-	wsreq->xreq.verb = verb;
+	wsreq->xreq.request.api = api;
+	wsreq->xreq.request.verb = verb;
 	wsreq->xreq.json = afb_wsj1_msg_object_j(wsreq->msgj1);
 	wsreq->aws = afb_ws_json1_addref(ws);
 	wsreq->xreq.listener = wsreq->aws->listener;

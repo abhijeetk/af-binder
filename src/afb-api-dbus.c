@@ -332,7 +332,7 @@ static void api_dbus_client_call(void *closure, struct afb_xreq *xreq)
 
 	/* creates the message */
 	msg = NULL;
-	rc = sd_bus_message_new_method_call(api->sdbus, &msg, api->name, api->path, api->name, xreq->verb);
+	rc = sd_bus_message_new_method_call(api->sdbus, &msg, api->name, api->path, api->name, xreq->request.verb);
 	if (rc < 0)
 		goto error;
 
@@ -985,8 +985,8 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 		dreq->json = json_object_new_string(dreq->request);
 	}
 	dreq->listener = listener;
-	dreq->xreq.api = api->api;
-	dreq->xreq.verb = method;
+	dreq->xreq.request.api = api->api;
+	dreq->xreq.request.verb = method;
 	afb_xreq_process(&dreq->xreq, api->server.apiset);
 	return 1;
 

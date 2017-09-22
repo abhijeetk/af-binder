@@ -504,8 +504,8 @@ static void startup_call_current(struct startup_req *sreq)
 			sreq->xreq.context.validated = 1;
 			sreq->api = strndup(api, verb - api);
 			sreq->verb = strndup(verb + 1, json - verb - 1);
-			sreq->xreq.api = sreq->api;
-			sreq->xreq.verb = sreq->verb;
+			sreq->xreq.request.api = sreq->api;
+			sreq->xreq.request.verb = sreq->verb;
 			sreq->xreq.json = json_tokener_parse(json + 1);
 			if (sreq->api && sreq->verb && sreq->xreq.json) {
 				afb_xreq_process(&sreq->xreq, main_apiset);

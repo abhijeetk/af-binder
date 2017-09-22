@@ -51,12 +51,18 @@ struct afb_request
 	/* interface for the request */
 	const struct afb_request_itf *itf;
 
-	/* current dynapi if dynapi (is NULL for bindings v1 and v2) */
+	/* current dynapi (if any) */
 	struct afb_dynapi *dynapi;
 
 	/* closure associated with the callback processing the verb of the request
 	 * as given at its declaration */
 	void *vcbdata;
+
+	/* the name of the called verb */
+	const char *api;
+
+	/* the name of the called verb */
+	const char *verb;
 };
 
 /*

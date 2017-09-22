@@ -568,10 +568,10 @@ static struct call_req *callreq_create(
 		callreq->xreq.context.validated = 1;
 		copy = (char*)&callreq[1];
 		memcpy(copy, api, lenapi);
-		callreq->xreq.api = copy;
+		callreq->xreq.request.api = copy;
 		copy = &copy[lenapi];
 		memcpy(copy, verb, lenverb);
-		callreq->xreq.verb = copy;
+		callreq->xreq.request.verb = copy;
 		callreq->xreq.listener = export->listener;
 		callreq->xreq.json = args;
 		callreq->export = export;

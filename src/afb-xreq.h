@@ -60,8 +60,6 @@ struct afb_xreq
 	struct afb_request request;	/**< exported request */
 	struct afb_context context;	/**< context of the request */
 	struct afb_apiset *apiset;	/**< apiset of the xreq */
-	const char *api;		/**< the requested API */
-	const char *verb;		/**< the requested VERB */
 	struct json_object *json;	/**< the json object (or NULL) */
 	const struct afb_xreq_query_itf *queryitf; /**< interface of xreq implmentation functions */
 	int refcount;			/**< current ref count */

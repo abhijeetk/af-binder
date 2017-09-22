@@ -283,8 +283,8 @@ static void hook_xreq(void *closure, const struct afb_hookid *hookid, const stru
 	va_start(ap, format);
 	emit(closure, hookid, "request", "{si ss ss ss so* ss*}", format, ap,
 					"index", xreq->hookindex,
-					"api", xreq->api,
-					"verb", xreq->verb,
+					"api", xreq->request.api,
+					"verb", xreq->request.verb,
 					"action", action,
 					"credentials", cred,
 					"session", session);

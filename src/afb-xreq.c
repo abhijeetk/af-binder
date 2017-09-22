@@ -173,8 +173,8 @@ static struct subcall *subcall_alloc(
 		afb_context_subinit(&subcall->xreq.context, &caller->context);
 		subcall->xreq.cred = afb_cred_addref(caller->cred);
 		subcall->xreq.json = args;
-		subcall->xreq.api = api;
-		subcall->xreq.verb = verb;
+		subcall->xreq.request.api = api;
+		subcall->xreq.request.verb = verb;
 		subcall->xreq.caller = caller;
 		afb_xreq_unhooked_addref(caller);
 	}
@@ -233,7 +233,7 @@ static void subcall_process(struct subcall *subcall, void (*completion)(struct s
 	subcall->completion = completion;
 	if (subcall->xreq.caller->queryitf->subcall) {
 		subcall->xreq.caller->queryitf->subcall(
-			subcall->xreq.caller, subcall->xreq.api, subcall->xreq.verb,
+			subcall->xreq.caller, subcall->xreq.request.api, subcall->xreq.request.verb,
 			subcall->xreq.json, subcall_reply_direct_cb, &subcall->xreq);
 	} else {
 		afb_xreq_unhooked_addref(&subcall->xreq);
@@ -570,7 +570,7 @@ static void xreq_vverbose_cb(struct afb_request *closure, int level, const char 
 	if (!fmt || vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, func, fmt, args);
 	else {
-		verbose(level, file, line, func, "[REQ/API %s] %s", xreq->api, p);
+		verbose(level, file, line, func, "[REQ/API %s] %s", xreq->request.api, p);
 		free(p);
 	}
 }
@@ -1059,12 +1059,12 @@ void afb_xreq_init(struct afb_xreq *xreq, const struct afb_xreq_query_itf *query
 
 void afb_xreq_fail_unknown_api(struct afb_xreq *xreq)
 {
-	afb_xreq_fail_f(xreq, "unknown-api", "api %s not found (for verb %s)", xreq->api, xreq->verb);
+	afb_xreq_fail_f(xreq, "unknown-api", "api %s not found (for verb %s)", xreq->request.api, xreq->request.verb);
 }
 
 void afb_xreq_fail_unknown_verb(struct afb_xreq *xreq)
 {
-	afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->verb, xreq->api);
+	afb_xreq_fail_f(xreq, "unknown-verb", "verb %s unknown within api %s", xreq->request.verb, xreq->request.api);
 }
 
 static void init_hooking(struct afb_xreq *xreq)
@@ -1128,12 +1128,12 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 
 	/* lookup at the api */
 	xreq->apiset = apiset;
-	api = afb_apiset_lookup_started(apiset, xreq->api, 1);
+	api = afb_apiset_lookup_started(apiset, xreq->request.api, 1);
 	if (!api) {
 		if (errno == ENOENT)
-			early_failure(xreq, "unknown-api", "api %s not found (for verb %s)", xreq->api, xreq->verb);
+			early_failure(xreq, "unknown-api", "api %s not found (for verb %s)", xreq->request.api, xreq->request.verb);
 		else
-			early_failure(xreq, "bad-api-state", "api %s not started correctly: %m", xreq->api);
+			early_failure(xreq, "bad-api-state", "api %s not started correctly: %m", xreq->request.api);
 		goto end;
 	}
 	xreq->context.api_key = api;
@@ -1144,8 +1144,8 @@ void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset)
 		while (caller) {
 			if (((const struct afb_api *)caller->context.api_key)->group == api->group) {
 				/* noconcurrency lock detected */
-				ERROR("self-lock detected in call stack for API %s", xreq->api);
-				early_failure(xreq, "self-locked", "recursive self lock, API %s", xreq->api);
+				ERROR("self-lock detected in call stack for API %s", xreq->request.api);
+				early_failure(xreq, "self-locked", "recursive self lock, API %s", xreq->request.api);
 				goto end;
 			}
 			caller = caller->caller;

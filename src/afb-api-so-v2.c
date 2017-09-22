@@ -67,7 +67,8 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 	struct api_so_v2 *desc = closure;
 	const struct afb_verb_v2 *verb;
 
-	verb = search(desc, xreq->verb);
+	xreq->request.dynapi = (void*)desc->export; /* hack: this avoids to export afb_export structure */
+	verb = search(desc, xreq->request.verb);
 	afb_xreq_call_verb_v2(xreq, verb);
 }
 

@@ -207,7 +207,7 @@ static void _hook_xreq_(const struct afb_xreq *xreq, const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
-	_hook_("xreq-%06d:%s/%s", format, ap, xreq->hookindex, xreq->api, xreq->verb);
+	_hook_("xreq-%06d:%s/%s", format, ap, xreq->hookindex, xreq->request.api, xreq->request.verb);
 	va_end(ap);
 }
 
@@ -407,8 +407,8 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 		if (hook->itf->hook_xreq_##what \
 		 && (hook->flags & afb_hook_flag_req_##what) != 0 \
 		 && (!hook->session || hook->session == xreq->context.session) \
-		 && (!hook->api || !strcasecmp(hook->api, xreq->api)) \
-		 && (!hook->verb || !strcasecmp(hook->verb, xreq->verb))) { \
+		 && (!hook->api || !strcasecmp(hook->api, xreq->request.api)) \
+		 && (!hook->verb || !strcasecmp(hook->verb, xreq->request.verb))) { \
 			hook->itf->hook_xreq_##what(hook->closure, &hookid, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
@@ -576,8 +576,8 @@ void afb_hook_init_xreq(struct afb_xreq *xreq)
 		f = hook->flags & afb_hook_flags_req_all;
 		add = f != 0
 		   && (!hook->session || hook->session == xreq->context.session)
-		   && (!hook->api || !strcasecmp(hook->api, xreq->api))
-		   && (!hook->verb || !strcasecmp(hook->verb, xreq->verb));
+		   && (!hook->api || !strcasecmp(hook->api, xreq->request.api))
+		   && (!hook->verb || !strcasecmp(hook->verb, xreq->request.verb));
 		if (add)
 			flags |= f;
 		hook = hook->next;
