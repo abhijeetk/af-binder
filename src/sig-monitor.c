@@ -87,7 +87,7 @@ static void safe_dumpstack_cb(int signum, void *closure)
 
 static void safe_dumpstack(int crop, int signum)
 {
-	int args[2] = { crop, signum };
+	int args[2] = { crop + 3, signum };
 
 	in_safe_dumpstack = 1;
 	sig_monitor(0, safe_dumpstack_cb, args);
