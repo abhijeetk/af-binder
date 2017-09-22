@@ -639,18 +639,30 @@ static int xreq_hooked_session_set_LOA_cb(struct afb_request *closure, unsigned 
 	return afb_hook_xreq_session_set_LOA(xreq, level, r);
 }
 
+static int xreq_hooked_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_hooked_subscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	int r = xreq_subscribe_cb(closure, event);
-	struct afb_xreq *xreq = from_request(closure);
-	return afb_hook_xreq_subscribe(xreq, event.closure, r);
+	return xreq_hooked_subscribe_eventid_cb(closure, event.closure);
 }
 
+static int xreq_hooked_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
+{
+	int r = xreq_subscribe_eventid_cb(closure, eventid);
+	struct afb_xreq *xreq = from_request(closure);
+	return afb_hook_xreq_subscribe(xreq, eventid, r);
+}
+
+static int xreq_hooked_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_hooked_unsubscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	int r = xreq_unsubscribe_cb(closure, event);
+	return xreq_hooked_unsubscribe_eventid_cb(closure, event.closure);
+}
+
+static int xreq_hooked_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
+{
+	int r = xreq_unsubscribe_eventid_cb(closure, eventid);
 	struct afb_xreq *xreq = from_request(closure);
-	return afb_hook_xreq_unsubscribe(xreq, event.closure, r);
+	return afb_hook_xreq_unsubscribe(xreq, eventid, r);
 }
 
 static void xreq_hooked_subcall_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
@@ -757,7 +769,9 @@ const struct afb_request_itf xreq_itf = {
 	.subcall_req = xreq_subcall_req_cb,
 	.has_permission = xreq_has_permission_cb,
 	.get_application_id = xreq_get_application_id_cb,
-	.context_make = xreq_context_make_cb
+	.context_make = xreq_context_make_cb,
+	.subscribe_eventid = xreq_subscribe_eventid_cb,
+	.unsubscribe_eventid = xreq_unsubscribe_eventid_cb,
 };
 
 const struct afb_request_itf xreq_hooked_itf = {
@@ -782,7 +796,9 @@ const struct afb_request_itf xreq_hooked_itf = {
 	.subcall_req = xreq_hooked_subcall_req_cb,
 	.has_permission = xreq_hooked_has_permission_cb,
 	.get_application_id = xreq_hooked_get_application_id_cb,
-	.context_make = xreq_hooked_context_make_cb
+	.context_make = xreq_hooked_context_make_cb,
+	.subscribe_eventid = xreq_hooked_subscribe_eventid_cb,
+	.unsubscribe_eventid = xreq_hooked_unsubscribe_eventid_cb,
 };
 
 /******************************************************************************/

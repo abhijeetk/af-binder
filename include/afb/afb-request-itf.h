@@ -163,5 +163,13 @@ struct afb_request_itf
 			void *(*create_value)(void *creation_closure),
 			void (*free_value)(void*),
 			void *creation_closure);
+
+	int (*subscribe_eventid)(
+			struct afb_request *request,
+			struct afb_eventid *eventid);
+
+	int (*unsubscribe_eventid)(
+			struct afb_request *request,
+			struct afb_eventid *eventid);
 };
 

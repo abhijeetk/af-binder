@@ -21,8 +21,6 @@
 
 typedef struct afb_request afb_request;
 
-#include "afb-event.h"
-
 /*
  * Gets from the request 'request' the argument of 'name'.
  * Returns a PLAIN structure of type 'struct afb_arg'.
@@ -244,9 +242,9 @@ static inline int afb_request_session_set_LOA(struct afb_request *request, unsig
  * to the 'event'.
  * Returns 0 in case of successful subscription or -1 in case of error.
  */
-static inline int afb_request_subscribe(struct afb_request *request, struct afb_event event)
+static inline int afb_request_subscribe(struct afb_request *request, struct afb_eventid *eventid)
 {
-	return request->itf->subscribe(request, event);
+	return request->itf->subscribe_eventid(request, eventid);
 }
 
 /*
@@ -254,9 +252,9 @@ static inline int afb_request_subscribe(struct afb_request *request, struct afb_
  * link identified by 'request'.
  * Returns 0 in case of successful subscription or -1 in case of error.
  */
-static inline int afb_request_unsubscribe(struct afb_request *request, struct afb_event event)
+static inline int afb_request_unsubscribe(struct afb_request *request, struct afb_eventid *eventid)
 {
-	return request->itf->unsubscribe(request, event);
+	return request->itf->unsubscribe_eventid(request, eventid);
 }
 
 /*
