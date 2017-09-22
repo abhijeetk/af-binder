@@ -32,6 +32,18 @@ INSTALL(TARGETS authLogin
         LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
+# ave
+##################################################
+ADD_LIBRARY(ave MODULE ave.c)
+SET_TARGET_PROPERTIES(ave PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
+)
+TARGET_LINK_LIBRARIES(ave ${link_libraries})
+INSTALL(TARGETS ave
+        LIBRARY DESTINATION ${binding_install_dir})
+
+##################################################
 # DemoContext
 ##################################################
 ADD_LIBRARY(demoContext MODULE DemoContext.c)

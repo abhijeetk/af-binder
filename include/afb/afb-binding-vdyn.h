@@ -26,6 +26,14 @@
 #include "afb-dynapi.h"
 
 /*
+ * The function afbBindingVdyn if exported allows to create
+ * pure dynamic bindings. When the binding is loaded, it receives
+ * a virtual dynapi that can be used to create apis. The
+ * given API can not be used except for creating dynamic apis.
+ */
+extern int afbBindingVdyn(struct afb_dynapi *dynapi);
+
+/*
  * Macros for logging messages
  */
 #if defined(AFB_BINDING_PRAGMA_NO_VERBOSE_DATA)

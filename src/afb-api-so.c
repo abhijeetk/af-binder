@@ -27,6 +27,7 @@
 #include "afb-api-so.h"
 #include "afb-api-so-v1.h"
 #include "afb-api-so-v2.h"
+#include "afb-api-so-vdyn.h"
 #include "verbose.h"
 #include "sig-monitor.h"
 
@@ -82,6 +83,15 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 	}
 	if (rc)
 		return 0; /* yes version 2 */
+
+	/* try the version dyn */
+	rc = afb_api_so_vdyn_add(path, handle, apiset);
+	if (rc < 0) {
+		/* error when loading a valid dyn binding */
+		goto error2;
+	}
+	if (rc)
+		return 0; /* yes version dyn */
 
 	/* try the version 1 */
 	rc = afb_api_so_v1_add(path, handle, apiset);
