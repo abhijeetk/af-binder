@@ -173,7 +173,7 @@ static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
 	memcpy(event + plen + 1, name, nlen + 1);
 
 	/* create the event */
-	return afb_evt_create_event(event);
+	return afb_evt_eventid_create(event);
 }
 
 static struct afb_event event_make_cb(void *closure, const char *name)

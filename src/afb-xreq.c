@@ -463,7 +463,7 @@ static int xreq_subscribe_eventid_cb(struct afb_request *closure, struct afb_eve
 int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	if (xreq->listener)
-		return afb_evt_add_watch(xreq->listener, eventid);
+		return afb_evt_eventid_add_watch(xreq->listener, eventid);
 	if (xreq->queryitf->subscribe)
 		return xreq->queryitf->subscribe(xreq, eventid);
 	ERROR("no event listener, subscription impossible");
@@ -486,7 +486,7 @@ static int xreq_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_e
 int afb_xreq_unsubscribe(struct afb_xreq *xreq, struct afb_eventid *eventid)
 {
 	if (xreq->listener)
-		return afb_evt_remove_watch(xreq->listener, eventid);
+		return afb_evt_eventid_remove_watch(xreq->listener, eventid);
 	if (xreq->queryitf->unsubscribe)
 		return xreq->queryitf->unsubscribe(xreq, eventid);
 	ERROR("no event listener, unsubscription impossible");

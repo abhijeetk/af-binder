@@ -283,12 +283,12 @@ static void hook_xreq_session_set_LOA_default_cb(void *closure, const struct afb
 
 static void hook_xreq_subscribe_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_eventid *eventid, int result)
 {
-	_hook_xreq_(xreq, "subscribe(%s:%d) -> %d", afb_evt_event_fullname(eventid), afb_evt_event_id(eventid), result);
+	_hook_xreq_(xreq, "subscribe(%s:%d) -> %d", afb_evt_eventid_fullname(eventid), afb_evt_eventid_id(eventid), result);
 }
 
 static void hook_xreq_unsubscribe_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct afb_eventid *eventid, int result)
 {
-	_hook_xreq_(xreq, "unsubscribe(%s:%d) -> %d", afb_evt_event_fullname(eventid), afb_evt_event_id(eventid), result);
+	_hook_xreq_(xreq, "unsubscribe(%s:%d) -> %d", afb_evt_eventid_fullname(eventid), afb_evt_eventid_id(eventid), result);
 }
 
 static void hook_xreq_subcall_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
@@ -726,7 +726,7 @@ static void hook_ditf_vverbose_cb(void *closure, const struct afb_hookid *hookid
 
 static void hook_ditf_event_make_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_eventid *result)
 {
-	_hook_ditf_(export, "event_make(%s) -> %s:%d", name, afb_evt_event_fullname(result), afb_evt_event_id(result));
+	_hook_ditf_(export, "event_make(%s) -> %s:%d", name, afb_evt_eventid_fullname(result), afb_evt_eventid_id(result));
 }
 
 static void hook_ditf_rootdir_get_fd_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)

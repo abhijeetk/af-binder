@@ -382,7 +382,7 @@ static struct dbus_event *api_dbus_client_event_search(struct api_dbus *api, int
 	struct dbus_event *ev;
 
 	ev = api->client.events;
-	while (ev != NULL && (ev->id != id || 0 != strcmp(afb_evt_event_fullname(ev->eventid), name)))
+	while (ev != NULL && (ev->id != id || 0 != strcmp(afb_evt_eventid_fullname(ev->eventid), name)))
 		ev = ev->next;
 
 	return ev;
@@ -403,7 +403,7 @@ static void api_dbus_client_event_create(struct api_dbus *api, int id, const cha
 	/* no conflict, try to add it */
 	ev = malloc(sizeof *ev);
 	if (ev != NULL) {
-		ev->eventid = afb_evt_create_event(name);
+		ev->eventid = afb_evt_eventid_create(name);
 		if (ev->eventid == NULL)
 			free(ev);
 		else {
@@ -440,7 +440,7 @@ static void api_dbus_client_event_drop(struct api_dbus *api, int id, const char 
 	*prv = ev->next;
 
 	/* destroys the event */
-	afb_evt_event_unref(ev->eventid);
+	afb_evt_eventid_unref(ev->eventid);
 	free(ev);
 }
 
@@ -459,7 +459,7 @@ static void api_dbus_client_event_push(struct api_dbus *api, int id, const char 
 
 	/* destroys the event */
 	object = json_tokener_parse(data);
-	afb_evt_push(ev->eventid, object);
+	afb_evt_eventid_push(ev->eventid, object);
 }
 
 /* subscribes an event */
@@ -848,9 +848,9 @@ static int dbus_req_subscribe(struct afb_xreq *xreq, struct afb_eventid *eventid
 	uint64_t msgid;
 	int rc;
 
-	rc = afb_evt_add_watch(dreq->listener->listener, eventid);
+	rc = afb_evt_eventid_add_watch(dreq->listener->listener, eventid);
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->origin, 'S', afb_evt_event_fullname(eventid), afb_evt_event_id(eventid), "", msgid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'S', afb_evt_eventid_fullname(eventid), afb_evt_eventid_id(eventid), "", msgid);
 	return rc;
 }
 
@@ -861,8 +861,8 @@ static int dbus_req_unsubscribe(struct afb_xreq *xreq, struct afb_eventid *event
 	int rc;
 
 	sd_bus_message_get_cookie(dreq->message, &msgid);
-	afb_api_dbus_server_event_send(dreq->listener->origin, 'U', afb_evt_event_fullname(eventid), afb_evt_event_id(eventid), "", msgid);
-	rc = afb_evt_remove_watch(dreq->listener->listener, eventid);
+	afb_api_dbus_server_event_send(dreq->listener->origin, 'U', afb_evt_eventid_fullname(eventid), afb_evt_eventid_id(eventid), "", msgid);
+	rc = afb_evt_eventid_remove_watch(dreq->listener->listener, eventid);
 	return rc;
 }
 

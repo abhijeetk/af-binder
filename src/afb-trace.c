@@ -366,8 +366,8 @@ static void hook_xreq_subscribe(void *closure, const struct afb_hookid *hookid, 
 {
 	hook_xreq(closure, hookid, xreq, "subscribe", "{s{ss si} si}",
 					"event",
-						"name", afb_evt_event_fullname(eventid),
-						"id", afb_evt_event_id(eventid),
+						"name", afb_evt_eventid_fullname(eventid),
+						"id", afb_evt_eventid_id(eventid),
 					"result", result);
 }
 
@@ -375,8 +375,8 @@ static void hook_xreq_unsubscribe(void *closure, const struct afb_hookid *hookid
 {
 	hook_xreq(closure, hookid, xreq, "unsubscribe", "{s{ss? si} si}",
 					"event",
-						"name", afb_evt_event_fullname(eventid),
-						"id", afb_evt_event_id(eventid),
+						"name", afb_evt_eventid_fullname(eventid),
+						"id", afb_evt_eventid_id(eventid),
 					"result", result);
 }
 
@@ -615,7 +615,7 @@ static void hook_ditf_vverbose(void *closure, const struct afb_hookid *hookid, c
 static void hook_ditf_event_make(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct afb_eventid *result)
 {
 	hook_ditf(closure, hookid, export, "event_make", "{ss ss si}",
-			"name", name, "event", afb_evt_event_fullname(result), "id", afb_evt_event_id(result));
+			"name", name, "event", afb_evt_eventid_fullname(result), "id", afb_evt_eventid_id(result));
 }
 
 static void hook_ditf_rootdir_get_fd(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)
@@ -1101,7 +1101,7 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 		event = malloc(sizeof * event);
 		if (event) {
 			e = afb_daemon_make_event_v1(*trace->daemon, name);
-			event->evtid = afb_evt_to_evtid(afb_event_to_eventid(e));
+			event->evtid = afb_evt_eventid_to_evtid(afb_event_to_eventid(e));
 			if (event->evtid) {
 				event->next = trace->events;
 				trace->events = event;
@@ -1267,7 +1267,7 @@ static void addhook(struct desc *desc, enum trace_type type)
 	}
 
 	/* attach and activate the hook */
-	afb_req_subscribe(desc->context->req, afb_event_from_evtid(hook->event->evtid));
+	afb_req_subscribe(desc->context->req, afb_evt_event_from_evtid(hook->event->evtid));
 	trace_attach_hook(trace, hook, type);
 }
 
