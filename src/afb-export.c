@@ -1080,6 +1080,7 @@ static struct afb_export *create(struct afb_apiset *apiset, const char *apiname,
 	else {
 		memset(export, 0, sizeof *export);
 		export->apiname = strdup(apiname);
+		export->dynapi.apiname = export->apiname;
 		export->version = version;
 		export->state = Api_State_Pre_Init;
 		export->session = afb_session_addref(common_session);
@@ -1144,6 +1145,7 @@ void afb_export_rename(struct afb_export *export, const char *apiname)
 {
 	free(export->apiname);
 	export->apiname = strdup(apiname);
+	export->dynapi.apiname = export->apiname;
 	afb_export_update_hook(export);
 }
 

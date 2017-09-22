@@ -43,6 +43,9 @@ struct afb_dynapi
 
 	/* current verbosity level */
 	int verbosity;
+
+	/* the name of the api */
+	const char *apiname;
 };
 
 /*
