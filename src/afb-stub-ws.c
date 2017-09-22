@@ -446,7 +446,7 @@ static void on_event_broadcast(void *closure, const char *event_name, struct jso
 	afb_evt_broadcast(event_name, data);
 }
 
-static void client_subcall_reply_cb(void *closure, int status, json_object *object)
+static void client_subcall_reply_cb(void *closure, int status, json_object *object, struct afb_request *request)
 {
 	struct afb_proto_ws_subcall *subcall = closure;
 	afb_proto_ws_subcall_reply(subcall, status, object);

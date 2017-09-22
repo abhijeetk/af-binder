@@ -118,14 +118,14 @@ extern void afb_xreq_subcall(
 		const char *api,
 		const char *verb,
 		struct json_object *args,
-		void (*callback)(void*, int, struct json_object*),
+		void (*callback)(void*, int, struct json_object*, struct afb_request *),
 		void *cb_closure);
 extern void afb_xreq_unhooked_subcall(
 		struct afb_xreq *xreq,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
-		void (*callback)(void*, int, struct json_object*),
+		void (*callback)(void*, int, struct json_object*, struct afb_request *),
 		void *cb_closure);
 
 extern int afb_xreq_unhooked_subcall_sync(

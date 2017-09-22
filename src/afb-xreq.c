@@ -97,7 +97,8 @@ struct subcall
 		struct {
 			union {
 				void (*callback)(void*, int, struct json_object*);
-				void (*callback2)(void*, int, struct json_object*, struct afb_req);
+				void (*callback_req)(void*, int, struct json_object*, struct afb_req);
+				void (*callback_request)(void*, int, struct json_object*, struct afb_request*);
 			};
 			void *closure;
 		};
@@ -187,7 +188,12 @@ static void subcall_on_reply(struct subcall *subcall, int status, struct json_ob
 
 static void subcall_req_on_reply(struct subcall *subcall, int status, struct json_object *result)
 {
-	subcall->callback2(subcall->closure, status, result, to_req(subcall->xreq.caller));
+	subcall->callback_req(subcall->closure, status, result, to_req(subcall->xreq.caller));
+}
+
+static void subcall_request_on_reply(struct subcall *subcall, int status, struct json_object *result)
+{
+	subcall->callback_request(subcall->closure, status, result, to_request(subcall->xreq.caller));
 }
 
 static void subcall_hooked_on_reply(struct subcall *subcall, int status, struct json_object *result)
@@ -200,6 +206,12 @@ static void subcall_req_hooked_on_reply(struct subcall *subcall, int status, str
 {
 	afb_hook_xreq_subcall_req_result(subcall->xreq.caller, status, result);
 	subcall_req_on_reply(subcall, status, result);
+}
+
+static void subcall_request_hooked_on_reply(struct subcall *subcall, int status, struct json_object *result)
+{
+	afb_hook_xreq_subcall_result(subcall->xreq.caller, status, result);
+	subcall_request_on_reply(subcall, status, result);
 }
 
 static void subcall_reply_direct_cb(void *closure, int status, struct json_object *result)
@@ -237,9 +249,16 @@ static void subcall(struct subcall *subcall, void (*callback)(void*, int, struct
 
 static void subcall_req(struct subcall *subcall, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure)
 {
-	subcall->callback2 = callback;
+	subcall->callback_req = callback;
 	subcall->closure = cb_closure;
 	subcall_process(subcall, subcall_req_on_reply);
+}
+
+static void subcall_request(struct subcall *subcall, void (*callback)(void*, int, struct json_object*, struct afb_request*), void *cb_closure)
+{
+	subcall->callback_request = callback;
+	subcall->closure = cb_closure;
+	subcall_process(subcall, subcall_request_on_reply);
 }
 
 static void subcall_hooked(struct subcall *subcall, void (*callback)(void*, int, struct json_object*), void *cb_closure)
@@ -251,9 +270,16 @@ static void subcall_hooked(struct subcall *subcall, void (*callback)(void*, int,
 
 static void subcall_req_hooked(struct subcall *subcall, void (*callback)(void*, int, struct json_object*, struct afb_req), void *cb_closure)
 {
-	subcall->callback2 = callback;
+	subcall->callback_req = callback;
 	subcall->closure = cb_closure;
 	subcall_process(subcall, subcall_req_hooked_on_reply);
+}
+
+static void subcall_request_hooked(struct subcall *subcall, void (*callback)(void*, int, struct json_object*, struct afb_request*), void *cb_closure)
+{
+	subcall->callback_request = callback;
+	subcall->closure = cb_closure;
+	subcall_process(subcall, subcall_request_hooked_on_reply);
 }
 
 static void subcall_sync_leave(struct subcall *subcall)
@@ -497,6 +523,21 @@ static void xreq_subcall_req_cb(struct afb_request *closure, const char *api, co
 	}
 }
 
+static void xreq_subcall_request_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_request*), void *cb_closure)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	struct subcall *sc;
+
+	sc = subcall_alloc(xreq, api, verb, args);
+	if (sc == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error(), to_request(xreq));
+		json_object_put(args);
+	} else {
+		subcall_request(sc, callback, cb_closure);
+	}
+}
+
 
 static int xreq_subcallsync_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
@@ -697,6 +738,22 @@ static void xreq_hooked_subcall_req_cb(struct afb_request *closure, const char *
 	}
 }
 
+static void xreq_hooked_subcall_request_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_request *), void *cb_closure)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	struct subcall *sc;
+
+	afb_hook_xreq_subcall(xreq, api, verb, args);
+	sc = subcall_alloc(xreq, api, verb, args);
+	if (sc == NULL) {
+		if (callback)
+			callback(cb_closure, 1, afb_msg_json_internal_error(), to_request(xreq));
+		json_object_put(args);
+	} else {
+		subcall_request_hooked(sc, callback, cb_closure);
+	}
+}
+
 static int xreq_hooked_subcallsync_cb(struct afb_request *closure, const char *api, const char *verb, struct json_object *args, struct json_object **result)
 {
 	int r;
@@ -772,6 +829,7 @@ const struct afb_request_itf xreq_itf = {
 	.context_make = xreq_context_make_cb,
 	.subscribe_eventid = xreq_subscribe_eventid_cb,
 	.unsubscribe_eventid = xreq_unsubscribe_eventid_cb,
+	.subcall_request = xreq_subcall_request_cb,
 };
 
 const struct afb_request_itf xreq_hooked_itf = {
@@ -799,6 +857,7 @@ const struct afb_request_itf xreq_hooked_itf = {
 	.context_make = xreq_hooked_context_make_cb,
 	.subscribe_eventid = xreq_hooked_subscribe_eventid_cb,
 	.unsubscribe_eventid = xreq_hooked_unsubscribe_eventid_cb,
+	.subcall_request = xreq_hooked_subcall_request_cb,
 };
 
 /******************************************************************************/
@@ -864,12 +923,12 @@ void afb_xreq_unref(struct afb_xreq *xreq)
 	afb_request_unref(to_request(xreq));
 }
 
-void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+void afb_xreq_unhooked_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_request *), void *cb_closure)
 {
-	xreq_subcall_cb(to_request(xreq), api, verb, args, callback, cb_closure);
+	xreq_subcall_request_cb(to_request(xreq), api, verb, args, callback, cb_closure);
 }
 
-void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
+void afb_xreq_subcall(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*, struct afb_request *), void *cb_closure)
 {
 	afb_request_subcall(to_request(xreq), api, verb, args, callback, cb_closure);
 }

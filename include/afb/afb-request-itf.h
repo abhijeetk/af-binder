@@ -171,5 +171,14 @@ struct afb_request_itf
 	int (*unsubscribe_eventid)(
 			struct afb_request *request,
 			struct afb_eventid *eventid);
+
+	void (*subcall_request)(
+			struct afb_request *request,
+			const char *api,
+			const char *verb,
+			struct json_object *args,
+			void (*callback)(void*, int, struct json_object*, struct afb_request *request),
+			void *cb_closure);
+
 };
 

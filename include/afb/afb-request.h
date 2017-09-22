@@ -274,9 +274,9 @@ static inline int afb_request_unsubscribe(struct afb_request *request, struct af
  *  - 'afb_request_subcall_req' that is convenient to keep request alive automatically.
  *  - 'afb_request_subcall_sync' the synchronous version
  */
-static inline void afb_request_subcall(struct afb_request *request, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result), void *closure)
+static inline void afb_request_subcall(struct afb_request *request, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result, struct afb_request *request), void *closure)
 {
-	request->itf->subcall(request, api, verb, args, callback, closure);
+	request->itf->subcall_request(request, api, verb, args, callback, closure);
 }
 
 /*
