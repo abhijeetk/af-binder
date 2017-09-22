@@ -36,7 +36,12 @@ struct afb_api_dyn_verb
 
 struct afb_api_dyn;
 
-extern int afb_api_dyn_add(struct afb_apiset *apiset, const char *name, const char *info, int (*preinit)(void*, struct afb_dynapi*), void *closure);
+extern int afb_api_dyn_add(
+		struct afb_apiset *apiset,
+		const char *name,
+		const char *info,
+		int (*preinit)(void*, struct afb_dynapi*),
+		void *closure);
 
 extern void afb_api_dyn_set_verbs_v2(
 		struct afb_api_dyn *dynapi,
