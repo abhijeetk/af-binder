@@ -245,10 +245,11 @@ static inline int afb_dynapi_add_verb(
 	const char *verb,
 	const char *info,
 	void (*callback)(struct afb_request *request),
+	void *vcbdata,
 	const struct afb_auth *auth,
 	uint32_t session)
 {
-	return dynapi->itf->api_add_verb(dynapi, verb, info, callback, auth, session);
+	return dynapi->itf->api_add_verb(dynapi, verb, info, callback, vcbdata, auth, session);
 }
 
 

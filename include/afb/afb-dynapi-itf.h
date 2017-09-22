@@ -140,6 +140,7 @@ struct afb_dynapi_itf
 		const char *verb,
 		const char *info,
 		void (*callback)(struct afb_request *request),
+		void *vcbdata,
 		const struct afb_auth *auth,
 		uint32_t session);
 

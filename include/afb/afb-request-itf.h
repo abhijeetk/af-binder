@@ -53,6 +53,10 @@ struct afb_request
 
 	/* current dynapi if dynapi (is NULL for bindings v1 and v2) */
 	struct afb_dynapi *dynapi;
+
+	/* closure associated with the callback processing the verb of the request
+	 * as given at its declaration */
+	void *vcbdata;
 };
 
 /*

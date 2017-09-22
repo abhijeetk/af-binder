@@ -58,10 +58,13 @@ int afb_api_dyn_add_verb(
 		const char *verb,
 		const char *info,
 		void (*callback)(struct afb_request *request),
+		void *vcbdata,
 		const struct afb_auth *auth,
 		uint32_t session)
 {
 	struct afb_api_dyn_verb *v, **vv;
+
+	afb_api_dyn_sub_verb(dynapi, verb);
 
 	vv = realloc(dynapi->verbs, (1 + dynapi->count) * sizeof *vv);
 	if (!vv)
@@ -73,6 +76,7 @@ int afb_api_dyn_add_verb(
 		goto oom;
 
 	v->callback = callback;
+	v->vcbdata = vcbdata;
 	v->auth = auth;
 	v->session = session;
 
@@ -114,7 +118,7 @@ int afb_api_dyn_sub_verb(
 static void call_cb(void *closure, struct afb_xreq *xreq)
 {
 	struct afb_api_dyn *dynapi = closure;
-	struct afb_api_dyn_verb **verbs;
+	struct afb_api_dyn_verb **verbs, *v;
 	const struct afb_verb_v2 *verbsv2;
 	int i;
 	const char *name;
@@ -126,7 +130,9 @@ static void call_cb(void *closure, struct afb_xreq *xreq)
 	verbs = dynapi->verbs;
 	i = dynapi->count;
 	while (i) {
-		if (!strcasecmp(verbs[--i]->verb, name)) {
+		v = verbs[--i];
+		if (!strcasecmp(v->verb, name)) {
+			xreq->request.vcbdata = v->vcbdata;
 			afb_xreq_call_verb_vdyn(xreq, verbs[i]);
 			return;
 		}

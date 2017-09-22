@@ -447,6 +447,18 @@ static const struct {
   { .verb=NULL}
 };
 
+static void pingoo(afb_req req)
+{
+	json_object *args = afb_req_json(req);
+	afb_req_success_f(req, json_object_get(args), "You reached pingoo \\o/ nice args: %s", json_object_to_json_string(args));
+}
+
+static const afb_verb_v2 verbsv2[]= {
+  { .verb="pingoo",      .callback=pingoo },
+  { .verb="ping",      .callback=pingoo },
+  { .verb=NULL}
+};
+
 static const char *apis[] = { "ave", "hi", "salut", NULL };
 
 static int api_preinit(void *closure, afb_dynapi *dynapi)
@@ -458,8 +470,9 @@ static int api_preinit(void *closure, afb_dynapi *dynapi)
 	afb_dynapi_on_init(dynapi, init);
 	afb_dynapi_on_event(dynapi, onevent);
 
+	rc = afb_dynapi_set_verbs_v2(dynapi, verbsv2);
 	for (i = rc = 0; verbs[i].verb && rc >= 0 ; i++) {
-		rc = afb_dynapi_add_verb(dynapi, verbs[i].verb, NULL, verbs[i].callback, NULL, 0);
+		rc = afb_dynapi_add_verb(dynapi, verbs[i].verb, NULL, verbs[i].callback, (void*)(intptr_t)i, NULL, 0);
 	}
 	afb_dynapi_seal(dynapi);
 	return rc;

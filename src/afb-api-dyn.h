@@ -27,6 +27,7 @@ struct afb_verb_v2;
 struct afb_api_dyn_verb
 {
 	void (*callback)(struct afb_request *request);
+	void *vcbdata;
 	const struct afb_auth *auth;
 	const char *info;
 	int session;
@@ -46,6 +47,7 @@ extern int afb_api_dyn_add_verb(
 		const char *verb,
 		const char *info,
 		void (*callback)(struct afb_request *request),
+		void *vcbdata,
 		const struct afb_auth *auth,
 		uint32_t session);
 

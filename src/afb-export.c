@@ -841,13 +841,14 @@ static int api_add_verb_cb(
 		const char *verb,
 		const char *info,
 		void (*callback)(struct afb_request *request),
+		void *vcbdata,
 		const struct afb_auth *auth,
 		uint32_t session)
 {
 	struct afb_export *export = from_dynapi(dynapi);
 
 	if (export->apidyn)
-		return afb_api_dyn_add_verb(export->apidyn, verb, info, callback, auth, session);
+		return afb_api_dyn_add_verb(export->apidyn, verb, info, callback, vcbdata, auth, session);
 
 	errno = EPERM;
 	return -1;
@@ -904,11 +905,12 @@ static int hooked_api_add_verb_cb(
 		const char *verb,
 		const char *info,
 		void (*callback)(struct afb_request *request),
+		void *vcbdata,
 		const struct afb_auth *auth,
 		uint32_t session)
 {
 	/* TODO */
-	return api_add_verb_cb(dynapi, verb, info, callback, auth, session);
+	return api_add_verb_cb(dynapi, verb, info, callback, vcbdata, auth, session);
 }
 
 static int hooked_api_sub_verb_cb(
