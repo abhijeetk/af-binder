@@ -29,6 +29,14 @@ struct afb_event
 };
 
 /*
+ * Converts the 'event' to an afb_eventid.
+ */
+static inline struct afb_eventid *afb_event_to_eventid(struct afb_event event)
+{
+	return event.closure;
+}
+
+/*
  * Checks wether the 'event' is valid or not.
  *
  * Returns 0 if not valid or 1 if valid.

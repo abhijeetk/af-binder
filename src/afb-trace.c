@@ -27,7 +27,8 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
-#include <afb/afb-binding-v2.h>
+#define AFB_BINDING_VERSION 0
+#include <afb/afb-binding.h>
 
 #include "afb-hook.h"
 #include "afb-cred.h"
@@ -1088,6 +1089,7 @@ static struct tag *trace_get_tag(struct afb_trace *trace, const char *name, int 
  */
 static struct event *trace_get_event(struct afb_trace *trace, const char *name, int alloc)
 {
+	struct afb_event e;
 	struct event *event;
 
 	/* search the event */
@@ -1098,7 +1100,8 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 	if (!event && alloc) {
 		event = malloc(sizeof * event);
 		if (event) {
-			event->evtid = afb_evt_to_evtid(trace->daemon->itf->event_make(trace->daemon->closure, name).closure);
+			e = afb_daemon_make_event_v1(*trace->daemon, name);
+			event->evtid = afb_evt_to_evtid(afb_event_to_eventid(e));
 			if (event->evtid) {
 				event->next = trace->events;
 				trace->events = event;

@@ -424,7 +424,7 @@ static int xreq_session_set_LOA_cb(struct afb_request *closure, unsigned level)
 static int xreq_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_subscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	return xreq_subscribe_eventid_cb(closure, event.closure);
+	return xreq_subscribe_eventid_cb(closure, afb_event_to_eventid(event));
 }
 
 static int xreq_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
@@ -447,7 +447,7 @@ int afb_xreq_subscribe(struct afb_xreq *xreq, struct afb_eventid *eventid)
 static int xreq_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_unsubscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	return xreq_unsubscribe_eventid_cb(closure, event.closure);
+	return xreq_unsubscribe_eventid_cb(closure, afb_event_to_eventid(event));
 }
 
 static int xreq_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
@@ -642,7 +642,7 @@ static int xreq_hooked_session_set_LOA_cb(struct afb_request *closure, unsigned 
 static int xreq_hooked_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_hooked_subscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	return xreq_hooked_subscribe_eventid_cb(closure, event.closure);
+	return xreq_hooked_subscribe_eventid_cb(closure, afb_event_to_eventid(event));
 }
 
 static int xreq_hooked_subscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)
@@ -655,7 +655,7 @@ static int xreq_hooked_subscribe_eventid_cb(struct afb_request *closure, struct 
 static int xreq_hooked_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid);
 static int xreq_hooked_unsubscribe_cb(struct afb_request *closure, struct afb_event event)
 {
-	return xreq_hooked_unsubscribe_eventid_cb(closure, event.closure);
+	return xreq_hooked_unsubscribe_eventid_cb(closure, afb_event_to_eventid(event));
 }
 
 static int xreq_hooked_unsubscribe_eventid_cb(struct afb_request *closure, struct afb_eventid *eventid)

@@ -31,6 +31,14 @@ struct afb_req
 };
 
 /*
+ * Converts the 'req' to an afb_request.
+ */
+static inline struct afb_request *afb_req_to_request(struct afb_req req)
+{
+	return req.closure;
+}
+
+/*
  * Checks whether the request 'req' is valid or not.
  *
  * Returns 0 if not valid or 1 if valid.
