@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "afb-daemon-common.h"
+#include "afb-daemon-itf.h"
 
 /*
  * Retrieves the common systemd's event loop of AFB

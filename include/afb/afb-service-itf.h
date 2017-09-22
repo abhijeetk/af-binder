@@ -17,10 +17,32 @@
 
 #pragma once
 
-#pragma GCC warning "\n\n\
-    This header file <afb/afb-service-itf.h> is OBSOLETE.\n\
-    It is provided for COMPATIBILITY ONLY.\n\n\
-    Please USE <afb/afb-binding.h> and ADAPT YOUR CODE to new names.\n"
+/* avoid inclusion of <json-c/json.h> */
+struct json_object;
 
-#include "afb-binding.h"
+/*
+ * Interface for internal of services
+ * It records the functions to be called for the request.
+ * Don't use this structure directly.
+ * Use the helper functions documented below.
+ */
+struct afb_service_itf
+{
+	/* CAUTION: respect the order, add at the end */
+
+	void (*call)(void *closure, const char *api, const char *verb, struct json_object *args,
+	             void (*callback)(void*, int, struct json_object*), void *callback_closure);
+
+	int (*call_sync)(void *closure, const char *api, const char *verb, struct json_object *args,
+	                 struct json_object **result);
+};
+
+/*
+ * Object that encapsulate accesses to service items
+ */
+struct afb_service
+{
+	const struct afb_service_itf *itf;
+	void *closure;
+};
 

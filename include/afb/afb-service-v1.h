@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "afb-service-common.h"
+#include "afb-service-itf.h"
 
 /**
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.

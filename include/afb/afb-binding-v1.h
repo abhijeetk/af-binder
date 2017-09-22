@@ -21,8 +21,8 @@ struct json_object;
 
 #include "afb-req.h"
 #include "afb-event.h"
-#include "afb-service-common.h"
-#include "afb-daemon-common.h"
+#include "afb-service-itf.h"
+#include "afb-daemon-itf.h"
 
 #include "afb-req-v1.h"
 #include "afb-session-v1.h"
