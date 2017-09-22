@@ -19,6 +19,21 @@
 
 #include "afb-dynapi-itf.h"
 
+static inline const char *afb_dynapi_name(struct afb_dynapi *dynapi)
+{
+	return dynapi->apiname;
+}
+
+static inline void *afb_dynapi_get_userdata(struct afb_dynapi *dynapi)
+{
+	return dynapi->userdata;
+}
+
+static inline void afb_dynapi_set_userdata(struct afb_dynapi *dynapi, void *userdata)
+{
+	dynapi->userdata = userdata;
+}
+
 /*
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
@@ -188,7 +203,7 @@ static inline void afb_dynapi_call(
 	const char *api,
 	const char *verb,
 	struct json_object *args,
-	void (*callback)(void*closure, int status, struct json_object *result, struct afb_dynapi *dynapi),
+	void (*callback)(void *closure, int status, struct json_object *result, struct afb_dynapi *dynapi),
 	void *callback_closure)
 {
 	dynapi->itf->call(dynapi, api, verb, args, callback, callback_closure);

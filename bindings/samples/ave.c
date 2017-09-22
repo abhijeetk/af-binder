@@ -29,7 +29,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 struct event
 {
 	struct event *next;
-	struct afb_eventid *eventid;
+	afb_eventid *eventid;
 	char tag[1];
 };
 
@@ -415,7 +415,7 @@ static void onevent(afb_dynapi *dynapi, const char *event, struct json_object *o
 {
 	AFB_DYNAPI_NOTICE(dynapi, "received event %s(%s) by AVE(%s)",
 			event, json_object_to_json_string(object),
-			(const char*)dynapi->userdata);
+			(const char*)afb_dynapi_get_userdata(dynapi));
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
@@ -461,12 +461,12 @@ static const afb_verb_v2 verbsv2[]= {
 
 static const char *apis[] = { "ave", "hi", "salut", NULL };
 
-static int api_preinit(void *closure, afb_dynapi *dynapi)
+static int build_api(void *closure, afb_dynapi *dynapi)
 {
 	int i, rc;
 
-	dynapi->userdata = closure;
-	AFB_DYNAPI_NOTICE(dynapi, "dynamic binding AVE(%s) comes to live", (const char*)dynapi->userdata);
+	afb_dynapi_set_userdata(dynapi, closure);
+	AFB_DYNAPI_NOTICE(dynapi, "dynamic binding AVE(%s) comes to live", (const char*)afb_dynapi_get_userdata(dynapi));
 	afb_dynapi_on_init(dynapi, init);
 	afb_dynapi_on_event(dynapi, onevent);
 
@@ -483,7 +483,7 @@ int afbBindingVdyn(afb_dynapi *dynapi)
 	int i, rc;
 
 	for (i = 0; apis[i] ; i++) {
-		rc = afb_dynapi_new_api(dynapi, apis[i], NULL, api_preinit, (void*)apis[i]);
+		rc = afb_dynapi_new_api(dynapi, apis[i], NULL, build_api, (void*)apis[i]);
 	}
 	return 0;
 }

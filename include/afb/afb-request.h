@@ -19,6 +19,26 @@
 
 #include "afb-request-itf.h"
 
+static inline struct afb_dynapi *afb_request_get_dynapi(struct afb_request *request)
+{
+	return request->dynapi;
+}
+
+static inline void *afb_request_get_vcbdata(struct afb_request *request)
+{
+	return request->vcbdata;
+}
+
+static inline const char *afb_request_get_api(struct afb_request *request)
+{
+	return request->api;
+}
+
+static inline const char *afb_request_get_verb(struct afb_request *request)
+{
+	return request->verb;
+}
+
 /*
  * Gets from the request 'request' the argument of 'name'.
  * Returns a PLAIN structure of type 'struct afb_arg'.
