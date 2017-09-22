@@ -396,10 +396,11 @@ static void xreq_context_set_cb(struct afb_request *closure, void *value, void (
 	afb_context_set(&xreq->context, value, free_value);
 }
 
-static void xreq_addref_cb(struct afb_request *closure)
+static struct afb_request *xreq_addref_cb(struct afb_request *closure)
 {
 	struct afb_xreq *xreq = from_request(closure);
 	afb_xreq_unhooked_addref(xreq);
+	return closure;
 }
 
 static void xreq_unref_cb(struct afb_request *closure)
@@ -610,11 +611,11 @@ static void xreq_hooked_context_set_cb(struct afb_request *closure, void *value,
 	xreq_context_set_cb(closure, value, free_value);
 }
 
-static void xreq_hooked_addref_cb(struct afb_request *closure)
+static struct afb_request *xreq_hooked_addref_cb(struct afb_request *closure)
 {
 	struct afb_xreq *xreq = from_request(closure);
 	afb_hook_xreq_addref(xreq);
-	xreq_addref_cb(closure);
+	return xreq_addref_cb(closure);
 }
 
 static void xreq_hooked_unref_cb(struct afb_request *closure)

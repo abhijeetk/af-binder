@@ -204,9 +204,9 @@ static inline void afb_request_context_clear(struct afb_request *request)
  * This function MUST be called by asynchronous implementations
  * of verbs if no reply was sent before returning.
  */
-static inline void afb_request_addref(struct afb_request *request)
+static inline struct afb_request *afb_request_addref(struct afb_request *request)
 {
-	request->itf->addref(request);
+	return request->itf->addref(request);
 }
 
 /*

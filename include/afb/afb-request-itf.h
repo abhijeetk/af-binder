@@ -94,7 +94,7 @@ struct afb_request_itf
 			void *value,
 			void (*free_value)(void*));
 
-	void (*addref)(
+	struct afb_request *(*addref)(
 			struct afb_request *request);
 
 	void (*unref)(
