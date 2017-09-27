@@ -2,13 +2,7 @@
 This is an undergoing work, publication is only intended for developers to review and provide feedback. 
 
 ### License
-As of today, the code is licensed under GLPv3. While no decision as been taken yet, 
-it will certainly switch to a different licence: GPLv2, Apache or MIT e.g.. 
-
-Final goal is to keep the engine publicly accessible and modifiable, still allowing people to load non open-source plugins. 
-The code itself already leverages open-source libraries, including libmicrohttpd & libjson. 
-
-Finally, whatever license is chosen, it should be compatible with dependencies and automotive industry requirements - as the primary target for this code is AGL. 
+Apache 2
 
 ### Building
 Building Application Framework Binder has been tested under **Ubuntu 16.04 LTS (Xenial Xerus)** or **Fedora 23**, and requires the following libraries:
