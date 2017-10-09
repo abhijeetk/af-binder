@@ -866,13 +866,27 @@ static int dbus_req_unsubscribe(struct afb_xreq *xreq, struct afb_eventid *event
 	return rc;
 }
 
+static void dbus_req_subcall(
+	struct afb_xreq *xreq,
+	const char *api,
+	const char *verb,
+	struct json_object *args,
+	void (*callback)(void*, int, struct json_object*),
+	void *cb_closure)
+{
+	ERROR("DBUS API doesn't support subcalls, info: %s/%s(%s)", api, verb, json_object_to_json_string(args));
+	callback(cb_closure, 1, afb_msg_json_reply_error("error", "subcall isn't supported", NULL, NULL));
+	json_object_put(args);
+}
+
 const struct afb_xreq_query_itf afb_api_dbus_xreq_itf = {
 	.json = dbus_req_json,
 	.success = dbus_req_success,
 	.fail = dbus_req_fail,
 	.unref = dbus_req_destroy,
 	.subscribe = dbus_req_subscribe,
-	.unsubscribe = dbus_req_unsubscribe
+	.unsubscribe = dbus_req_unsubscribe,
+	.subcall = dbus_req_subcall
 };
 
 /******************* server part **********************************/
