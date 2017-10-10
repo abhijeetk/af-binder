@@ -29,9 +29,6 @@ set(PROJECT_URL "https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-fram
 SET(LIBAFBWSC_VERSION "1.0")
 SET(LIBAFBWSC_SOVERSION "1")
 
-SET(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
