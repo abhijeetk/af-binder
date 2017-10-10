@@ -420,3 +420,14 @@ static inline char *afb_req_get_application_id(struct afb_req req)
 	return req.itf->get_application_id(req.closure);
 }
 
+/*
+ * Get the user identifier (UID) of the client application for the
+ * request 'req'.
+ *
+ * Returns -1 when the application can not be identified.
+ */
+static inline int afb_req_get_uid(struct afb_req req)
+{
+	return req.itf->get_uid(req.closure);
+}
+

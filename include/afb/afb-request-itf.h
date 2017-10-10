@@ -198,5 +198,8 @@ struct afb_request_itf
 			void (*callback)(void*, int, struct json_object*, struct afb_request *request),
 			void *cb_closure);
 
+	int (*get_uid)(
+			struct afb_request *request);
+
 };
 

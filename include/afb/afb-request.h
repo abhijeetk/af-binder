@@ -376,3 +376,14 @@ static inline char *afb_request_get_application_id(struct afb_request *request)
 	return request->itf->get_application_id(request);
 }
 
+/*
+ * Get the user identifier (UID) of the client for the
+ * request 'request'.
+ *
+ * Returns -1 when the application can not be identified.
+ */
+static inline int afb_request_get_uid(struct afb_request *request)
+{
+	return request->itf->get_uid(request);
+}
+

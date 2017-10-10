@@ -599,6 +599,12 @@ static void *xreq_context_make_cb(struct afb_request *closure, int replace, void
 	return afb_context_make(&xreq->context, replace, create_value, free_value, create_closure);
 }
 
+static int xreq_get_uid_cb(struct afb_request *closure)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	return xreq->cred && xreq->cred->id ? (int)xreq->cred->uid : -1;
+}
+
 /******************************************************************************/
 
 static struct json_object *xreq_hooked_json_cb(struct afb_request *closure)
@@ -803,6 +809,13 @@ static void *xreq_hooked_context_make_cb(struct afb_request *closure, int replac
 	return afb_hook_xreq_context_make(xreq, replace, create_value, free_value, create_closure, result);
 }
 
+static int xreq_hooked_get_uid_cb(struct afb_request *closure)
+{
+	struct afb_xreq *xreq = from_request(closure);
+	int r = xreq_get_uid_cb(closure);
+	return afb_hook_xreq_get_uid(xreq, r);
+}
+
 /******************************************************************************/
 
 const struct afb_request_itf xreq_itf = {
@@ -831,6 +844,7 @@ const struct afb_request_itf xreq_itf = {
 	.subscribe_eventid = xreq_subscribe_eventid_cb,
 	.unsubscribe_eventid = xreq_unsubscribe_eventid_cb,
 	.subcall_request = xreq_subcall_request_cb,
+	.get_uid = xreq_get_uid_cb,
 };
 
 const struct afb_request_itf xreq_hooked_itf = {
@@ -859,6 +873,7 @@ const struct afb_request_itf xreq_hooked_itf = {
 	.subscribe_eventid = xreq_hooked_subscribe_eventid_cb,
 	.unsubscribe_eventid = xreq_hooked_unsubscribe_eventid_cb,
 	.subcall_request = xreq_hooked_subcall_request_cb,
+	.get_uid = xreq_hooked_get_uid_cb,
 };
 
 /******************************************************************************/

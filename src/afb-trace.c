@@ -230,6 +230,7 @@ static struct flag xreq_flags[] = { /* must be sorted by names */
 		{ "fail",		afb_hook_flag_req_fail },
 		{ "get",		afb_hook_flag_req_get },
 		{ "get_application_id",	afb_hook_flag_req_get_application_id },
+		{ "get_uid",		afb_hook_flag_req_get_uid },
 		{ "has_permission",	afb_hook_flag_req_has_permission },
 		{ "json",		afb_hook_flag_req_json },
 		{ "life",		afb_hook_flags_req_life },
@@ -489,6 +490,12 @@ static void hook_xreq_context_make(void *closure, const struct afb_hookid *hooki
 					"result", pr);
 }
 
+static void hook_xreq_get_uid(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int result)
+{
+	hook_xreq(closure, hookid, xreq, "get_uid", "{si}",
+					"result", result);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_begin = hook_xreq_begin,
 	.hook_xreq_end = hook_xreq_end,
@@ -515,7 +522,8 @@ static struct afb_hook_xreq_itf hook_xreq_itf = {
 	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result,
 	.hook_xreq_has_permission = hook_xreq_has_permission,
 	.hook_xreq_get_application_id = hook_xreq_get_application_id,
-	.hook_xreq_context_make = hook_xreq_context_make
+	.hook_xreq_context_make = hook_xreq_context_make,
+	.hook_xreq_get_uid = hook_xreq_get_uid,
 };
 
 /*******************************************************************************/

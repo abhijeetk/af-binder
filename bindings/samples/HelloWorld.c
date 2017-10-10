@@ -428,6 +428,12 @@ static void appid (afb_req request)
 	free(aid);
 }
 
+static void uid (afb_req request)
+{
+	int uid = afb_req_get_uid(request);
+	afb_req_success_f(request, json_object_new_int(uid), "uid is %d", uid);
+}
+
 static int preinit()
 {
 	AFB_NOTICE("hello binding comes to live");
@@ -468,6 +474,7 @@ static const afb_verb_v2 verbs[]= {
   { .verb="broadcast",   .callback=broadcast },
   { .verb="hasperm",     .callback=hasperm },
   { .verb="appid",       .callback=appid },
+  { .verb="uid",         .callback=uid },
   { .verb="exit",        .callback=exitnow },
   { .verb=NULL}
 };

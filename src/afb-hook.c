@@ -364,6 +364,11 @@ static void hook_xreq_context_make_default_cb(void *closure, const struct afb_ho
 	_hook_xreq_(xreq, "context_make(replace=%s, %p, %p, %p) -> %p", replace?"yes":"no", create_value, free_value, create_closure, result);
 }
 
+static void hook_xreq_get_uid_default_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int result)
+{
+	_hook_xreq_(xreq, "get_uid() -> %d", result);
+}
+
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_begin = hook_xreq_begin_default_cb,
 	.hook_xreq_end = hook_xreq_end_default_cb,
@@ -390,7 +395,8 @@ static struct afb_hook_xreq_itf hook_xreq_default_itf = {
 	.hook_xreq_subcall_req_result = hook_xreq_subcall_req_result_default_cb,
 	.hook_xreq_has_permission = hook_xreq_has_permission_default_cb,
 	.hook_xreq_get_application_id = hook_xreq_get_application_id_default_cb,
-	.hook_xreq_context_make = hook_xreq_context_make_default_cb
+	.hook_xreq_context_make = hook_xreq_context_make_default_cb,
+	.hook_xreq_get_uid = hook_xreq_get_uid_default_cb,
 };
 
 /******************************************************************************
@@ -553,6 +559,12 @@ char *afb_hook_xreq_get_application_id(const struct afb_xreq *xreq, char *result
 void *afb_hook_xreq_context_make(const struct afb_xreq *xreq, int replace, void *(*create_value)(void*), void (*free_value)(void*), void *create_closure, void *result)
 {
 	_HOOK_XREQ_(context_make, xreq, replace, create_value, free_value, create_closure, result);
+	return result;
+}
+
+int afb_hook_xreq_get_uid(const struct afb_xreq *xreq, int result)
+{
+	_HOOK_XREQ_(get_uid, xreq, result);
 	return result;
 }
 
