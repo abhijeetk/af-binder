@@ -1,7 +1,9 @@
 {
 global:
 	afb_ws_client_connect_wsj1;
+	afb_ws_client_connect_api;
 	afb_wsj1_*;
+	afb_proto_ws_*;
 	afb_common_*;
 local:
 	*;

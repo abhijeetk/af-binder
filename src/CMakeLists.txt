@@ -89,7 +89,7 @@ INSTALL(TARGETS afb-daemon
 ###########################################
 # build and install libafbwsc
 ###########################################
-ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c)
+ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-proto-ws.c)
 SET_TARGET_PROPERTIES(afbwsc PROPERTIES
 	VERSION ${LIBAFBWSC_VERSION}
 	SOVERSION ${LIBAFBWSC_SOVERSION})
@@ -101,7 +101,7 @@ TARGET_LINK_LIBRARIES(afbwsc
 	-Wl,--gc-sections
 )
 INSTALL(TARGETS afbwsc LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-INSTALL(FILES afb-wsj1.h afb-ws-client.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/afb)
+INSTALL(FILES afb-wsj1.h afb-ws-client.h afb-proto-ws.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/afb)
 
 ###########################################
 # build and install afb-client-demo

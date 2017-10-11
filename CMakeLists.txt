@@ -26,7 +26,7 @@ SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application fr
 SET(PROJECT_VERSION "4.99-EERC1")
 set(PROJECT_URL "https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=summary")
 
-SET(LIBAFBWSC_VERSION "1.0")
+SET(LIBAFBWSC_VERSION "1.1")
 SET(LIBAFBWSC_SOVERSION "1")
 
 INCLUDE(FindPkgConfig)

@@ -397,4 +397,124 @@ static char *makequery(const char *path, const char *uuid, const char *token)
 }
 #endif
 
+/*****************************************************************************************************************************/
+
+#include <sys/un.h>
+#include "afb-proto-ws.h"
+
+static int get_socket_unix(const char *uri)
+{
+	int fd, rc;
+	struct sockaddr_un addr;
+	size_t length;
+
+	length = strlen(uri);
+	if (length >= 108) {
+		errno = ENAMETOOLONG;
+		return -1;
+	}
+
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0)
+		return fd;
+
+	memset(&addr, 0, sizeof addr);
+	addr.sun_family = AF_UNIX;
+	strcpy(addr.sun_path, uri);
+	if (addr.sun_path[0] == '@')
+		addr.sun_path[0] = 0; /* implement abstract sockets */
+	rc = connect(fd, (struct sockaddr *) &addr, (socklen_t)(sizeof addr));
+	if (rc < 0) {
+		close(fd);
+		return rc;
+	}
+	return fd;
+}
+
+static int get_socket_inet(const char *uri)
+{
+	int rc, fd;
+	const char *service, *host, *api;
+	struct addrinfo hint, *rai, *iai;
+
+	/* scan the uri */
+	api = strrchr(uri, '/');
+	service = strrchr(uri, ':');
+	if (api == NULL || service == NULL || api < service) {
+		errno = EINVAL;
+		return -1;
+	}
+	host = strndupa(uri, service++ - uri);
+	service = strndupa(service, api - service);
+
+	/* get addr */
+	memset(&hint, 0, sizeof hint);
+	hint.ai_family = AF_INET;
+	hint.ai_socktype = SOCK_STREAM;
+	rc = getaddrinfo(host, service, &hint, &rai);
+	if (rc != 0) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	/* get the socket */
+	iai = rai;
+	while (iai != NULL) {
+		fd = socket(iai->ai_family, iai->ai_socktype, iai->ai_protocol);
+		if (fd >= 0) {
+			rc = connect(fd, iai->ai_addr, iai->ai_addrlen);
+			if (rc == 0) {
+				freeaddrinfo(rai);
+				return fd;
+			}
+			close(fd);
+		}
+		iai = iai->ai_next;
+	}
+	freeaddrinfo(rai);
+	return -1;
+}
+
+static int get_socket(const char *uri)
+{
+	int fd;
+
+	/* check for unix socket */
+	if (0 == strncmp(uri, "unix:", 5))
+		/* unix socket */
+		fd = get_socket_unix(uri + 5);
+	else
+		/* inet socket */
+		fd = get_socket_inet(uri);
+
+	/* configure the socket */
+	if (fd >= 0) {
+		fcntl(fd, F_SETFD, FD_CLOEXEC);
+		fcntl(fd, F_SETFL, O_NONBLOCK);
+	}
+	return fd;
+}
+/*
+ * Establish a websocket-like client connection to the API of 'uri' and if successful
+ * instanciate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
+ * (see afb_proto_ws_create_client).
+ * The systemd event loop 'eloop' is used to handle the websocket.
+ * Returns NULL in case of failure with errno set appriately.
+ */
+struct afb_proto_ws *afb_ws_client_connect_api(struct sd_event *eloop, const char *uri, struct afb_proto_ws_client_itf *itf, void *closure)
+{
+	int fd;
+	struct afb_proto_ws *pws;
+
+	fd = get_socket(uri);
+	if (fd >= 0) {
+		pws = afb_proto_ws_create_client(eloop, fd, itf, closure);
+		if (pws)
+			return pws;
+		close(fd);
+	}
+	return NULL;
+}
+
+
 
