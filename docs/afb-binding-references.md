@@ -716,8 +716,15 @@ int afb_req_has_permission(struct afb_req req, const char *permission);
  *
  * The returned value if not NULL must be freed by the caller
  */
-inline char *afb_req_get_application_id(struct afb_req req);
+char *afb_req_get_application_id(struct afb_req req);
 
+/*
+ * Get the user identifier (UID) of the client application for the
+ * request 'req'.
+ *
+ * Returns -1 when the application can not be identified.
+ */
+int afb_req_get_uid(struct afb_req req);
 ```
 
 ## Logging macros
