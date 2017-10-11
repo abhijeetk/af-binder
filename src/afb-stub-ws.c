@@ -33,7 +33,6 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
-#include <systemd/sd-event.h>
 
 #include <afb/afb-event.h>
 
@@ -611,9 +610,9 @@ static struct afb_stub_ws *afb_stub_ws_create(int fd, const char *apiname, struc
 		errno = ENOMEM;
 	else {
 		if (client)
-			stubws->proto = afb_proto_ws_create_client(fd, &client_itf, stubws);
+			stubws->proto = afb_proto_ws_create_client(afb_common_get_event_loop(), fd, &client_itf, stubws);
 		else
-			stubws->proto = afb_proto_ws_create_server(fd, &server_itf, stubws);
+			stubws->proto = afb_proto_ws_create_server(afb_common_get_event_loop(), fd, &server_itf, stubws);
 		if (stubws->proto != NULL) {
 			strcpy(stubws->apiname, apiname);
 			stubws->apiset = afb_apiset_addref(apiset);

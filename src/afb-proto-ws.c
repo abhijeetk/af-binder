@@ -33,14 +33,10 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
-#include <systemd/sd-event.h>
-
-#include "afb-common.h"
 
 #include "afb-ws.h"
 #include "afb-msg-json.h"
 #include "afb-proto-ws.h"
-#include "verbose.h"
 
 struct afb_proto_ws;
 
@@ -358,7 +354,6 @@ int afb_proto_ws_call_success(struct afb_proto_ws_call *call, struct json_object
 			goto success;
 		}
 	}
-	ERROR("error while sending success");
 success:
 	return rc;
 }
@@ -378,7 +373,6 @@ int afb_proto_ws_call_fail(struct afb_proto_ws_call *call, const char *status, c
 			goto success;
 		}
 	}
-	ERROR("error while sending fail");
 success:
 	return rc;
 }
@@ -422,7 +416,6 @@ int afb_proto_ws_call_subcall(struct afb_proto_ws_call *call, const char *api, c
 			}
 		}
 	}
-	ERROR("error while sending subcall");
 success:
 	return rc;
 }
@@ -442,7 +435,6 @@ int afb_proto_ws_call_subscribe(struct afb_proto_ws_call *call, const char *even
 			goto success;
 		}
 	}
-	ERROR("error while subscribing event");
 success:
 	return rc;
 }
@@ -462,7 +454,6 @@ int afb_proto_ws_call_unsubscribe(struct afb_proto_ws_call *call, const char *ev
 			goto success;
 		}
 	}
-	ERROR("error while subscribing event");
 success:
 	return rc;
 }
@@ -510,14 +501,12 @@ static int client_msg_call_get(struct afb_proto_ws *protows, struct readbuf *rb,
 
 	/* get event data from the message */
 	if (!readbuf_uint32(rb, &callid)) {
-		ERROR("Invalid message");
 		return 0;
 	}
 
 	/* get the call */
 	*call = client_call_search(protows, callid);
 	if (*call == NULL) {
-		ERROR("message not found");
 		return 0;
 	}
 
@@ -1098,7 +1087,7 @@ static const struct afb_ws_itf server_ws_itf =
 
 /*****************************************************/
 
-static struct afb_proto_ws *afb_proto_ws_create(int fd, const struct afb_proto_ws_server_itf *itfs, const struct afb_proto_ws_client_itf *itfc, void *closure, const struct afb_ws_itf *itf)
+static struct afb_proto_ws *afb_proto_ws_create(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itfs, const struct afb_proto_ws_client_itf *itfc, void *closure, const struct afb_ws_itf *itf)
 {
 	struct afb_proto_ws *protows;
 
@@ -1108,7 +1097,7 @@ static struct afb_proto_ws *afb_proto_ws_create(int fd, const struct afb_proto_w
 	else {
 		fcntl(fd, F_SETFD, FD_CLOEXEC);
 		fcntl(fd, F_SETFL, O_NONBLOCK);
-		protows->ws = afb_ws_create(afb_common_get_event_loop(), fd, itf, protows);
+		protows->ws = afb_ws_create(eloop, fd, itf, protows);
 		if (protows->ws != NULL) {
 			protows->fd = fd;
 			protows->refcount = 1;
@@ -1124,14 +1113,14 @@ static struct afb_proto_ws *afb_proto_ws_create(int fd, const struct afb_proto_w
 	return NULL;
 }
 
-struct afb_proto_ws *afb_proto_ws_create_client(int fd, const struct afb_proto_ws_client_itf *itf, void *closure)
+struct afb_proto_ws *afb_proto_ws_create_client(struct sd_event *eloop, int fd, const struct afb_proto_ws_client_itf *itf, void *closure)
 {
-	return afb_proto_ws_create(fd, NULL, itf, closure, &proto_ws_client_ws_itf);
+	return afb_proto_ws_create(eloop, fd, NULL, itf, closure, &proto_ws_client_ws_itf);
 }
 
-struct afb_proto_ws *afb_proto_ws_create_server(int fd, const struct afb_proto_ws_server_itf *itf, void *closure)
+struct afb_proto_ws *afb_proto_ws_create_server(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itf, void *closure)
 {
-	return afb_proto_ws_create(fd, itf, NULL, closure, &server_ws_itf);
+	return afb_proto_ws_create(eloop, fd, itf, NULL, closure, &server_ws_itf);
 }
 
 void afb_proto_ws_unref(struct afb_proto_ws *protows)

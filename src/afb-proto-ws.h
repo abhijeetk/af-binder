@@ -18,6 +18,7 @@
 
 #pragma once
 
+struct sd_event;
 struct afb_proto_ws;
 struct afb_proto_ws_call;
 struct afb_proto_ws_subcall;
@@ -25,9 +26,11 @@ struct afb_proto_ws_describe;
 
 struct afb_proto_ws_client_itf
 {
+	/* can't be NULL */
 	void (*on_reply_success)(void *closure, void *request, struct json_object *result, const char *info);
 	void (*on_reply_fail)(void *closure, void *request, const char *status, const char *info);
 
+	/* can be NULL */
 	void (*on_event_create)(void *closure, const char *event_name, int event_id);
 	void (*on_event_remove)(void *closure, const char *event_name, int event_id);
 	void (*on_event_subscribe)(void *closure, void *request, const char *event_name, int event_id);
@@ -44,8 +47,8 @@ struct afb_proto_ws_server_itf
 	void (*on_describe)(void *closure, struct afb_proto_ws_describe *describe);
 };
 
-extern struct afb_proto_ws *afb_proto_ws_create_client(int fd, const struct afb_proto_ws_client_itf *itf, void *closure);
-extern struct afb_proto_ws *afb_proto_ws_create_server(int fd, const struct afb_proto_ws_server_itf *itf, void *closure);
+extern struct afb_proto_ws *afb_proto_ws_create_client(struct sd_event *eloop, int fd, const struct afb_proto_ws_client_itf *itf, void *closure);
+extern struct afb_proto_ws *afb_proto_ws_create_server(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itf, void *closure);
 
 extern void afb_proto_ws_unref(struct afb_proto_ws *protows);
 extern void afb_proto_ws_addref(struct afb_proto_ws *protows);
