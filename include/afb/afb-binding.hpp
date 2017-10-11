@@ -220,6 +220,8 @@ public:
 	bool has_permission(const char *permission) const;
 
 	char *get_application_id() const;
+
+	int get_uid() const;
 };
 
 /*************************************************************************/
@@ -401,6 +403,11 @@ inline bool req::has_permission(const char *permission) const
 inline char *req::get_application_id() const
 {
 	return req_.itf->get_application_id(req_.closure);
+}
+
+inline int req::get_uid() const
+{
+	return req_.itf->get_uid(req_.closure);
 }
 
 /* commons */
