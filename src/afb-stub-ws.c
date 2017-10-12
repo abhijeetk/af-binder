@@ -479,6 +479,7 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 	/* init the context */
 	if (afb_context_connect(&wreq->xreq.context, sessionid, NULL) < 0)
 		goto unconnected;
+	wreq->xreq.context.validated = 1;
 
 	/* makes the call */
 	wreq->xreq.cred = afb_cred_addref(stubws->cred);
