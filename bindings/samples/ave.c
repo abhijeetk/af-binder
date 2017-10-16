@@ -484,6 +484,8 @@ int afbBindingVdyn(afb_dynapi *dynapi)
 
 	for (i = 0; apis[i] ; i++) {
 		rc = afb_dynapi_new_api(dynapi, apis[i], NULL, build_api, (void*)apis[i]);
+		if (rc < 0)
+			AFB_DYNAPI_ERROR(dynapi, "can't create API %s", apis[i]);
 	}
 	return 0;
 }

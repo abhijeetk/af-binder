@@ -274,7 +274,7 @@ int afb_api_dyn_add(struct afb_apiset *apiset, const char *name, const char *inf
 		goto error;
 	}
 	INFO("binding %s added to set %s", afb_export_apiname(dynapi->export), afb_apiset_name(apiset));
-	return 1;
+	return 0;
 
 error:
 	afb_export_destroy(export);
