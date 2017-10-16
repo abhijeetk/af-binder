@@ -71,7 +71,7 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 		if (force)
 			ERROR("binding [%s] not loadable: %s", path, dlerror());
 		else
-			INFO("binding [%s] not loadable: %s", path, dlerror());
+			WARNING("binding [%s] not loadable: %s", path, dlerror());
 		goto error;
 	}
 
