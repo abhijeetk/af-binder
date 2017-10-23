@@ -30,6 +30,9 @@
 #include "websock.h"
 
 #define BLOCK_DATA_SIZE              4096
+#if !defined(WEBSOCKET_DEFAULT_MAXLENGTH)
+#  define WEBSOCKET_DEFAULT_MAXLENGTH 1048500  /* 76 less than 1M, probably enougth for headers */
+#endif
 
 #define FRAME_GET_FIN(BYTE)         (((BYTE) >> 7) & 0x01)
 #define FRAME_GET_RSV1(BYTE)        (((BYTE) >> 6) & 0x01)
@@ -58,6 +61,8 @@
 #define STATE_START   1
 #define STATE_LENGTH  2
 #define STATE_DATA    3
+
+static size_t default_maxlength = WEBSOCKET_DEFAULT_MAXLENGTH;
 
 struct websock {
 	int state;
@@ -558,7 +563,7 @@ struct websock *websock_create_v13(const struct websock_itf *itf, void *closure)
 	if (result) {
 		result->itf = itf;
 		result->closure = closure;
-		result->maxlength = 65000;
+		result->maxlength = default_maxlength;
 	}
 	return result;
 }
@@ -566,4 +571,14 @@ struct websock *websock_create_v13(const struct websock_itf *itf, void *closure)
 void websock_destroy(struct websock *ws)
 {
 	free(ws);
+}
+
+void websock_set_default_max_length(size_t maxlen)
+{
+	default_maxlength = maxlen;
+}
+
+void websock_set_max_length(struct websock *ws, size_t maxlen)
+{
+	ws->maxlength = (uint64_t)maxlen;
 }
