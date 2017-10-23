@@ -29,7 +29,6 @@
 
 #include "websock.h"
 
-#define BLOCK_DATA_SIZE              4096
 #if !defined(WEBSOCKET_DEFAULT_MAXLENGTH)
 #  define WEBSOCKET_DEFAULT_MAXLENGTH 1048500  /* 76 less than 1M, probably enougth for headers */
 #endif
