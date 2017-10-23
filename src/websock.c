@@ -585,3 +585,24 @@ void websock_set_max_length(struct websock *ws, size_t maxlen)
 {
 	ws->maxlength = (uint64_t)maxlen;
 }
+
+const char *websocket_explain_error(uint16_t code)
+{
+	static const char *msgs[] = {
+		"OK",                /* 1000 */
+		"GOING_AWAY",        /* 1001 */
+		"PROTOCOL_ERROR",    /* 1002 */
+		"CANT_ACCEPT",       /* 1003 */
+		"RESERVED",          /* 1004 */
+		"NOT_SET",           /* 1005 */
+		"ABNORMAL",          /* 1006 */
+		"INVALID_UTF8",      /* 1007 */
+		"POLICY_VIOLATION",  /* 1008 */
+		"MESSAGE_TOO_LARGE", /* 1009 */
+		"EXPECT_EXTENSION",  /* 1010 */
+		"INTERNAL_ERROR",    /* 1011 */
+	};
+	if (code < 1000 || (code - 1000) >= (sizeof msgs / sizeof *msgs))
+		return "?";
+	return msgs[code - 1000];
+}
