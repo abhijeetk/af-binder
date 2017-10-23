@@ -75,3 +75,5 @@ extern int websock_dispatch(struct websock *ws, int loop);
 extern struct websock *websock_create_v13(const struct websock_itf *itf, void *closure);
 extern void websock_destroy(struct websock *ws);
 
+extern void websock_set_default_max_length(size_t maxlen);
+extern void websock_set_max_length(struct websock *ws, size_t maxlen);
