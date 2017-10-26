@@ -266,7 +266,7 @@ body {
 /*******************************************************************/
 /* json format */
 
-.json.string { color: lightskyblue; } 
+.json.string { color: teal; } 
 .json.number { color: darkorange; } 
 .json.boolean { color: deepskyblue; } 
 .json.null { color: magenta; } 
