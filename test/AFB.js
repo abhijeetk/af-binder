@@ -105,8 +105,7 @@ var AFB_websocket;
 
 	function onclose(event) {
 		for (var id in this.pendings) {
-			var ferr = this.pendings[id].onerror;
-			ferr && ferr(null, this);
+			try { this.pendings[id][1](); } catch (x) {/*TODO?*/}
 		}
 		this.pendings = {};
 		this.onclose && this.onclose();
@@ -131,8 +130,7 @@ var AFB_websocket;
 		if (id in pendings) {
 			var p = pendings[id];
 			delete pendings[id];
-			var f = p[offset];
-			f(ans);
+			try { p[offset](ans); } catch (x) {/*TODO?*/}
 		}
 	}
 
@@ -166,12 +164,18 @@ var AFB_websocket;
 		this.onabort = function(){};
 	}
 
-	function call(method, request) {
+	function call(method, request, callid) {
 		return new Promise((function(resolve, reject){
 			var id, arr;
-			do {
-				id = String(this.counter = 4095 & (this.counter + 1));
-			} while (id in this.pendings);
+			if (callid) {
+				id = String(callid);
+				if (id in this.pendings)
+					throw new Error("pending callid("+id+") exists");
+			} else {
+				do {
+					id = String(this.counter = 4095 & (this.counter + 1));
+				} while (id in this.pendings);
+			}
 			this.pendings[id] = [ resolve, reject ];
 			arr = [CALL, id, method, request ];
 			if (AFB_context.token) arr.push(AFB_context.token);
