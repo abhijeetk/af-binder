@@ -85,6 +85,7 @@ void verbose_set_name(const char *name, int authority)
 #include <errno.h>
 #include <string.h>
 #include <sys/uio.h>
+#include <pthread.h>
 
 static const char *appname;
 
@@ -104,6 +105,8 @@ static const char *prefixes[] = {
 static int tty;
 
 static const char chars[] = { '\n', '?', ':', ' ', '[', ',', ']' };
+
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void _vverbose_(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
@@ -169,7 +172,9 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 	iov[n].iov_base = (void*)&chars[0];
 	iov[n++].iov_len = 1;
 
+	pthread_mutex_lock(&mutex);
 	writev(STDERR_FILENO, iov, n);
+	pthread_mutex_unlock(&mutex);
 
 	errno = saverr;
 }
