@@ -1059,6 +1059,7 @@ static void on_hangup(void *closure)
 	}
 
 	if (protows->fd >= 0) {
+		close(protows->fd);
 		protows->fd = -1;
 		if (protows->on_hangup)
 			protows->on_hangup(protows->closure);
