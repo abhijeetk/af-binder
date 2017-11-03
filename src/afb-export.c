@@ -255,11 +255,12 @@ static int api_new_api_cb(
 		void *closure,
 		const char *api,
 		const char *info,
+		int noconcurrency,
 		int (*preinit)(void*, struct afb_dynapi *),
 		void *preinit_closure)
 {
 	struct afb_export *export = closure;
-	return afb_api_dyn_add(export->apiset, api, info, preinit, preinit_closure);
+	return afb_api_dyn_add(export->apiset, api, info, noconcurrency, preinit, preinit_closure);
 }
 
 /**********************************************
@@ -376,11 +377,12 @@ static int hooked_api_new_api_cb(
 		void *closure,
 		const char *api,
 		const char *info,
+		int noconcurrency,
 		int (*preinit)(void*, struct afb_dynapi *),
 		void *preinit_closure)
 {
 	/* TODO */
-	return api_new_api_cb(closure, api, info, preinit, preinit_closure);
+	return api_new_api_cb(closure, api, info, noconcurrency, preinit, preinit_closure);
 }
 /**********************************************
 * vectors

@@ -44,7 +44,7 @@ struct afb_daemon_itf
 	struct afb_req (*unstore_req)(void*closure, struct afb_stored_req *sreq);
 	int (*require_api)(void*closure, const char *name, int initialized);
 	int (*rename_api)(void*closure, const char *name);
-	int (*new_api)(void *closure, const char *api, const char *info, int (*preinit)(void*, struct afb_dynapi *), void *preinit_closure);
+	int (*new_api)(void *closure, const char *api, const char *info, int noconcurrency, int (*preinit)(void*, struct afb_dynapi *), void *preinit_closure);
 };
 
 /*

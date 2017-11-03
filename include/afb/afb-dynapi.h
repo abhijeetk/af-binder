@@ -242,10 +242,11 @@ static inline int afb_dynapi_new_api(
 	struct afb_dynapi *dynapi,
 	const char *api,
 	const char *info,
+	int noconcurrency,
 	int (*preinit)(void*, struct afb_dynapi *),
 	void *closure)
 {
-	return dynapi->itf->api_new_api(dynapi, api, info, preinit, closure);
+	return dynapi->itf->api_new_api(dynapi, api, info, noconcurrency, preinit, closure);
 }
 
 static inline int afb_dynapi_set_verbs_v2(

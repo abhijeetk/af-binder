@@ -235,7 +235,7 @@ static struct afb_api_itf dyn_api_itf = {
 	.describe = describe_cb
 };
 
-int afb_api_dyn_add(struct afb_apiset *apiset, const char *name, const char *info, int (*preinit)(void*, struct afb_dynapi*), void *closure)
+int afb_api_dyn_add(struct afb_apiset *apiset, const char *name, const char *info, int noconcurrency, int (*preinit)(void*, struct afb_dynapi*), void *closure)
 {
 	int rc;
 	struct afb_api_dyn *dynapi;
@@ -266,7 +266,7 @@ int afb_api_dyn_add(struct afb_apiset *apiset, const char *name, const char *inf
 	/* records the binding */
 	afb_api.closure = dynapi;
 	afb_api.itf = &dyn_api_itf;
-	afb_api.group = NULL;
+	afb_api.group = noconcurrency ? dynapi : NULL;
 	if (afb_apiset_add(apiset, afb_export_apiname(dynapi->export), afb_api) < 0) {
 		ERROR("dynamic api %s can't be registered to set %s, ABORTING it!",
 				afb_export_apiname(dynapi->export),

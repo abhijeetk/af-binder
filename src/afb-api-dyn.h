@@ -40,6 +40,7 @@ extern int afb_api_dyn_add(
 		struct afb_apiset *apiset,
 		const char *name,
 		const char *info,
+		int noconcurrency,
 		int (*preinit)(void*, struct afb_dynapi*),
 		void *closure);
 

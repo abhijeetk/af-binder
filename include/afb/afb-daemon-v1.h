@@ -195,8 +195,9 @@ static inline int afb_daemon_new_api_v1(
 	struct afb_daemon daemon,
 	const char *api,
 	const char *info,
+	int noconcurrency,
 	int (*preinit)(void*, struct afb_dynapi *),
 	void *closure)
 {
-	return daemon.itf->new_api(daemon.closure, api, info, preinit, closure);
+	return daemon.itf->new_api(daemon.closure, api, info, noconcurrency, preinit, closure);
 }

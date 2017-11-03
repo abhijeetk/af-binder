@@ -131,6 +131,7 @@ struct afb_dynapi_itf
 		void *dynapi,
 		const char *api,
 		const char *info,
+		int noconcurrency,
 		int (*preinit)(void*, struct afb_dynapi *),
 		void *closure);
 
