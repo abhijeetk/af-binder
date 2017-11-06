@@ -250,7 +250,7 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 
 	/* generate the uuid */
 	if (uuid == NULL) {
-		new_uuid(session->uuid);
+		do { new_uuid(session->uuid); } while(search(session->uuid));
 	} else {
 		if (strlen(uuid) >= sizeof session->uuid) {
 			errno = EINVAL;
@@ -284,7 +284,7 @@ error:
 	return NULL;
 }
 
-struct afb_session *afb_session_create (const char *uuid, int timeout)
+struct afb_session *afb_session_create (int timeout)
 {
 	time_t now;
 
@@ -292,13 +292,7 @@ struct afb_session *afb_session_create (const char *uuid, int timeout)
 	now = NOW;
 	cleanup (now);
 
-	/* search for an existing one not too old */
-	if (uuid != NULL && search(uuid) != NULL) {
-		errno = EEXIST;
-		return NULL;
-	}
-
-	return make_session(uuid, timeout, now);
+	return make_session(NULL, timeout, now);
 }
 
 // This function will return exiting session or newly created session

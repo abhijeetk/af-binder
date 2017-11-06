@@ -1072,7 +1072,7 @@ static struct afb_export *create(struct afb_apiset *apiset, const char *apiname,
 
 	/* session shared with other exports */
 	if (common_session == NULL) {
-		common_session = afb_session_create (NULL, 0);
+		common_session = afb_session_create (0);
 		if (common_session == NULL)
 			return NULL;
 	}
@@ -1181,7 +1181,7 @@ struct afb_binding_interface_v1 *afb_export_get_interface_v1(struct afb_export *
 int afb_export_unshare_session(struct afb_export *export)
 {
 	if (export->session == common_session) {
-		export->session = afb_session_create (NULL, 0);
+		export->session = afb_session_create (0);
 		if (export->session)
 			afb_session_unref(common_session);
 		else {

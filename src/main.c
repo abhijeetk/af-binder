@@ -525,7 +525,7 @@ static void run_startup_calls()
 	list = config->calls;
 	if (list) {
 		sreq = calloc(1, sizeof *sreq);
-		sreq->session = afb_session_create("startup", 3600);
+		sreq->session = afb_session_create(3600);
 		sreq->current = list;
 		startup_call_current(sreq);
 	}
