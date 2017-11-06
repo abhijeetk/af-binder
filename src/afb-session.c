@@ -31,9 +31,10 @@
 #include "afb-session.h"
 #include "verbose.h"
 
-#define HEADCOUNT    16
-#define COOKEYCOUNT  8
-#define COOKEYMASK   (COOKEYCOUNT - 1)
+#define SIZEUUID	37
+#define HEADCOUNT	16
+#define COOKEYCOUNT	8
+#define COOKEYMASK	(COOKEYCOUNT - 1)
 
 #define NOW (time(NULL))
 
@@ -50,26 +51,26 @@ struct afb_session
 	struct afb_session *next; /* link to the next */
 	unsigned refcount;
 	int timeout;
-	time_t expiration;    // expiration time of the token
+	time_t expiration;	// expiration time of the token
 	pthread_mutex_t mutex;
 	char idx;
-	char uuid[37];        // long term authentication of remote client
-	char token[37];       // short term authentication of remote client
+	char uuid[SIZEUUID];	// long term authentication of remote client
+	char token[SIZEUUID];	// short term authentication of remote client
 	struct cookie *cookies[COOKEYCOUNT];
 };
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
-	pthread_mutex_t mutex;          // declare a mutex to protect hash table
+	pthread_mutex_t mutex;	// declare a mutex to protect hash table
 	struct afb_session *heads[HEADCOUNT]; // sessions
-	int count;                      // current number of sessions
+	int count;	// current number of sessions
 	int max;
 	int timeout;
-	char initok[37];
+	char initok[SIZEUUID];
 } sessions;
 
 /* generate a uuid */
-static void new_uuid(char uuid[37])
+static void new_uuid(char uuid[SIZEUUID])
 {
 	uuid_t newuuid;
 	uuid_generate(newuuid);
@@ -215,16 +216,29 @@ static time_t cleanup ()
 static struct afb_session *add_session (const char *uuid, int timeout, time_t now, int idx)
 {
 	struct afb_session *session;
+	time_t expiration;
 
+	/* check arguments */
 	if (!AFB_SESSION_TIMEOUT_IS_VALID(timeout)
 	 || (uuid && strlen(uuid) >= sizeof session->uuid)) {
 		errno = EINVAL;
 		return NULL;
 	}
 
+	/* check session count */
 	if (sessions.count >= sessions.max) {
 		errno = EBUSY;
 		return NULL;
+	}
+
+	/* compute expiration */
+	if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
+		timeout = sessions.timeout;
+	expiration = now + timeout;
+	if (timeout == AFB_SESSION_TIMEOUT_INFINITE || expiration < 0) {
+		expiration = (time_t)(~(time_t)0);
+		if (expiration < 0)
+			expiration = (time_t)(((unsigned long long)expiration) >> 1);
 	}
 
 	/* allocates a new one */
@@ -234,22 +248,13 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 		return NULL;
 	}
 
+	/* initialize */
 	pthread_mutex_init(&session->mutex, NULL);
 	session->refcount = 1;
 	strcpy(session->uuid, uuid);
 	strcpy(session->token, sessions.initok);
-
-	/* init timeout */
-	if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
-		timeout = sessions.timeout;
 	session->timeout = timeout;
-	session->expiration = now + timeout;
-	if (timeout == AFB_SESSION_TIMEOUT_INFINITE || session->expiration < 0) {
-		session->expiration = (time_t)(~(time_t)0);
-		if (session->expiration < 0)
-			session->expiration = (time_t)(((unsigned long long)session->expiration) >> 1);
-	}
-
+	session->expiration = expiration;
 	session->idx = (char)idx;
 	session->next = sessions.heads[idx];
 	sessions.heads[idx] = session;
@@ -258,10 +263,11 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 	return session;
 }
 
+/* create a new session for the given timeout */
 static struct afb_session *new_session (int timeout, time_t now)
 {
 	int idx;
-	char uuid[37];
+	char uuid[SIZEUUID];
 
 	do {
 		new_uuid(uuid);
@@ -434,12 +440,12 @@ static int cookeyidx(const void *key)
  *
  * The behaviour of this function depends on its parameters:
  *
- * @param session the session
- * @param key     the key of the cookie
- * @param makecb  the creation function
- * @param freecb  the release function
- * @param closure an argument
- * @param replace a boolean enforcing replecement of the previous value
+ * @param session	the session
+ * @param key		the key of the cookie
+ * @param makecb	the creation function or NULL
+ * @param freecb	the release function or NULL
+ * @param closure	an argument for makecb or the value if makecb==NULL
+ * @param replace	a boolean enforcing replecement of the previous value
  *
  * @return the value of the cookie
  *
