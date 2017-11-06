@@ -59,7 +59,7 @@ struct afb_session
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
 	pthread_mutex_t mutex;          // declare a mutex to protect hash table
-	struct afb_session **store;          // sessions store
+	struct afb_session **store;     // sessions store
 	int count;                      // current number of sessions
 	int max;
 	int timeout;
@@ -97,7 +97,7 @@ static inline void unlock(struct afb_session *session)
 }
 
 // Free context [XXXX Should be protected again memory abort XXXX]
-static void free_data (struct afb_session *session)
+static void remove_all_cookies(struct afb_session *session)
 {
 	int idx;
 	struct cookie *cookie, *next;
@@ -351,7 +351,7 @@ void afb_session_close (struct afb_session *session)
 	assert(session != NULL);
 	if (session->uuid[0] != 0) {
 		session->uuid[0] = 0;
-	        free_data (session);
+	        remove_all_cookies(session);
 		if (session->refcount == 0) {
 			destroy (session);
 			free(session);
@@ -388,18 +388,21 @@ void afb_session_new_token (struct afb_session *session)
 		session->expiration = NOW + session->timeout;
 }
 
+/* Returns the uuid of 'session' */
 const char *afb_session_uuid (struct afb_session *session)
 {
 	assert(session != NULL);
 	return session->uuid;
 }
 
+/* Returns the token of 'session' */
 const char *afb_session_token (struct afb_session *session)
 {
 	assert(session != NULL);
 	return session->token;
 }
 
+/* Set, get, replace, remove a cookie key */
 void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace)
 {
 	int idx;
