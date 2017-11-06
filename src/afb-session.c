@@ -161,6 +161,7 @@ static void destroy (struct afb_session *session)
 
 	assert (session != NULL);
 
+	remove_all_cookies(session);
 	pthread_mutex_lock(&sessions.mutex);
 	prv = &sessions.heads[(int)session->idx];
 	while (*prv)
@@ -293,6 +294,8 @@ struct afb_session *afb_session_search (const char *uuid)
 	pthread_mutex_lock(&sessions.mutex);
 	cleanup();
 	session = search(uuid, pearson4(uuid));
+	if (session)
+		__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
 	pthread_mutex_unlock(&sessions.mutex);
 	return session;
 
@@ -315,7 +318,7 @@ struct afb_session *afb_session_get (const char *uuid, int timeout, int *created
 	else {
 		idx = pearson4(uuid);
 		session = search(uuid, idx);
-		if (session != NULL) {
+		if (session) {
 			__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
 			pthread_mutex_unlock(&sessions.mutex);
 			if (created)
@@ -346,8 +349,11 @@ void afb_session_unref(struct afb_session *session)
 	if (session != NULL) {
 		assert(session->refcount != 0);
 		if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
+			pthread_mutex_lock(&session->mutex);
 			if (session->uuid[0] == 0)
 				destroy (session);
+			else
+				pthread_mutex_unlock(&session->mutex);
 		}
 	}
 }
@@ -356,12 +362,16 @@ void afb_session_unref(struct afb_session *session)
 void afb_session_close (struct afb_session *session)
 {
 	assert(session != NULL);
+	pthread_mutex_lock(&session->mutex);
 	if (session->uuid[0] != 0) {
 		session->uuid[0] = 0;
-	        remove_all_cookies(session);
-		if (session->refcount == 0)
+		remove_all_cookies(session);
+		if (session->refcount == 0) {
 			destroy (session);
+			return;
+		}
 	}
+	pthread_mutex_unlock(&session->mutex);
 }
 
 // Sample Generic Ping Debug API

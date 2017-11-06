@@ -1211,17 +1211,19 @@ static void addhook(struct desc *desc, enum trace_type type)
 	/* create the hook handler */
 	switch (type) {
 	case Trace_Type_Xreq:
-		if (desc->session) {
+		if (!desc->session)
+			session = afb_session_addref(bind);
+		else {
 			session = trace_get_session_by_uuid(trace, desc->session, 1);
 			if (!session) {
 				ctxt_error(&desc->context->errors, "allocation of session failed");
 				free(hook);
 				return;
 			}
-			bind = session;
 		}
-		hook->handler = afb_hook_create_xreq(desc->api, desc->verb, bind,
+		hook->handler = afb_hook_create_xreq(desc->api, desc->verb, session,
 				desc->flags[type], &hook_xreq_itf, hook);
+		afb_session_unref(session);
 		break;
 	case Trace_Type_Ditf:
 		hook->handler = afb_hook_create_ditf(desc->api, desc->flags[type], &hook_ditf_itf, hook);
@@ -1423,8 +1425,10 @@ static void drop_session(void *closure, struct json_object *object)
 		session = trace_get_session_by_uuid(context->trace, uuid, 0);
 		if (!session)
 			ctxt_error(&context->errors, "session %s not found", uuid);
-		else
+		else {
 			trace_unhook(context->trace, NULL, NULL, session);
+			afb_session_unref(session);
+		}
 	}
 }
 
