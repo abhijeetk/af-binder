@@ -65,18 +65,6 @@ static struct {
 	char initok[37];
 } sessions;
 
-/**
- * Get the index of the 'key' in the cookies array.
- * @param key the key to scan
- * @return the index of the list for key within cookies
- */
-static int cookeyidx(const void *key)
-{
-	intptr_t x = (intptr_t)key;
-	unsigned r = (unsigned)((x >> 5) ^ (x >> 15));
-	return r & COOKEYMASK;
-}
-
 /* generate a uuid */
 static void new_uuid(char uuid[37])
 {
@@ -420,50 +408,107 @@ const char *afb_session_token (struct afb_session *session)
 	return session->token;
 }
 
-/* Set, get, replace, remove a cookie key */
+/**
+ * Get the index of the 'key' in the cookies array.
+ * @param key the key to scan
+ * @return the index of the list for key within cookies
+ */
+static int cookeyidx(const void *key)
+{
+	intptr_t x = (intptr_t)key;
+	unsigned r = (unsigned)((x >> 5) ^ (x >> 15));
+	return r & COOKEYMASK;
+}
+
+/**
+ * Set, get, replace, remove a cookie of 'key' for the 'session'
+ *
+ * The behaviour of this function depends on its parameters:
+ *
+ * @param session the session
+ * @param key     the key of the cookie
+ * @param makecb  the creation function
+ * @param freecb  the release function
+ * @param closure an argument
+ * @param replace a boolean enforcing replecement of the previous value
+ *
+ * @return the value of the cookie
+ *
+ * The 'key' is a pointer and compared as pointers.
+ *
+ * For getting the current value of the cookie:
+ *
+ *   afb_session_cookie(session, key, NULL, NULL, NULL, 0)
+ *
+ * For storing the value of the cookie
+ *
+ *   afb_session_cookie(session, key, NULL, NULL, value, 1)
+ */
 void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace)
 {
 	int idx;
 	void *value;
-	struct cookie *cookie;
+	struct cookie *cookie, **prv;
 
+	/* get key hashed index */
 	idx = cookeyidx(key);
+
+	/* lock session and search for the cookie of 'key' */
 	lock(session);
-	cookie = session->cookies[idx];
+	prv = &session->cookies[idx];
 	for (;;) {
+		cookie = *prv;
 		if (!cookie) {
+			/* 'key' not found, create value using 'closure' and 'makecb' */
 			value = makecb ? makecb(closure) : closure;
+			/* store the the only if it has some meaning */
 			if (replace || makecb || freecb) {
 				cookie = malloc(sizeof *cookie);
 				if (!cookie) {
 					errno = ENOMEM;
-					if (freecb)
+					/* calling freecb if there is no makecb may have issue */
+					if (makecb && freecb)
 						freecb(value);
 					value = NULL;
 				} else {
 					cookie->key = key;
 					cookie->value = value;
 					cookie->freecb = freecb;
-					cookie->next = session->cookies[idx];
-					session->cookies[idx] = cookie;
+					cookie->next = NULL;
+					*prv = cookie;
 				}
 			}
 			break;
 		} else if (cookie->key == key) {
+			/* cookie of key found */
 			if (!replace)
+				/* not replacing, get the value */
 				value = cookie->value;
 			else {
+				/* create value using 'closure' and 'makecb' */
 				value = makecb ? makecb(closure) : closure;
+
+				/* free previous value is needed */
 				if (cookie->value != value && cookie->freecb)
 					cookie->freecb(cookie->value);
+
+				/* store the value and its releaser */
 				cookie->value = value;
 				cookie->freecb = freecb;
+
+				/* but if both are NULL drop the cookie */
+				if (!value && !freecb) {
+					*prv = cookie->next;
+					free(cookie);
+				}
 			}
 			break;
 		} else {
-			cookie = cookie->next;
+			prv = &(cookie->next);
 		}
 	}
+
+	/* unlock the session and return the value */
 	unlock(session);
 	return value;
 }
