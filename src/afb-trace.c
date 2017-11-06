@@ -76,10 +76,9 @@ struct event {
 };
 
 /* struct for sessions */
-struct session {
-	struct session *next;		/* link to the next session */
-	struct afb_session *session;	/* the session */
-	struct afb_trace *trace;	/* the tracer */
+struct cookie {
+	struct afb_session *session;    /* the session */
+	struct afb_trace *trace;        /* the tracer */
 };
 
 /* struct for recording hooks */
@@ -88,7 +87,7 @@ struct hook {
 	void *handler;			/* the handler of the hook */
 	struct event *event;		/* the associated event */
 	struct tag *tag;		/* the associated tag */
-	struct session *session;	/* the associated session */
+	struct afb_session *session;	/* the associated session */
 };
 
 /* types of hooks */
@@ -111,7 +110,6 @@ struct afb_trace
 	struct afb_session *bound;		/* bound to session */
 	struct event *events;			/* list of events */
 	struct tag *tags;			/* list of tags */
-	struct session *sessions;		/* list of tags */
 	struct hook *hooks[Trace_Type_Count];	/* hooks */
 };
 
@@ -975,7 +973,7 @@ abstracting[Trace_Type_Count] =
 /*******************************************************************************/
 
 /* drop hooks of 'trace' matching 'tag' and 'event' and 'session' */
-static void trace_unhook(struct afb_trace *trace, struct tag *tag, struct event *event, struct session *session)
+static void trace_unhook(struct afb_trace *trace, struct tag *tag, struct event *event, struct afb_session *session)
 {
 	int i;
 	struct hook *hook, **prev;
@@ -1004,24 +1002,7 @@ static void trace_cleanup(struct afb_trace *trace)
 	struct hook *hook;
 	struct tag *tag, **ptag;
 	struct event *event, **pevent;
-	struct session *session, **psession;
 
-	/* clean sessions */
-	psession = &trace->sessions;
-	while ((session = *psession)) {
-		/* search for session */
-		for (hook = NULL, i = 0 ; !hook && i < Trace_Type_Count ; i++)
-			for (hook = trace->hooks[i] ; hook && hook->session != session ; hook = hook->next);
-		/* keep or free whether used or not */
-		if (hook)
-			psession = &session->next;
-		else {
-			*psession = session->next;
-			if (__atomic_exchange_n(&session->trace, NULL, __ATOMIC_RELAXED))
-				afb_session_set_cookie(session->session, session, NULL, NULL);
-			free(session);
-		}
-	}
 	/* clean tags */
 	ptag = &trace->tags;
 	while ((tag = *ptag)) {
@@ -1050,19 +1031,6 @@ static void trace_cleanup(struct afb_trace *trace)
 			afb_evt_evtid_unref(event->evtid);
 			free(event);
 		}
-	}
-}
-
-/* callback at end of traced session */
-static void free_session_cookie(void *cookie)
-{
-	struct session *session = cookie;
-	struct afb_trace *trace = __atomic_exchange_n(&session->trace, NULL, __ATOMIC_RELAXED);
-	if (trace) {
-		pthread_mutex_lock(&trace->mutex);
-		trace_unhook(trace, NULL, NULL, session);
-		trace_cleanup(trace);
-		pthread_mutex_unlock(&trace->mutex);
 	}
 }
 
@@ -1123,41 +1091,45 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 }
 
 /*
- * Get the session of 'value' within 'trace'.
- * If 'alloc' isn't zero, create the session and add it.
+ * called on session closing
  */
-static struct session *trace_get_session(struct afb_trace *trace, struct afb_session *value, int alloc)
+static void session_closed(void *item)
 {
-	struct session *session;
+	struct cookie *cookie = item;
 
-	/* search the session */
-	session = trace->sessions;
-	while (session && session->session != value)
-		session = session->next;
+	pthread_mutex_lock(&cookie->trace->mutex);
+	trace_unhook(cookie->trace, NULL, NULL, cookie->session);
+	pthread_mutex_unlock(&cookie->trace->mutex);
+	free(cookie);
+}
 
-	if (!session && alloc) {
-		session = malloc(sizeof * session);
-		if (session) {
-			session->session = value;
-			session->trace = NULL;
-			session->next = trace->sessions;
-			trace->sessions = session;
-		}
-	}
-	return session;
+/*
+ * records the cookie of session for tracking close
+ */
+static void *session_open(void *closure)
+{
+	struct cookie *param = closure, *cookie;
+	cookie = malloc(sizeof *cookie);
+	if (cookie)
+		*cookie = *param;
+	return cookie;
 }
 
 /*
  * Get the session of 'uuid' within 'trace'.
  * If 'alloc' isn't zero, create the session and add it.
  */
-static struct session *trace_get_session_by_uuid(struct afb_trace *trace, const char *uuid, int alloc)
+static struct afb_session *trace_get_session_by_uuid(struct afb_trace *trace, const char *uuid, int alloc)
 {
-	struct afb_session *session;
+	struct cookie cookie;
 	int created;
 
-	session = afb_session_get(uuid, alloc ? &created : NULL);
-	return session ? trace_get_session(trace, session, alloc) : NULL;
+	cookie.session = afb_session_get(uuid, alloc ? &created : NULL);
+	if (cookie.session) {
+		cookie.trace = trace;
+		afb_session_cookie(cookie.session, cookie.trace, session_open, session_closed, &cookie, 0);
+	}
+	return cookie.session;
 }
 
 static struct hook *trace_make_detached_hook(struct afb_trace *trace, const char *event, const char *tag)
@@ -1178,13 +1150,8 @@ static struct hook *trace_make_detached_hook(struct afb_trace *trace, const char
 
 static void trace_attach_hook(struct afb_trace *trace, struct hook *hook, enum trace_type type)
 {
-	struct session *session = hook->session;
 	hook->next = trace->hooks[type];
 	trace->hooks[type] = hook;
-	if (session && !session->trace) {
-		session->trace = trace;
-		afb_session_set_cookie(session->session, session, session, free_session_cookie);
-	}
 }
 
 /*******************************************************************************/
@@ -1214,7 +1181,7 @@ struct desc
 static void addhook(struct desc *desc, enum trace_type type)
 {
 	struct hook *hook;
-	struct session *session;
+	struct afb_session *session;
 	struct afb_session *bind;
 	struct afb_trace *trace = desc->context->trace;
 
@@ -1248,7 +1215,7 @@ static void addhook(struct desc *desc, enum trace_type type)
 				free(hook);
 				return;
 			}
-			bind = session->session;
+			bind = session;
 		}
 		hook->handler = afb_hook_create_xreq(desc->api, desc->verb, bind,
 				desc->flags[type], &hook_xreq_itf, hook);
@@ -1443,7 +1410,7 @@ static void drop_session(void *closure, struct json_object *object)
 {
 	int rc;
 	struct context *context = closure;
-	struct session *session;
+	struct afb_session *session;
 	const char *uuid;
 
 	rc = wrap_json_unpack(object, "s", &uuid);
