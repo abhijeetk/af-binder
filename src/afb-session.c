@@ -406,60 +406,47 @@ const char *afb_session_token (struct afb_session *session)
 	return session->token;
 }
 
-static struct cookie *cookie_search(struct afb_session *session, const void *key, int *idx)
-{
-	struct cookie *cookie;
-
-	cookie = session->cookies[*idx = cookeyidx(key)];
-	while(cookie != NULL && cookie->key != key)
-		cookie = cookie->next;
-	return cookie;
-}
-
-static struct cookie *cookie_add(struct afb_session *session, int idx, const void *key, void *value, void (*freecb)(void*))
-{
-	struct cookie *cookie;
-
-	cookie = malloc(sizeof *cookie);
-	if (!cookie)
-		errno = ENOMEM;
-	else {
-		cookie->key = key;
-		cookie->value = value;
-		cookie->freecb = freecb;
-		cookie->next = session->cookies[idx];
-		session->cookies[idx] = cookie;
-	}
-	return cookie;
-}
-
 void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace)
 {
 	int idx;
 	void *value;
 	struct cookie *cookie;
 
+	idx = cookeyidx(key);
 	lock(session);
-	cookie = cookie_search(session, key, &idx);
-	if (cookie) {
-		if (!replace)
-			value = cookie->value;
-		else {
+	cookie = session->cookies[idx];
+	for (;;) {
+		if (!cookie) {
 			value = makecb ? makecb(closure) : closure;
-			if (cookie->value != value && cookie->freecb)
-				cookie->freecb(cookie->value);
-			cookie->value = value;
-			cookie->freecb = freecb;
-		}
-	} else {
-		value = makecb ? makecb(closure) : closure;
-		if (replace || makecb || freecb) {
-			cookie = cookie_add(session, idx, key, value, freecb);
-			if (!cookie) {
-				if (makecb && freecb)
-					freecb(value);
-				value = NULL;
+			if (replace || makecb || freecb) {
+				cookie = malloc(sizeof *cookie);
+				if (!cookie) {
+					errno = ENOMEM;
+					if (freecb)
+						freecb(value);
+					value = NULL;
+				} else {
+					cookie->key = key;
+					cookie->value = value;
+					cookie->freecb = freecb;
+					cookie->next = session->cookies[idx];
+					session->cookies[idx] = cookie;
+				}
 			}
+			break;
+		} else if (cookie->key == key) {
+			if (!replace)
+				value = cookie->value;
+			else {
+				value = makecb ? makecb(closure) : closure;
+				if (cookie->value != value && cookie->freecb)
+					cookie->freecb(cookie->value);
+				cookie->value = value;
+				cookie->freecb = freecb;
+			}
+			break;
+		} else {
+			cookie = cookie->next;
 		}
 	}
 	unlock(session);
@@ -468,33 +455,11 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 
 void *afb_session_get_cookie(struct afb_session *session, const void *key)
 {
-	int idx;
-	void *value;
-	struct cookie *cookie;
-
-	lock(session);
-	cookie = cookie_search(session, key, &idx);
-	value = cookie ? cookie->value : NULL;
-	unlock(session);
-	return value;
+	return afb_session_cookie(session, key, NULL, NULL, NULL, 0);
 }
 
 int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*))
 {
-	int idx;
-	struct cookie *cookie;
-
-	lock(session);
-	cookie = cookie_search(session, key, &idx);
-	if (!cookie)
-		cookie = cookie_add(session, idx, key, value, freecb);
-	else {
-		if (cookie->value != value && cookie->freecb)
-			cookie->freecb(cookie->value);
-		cookie->value = value;
-		cookie->freecb = freecb;
-	}
-	unlock(session);
-	return -!cookie;
+	return -(value != afb_session_cookie(session, key, NULL, freecb, value, 1));
 }
 
