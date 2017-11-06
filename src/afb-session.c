@@ -284,6 +284,7 @@ error:
 	return NULL;
 }
 
+/* Creates a new session with 'timeout' */
 struct afb_session *afb_session_create (int timeout)
 {
 	time_t now;
@@ -295,7 +296,19 @@ struct afb_session *afb_session_create (int timeout)
 	return make_session(NULL, timeout, now);
 }
 
-// This function will return exiting session or newly created session
+/* Searchs the session of 'uuid' */
+struct afb_session *afb_session_search (const char *uuid)
+{
+	time_t now;
+
+	/* cleaning */
+	now = NOW;
+	cleanup (now);
+	return search(uuid);
+
+}
+
+/* This function will return exiting session or newly created session */
 struct afb_session *afb_session_get (const char *uuid, int *created)
 {
 	struct afb_session *session;
@@ -308,20 +321,21 @@ struct afb_session *afb_session_get (const char *uuid, int *created)
 	/* search for an existing one not too old */
 	if (uuid != NULL) {
 		session = search(uuid);
-		if (!created)
-			return session;
 		if (session != NULL) {
-			*created = 0;
+			if (created)
+				*created = 0;
 			session->access = now;
 			session->refcount++;
 			return session;
 		}
 	}
 
+	/* no existing session found, create it */
+	session = make_session(uuid, sessions.timeout, now);
 	if (created)
-		*created = 1;
+		*created = !!session;
 
-	return make_session(uuid, sessions.timeout, now);
+	return session;
 }
 
 struct afb_session *afb_session_addref(struct afb_session *session)

@@ -23,6 +23,7 @@ extern void afb_session_init(int max_session_count, int timeout, const char *ini
 extern const char *afb_session_initial_token();
 
 extern struct afb_session *afb_session_create (int timeout);
+extern struct afb_session *afb_session_search (const char *uuid);
 extern struct afb_session *afb_session_get (const char *uuid, int *created);
 extern const char *afb_session_uuid (struct afb_session *session);
 
