@@ -49,7 +49,6 @@ struct afb_session
 	unsigned refcount;
 	int timeout;
 	time_t expiration;    // expiration time of the token
-	time_t access;
 	pthread_mutex_t mutex;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
@@ -279,7 +278,6 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 		goto error2;
 	}
 
-	session->access = now;
 	session->refcount = 1;
 	return session;
 
@@ -331,7 +329,6 @@ struct afb_session *afb_session_get (const char *uuid, int timeout, int *created
 		if (session != NULL) {
 			if (created)
 				*created = 0;
-			session->access = now;
 			session->refcount++;
 			return session;
 		}
