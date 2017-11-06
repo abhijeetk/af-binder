@@ -240,6 +240,12 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 {
 	struct afb_session *session;
 
+	if (!AFB_SESSION_TIMEOUT_IS_VALID(timeout)
+	 || (uuid && strlen(uuid) >= sizeof session->uuid)) {
+		errno = EINVAL;
+		goto error;
+	}
+
 	/* allocates a new one */
 	session = calloc(1, sizeof *session);
 	if (session == NULL) {
@@ -252,19 +258,18 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 	if (uuid == NULL) {
 		do { new_uuid(session->uuid); } while(search(session->uuid));
 	} else {
-		if (strlen(uuid) >= sizeof session->uuid) {
-			errno = EINVAL;
-			goto error2;
-		}
 		strcpy(session->uuid, uuid);
 	}
 
 	/* init the token */
 	strcpy(session->token, sessions.initok);
+
+	/* init timeout */
+	if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
+		timeout = sessions.timeout;
 	session->timeout = timeout;
-	if (timeout != 0)
-		session->expiration = now + timeout;
-	else {
+	session->expiration = now + timeout;
+	if (timeout == AFB_SESSION_TIMEOUT_INFINITE || session->expiration < 0) {
 		session->expiration = (time_t)(~(time_t)0);
 		if (session->expiration < 0)
 			session->expiration = (time_t)(((unsigned long long)session->expiration) >> 1);
@@ -300,16 +305,18 @@ struct afb_session *afb_session_create (int timeout)
 struct afb_session *afb_session_search (const char *uuid)
 {
 	time_t now;
+	struct afb_session *session;
 
 	/* cleaning */
 	now = NOW;
 	cleanup (now);
-	return search(uuid);
+	session = search(uuid);
+	return session;
 
 }
 
 /* This function will return exiting session or newly created session */
-struct afb_session *afb_session_get (const char *uuid, int *created)
+struct afb_session *afb_session_get (const char *uuid, int timeout, int *created)
 {
 	struct afb_session *session;
 	time_t now;
@@ -331,7 +338,7 @@ struct afb_session *afb_session_get (const char *uuid, int *created)
 	}
 
 	/* no existing session found, create it */
-	session = make_session(uuid, sessions.timeout, now);
+	session = make_session(uuid, timeout, now);
 	if (created)
 		*created = !!session;
 

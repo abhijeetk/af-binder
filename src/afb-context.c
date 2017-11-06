@@ -63,7 +63,7 @@ int afb_context_connect(struct afb_context *context, const char *uuid, const cha
 	int created;
 	struct afb_session *session;
 
-	session = afb_session_get (uuid, &created);
+	session = afb_session_get (uuid, AFB_SESSION_TIMEOUT_DEFAULT, &created);
 	if (session == NULL)
 		return -1;
 	init_context(context, session, token);

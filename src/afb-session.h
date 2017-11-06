@@ -19,12 +19,16 @@
 
 struct afb_session;
 
+#define AFB_SESSION_TIMEOUT_INFINITE  -1
+#define AFB_SESSION_TIMEOUT_DEFAULT   -2
+#define AFB_SESSION_TIMEOUT_IS_VALID(x) ((x) >= AFB_SESSION_TIMEOUT_DEFAULT)
+
 extern void afb_session_init(int max_session_count, int timeout, const char *initok);
 extern const char *afb_session_initial_token();
 
 extern struct afb_session *afb_session_create (int timeout);
 extern struct afb_session *afb_session_search (const char *uuid);
-extern struct afb_session *afb_session_get (const char *uuid, int *created);
+extern struct afb_session *afb_session_get (const char *uuid, int timeout, int *created);
 extern const char *afb_session_uuid (struct afb_session *session);
 
 extern struct afb_session *afb_session_addref(struct afb_session *session);
