@@ -31,6 +31,7 @@
 #include "afb-session.h"
 #include "verbose.h"
 
+#define HEADCOUNT    16
 #define COOKEYCOUNT  8
 #define COOKEYMASK   (COOKEYCOUNT - 1)
 
@@ -46,10 +47,12 @@ struct cookie
 
 struct afb_session
 {
+	struct afb_session *next; /* link to the next */
 	unsigned refcount;
 	int timeout;
 	time_t expiration;    // expiration time of the token
 	pthread_mutex_t mutex;
+	char idx;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
 	struct cookie *cookies[COOKEYCOUNT];
@@ -58,7 +61,7 @@ struct afb_session
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
 	pthread_mutex_t mutex;          // declare a mutex to protect hash table
-	struct afb_session **store;     // sessions store
+	struct afb_session *heads[HEADCOUNT]; // sessions
 	int count;                      // current number of sessions
 	int max;
 	int timeout;
@@ -103,21 +106,35 @@ static void remove_all_cookies(struct afb_session *session)
 	}
 }
 
+/* tiny hash function inspired from pearson */
+static int pearson4(const char *text)
+{
+	static uint8_t T[16] = {
+		 4,  1,  6,  0,  9, 14, 11,  5,
+		 2,  3, 12, 15, 10,  7,  8, 13
+	};
+	uint8_t r, c;
+
+	for (r = 0; (c = (uint8_t)*text) ; text++) {
+		r = T[r ^ (15 & c)];
+		r = T[r ^ (c >> 4)];
+	}
+	return r; // % HEADCOUNT;
+}
+
 // Create a new store in RAM, not that is too small it will be automatically extended
 void afb_session_init (int max_session_count, int timeout, const char *initok)
 {
-	// let's create as store as hashtable does not have any
-	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof *sessions.store);
 	pthread_mutex_init(&sessions.mutex, NULL);
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
 	if (initok == NULL)
 		/* without token, a secret is made to forbid creation of sessions */
 		new_uuid(sessions.initok);
-	else if (strlen(initok) < sizeof(sessions.store[0]->token))
+	else if (strlen(initok) < sizeof sessions.initok)
 		strcpy(sessions.initok, initok);
 	else {
-		ERROR("initial token '%s' too long (max length 36)", initok);
+		ERROR("initial token '%s' too long (max length %d)", initok, ((int)(sizeof sessions.initok)) - 1);
 		exit(1);
 	}
 }
@@ -127,71 +144,36 @@ const char *afb_session_initial_token()
 	return sessions.initok;
 }
 
-static struct afb_session *search (const char* uuid)
+static struct afb_session *search (const char* uuid, int idx)
 {
-	int  idx;
 	struct afb_session *session;
 
-	assert (uuid != NULL);
+	session = sessions.heads[idx];
+	while (session && strcmp(uuid, session->uuid))
+		session = session->next;
 
-	pthread_mutex_lock(&sessions.mutex);
-
-	for (idx=0; idx < sessions.max; idx++) {
-		session = sessions.store[idx];
-		if (session && (0 == strcmp (uuid, session->uuid)))
-			goto found;
-	}
-	session = NULL;
-
-found:
-	pthread_mutex_unlock(&sessions.mutex);
 	return session;
 }
 
-static int destroy (struct afb_session *session)
+static void destroy (struct afb_session *session)
 {
-	int idx;
-	int status;
+	struct afb_session **prv;
 
 	assert (session != NULL);
 
 	pthread_mutex_lock(&sessions.mutex);
-
-	for (idx=0; idx < sessions.max; idx++) {
-		if (sessions.store[idx] == session) {
-			sessions.store[idx] = NULL;
+	prv = &sessions.heads[(int)session->idx];
+	while (*prv)
+		if (*prv != session)
+			prv = &((*prv)->next);
+		else {
+			*prv = session->next;
 			sessions.count--;
-			status = 1;
-			goto deleted;
+			pthread_mutex_destroy(&session->mutex);
+			free(session);
+			break;
 		}
-	}
-	status = 0;
-deleted:
 	pthread_mutex_unlock(&sessions.mutex);
-	return status;
-}
-
-static int add (struct afb_session *session)
-{
-	int idx;
-	int status;
-
-	assert (session != NULL);
-
-	pthread_mutex_lock(&sessions.mutex);
-
-	for (idx=0; idx < sessions.max; idx++) {
-		if (NULL == sessions.store[idx]) {
-			sessions.store[idx] = session;
-			sessions.count++;
-			status = 1;
-			goto added;
-		}
-	}
-	status = 0;
-added:
-	pthread_mutex_unlock(&sessions.mutex);
-	return status;
 }
 
 // Check if context timeout or not
@@ -209,46 +191,51 @@ static int is_active (struct afb_session *ctx, time_t now)
 }
 
 // Loop on every entry and remove old context sessions.hash
-static void cleanup (time_t now)
+static time_t cleanup ()
 {
-	struct afb_session *ctx;
-	long idx;
+	struct afb_session *session, *next;
+	int idx;
+	time_t now;
 
 	// Loop on Sessions Table and remove anything that is older than timeout
-	for (idx=0; idx < sessions.max; idx++) {
-		ctx = sessions.store[idx];
-		if (ctx != NULL && is_expired(ctx, now)) {
-			afb_session_close (ctx);
+	now = NOW;
+	for (idx = 0 ; idx < HEADCOUNT; idx++) {
+		session = sessions.heads[idx];
+		while (session) {
+			next = session->next;
+			if (is_expired(session, now))
+				afb_session_close(session);
+			session = next;
 		}
 	}
+	return now;
 }
 
-static struct afb_session *make_session (const char *uuid, int timeout, time_t now)
+static struct afb_session *add_session (const char *uuid, int timeout, time_t now, int idx)
 {
 	struct afb_session *session;
 
 	if (!AFB_SESSION_TIMEOUT_IS_VALID(timeout)
 	 || (uuid && strlen(uuid) >= sizeof session->uuid)) {
 		errno = EINVAL;
-		goto error;
+		return NULL;
+	}
+
+	if (sessions.count >= sessions.max) {
+		errno = EBUSY;
+		return NULL;
 	}
 
 	/* allocates a new one */
 	session = calloc(1, sizeof *session);
 	if (session == NULL) {
 		errno = ENOMEM;
-		goto error;
+		return NULL;
 	}
+
 	pthread_mutex_init(&session->mutex, NULL);
-
-	/* generate the uuid */
-	if (uuid == NULL) {
-		do { new_uuid(session->uuid); } while(search(session->uuid));
-	} else {
-		strcpy(session->uuid, uuid);
-	}
-
-	/* init the token */
+	session->refcount = 1;
+	strcpy(session->uuid, uuid);
 	strcpy(session->token, sessions.initok);
 
 	/* init timeout */
@@ -261,42 +248,52 @@ static struct afb_session *make_session (const char *uuid, int timeout, time_t n
 		if (session->expiration < 0)
 			session->expiration = (time_t)(((unsigned long long)session->expiration) >> 1);
 	}
-	if (!add (session)) {
-		errno = ENOMEM;
-		goto error2;
-	}
 
-	session->refcount = 1;
+	session->idx = (char)idx;
+	session->next = sessions.heads[idx];
+	sessions.heads[idx] = session;
+	sessions.count++;
+
 	return session;
+}
 
-error2:
-	free(session);
-error:
-	return NULL;
+static struct afb_session *new_session (int timeout, time_t now)
+{
+	int idx;
+	char uuid[37];
+
+	do {
+		new_uuid(uuid);
+		idx = pearson4(uuid);
+	} while(search(uuid, idx));
+	return add_session(uuid, timeout, now, idx);
 }
 
 /* Creates a new session with 'timeout' */
 struct afb_session *afb_session_create (int timeout)
 {
 	time_t now;
+	struct afb_session *session;
 
 	/* cleaning */
-	now = NOW;
-	cleanup (now);
+	pthread_mutex_lock(&sessions.mutex);
+	now = cleanup();
+	session = new_session(timeout, now);
+	pthread_mutex_unlock(&sessions.mutex);
 
-	return make_session(NULL, timeout, now);
+	return session;
 }
 
 /* Searchs the session of 'uuid' */
 struct afb_session *afb_session_search (const char *uuid)
 {
-	time_t now;
 	struct afb_session *session;
 
 	/* cleaning */
-	now = NOW;
-	cleanup (now);
-	session = search(uuid);
+	pthread_mutex_lock(&sessions.mutex);
+	cleanup();
+	session = search(uuid, pearson4(uuid));
+	pthread_mutex_unlock(&sessions.mutex);
 	return session;
 
 }
@@ -304,32 +301,38 @@ struct afb_session *afb_session_search (const char *uuid)
 /* This function will return exiting session or newly created session */
 struct afb_session *afb_session_get (const char *uuid, int timeout, int *created)
 {
+	int idx;
 	struct afb_session *session;
 	time_t now;
 
 	/* cleaning */
-	now = NOW;
-	cleanup (now);
+	pthread_mutex_lock(&sessions.mutex);
+	now = cleanup();
 
 	/* search for an existing one not too old */
-	if (uuid != NULL) {
-		session = search(uuid);
+	if (!uuid)
+		session = new_session(timeout, now);
+	else {
+		idx = pearson4(uuid);
+		session = search(uuid, idx);
 		if (session != NULL) {
+			__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
+			pthread_mutex_unlock(&sessions.mutex);
 			if (created)
 				*created = 0;
-			session->refcount++;
 			return session;
 		}
+		session = add_session (uuid, timeout, now, idx);
 	}
+	pthread_mutex_unlock(&sessions.mutex);
 
-	/* no existing session found, create it */
-	session = make_session(uuid, timeout, now);
 	if (created)
 		*created = !!session;
 
 	return session;
 }
 
+/* increase the use count on the session */
 struct afb_session *afb_session_addref(struct afb_session *session)
 {
 	if (session != NULL)
@@ -337,16 +340,14 @@ struct afb_session *afb_session_addref(struct afb_session *session)
 	return session;
 }
 
+/* decrease the use count of the session */
 void afb_session_unref(struct afb_session *session)
 {
 	if (session != NULL) {
 		assert(session->refcount != 0);
 		if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
-			if (session->uuid[0] == 0) {
+			if (session->uuid[0] == 0)
 				destroy (session);
-				pthread_mutex_destroy(&session->mutex);
-				free(session);
-			}
 		}
 	}
 }
@@ -358,10 +359,8 @@ void afb_session_close (struct afb_session *session)
 	if (session->uuid[0] != 0) {
 		session->uuid[0] = 0;
 	        remove_all_cookies(session);
-		if (session->refcount == 0) {
+		if (session->refcount == 0)
 			destroy (session);
-			free(session);
-		}
 	}
 }
 
