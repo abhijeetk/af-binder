@@ -474,30 +474,39 @@ static void on_subcall(void *closure, struct afb_proto_ws_subcall *subcall, void
 
 static void record_session(struct afb_stub_ws *stubws, struct afb_session *session)
 {
-	struct server_session *iter;
+	struct server_session *s, **prv;
 
 	/* search */
-	for (iter = stubws->sessions ; iter ; iter = iter->next)
-		if (iter->session == session)
+	prv = &stubws->sessions;
+	while ((s = *prv)) {
+		if (s->session == session)
 			return;
+		if (afb_session_is_active(s->session))
+			prv = &s->next;
+		else {
+			*prv = s->next;
+			afb_session_addref(s->session);
+			free(s);
+		}
+	}
 
 	/* create */
-	iter = malloc(sizeof *iter);
-	if (iter) {
-		iter->session = afb_session_addref(session);
-		iter->next = stubws->sessions;
-		stubws->sessions = iter;
+	s = malloc(sizeof *s);
+	if (s) {
+		s->session = afb_session_addref(session);
+		s->next = stubws->sessions;
+		stubws->sessions = s;
 	}
 }
 
 static void release_sessions(struct afb_stub_ws *stubws)
 {
-	struct server_session *iter;
+	struct server_session *s;
 
-	while((iter = stubws->sessions)) {
-		stubws->sessions = iter->next;
-		afb_session_unref(iter->session);
-		free(iter);
+	while((s = stubws->sessions)) {
+		stubws->sessions = s->next;
+		afb_session_unref(s->session);
+		free(s);
 	}
 }
 

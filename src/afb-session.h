@@ -35,6 +35,8 @@ extern struct afb_session *afb_session_addref(struct afb_session *session);
 extern void afb_session_unref(struct afb_session *session);
 
 extern void afb_session_close(struct afb_session *session);
+extern int afb_session_is_active (struct afb_session *session);
+extern int afb_session_is_closed (struct afb_session *session);
 
 extern int afb_session_check_token(struct afb_session *session, const char *token);
 extern void afb_session_new_token(struct afb_session *session);

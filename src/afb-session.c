@@ -36,7 +36,10 @@
 #define COOKEYCOUNT	8
 #define COOKEYMASK	(COOKEYCOUNT - 1)
 
-#define NOW (time(NULL))
+#define _MAXEXP_	((time_t)(~(time_t)0))
+#define _MAXEXP2_	((time_t)((((unsigned long long)_MAXEXP_) >> 1)))
+#define MAX_EXPIRATION	(_MAXEXP_ >= 0 ? _MAXEXP_ : _MAXEXP2_)
+#define NOW		(time(NULL))
 
 struct cookie
 {
@@ -175,20 +178,6 @@ static void destroy (struct afb_session *session)
 	pthread_mutex_unlock(&sessions.mutex);
 }
 
-// Check if context timeout or not
-static int is_expired (struct afb_session *ctx, time_t now)
-{
-	assert (ctx != NULL);
-	return ctx->expiration < now;
-}
-
-// Check if context is active or not
-static int is_active (struct afb_session *ctx, time_t now)
-{
-	assert (ctx != NULL);
-	return ctx->uuid[0] != 0 && ctx->expiration >= now;
-}
-
 // Loop on every entry and remove old context sessions.hash
 static time_t cleanup ()
 {
@@ -202,7 +191,7 @@ static time_t cleanup ()
 		session = sessions.heads[idx];
 		while (session) {
 			next = session->next;
-			if (is_expired(session, now))
+			if (session->expiration < now)
 				afb_session_close(session);
 			session = next;
 		}
@@ -210,10 +199,35 @@ static time_t cleanup ()
 	return now;
 }
 
+static void update_timeout(struct afb_session *session, time_t now, int timeout)
+{
+	time_t expiration;
+
+	/* compute expiration */
+	if (timeout == AFB_SESSION_TIMEOUT_INFINITE)
+		expiration = MAX_EXPIRATION;
+	else {
+		if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
+			expiration = now + sessions.timeout;
+		else
+			expiration = now + timeout;
+		if (expiration < 0)
+			expiration = MAX_EXPIRATION;
+	}
+
+	/* record the values */
+	session->timeout = timeout;
+	session->expiration = expiration;
+}
+
+static void update_expiration(struct afb_session *session, time_t now)
+{
+	update_timeout(session, now, session->timeout);
+}
+
 static struct afb_session *add_session (const char *uuid, int timeout, time_t now, int idx)
 {
 	struct afb_session *session;
-	time_t expiration;
 
 	/* check arguments */
 	if (!AFB_SESSION_TIMEOUT_IS_VALID(timeout)
@@ -228,16 +242,6 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 		return NULL;
 	}
 
-	/* compute expiration */
-	if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
-		timeout = sessions.timeout;
-	expiration = now + timeout;
-	if (timeout == AFB_SESSION_TIMEOUT_INFINITE || expiration < 0) {
-		expiration = (time_t)(~(time_t)0);
-		if (expiration < 0)
-			expiration = (time_t)(((unsigned long long)expiration) >> 1);
-	}
-
 	/* allocates a new one */
 	session = calloc(1, sizeof *session);
 	if (session == NULL) {
@@ -250,8 +254,7 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 	session->refcount = 1;
 	strcpy(session->uuid, uuid);
 	strcpy(session->token, sessions.initok);
-	session->timeout = timeout;
-	session->expiration = expiration;
+	update_timeout(session, now, timeout);
 
 	/* link */
 	session->idx = (char)idx;
@@ -363,7 +366,7 @@ void afb_session_unref(struct afb_session *session)
 	}
 }
 
-// Free Client Session Context
+// close Client Session Context
 void afb_session_close (struct afb_session *session)
 {
 	assert(session != NULL);
@@ -380,14 +383,30 @@ void afb_session_close (struct afb_session *session)
 	pthread_mutex_unlock(&session->mutex);
 }
 
+// is the session active?
+int afb_session_is_active (struct afb_session *session)
+{
+	assert(session != NULL);
+	return !!session->uuid[0];
+}
+
+// is the session closed?
+int afb_session_is_closed (struct afb_session *session)
+{
+	assert(session != NULL);
+	return !session->uuid[0];
+}
+
 // Sample Generic Ping Debug API
 int afb_session_check_token (struct afb_session *session, const char *token)
 {
 	assert(session != NULL);
 	assert(token != NULL);
 
-	// compare current token with previous one
-	if (!is_active (session, NOW))
+	if (!session->uuid[0])
+		return 0;
+
+	if (session->expiration < NOW)
 		return 0;
 
 	if (session->token[0] && strcmp (token, session->token) != 0)
@@ -405,8 +424,7 @@ void afb_session_new_token (struct afb_session *session)
 	new_uuid(session->token);
 
 	// keep track of time for session timeout and further clean up
-	if (session->timeout != 0)
-		session->expiration = NOW + session->timeout;
+	update_expiration(session, NOW);
 }
 
 /* Returns the uuid of 'session' */
