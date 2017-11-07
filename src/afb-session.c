@@ -53,10 +53,10 @@ struct afb_session
 	int timeout;
 	time_t expiration;	// expiration time of the token
 	pthread_mutex_t mutex;
+	struct cookie *cookies[COOKEYCOUNT];
 	char idx;
 	char uuid[SIZEUUID];	// long term authentication of remote client
 	char token[SIZEUUID];	// short term authentication of remote client
-	struct cookie *cookies[COOKEYCOUNT];
 };
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
@@ -88,21 +88,18 @@ static inline void unlock(struct afb_session *session)
 }
 
 // Free context [XXXX Should be protected again memory abort XXXX]
-static void remove_all_cookies(struct afb_session *session)
+static void close_session(struct afb_session *session)
 {
 	int idx;
-	struct cookie *cookie, *next;
+	struct cookie *cookie;
 
-	// free cookies
+	/* free cookies */
 	for (idx = 0 ; idx < COOKEYCOUNT ; idx++) {
-		cookie = session->cookies[idx];
-		session->cookies[idx] = NULL;
-		while (cookie != NULL) {
-			next = cookie->next;
+		while ((cookie = session->cookies[idx])) {
+			session->cookies[idx] = cookie->next;
 			if (cookie->freecb != NULL)
 				cookie->freecb(cookie->value);
 			free(cookie);
-			cookie = next;
 		}
 	}
 }
@@ -162,7 +159,7 @@ static void destroy (struct afb_session *session)
 
 	assert (session != NULL);
 
-	remove_all_cookies(session);
+	close_session(session);
 	pthread_mutex_lock(&sessions.mutex);
 	prv = &sessions.heads[(int)session->idx];
 	while (*prv)
@@ -255,6 +252,8 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 	strcpy(session->token, sessions.initok);
 	session->timeout = timeout;
 	session->expiration = expiration;
+
+	/* link */
 	session->idx = (char)idx;
 	session->next = sessions.heads[idx];
 	sessions.heads[idx] = session;
@@ -371,8 +370,9 @@ void afb_session_close (struct afb_session *session)
 	pthread_mutex_lock(&session->mutex);
 	if (session->uuid[0] != 0) {
 		session->uuid[0] = 0;
-		remove_all_cookies(session);
-		if (session->refcount == 0) {
+		if (session->refcount)
+			close_session(session);
+		else {
 			destroy (session);
 			return;
 		}
