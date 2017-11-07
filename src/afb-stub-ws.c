@@ -125,6 +125,15 @@ struct server_describe
 	struct afb_proto_ws_describe *describe;
 };
 
+/*
+ * structure for recording sessions
+ */
+struct server_session
+{
+	struct server_session *next;
+	struct afb_session *session;
+};
+
 /******************* stub description for client or servers ******************/
 
 struct afb_stub_ws
@@ -146,6 +155,9 @@ struct afb_stub_ws
 
 	/* credentials (server side) */
 	struct afb_cred *cred;
+
+	/* sessions (server side) */
+	struct server_session *sessions;
 
 	/* apiset */
 	struct afb_apiset *apiset;
@@ -460,6 +472,37 @@ static void on_subcall(void *closure, struct afb_proto_ws_subcall *subcall, void
 
 /*****************************************************/
 
+static void record_session(struct afb_stub_ws *stubws, struct afb_session *session)
+{
+	struct server_session *iter;
+
+	/* search */
+	for (iter = stubws->sessions ; iter ; iter = iter->next)
+		if (iter->session == session)
+			return;
+
+	/* create */
+	iter = malloc(sizeof *iter);
+	if (iter) {
+		iter->session = afb_session_addref(session);
+		iter->next = stubws->sessions;
+		stubws->sessions = iter;
+	}
+}
+
+static void release_sessions(struct afb_stub_ws *stubws)
+{
+	struct server_session *iter;
+
+	while((iter = stubws->sessions)) {
+		stubws->sessions = iter->next;
+		afb_session_unref(iter->session);
+		free(iter);
+	}
+}
+
+/*****************************************************/
+
 static void on_call(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid)
 {
 	struct afb_stub_ws *stubws = closure;
@@ -480,6 +523,7 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 	if (afb_context_connect(&wreq->xreq.context, sessionid, NULL) < 0)
 		goto unconnected;
 	wreq->xreq.context.validated = 1;
+	record_session(stubws, wreq->xreq.context.session);
 
 	/* makes the call */
 	wreq->xreq.cred = afb_cred_addref(stubws->cred);
@@ -598,6 +642,8 @@ static void on_hangup(void *closure)
 
 	if (stubws->on_hangup)
 		stubws->on_hangup(stubws);
+
+	release_sessions(stubws);
 }
 
 /*****************************************************/
@@ -651,6 +697,7 @@ void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 	if (!__atomic_sub_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED)) {
 		drop_all_events(stubws);
 		afb_evt_listener_unref(stubws->listener);
+		release_sessions(stubws);
 		afb_proto_ws_unref(stubws->proto);
 		afb_cred_unref(stubws->cred);
 		afb_apiset_unref(stubws->apiset);
