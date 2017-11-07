@@ -33,6 +33,7 @@ extern const char *afb_session_uuid (struct afb_session *session);
 
 extern struct afb_session *afb_session_addref(struct afb_session *session);
 extern void afb_session_unref(struct afb_session *session);
+extern void afb_session_set_autoclose(struct afb_session *session, int autoclose);
 
 extern void afb_session_close(struct afb_session *session);
 extern int afb_session_is_active (struct afb_session *session);

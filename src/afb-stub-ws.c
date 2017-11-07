@@ -533,6 +533,8 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 		goto unconnected;
 	wreq->xreq.context.validated = 1;
 	record_session(stubws, wreq->xreq.context.session);
+	if (wreq->xreq.context.created)
+		afb_session_set_autoclose(wreq->xreq.context.session, 1);
 
 	/* makes the call */
 	wreq->xreq.cred = afb_cred_addref(stubws->cred);

@@ -57,6 +57,7 @@ struct afb_session
 	time_t expiration;	// expiration time of the token
 	pthread_mutex_t mutex;
 	struct cookie *cookies[COOKEYCOUNT];
+	char autoclose;
 	char idx;
 	char uuid[SIZEUUID];	// long term authentication of remote client
 	char token[SIZEUUID];	// short term authentication of remote client
@@ -358,7 +359,7 @@ void afb_session_unref(struct afb_session *session)
 		assert(session->refcount != 0);
 		if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
 			pthread_mutex_lock(&session->mutex);
-			if (session->uuid[0] == 0)
+			if (session->autoclose || session->uuid[0] == 0)
 				destroy (session);
 			else
 				pthread_mutex_unlock(&session->mutex);
@@ -381,6 +382,13 @@ void afb_session_close (struct afb_session *session)
 		}
 	}
 	pthread_mutex_unlock(&session->mutex);
+}
+
+/* set the autoclose flag */
+void afb_session_set_autoclose(struct afb_session *session, int autoclose)
+{
+	assert(session != NULL);
+	session->autoclose = (char)!!autoclose;
 }
 
 // is the session active?
