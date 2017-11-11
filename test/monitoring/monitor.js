@@ -131,7 +131,7 @@ function init() {
 	at("param-host").value = document.location.hostname;
 	at("param-port").value = document.location.port;
 	var args = new URLSearchParams(document.location.search.substring(1));
-	at("param-token").value = args.get("x-afb-token") || args.get("token") || "hello";
+	at("param-token").value = args.get("x-afb-token") || args.get("token") || "HELLO";
 
 	document.onbeforeunload = on_disconnect;
 
