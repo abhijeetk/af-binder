@@ -18,6 +18,7 @@
 #pragma once
 
 struct afb_event;
+struct afb_eventid;
 struct afb_evtid;
 struct afb_session;
 struct json_object;

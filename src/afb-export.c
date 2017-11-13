@@ -179,7 +179,7 @@ static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
 static struct afb_event event_make_cb(void *closure, const char *name)
 {
 	struct afb_eventid *eventid = eventid_make_cb(closure, name);
-	return (struct afb_event){ .itf = eventid ? eventid->itf : NULL, .closure = eventid };
+	return afb_evt_event_from_evtid(afb_evt_eventid_to_evtid(eventid));
 }
 
 static int event_broadcast_cb(void *closure, const char *name, struct json_object *object)
