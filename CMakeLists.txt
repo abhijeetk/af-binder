@@ -70,19 +70,14 @@ CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
 IF(HAVE_MAGIC_H)
   IF(HAVE_LIBMAGIC_SO)
     SET(HAVE_LIBMAGIC "1")
+    SET(LIBMAGIC_LDFLAGS -lmagic)
   ENDIF(HAVE_LIBMAGIC_SO)
 ENDIF(HAVE_MAGIC_H)
 
-IF(NOT HAVE_LIBMAGIC)
-  MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
-    Please install the \"file-devel\" or \"libmagic-dev\" package !")
-ENDIF(NOT HAVE_LIBMAGIC)
-ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
-
-PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.55)
-PKG_CHECK_MODULES(openssl REQUIRED openssl)
-PKG_CHECK_MODULES(uuid REQUIRED uuid)
+PKG_CHECK_MODULES(libsystemd libsystemd>=222)
+PKG_CHECK_MODULES(libmicrohttpd libmicrohttpd>=0.9.55)
+PKG_CHECK_MODULES(openssl openssl)
+PKG_CHECK_MODULES(uuid uuid)
 PKG_CHECK_MODULES(cynara cynara-client)
 
 IF(AGL_DEVEL)
@@ -92,6 +87,32 @@ endif()
 IF(cynara_FOUND)
 	ADD_DEFINITIONS(-DBACKEND_PERMISSION_IS_CYNARA)
 ENDIF(cynara_FOUND)
+
+IF(HAVE_LIBMAGIC AND libsystemd_FOUND AND libmicrohttpd_FOUND AND openssl_FOUND AND uuid_FOUND)
+  SET(WITH_BINDER TRUE)
+  ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
+ELSE()
+  IF(NOT HAVE_LIBMAGIC)
+    MESSAGE(WARNING "\"magic.h\" or \"libmagic.so\" missing.
+    Please install the \"file-devel\" or \"libmagic-dev\" package !")
+  ENDIF(NOT HAVE_LIBMAGIC)
+  IF(NOT libsystemd_FOUND)
+    MESSAGE(WARNING "Dependency to 'libsystemd' is missing")
+  ENDIF()
+  IF(NOT libmicrohttpd_FOUND)
+    MESSAGE(WARNING "Dependency to 'libmicrohttpd' is missing")
+  ENDIF()
+  IF(NOT openssl_FOUND)
+    MESSAGE(WARNING "Dependency to 'openssl' is missing")
+  ENDIF()
+  IF(NOT uuid_FOUND)
+    MESSAGE(WARNING "Dependency to 'uuid' is missing")
+  ENDIF()
+  IF(NOT ALLOW_NO_BINDER)
+    MESSAGE(FATAL_ERROR "Can't compile the binder, either define ALLOW_NO_BINDER or install dependencies")
+  ENDIF()
+  SET(WITH_BINDER FALSE)
+ENDIF()
 
 ADD_DEFINITIONS(-DAFB_VERSION="${PROJECT_VERSION}")
 
@@ -114,7 +135,7 @@ SET(link_libraries
 	${uuid_LDFLAGS}
 	${openssl_LDFLAGS}
 	${cynara_LDFLAGS}
-	-lmagic
+	${LIBMAGIC_LDFLAGS}
 	-ldl
 	-lrt
 	)
@@ -123,7 +144,7 @@ SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
 ###########################################################################
 # activates the monitoring by default
-if(INCLUDE_MONITORING)
+if(INCLUDE_MONITORING AND WITH_BINDER)
 	add_definitions(-DWITH_MONITORING_OPTION)
 	INSTALL(DIRECTORY
 		${CMAKE_CURRENT_SOURCE_DIR}/test/monitoring

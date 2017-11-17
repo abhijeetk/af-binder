@@ -23,6 +23,10 @@ endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
 INCLUDE(FindPkgConfig)
 
 ADD_SUBDIRECTORY(genskel)
+
+IF(WITH_BINDER)
+###########################################
+
 ADD_SUBDIRECTORY(tests)
 
 ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
@@ -115,4 +119,7 @@ TARGET_LINK_LIBRARIES(afb-client-demo
 INSTALL(TARGETS afb-client-demo
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-
+###########################################
+ELSE(WITH_BINDER)
+  MESSAGE(WARNING "NOT compiling the binder! but tools are compiled")
+ENDIF(WITH_BINDER)
