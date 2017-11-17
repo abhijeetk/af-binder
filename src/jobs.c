@@ -363,8 +363,10 @@ static void thread_run(volatile struct thread *me)
 			events = current_events;
 			if (!events)
 				events = events_get();
-			else if (events->state == Locked)
+			else if (events->state == Locked) {
 				events = 0;
+				AFB_WARNING("Loosing an event loop because reentering");
+			}
 			if (events) {
 				/* run the events */
 				events->state = Locked;
