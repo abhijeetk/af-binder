@@ -16,9 +16,11 @@
 # limitations under the License.
 ###########################################################################
 
-if (CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
-    message(FATAL_ERROR "Require at least gcc-4.9")
-endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+if (NOT DEFINED ALLOW_NO_BINDER)
+    if (CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+        message(FATAL_ERROR "Require at least gcc-4.9")
+    endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+endif(ALLOW_NO_BINDER)
 
 INCLUDE(FindPkgConfig)
 
