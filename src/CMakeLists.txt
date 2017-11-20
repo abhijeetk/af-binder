@@ -16,20 +16,9 @@
 # limitations under the License.
 ###########################################################################
 
-if (NOT DEFINED ALLOW_NO_BINDER)
-    if (CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
-        message(FATAL_ERROR "Require at least gcc-4.9")
-    endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
-endif(ALLOW_NO_BINDER)
-
-INCLUDE(FindPkgConfig)
-
-ADD_SUBDIRECTORY(genskel)
-
-IF(WITH_BINDER)
-###########################################
-
-ADD_SUBDIRECTORY(tests)
+if (CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+    message(FATAL_ERROR "Require at least gcc-4.9")
+endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
 
 ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 # Always add INFER_EXTENSION (more details in afb-hreq.c)
@@ -122,7 +111,3 @@ TARGET_LINK_LIBRARIES(afb-client-demo
 INSTALL(TARGETS afb-client-demo
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-###########################################
-ELSE(WITH_BINDER)
-  MESSAGE(WARNING "NOT compiling the binder! but tools are compiled")
-ENDIF(WITH_BINDER)

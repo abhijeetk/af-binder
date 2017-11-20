@@ -16,9 +16,7 @@
 # limitations under the License.
 ###########################################################################
 
-IF(WITH_BINDER)
 ADD_SUBDIRECTORY(intrinsics)
 ADD_SUBDIRECTORY(samples)
 ADD_SUBDIRECTORY(tutorial)
-ENDIF(WITH_BINDER)
 

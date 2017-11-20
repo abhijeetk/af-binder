@@ -89,7 +89,6 @@ IF(cynara_FOUND)
 ENDIF(cynara_FOUND)
 
 IF(HAVE_LIBMAGIC AND libsystemd_FOUND AND libmicrohttpd_FOUND AND openssl_FOUND AND uuid_FOUND)
-  SET(WITH_BINDER TRUE)
   ADD_DEFINITIONS(-DUSE_MAGIC_MIME_TYPE)
 ELSE()
   IF(NOT HAVE_LIBMAGIC)
@@ -108,10 +107,9 @@ ELSE()
   IF(NOT uuid_FOUND)
     MESSAGE(WARNING "Dependency to 'uuid' is missing")
   ENDIF()
-  IF(NOT ALLOW_NO_BINDER)
-    MESSAGE(FATAL_ERROR "Can't compile the binder, either define ALLOW_NO_BINDER or install dependencies")
+  IF(NOT ONLY_DEVTOOLS)
+    MESSAGE(FATAL_ERROR "Can't compile the binder, either define ONLY_DEVTOOLS or install dependencies")
   ENDIF()
-  SET(WITH_BINDER FALSE)
 ENDIF()
 
 ADD_DEFINITIONS(-DAFB_VERSION="${PROJECT_VERSION}")
@@ -140,34 +138,41 @@ SET(link_libraries
 	-lrt
 	)
 
-SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
+ADD_SUBDIRECTORY(src/devtools)
 
-###########################################################################
-# activates the monitoring by default
-if(INCLUDE_MONITORING AND WITH_BINDER)
-	add_definitions(-DWITH_MONITORING_OPTION)
-	INSTALL(DIRECTORY
-		${CMAKE_CURRENT_SOURCE_DIR}/test/monitoring
-		DESTINATION
-		${binding_install_dir}
+IF(ONLY_DEVTOOLS)
+	MESSAGE(WARNING "Only DEVTOOLS are compiled, not the binder!")
+ELSE()
+	SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
+
+	###########################################################################
+	# activates the monitoring by default
+	if(INCLUDE_MONITORING AND NOT ONLY_DEVTOOLS)
+		add_definitions(-DWITH_MONITORING_OPTION)
+		INSTALL(DIRECTORY
+			${CMAKE_CURRENT_SOURCE_DIR}/test/monitoring
+			DESTINATION
+			${binding_install_dir}
+		)
+	endif()
+
+	###########################################################################
+
+	ADD_SUBDIRECTORY(src)
+	ADD_SUBDIRECTORY(src/tests)
+	ADD_SUBDIRECTORY(include)
+	ADD_SUBDIRECTORY(bindings)
+
+	############################################################
+	# installs the pkgconfig files
+	CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
+	CONFIGURE_FILE(libafbwsc.pc.in libafbwsc.pc @ONLY)
+
+	INSTALL(FILES
+	    ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
+	    ${CMAKE_CURRENT_BINARY_DIR}/libafbwsc.pc
+	    DESTINATION
+	    ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 	)
-endif()
 
-###########################################################################
-
-ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(include)
-ADD_SUBDIRECTORY(bindings)
-
-############################################################
-# installs the pkgconfig files
-CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
-CONFIGURE_FILE(libafbwsc.pc.in libafbwsc.pc @ONLY)
-
-INSTALL(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
-    ${CMAKE_CURRENT_BINARY_DIR}/libafbwsc.pc
-    DESTINATION
-    ${CMAKE_INSTALL_LIBDIR}/pkgconfig
-    )
-
+ENDIF()
