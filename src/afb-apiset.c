@@ -29,7 +29,6 @@
 #include "afb-apiset.h"
 #include "afb-context.h"
 #include "afb-xreq.h"
-#include "jobs.h"
 
 #define INCR 8		/* CAUTION: must be a power of 2 */
 
