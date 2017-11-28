@@ -84,16 +84,6 @@ static ssize_t ws_readv(struct websock *ws, const struct iovec *iov, int iovcnt)
 	return ws->itf->readv(ws->closure, iov, iovcnt);
 }
 
-#if 0
-static ssize_t ws_write(struct websock *ws, const void *buffer, size_t buffer_size)
-{
-	struct iovec iov;
-	iov.iov_base = (void *)buffer;	/* const cast */
-	iov.iov_len = buffer_size;
-	return ws_writev(ws, &iov, 1);
-}
-#endif
-
 static ssize_t ws_read(struct websock *ws, void *buffer, size_t buffer_size)
 {
 	struct iovec iov;

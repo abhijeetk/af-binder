@@ -347,21 +347,57 @@ int afb_ws_binary_v(struct afb_ws *ws, const struct iovec *iovec, int count)
  */
 static ssize_t aws_writev(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
 {
-	ssize_t rc;
+	int i;
+	ssize_t rc, sz, dsz;
+	struct iovec *iov2;
+	struct pollfd pfd;
+
+	/* compute the size */
+	dsz = 0;
+	i = 0;
+	while (i < iovcnt) {
+		dsz += iov[i++].iov_len;
+		if (dsz < 0) {
+			errno = EINVAL;
+			return -1;
+		}
+	}
+	if (dsz == 0)
+		return 0;
+
+	/* write the data */
+	iov2 = (struct iovec*)iov;
+	sz = dsz;
 	for (;;) {
-		rc = writev(ws->fd, iov, iovcnt);
-		if (rc == -1) {
+		rc = writev(ws->fd, iov2, iovcnt);
+		if (rc < 0) {
 			if (errno == EINTR)
 				continue;
-			else if (errno == EAGAIN) {
-				struct pollfd pfd;
-				pfd.fd = ws->fd;
-				pfd.events = POLLOUT;
-				poll(&pfd, 1, 10);
-				continue;
+			if (errno != EAGAIN)
+				return -1;
+		} else {
+			dsz -= rc;
+			if (dsz == 0)
+				return sz;
+
+			i = 0;
+			while (rc >= (ssize_t)iov2[i].iov_len)
+				rc -= (ssize_t)iov2[i++].iov_len;
+
+			iovcnt -= i;
+			if (iov2 != iov)
+				iov2 += i;
+			else {
+				iov += i;
+				iov2 = alloca(iovcnt * sizeof *iov2);
+				for (i = 0 ; i < iovcnt ; i++)
+					iov2[i] = iov[i];
 			}
+			iov2->iov_base += rc;
 		}
-		return rc;
+		pfd.fd = ws->fd;
+		pfd.events = POLLOUT;
+		poll(&pfd, 1, 10);
 	}
 }
 
