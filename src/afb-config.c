@@ -754,12 +754,47 @@ void afb_config_dump(struct afb_config *config)
 #undef NN
 }
 
+static void on_environment_list(struct afb_config_list **to, const char *name)
+{
+	char *value = getenv(name);
+
+	if (value)
+		list_add(to, value);
+}
+
+static void on_environment_enum(int *to, const char *name, struct enumdesc *desc)
+{
+	char *value = getenv(name);
+
+	if (value) {
+		while (desc->name) {
+			if (strcmp(desc->name, value))
+				desc++;
+			else {
+				*to = desc->value;
+				return;
+			}
+		}
+		WARNING("Unknown value %s for environment variable %s, ignored", value, name);
+	}
+}
+
+static void parse_environment(struct afb_config *config)
+{
+	on_environment_enum(&config->tracereq, "AFB_TRACEREQ", tracereq_desc);
+	on_environment_enum(&config->traceditf, "AFB_TRACEDITF", traceditf_desc);
+	on_environment_enum(&config->tracesvc, "AFB_TRACESVC", tracesvc_desc);
+	on_environment_enum(&config->traceevt, "AFB_TRACEEVT", traceevt_desc);
+	on_environment_list(&config->ldpaths, "AFB_LDPATHS");
+}
+
 struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 {
 	struct afb_config *result;
 
 	result = calloc(1, sizeof *result);
 
+	parse_environment(result);
 	parse_arguments(argc, argv, result);
 	fulfill_config(result);
 	if (verbosity >= 3)
