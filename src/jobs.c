@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/eventfd.h>
 
 #include <systemd/sd-event.h>
 
@@ -59,17 +60,17 @@ struct job
 };
 
 /** Description of handled event loops */
-struct events
+struct evloop
 {
-	struct events *next;
-	struct sd_event *event;
-	uint64_t timeout;
-	enum {
-		Available,
-		Modifiable,
-		Locked
-	} state;
+	unsigned state;        /**< encoded state */
+	int efd;               /**< event notification */
+	struct sd_event *sdev; /**< the systemd event loop */
+	pthread_cond_t  cond;  /**< condition */
 };
+
+#define EVLOOP_STATE_WAIT           1U
+#define EVLOOP_STATE_RUN            2U
+#define EVLOOP_STATE_LOCK           4U
 
 /** Description of threads */
 struct thread
@@ -101,22 +102,23 @@ struct sync
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
 
-/* count allowed, started and waiting threads */
+/* count allowed, started and running threads */
 static int allowed = 0; /** allowed count of threads */
 static int started = 0; /** started count of threads */
-static int waiting = 0; /** waiting count of threads */
+static int running = 0; /** running count of threads */
 static int remains = 0; /** allowed count of waiting jobs */
-static int nevents = 0; /** count of events */
 
 /* list of threads */
 static struct thread *threads;
 static _Thread_local struct thread *current_thread;
-static _Thread_local struct events *current_events;
+static _Thread_local struct evloop *current_evloop;
 
 /* queue of pending jobs */
 static struct job *first_job;
-static struct events *first_events;
 static struct job *free_jobs;
+
+/* event loop */
+static struct evloop evloop[1];
 
 /**
  * Create a new job with the given parameters
@@ -200,18 +202,6 @@ static inline struct job *job_get()
 }
 
 /**
- * Get the next events to process or NULL if none.
- * @return the first events that isn't running or NULL
- */
-static inline struct events *events_get()
-{
-	struct events *events = first_events;
-	while (events && events->state != Available)
-		events = events->next;
-	return events;
-}
-
-/**
  * Releases the processed 'job': removes it
  * from the list of jobs and unblock the first
  * pending job of the same group if any.
@@ -272,37 +262,40 @@ static void job_cancel(int signum, void *arg)
  *               flow
  * @param arg     the events to run
  */
-static void events_call(int signum, void *arg)
+static void evloop_run(int signum, void *arg)
 {
 	int rc;
 	struct sd_event *se;
-	struct events *events = arg;
+	struct evloop *el = arg;
 
 	if (!signum) {
-		se = events->event;
+		se = el->sdev;
 		rc = sd_event_prepare(se);
 		if (rc < 0) {
 			errno = -rc;
-			ERROR("sd_event_prepare returned an error (state: %d): %m", sd_event_get_state(events->event));
+			ERROR("sd_event_prepare returned an error (state: %d): %m", sd_event_get_state(se));
 		} else {
 			if (rc == 0) {
-				rc = sd_event_wait(se, events->timeout);
+				rc = sd_event_wait(se, (uint64_t)(int64_t)-1);
 				if (rc < 0) {
 					errno = -rc;
-					ERROR("sd_event_wait returned an error (state: %d): %m", sd_event_get_state(events->event));
+					ERROR("sd_event_wait returned an error (state: %d): %m", sd_event_get_state(se));
 				}
 			}
+			el->state &= ~(EVLOOP_STATE_WAIT);
 
 			if (rc > 0) {
 				rc = sd_event_dispatch(se);
 				if (rc < 0) {
 					errno = -rc;
-					ERROR("sd_event_dispatch returned an error (state: %d): %m", sd_event_get_state(events->event));
+					ERROR("sd_event_dispatch returned an error (state: %d): %m", sd_event_get_state(se));
 				}
 			}
 		}
 	}
+	el->state &= ~(EVLOOP_STATE_WAIT|EVLOOP_STATE_RUN);
 }
+
 
 /**
  * Main processing loop of threads processing jobs.
@@ -315,20 +308,16 @@ static void thread_run(volatile struct thread *me)
 {
 	struct thread **prv;
 	struct job *job;
-	struct events *events;
-	uint64_t evto;
+	struct evloop *el;
 
 	/* initialize description of itself and link it in the list */
 	me->tid = pthread_self();
 	me->stop = 0;
 	me->waits = 0;
 	me->upper = current_thread;
-	if (current_thread) {
-		evto = EVENT_TIMEOUT_CHILD;
-	} else {
+	if (!current_thread) {
 		started++;
 		sig_monitor_init_timeouts();
-		evto = EVENT_TIMEOUT_TOP;
 	}
 	me->next = threads;
 	threads = (struct thread*)me;
@@ -336,6 +325,12 @@ static void thread_run(volatile struct thread *me)
 
 	/* loop until stopped */
 	while (!me->stop) {
+		/* release the event loop */
+		if (current_evloop && !(current_evloop->state & EVLOOP_STATE_RUN)) {
+			current_evloop->state -= EVLOOP_STATE_LOCK;
+			current_evloop = NULL;
+		}
+
 		/* get a job */
 		job = job_get(first_job);
 		if (job) {
@@ -349,41 +344,27 @@ static void thread_run(volatile struct thread *me)
 			sig_monitor(job->timeout, job->callback, job->arg);
 			pthread_mutex_lock(&mutex);
 
-			/* release event if any */
-			events = current_events;
-			if (events && events->state == Modifiable) {
-				current_events = NULL;
-				events->state = Available;
-			}
-
 			/* release the run job */
 			job_release(job);
 		} else {
 			/* no job, check events */
-			events = current_events;
-			if (!events)
-				events = events_get();
-			else if (events->state == Locked) {
-				events = 0;
-				WARNING("Loosing an event loop because reentering");
-			}
-			if (events) {
+			el = &evloop[0];
+			if (el->sdev && !el->state) {
 				/* run the events */
-				events->state = Locked;
-				events->timeout = evto;
-				current_events = events;
+				el->state = EVLOOP_STATE_LOCK|EVLOOP_STATE_RUN|EVLOOP_STATE_WAIT;
+				current_evloop = el;
 				pthread_mutex_unlock(&mutex);
-				sig_monitor(0, events_call, events);
+				sig_monitor(0, evloop_run, el);
 				pthread_mutex_lock(&mutex);
-				current_events = NULL;
-				events->state = Available;
 			} else {
 				/* no job and not events */
-				waiting++;
+				running--;
+				if (!running)
+					ERROR("Entering job deep sleep! Check your bindings.");
 				me->waits = 1;
 				pthread_cond_wait(&cond, &mutex);
 				me->waits = 0;
-				waiting--;
+				running++;
 			}
 		}
 	}
@@ -410,7 +391,9 @@ static void *thread_main(void *data)
 	struct thread me;
 
 	pthread_mutex_lock(&mutex);
+	running++;
 	thread_run(&me);
+	running--;
 	pthread_mutex_unlock(&mutex);
 	return NULL;
 }
@@ -478,7 +461,7 @@ int jobs_queue(
 	}
 
 	/* start a thread if needed */
-	if (waiting == 0 && started < allowed) {
+	if (running == started && started < allowed) {
 		/* all threads are busy and a new can be started */
 		rc = start_one_thread();
 		if (rc < 0 && started == 0) {
@@ -643,61 +626,80 @@ int jobs_call(
 }
 
 /**
+ * Internal callback for evloop management.
+ * The effect of this function is hidden: it exits
+ * the waiting poll if any. Then it wakes up a thread
+ * awaiting the evloop using signal.
+ */
+static int on_evloop_efd(sd_event_source *s, int fd, uint32_t revents, void *userdata)
+{
+	uint64_t x;
+	struct evloop *evloop = userdata;
+	read(evloop->efd, &x, sizeof x);
+	pthread_cond_signal(&evloop->cond);	
+	return 1;
+}
+
+/**
  * Gets a sd_event item for the current thread.
  * @return a sd_event or NULL in case of error
  */
 struct sd_event *jobs_get_sd_event()
 {
-	struct events *events;
+	struct evloop *el;
+	uint64_t x;
 	int rc;
 
 	pthread_mutex_lock(&mutex);
 
-	/* search events on stack */
-	events = current_events;
-	if (!events) {
-		/* search an available events */
-		events = events_get();
-		if (!events) {
-			/* not found, check if creation possible */
-			if (nevents >= allowed) {
-				ERROR("not possible to add a new event");
-				events = NULL;
-			} else {
-				events = malloc(sizeof *events);
-				if (events && (rc = sd_event_new(&events->event)) >= 0) {
-					if (nevents < started || start_one_thread() >= 0) {
-						events->state = Available;
-						events->next = first_events;
-						first_events = events;
-					} else {
-						ERROR("can't start thread for events");
-						sd_event_unref(events->event);
-						free(events);
-						events = NULL;
-					}
-				} else {
-					if (!events) {
-						ERROR("out of memory");
-						errno = ENOMEM;
-					} else {
-						free(events);
-						ERROR("creation of sd_event failed: %m");
-						events = NULL;
-						errno = -rc;
-					}
-				}
-			}
+	/* creates the evloop on need */
+	el = &evloop[0];
+	if (!el->sdev) {
+		/* creates the eventfd for waking up polls */
+		el->efd = eventfd(0, EFD_CLOEXEC|EFD_SEMAPHORE);
+		if (el->efd < 0) {
+			ERROR("can't make eventfd for events");
+			goto error1;
 		}
-		if (events) {
-			events->state = Modifiable;
-			if (!current_thread)
-				WARNING("event returned for unknown thread!");
-			current_events = events;
+		/* create the systemd event loop */
+		rc = sd_event_new(&el->sdev);
+		if (rc < 0) {
+			ERROR("can't make new event loop");
+			goto error2;
 		}
+		/* put the eventfd in the event loop */
+		rc = sd_event_add_io(el->sdev, NULL, el->efd, EPOLLIN, on_evloop_efd, el);
+		if (rc < 0) {
+			ERROR("can't register eventfd");
+			sd_event_unref(el->sdev);
+			el->sdev = NULL;
+error2:
+			close(el->efd);
+error1:
+			pthread_mutex_unlock(&mutex);
+			return NULL;
+		}
+		/* terminate creation */
+		el->state = 0;
 	}
+
+	/* attach the event loop to the current thread */
+	if (current_evloop != el) {
+		if (current_evloop)
+			current_evloop->state -= EVLOOP_STATE_LOCK;
+		current_evloop = el;
+		el->state += EVLOOP_STATE_LOCK;
+	}
+
+	/* wait for a modifiable event loop */
+	while (el->state & EVLOOP_STATE_WAIT) {
+		x = 1;
+		write(el->efd, &x, sizeof x);
+		pthread_cond_wait(&el->cond, &mutex);
+	}
+
 	pthread_mutex_unlock(&mutex);
-	return events ? events->event : NULL;
+	return el->sdev;
 }
 
 /**
@@ -738,7 +740,7 @@ int jobs_start(int allowed_count, int start_count, int waiter_count, void (*star
 	/* records the allowed count */
 	allowed = allowed_count;
 	started = 0;
-	waiting = 0;
+	running = 0;
 	remains = waiter_count;
 
 	/* start at least one thread */
