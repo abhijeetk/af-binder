@@ -394,6 +394,7 @@ static ssize_t aws_writev(struct afb_ws *ws, const struct iovec *iov, int iovcnt
 					iov2[i] = iov[i];
 			}
 			iov2->iov_base += rc;
+			iov2->iov_len -= rc;
 		}
 		pfd.fd = ws->fd;
 		pfd.events = POLLOUT;
