@@ -272,6 +272,7 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	if (extension) {
 		static const char *const known[][2] = {
 			{ ".js",	"text/javascript" },
+			{ ".json",	"application/json" },
 			{ ".html",	"text/html" },
 			{ ".css",	"text/css" },
 			{ ".ico",	"image/x-icon"},
