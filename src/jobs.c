@@ -636,7 +636,9 @@ static int on_evloop_efd(sd_event_source *s, int fd, uint32_t revents, void *use
 	uint64_t x;
 	struct evloop *evloop = userdata;
 	read(evloop->efd, &x, sizeof x);
-	pthread_cond_signal(&evloop->cond);	
+	pthread_mutex_lock(&mutex);
+	pthread_cond_broadcast(&evloop->cond);	
+	pthread_mutex_unlock(&mutex);
 	return 1;
 }
 
@@ -656,7 +658,7 @@ struct sd_event *jobs_get_sd_event()
 	el = &evloop[0];
 	if (!el->sdev) {
 		/* creates the eventfd for waking up polls */
-		el->efd = eventfd(0, EFD_CLOEXEC|EFD_SEMAPHORE);
+		el->efd = eventfd(0, EFD_CLOEXEC);
 		if (el->efd < 0) {
 			ERROR("can't make eventfd for events");
 			goto error1;
