@@ -282,7 +282,7 @@ static void evloop_run(int signum, void *arg)
 					ERROR("sd_event_wait returned an error (state: %d): %m", sd_event_get_state(se));
 				}
 			}
-			el->state &= ~(EVLOOP_STATE_WAIT);
+			__atomic_and_fetch(&el->state, ~(EVLOOP_STATE_WAIT), __ATOMIC_RELAXED);
 
 			if (rc > 0) {
 				rc = sd_event_dispatch(se);
@@ -293,7 +293,7 @@ static void evloop_run(int signum, void *arg)
 			}
 		}
 	}
-	el->state &= ~(EVLOOP_STATE_WAIT|EVLOOP_STATE_RUN);
+	__atomic_and_fetch(&el->state, ~(EVLOOP_STATE_WAIT|EVLOOP_STATE_RUN), __ATOMIC_RELAXED);
 }
 
 
@@ -326,8 +326,8 @@ static void thread_run(volatile struct thread *me)
 	/* loop until stopped */
 	while (!me->stop) {
 		/* release the event loop */
-		if (current_evloop && !(current_evloop->state & EVLOOP_STATE_RUN)) {
-			current_evloop->state -= EVLOOP_STATE_LOCK;
+		if (current_evloop) {
+			__atomic_sub_fetch(&current_evloop->state, EVLOOP_STATE_LOCK, __ATOMIC_RELAXED);
 			current_evloop = NULL;
 		}
 
@@ -349,9 +349,9 @@ static void thread_run(volatile struct thread *me)
 		} else {
 			/* no job, check events */
 			el = &evloop[0];
-			if (el->sdev && !el->state) {
+			if (el->sdev && !__atomic_load_n(&el->state, __ATOMIC_RELAXED)) {
 				/* run the events */
-				el->state = EVLOOP_STATE_LOCK|EVLOOP_STATE_RUN|EVLOOP_STATE_WAIT;
+				__atomic_store_n(&el->state, EVLOOP_STATE_LOCK|EVLOOP_STATE_RUN|EVLOOP_STATE_WAIT, __ATOMIC_RELAXED);
 				current_evloop = el;
 				pthread_mutex_unlock(&mutex);
 				sig_monitor(0, evloop_run, el);
@@ -367,6 +367,12 @@ static void thread_run(volatile struct thread *me)
 				running++;
 			}
 		}
+	}
+
+	/* release the event loop */
+	if (current_evloop) {
+		__atomic_sub_fetch(&current_evloop->state, EVLOOP_STATE_LOCK, __ATOMIC_RELAXED);
+		current_evloop = NULL;
 	}
 
 	/* unlink the current thread and cleanup */
@@ -657,6 +663,8 @@ struct sd_event *jobs_get_sd_event()
 	/* creates the evloop on need */
 	el = &evloop[0];
 	if (!el->sdev) {
+		/* start the creation */
+		el->state = 0;
 		/* creates the eventfd for waking up polls */
 		el->efd = eventfd(0, EFD_CLOEXEC);
 		if (el->efd < 0) {
@@ -681,20 +689,18 @@ error1:
 			pthread_mutex_unlock(&mutex);
 			return NULL;
 		}
-		/* terminate creation */
-		el->state = 0;
 	}
 
 	/* attach the event loop to the current thread */
 	if (current_evloop != el) {
 		if (current_evloop)
-			current_evloop->state -= EVLOOP_STATE_LOCK;
+			__atomic_sub_fetch(&current_evloop->state, EVLOOP_STATE_LOCK, __ATOMIC_RELAXED);
 		current_evloop = el;
-		el->state += EVLOOP_STATE_LOCK;
+		__atomic_add_fetch(&el->state, EVLOOP_STATE_LOCK, __ATOMIC_RELAXED);
 	}
 
 	/* wait for a modifiable event loop */
-	while (el->state & EVLOOP_STATE_WAIT) {
+	while (__atomic_load_n(&el->state, __ATOMIC_RELAXED) & EVLOOP_STATE_WAIT) {
 		x = 1;
 		write(el->efd, &x, sizeof x);
 		pthread_cond_wait(&el->cond, &mutex);
