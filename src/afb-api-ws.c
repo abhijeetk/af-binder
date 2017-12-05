@@ -203,7 +203,7 @@ static int api_ws_socket(const char *path, int server)
 
 /**********************************************************************************/
 
-int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset)
+int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset, int strong)
 {
 	struct api_ws *apiws;
 	struct afb_stub_ws *stubws;
@@ -238,7 +238,17 @@ error3:
 error2:
 	free(apiws);
 error:
-	return -1;
+	return -!!strong;
+}
+
+int afb_api_ws_add_client_strong(const char *path, struct afb_apiset *apiset)
+{
+	return afb_api_ws_add_client(path, apiset, 1);
+}
+
+int afb_api_ws_add_client_weak(const char *path, struct afb_apiset *apiset)
+{
+	return afb_api_ws_add_client(path, apiset, 0);
 }
 
 static int api_ws_server_accept_client(struct api_ws *apiws, int fd)
