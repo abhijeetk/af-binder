@@ -40,6 +40,9 @@ static _Thread_local int in_safe_dumpstack;
 static _Thread_local int thread_timer_set;
 static _Thread_local timer_t thread_timerid;
 
+/* internal signal lists */
+static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, SIGILL, SIGBUS, 0 };
+static int sigterm[] = { SIGINT, SIGABRT, SIGTERM, 0 };
 /*
  * Dumps the current stack
  */
@@ -161,6 +164,25 @@ static inline void timeout_delete()
 	}
 }
 
+/* install the handlers */
+static int install(void (*handler)(int), int *signals)
+{
+	int result = 1;
+	struct sigaction sa;
+
+	sa.sa_handler = handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_NODEFER;
+	while(*signals > 0) {
+		if (sigaction(*signals, &sa, NULL) < 0) {
+			ERROR("failed to install signal handler for signal %s: %m", strsignal(*signals));
+			result = 0;
+		}
+		signals++;
+	}
+	return result;
+}
+
 
 /* Handles signals that terminate the process */
 static void on_signal_terminate (int signum)
@@ -193,30 +215,8 @@ static void on_signal_error(int signum)
 	exit(2);
 }
 
-/* install the handlers */
-static int install(void (*handler)(int), int *signals)
-{
-	int result = 1;
-	struct sigaction sa;
-
-	sa.sa_handler = handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_NODEFER;
-	while(*signals > 0) {
-		if (sigaction(*signals, &sa, NULL) < 0) {
-			ERROR("failed to install signal handler for signal %s: %m", strsignal(*signals));
-			result = 0;
-		}
-		signals++;
-	}
-	return result;
-}
-
 int sig_monitor_init()
 {
-	static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, SIGILL, SIGBUS, 0 };
-	static int sigterm[] = { SIGINT, SIGABRT, SIGTERM, 0 };
-
 	return (install(on_signal_error, sigerr) & install(on_signal_terminate, sigterm)) - 1;
 }
 
