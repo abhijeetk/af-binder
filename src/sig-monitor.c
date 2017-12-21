@@ -43,6 +43,8 @@ static _Thread_local timer_t thread_timerid;
 /* internal signal lists */
 static int sigerr[] = { SIG_FOR_TIMER, SIGSEGV, SIGFPE, SIGILL, SIGBUS, 0 };
 static int sigterm[] = { SIGINT, SIGABRT, SIGTERM, 0 };
+static int exiting = 0;
+
 /*
  * Dumps the current stack
  */
@@ -183,6 +185,25 @@ static int install(void (*handler)(int), int *signals)
 	return result;
 }
 
+/*
+ * rescue exit
+ */
+static void on_rescue_exit(int signum)
+{
+	ERROR("Rescue exit for signal %d: %s", signum, strsignal(signum));
+	_exit(exiting);
+}
+
+/*
+ * Do a safe exit
+ */
+static void safe_exit(int code)
+{
+	install(on_rescue_exit, sigerr);
+	install(on_rescue_exit, sigterm);
+	exiting = code;
+	exit(code);
+}
 
 /* Handles signals that terminate the process */
 static void on_signal_terminate (int signum)
@@ -192,7 +213,7 @@ static void on_signal_terminate (int signum)
 		if (signum == SIGABRT)
 			safe_dumpstack(3, signum);
 	}
-	exit(1);
+	safe_exit(1);
 }
 
 /* Handles monitored signals that can be continued */
@@ -212,7 +233,7 @@ static void on_signal_error(int signum)
 		longjmp(*error_handler, signum);
 
 	ERROR("Unmonitored signal %d received: %s", signum, strsignal(signum));
-	exit(2);
+	safe_exit(2);
 }
 
 int sig_monitor_init()
