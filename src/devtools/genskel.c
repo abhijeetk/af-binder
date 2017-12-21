@@ -331,7 +331,7 @@ struct json_object *decl_perm_a(enum optype op, struct json_object *obj)
 	struct json_object *x, *y;
 
 	if (cpp) {
-		fmtstr = "auth_%s(%s, %s)";
+		fmtstr = "afb::auth_%s(%s, %s)";
 		opstr = op==And ? "and" : "or";
 	} else {
 		fmtstr = ".type = afb_auth_%s, .first = %s, .next = %s";
@@ -363,7 +363,7 @@ struct json_object *decl_perm(struct json_object *obj)
 		return x;
 
 	if (json_object_object_get_ex(obj, "permission", &x)) {
-		asprintf(&a, cpp ? "auth_permission(\"%s\")" : ".type = afb_auth_Permission, .text = \"%s\"", json_object_get_string(x));
+		asprintf(&a, cpp ? "afb::auth_permission(\"%s\")" : ".type = afb_auth_Permission, .text = \"%s\"", json_object_get_string(x));
 		y = new_perm(obj, a);
 		free(a);
 	}
@@ -375,7 +375,7 @@ struct json_object *decl_perm(struct json_object *obj)
 	}
 	else if (json_object_object_get_ex(obj, "not", &x)) {
 		x = decl_perm(x);
-		asprintf(&a, cpp ? "auth_not(%s)" : ".type = afb_auth_Not, .first = %s", json_object_get_string(x));
+		asprintf(&a, cpp ? "afb::auth_not(%s)" : ".type = afb_auth_Not, .first = %s", json_object_get_string(x));
 		y = new_perm(obj, a);
 		free(a);
 	}
