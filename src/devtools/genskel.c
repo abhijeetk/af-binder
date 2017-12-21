@@ -75,6 +75,7 @@ const char *postfix = NULL;
 char *capi = NULL;
 int priv = -1;
 int noconc = -1;
+int cpp = 0;
 
 /**
  * Search for a reference of type "#/a/b/c" int the
@@ -281,13 +282,14 @@ struct json_object *permissions_of_verb(struct json_object *obj)
 void print_perms()
 {
 	int i, n;
+	const char *fmtstr = cpp ? "\t%s" : "\t{ %s }";
 
 	n = a_perms ? json_object_array_length(a_perms) : 0;
 	if (n) {
 		printf("static const struct afb_auth _afb_auths_v2_%s[] = {\n" , capi);
 		i = 0;
 		while (i < n) {
-			printf("\t{ %s }", json_object_get_string(json_object_array_get_idx(a_perms, i)));
+			printf(fmtstr, json_object_get_string(json_object_array_get_idx(a_perms, i)));
 			printf(",\n"+(++i == n));
 		}
 		printf("};\n\n");
@@ -319,12 +321,22 @@ struct json_object *new_perm(struct json_object *obj, const char *desc)
 
 struct json_object *decl_perm(struct json_object *obj);
 
-struct json_object *decl_perm_a(const char *op, struct json_object *obj)
+enum optype { And, Or };
+
+struct json_object *decl_perm_a(enum optype op, struct json_object *obj)
 {
 	int i, n;
 	char *a;
+	const char *opstr, *fmtstr;
 	struct json_object *x, *y;
 
+	if (cpp) {
+		fmtstr = "auth_%s(%s, %s)";
+		opstr = op==And ? "and" : "or";
+	} else {
+		fmtstr = ".type = afb_auth_%s, .first = %s, .next = %s";
+		opstr = op==And ? "And" : "Or";
+	}
 	x = NULL;
 	i = n = obj ? json_object_array_length(obj) : 0;
 	while (i) {
@@ -334,8 +346,7 @@ struct json_object *decl_perm_a(const char *op, struct json_object *obj)
 		else if (!x)
 			x = y;
 		else if (x != y) {
-			asprintf(&a, ".type = afb_auth_%s, .first = %s, .next = %s",
-				 op, json_object_get_string(y), json_object_get_string(x));
+			asprintf(&a, fmtstr, opstr, json_object_get_string(y), json_object_get_string(x));
 			x = new_perm(NULL, a);
 			free(a);
 		}
@@ -352,19 +363,19 @@ struct json_object *decl_perm(struct json_object *obj)
 		return x;
 
 	if (json_object_object_get_ex(obj, "permission", &x)) {
-		asprintf(&a, ".type = afb_auth_Permission, .text = \"%s\"", json_object_get_string(x));
+		asprintf(&a, cpp ? "auth_permission(\"%s\")" : ".type = afb_auth_Permission, .text = \"%s\"", json_object_get_string(x));
 		y = new_perm(obj, a);
 		free(a);
 	}
 	else if (json_object_object_get_ex(obj, "anyOf", &x)) {
-		y = decl_perm_a("Or", x);
+		y = decl_perm_a(Or, x);
 	}
 	else if (json_object_object_get_ex(obj, "allOf", &x)) {
-		y = decl_perm_a("And", x);
+		y = decl_perm_a(And, x);
 	}
 	else if (json_object_object_get_ex(obj, "not", &x)) {
 		x = decl_perm(x);
-		asprintf(&a, ".type = afb_auth_Not, .first = %s", json_object_get_string(x));
+		asprintf(&a, cpp ? "auth_not(%s)" : ".type = afb_auth_Not, .first = %s", json_object_get_string(x));
 		y = new_perm(obj, a);
 		free(a);
 	}
@@ -694,10 +705,15 @@ void process(char *filename)
 /** process the list of files or stdin if none */
 int main(int ac, char **av)
 {
-	if (!*++av)
+	av++;
+	if (*av && !(strcmp(*av, "-x") && strcmp(*av, "--cpp"))) {
+		cpp = 1;
+		av++;
+	}
+	if (!*av)
 		process("-");
 	else {
-		do { process(*av); } while(*++av);
+		do { process(*av++); } while(*av);
 	}
 	return 0;
 }
