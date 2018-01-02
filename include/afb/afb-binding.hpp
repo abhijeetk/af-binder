@@ -585,7 +585,7 @@ constexpr afb_verb_v2 verbend()
 	return r;
 }
 
-const afb_binding_v2 binding(const char *name, const struct afb_verb_v2 *verbs, const char *info = nullptr, int (*init)() = nullptr, const char *specification = nullptr, void (*onevent)(const char*, struct json_object*) = nullptr, bool noconcurrency = false, int (*preinit)() = nullptr)
+constexpr afb_binding_v2 binding(const char *name, const struct afb_verb_v2 *verbs, const char *info = nullptr, int (*init)() = nullptr, const char *specification = nullptr, void (*onevent)(const char*, struct json_object*) = nullptr, bool noconcurrency = false, int (*preinit)() = nullptr)
 {
 	afb_binding_v2 r = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	r.api = name;
