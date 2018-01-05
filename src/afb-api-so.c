@@ -155,10 +155,52 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, i
 		if (dent->d_type == DT_DIR) {
 			/* case of directories */
 			if (dent->d_name[0] == '.') {
+/*
+Exclude from the search of bindings any
+directory starting with a dot (.) by default.
+
+It is possible to reactivate the prvious behaviour 
+by defining the following preprocessor variables
+
+ - AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS
+
+   When this variable is defined, the directories 
+   starting with a dot are searched except
+   if their name is "." or ".." or ".debug"
+
+ - AFB_API_SO_ACCEPT_DOT_DEBUG_DIRS
+
+   When this variable is defined and the variable
+   AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS is also defined
+   scans any directory not being "." or "..".
+
+The previous behaviour was like difining the 2 variables,
+meaning that only . and .. were excluded from the search.
+
+This change is intended to definitely solve the issue
+SPEC-662. Yocto installed the debugging symbols in the
+subdirectory .debug. For example the binding.so also
+had a .debug/binding.so file attached. Opening that
+debug file made dlopen crashing. 
+See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
+ */
+#if !defined(AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS) /* not defined by default */
+				continue; /* ignore any directory beginnign with a dot */
+#else
 				if (len == 1)
 					continue; /* . */
 				if (dent->d_name[1] == '.' && len == 2)
 					continue; /* .. */
+#if !defined(AFB_API_SO_ACCEPT_DOT_DEBUG_DIRS) /* not defined by default */
+				if (len == 6
+				 && dent->d_name[1] == 'd'
+				 && dent->d_name[2] == 'e'
+				 && dent->d_name[3] == 'b'
+				 && dent->d_name[4] == 'u'
+				 && dent->d_name[5] == 'g')
+					continue; /* .debug */
+#endif
+#endif
 			}
 			memcpy(&path[end], dent->d_name, len+1);
 			rc = adddirs(path, end+len, apiset, failstops);
