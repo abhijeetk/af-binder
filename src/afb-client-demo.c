@@ -451,6 +451,7 @@ static void pws_call(const char *verb, const char *object)
 			o = json_object_new_string(object);
 	}
 	rc = afb_proto_ws_client_call(pws, verb, o, sessionid, key);
+	json_object_put(o);
 	if (rc < 0) {
 		fprintf(stderr, "calling %s(%s) failed: %m\n", verb, object?:"");
 		dec_callcount();
