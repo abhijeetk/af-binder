@@ -29,6 +29,9 @@
 #include <sys/eventfd.h>
 
 #include <systemd/sd-event.h>
+#ifndef NO_JOBS_WATCHDOG
+#include <systemd/sd-daemon.h>
+#endif
 
 #include "jobs.h"
 #include "sig-monitor.h"
@@ -761,6 +764,12 @@ int jobs_start(int allowed_count, int start_count, int waiter_count, void (*star
 	started = 0;
 	running = 0;
 	remains = waiter_count;
+
+#ifndef NO_JOBS_WATCHDOG
+	/* set the watchdog */
+	if (sd_watchdog_enabled(0, NULL))
+		sd_event_set_watchdog(get_sd_event_locked(), 1);
+#endif
 
 	/* start at least one thread */
 	launched = 0;
