@@ -652,13 +652,11 @@ static int on_evloop_efd(sd_event_source *s, int fd, uint32_t revents, void *use
  * Gets a sd_event item for the current thread.
  * @return a sd_event or NULL in case of error
  */
-struct sd_event *jobs_get_sd_event()
+static struct sd_event *get_sd_event_locked()
 {
 	struct evloop *el;
 	uint64_t x;
 	int rc;
-
-	pthread_mutex_lock(&mutex);
 
 	/* creates the evloop on need */
 	el = &evloop[0];
@@ -686,7 +684,6 @@ struct sd_event *jobs_get_sd_event()
 error2:
 			close(el->efd);
 error1:
-			pthread_mutex_unlock(&mutex);
 			return NULL;
 		}
 	}
@@ -706,8 +703,22 @@ error1:
 		pthread_cond_wait(&el->cond, &mutex);
 	}
 
-	pthread_mutex_unlock(&mutex);
 	return el->sdev;
+}
+
+/**
+ * Gets a sd_event item for the current thread.
+ * @return a sd_event or NULL in case of error
+ */
+struct sd_event *jobs_get_sd_event()
+{
+	struct sd_event *result;
+
+	pthread_mutex_lock(&mutex);
+	result = get_sd_event_locked();
+	pthread_mutex_unlock(&mutex);
+
+	return result;
 }
 
 /**
