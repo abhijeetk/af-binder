@@ -271,25 +271,25 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	const char *extension = strrchr(filename, '.');
 	if (extension) {
 		static const char *const known[][2] = {
-			{ ".js",	"text/javascript" },
-			{ ".json",	"application/json" },
-			{ ".html",	"text/html" },
 			{ ".css",	"text/css" },
+			{ ".gif",	"image/gif" },
+			{ ".html",	"text/html" },
+			{ ".htm",	"text/html" },
 			{ ".ico",	"image/x-icon"},
 			/* TODO: CHECK ME { ".ico",	"image/vnd.microsoft.icon" }, */
+			{ ".jpeg",	"image/jpeg" },
 			{ ".jpg",	"image/jpeg" },
+			{ ".js",	"text/javascript" },
+			{ ".json",	"application/json" },
+			{ ".mp3",	"audio/mpeg" },
 			{ ".png",	"image/png" },
 			{ ".svg",	"image/svg+xml" },
 			{ ".ttf",	"application/x-font-ttf"},
-			{ ".htm",	"text/html" },
-			{ ".xml",	"application/xml" },
 			{ ".txt",	"text/plain" },
 			{ ".wav",	"audio/x-wav" },
-			{ ".xhtml",	"application/xhtml+xml" },
 			{ ".xht",	"application/xhtml+xml" },
-			{ ".gif",	"image/gif" },
-			{ ".png",	"image/png" },
-			{ ".mp3",	"audio/mpeg" },
+			{ ".xhtml",	"application/xhtml+xml" },
+			{ ".xml",	"application/xml" },
 			{ NULL, NULL }
 		};
 		int i = 0;
