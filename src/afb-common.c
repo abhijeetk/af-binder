@@ -32,31 +32,6 @@
 static const char *default_locale = NULL;
 static struct locale_root *rootdir = NULL;
 
-/*
-struct sd_event *afb_common_get_thread_event_loop()
-{
-	sd_event *result;
-	int rc = sd_event_default(&result);
-	if (rc != 0) {
-		errno = -rc;
-		result = NULL;
-	}
-	return result;
-}
-
-static void *sdopen(void **p, int (*f)(void **))
-{
-	if (*p == NULL) {
-		int rc = f(p);
-		if (rc < 0) {
-			errno = -rc;
-			*p = NULL;
-		}
-	}
-	return *p;
-}
-*/
-
 static struct sd_bus *sdbusopen(struct sd_bus **p, int (*f)(struct sd_bus **))
 {
 	if (*p == NULL) {
