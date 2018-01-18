@@ -271,12 +271,12 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	const char *extension = strrchr(filename, '.');
 	if (extension) {
 		static const char *const known[][2] = {
+			/* keep it sorted for dichotomic search */
 			{ ".css",	"text/css" },
 			{ ".gif",	"image/gif" },
 			{ ".html",	"text/html" },
 			{ ".htm",	"text/html" },
 			{ ".ico",	"image/x-icon"},
-			/* TODO: CHECK ME { ".ico",	"image/vnd.microsoft.icon" }, */
 			{ ".jpeg",	"image/jpeg" },
 			{ ".jpg",	"image/jpeg" },
 			{ ".js",	"text/javascript" },
@@ -289,16 +289,20 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 			{ ".wav",	"audio/x-wav" },
 			{ ".xht",	"application/xhtml+xml" },
 			{ ".xhtml",	"application/xhtml+xml" },
-			{ ".xml",	"application/xml" },
-			{ NULL, NULL }
+			{ ".xml",	"application/xml" }
 		};
-		int i = 0;
-		while (known[i][0]) {
-			if (!strcasecmp(extension, known[i][0])) {
+		int i, c, l = 0, u = sizeof known / sizeof *known;
+		while (l < u) {
+			i = (l + u) >> 1;
+			c = strcasecmp(extension, known[i][0]);
+			if (!c) {
 				result = known[i][1];
 				break;
 			}
-			i++;
+			if (c < 0)
+				u = i;
+			else
+				l = i + 1;
 		}
 	}
 #endif
