@@ -239,7 +239,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *apiset)
 		ERROR("binding [%s] bad prefix...", path);
 		goto error;
 	}
-	if (!afb_api_is_valid_name(desc->binding->v1.prefix)) {
+	if (!afb_api_is_valid_name(desc->binding->v1.prefix, 1)) {
 		ERROR("binding [%s] invalid prefix...", path);
 		goto error;
 	}

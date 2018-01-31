@@ -241,7 +241,7 @@ static int rename_api_cb(void *closure, const char *name)
 		errno = EINVAL;
 		return -1;
 	}
-	if (!afb_api_is_valid_name(name)) {
+	if (!afb_api_is_valid_name(name, 1)) {
 		ERROR("[API %s] Can't rename to %s: bad API name", export->apiname, name);
 		errno = EINVAL;
 		return -1;

@@ -113,7 +113,7 @@ static struct api_dbus *make_api_dbus_3(int system, const char *path, size_t pat
 		goto error2;
 	}
 	api->api++;
-	if (!afb_api_is_valid_name(api->api)) {
+	if (!afb_api_is_valid_name(api->api, 1)) {
 		errno = EINVAL;
 		goto error2;
 	}

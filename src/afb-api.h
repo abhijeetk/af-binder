@@ -38,7 +38,7 @@ struct afb_api
 	const void *group;
 };
 
-extern int afb_api_is_valid_name(const char *name);
+extern int afb_api_is_valid_name(const char *name, int hookable);
 
 #define AFB_API_UNHOOKABLE_PREFIX_CHAR    '$'
 #define AFB_API_UNHOOKABLE_PREFIX_STRING  "$"

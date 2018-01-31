@@ -73,7 +73,7 @@ static struct api_ws *api_ws_make(const char *path)
 	while (length && path[length - 1] != '/' && path[length - 1] != ':')
 		length = length - 1;
 	api->api = &api->path[length];
-	if (api->api == NULL || !afb_api_is_valid_name(api->api)) {
+	if (api->api == NULL || !afb_api_is_valid_name(api->api, 1)) {
 		errno = EINVAL;
 		goto error2;
 	}

@@ -230,7 +230,7 @@ int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *apiset)
 		ERROR("binding [%s] bad api name...", path);
 		goto error;
 	}
-	if (!afb_api_is_valid_name(binding->api)) {
+	if (!afb_api_is_valid_name(binding->api, 1)) {
 		ERROR("binding [%s] invalid api name...", path);
 		goto error;
 	}
