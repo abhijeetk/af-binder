@@ -21,7 +21,8 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-binding-v2.h>
+#define AFB_BINDING_VERSION 0
+#include <afb/afb-binding.h>
 
 #include "afb-api.h"
 #include "afb-apiset.h"
@@ -324,7 +325,7 @@ static void f_set(struct afb_req req)
 
 static void *context_create()
 {
-	return afb_trace_create(&datav2.daemon, NULL);
+	return afb_trace_create(_afb_binding_v2_monitor.api, NULL);
 }
 
 static void context_destroy(void *pointer)

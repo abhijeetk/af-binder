@@ -27,6 +27,7 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
+
 #define AFB_BINDING_VERSION 0
 #include <afb/afb-binding.h>
 
@@ -106,7 +107,7 @@ struct afb_trace
 {
 	int refcount;				/* reference count */
 	pthread_mutex_t mutex;			/* concurrency management */
-	struct afb_daemon *daemon;		/* daemon */
+	const char *apiname;			/* api name for events */
 	struct afb_session *bound;		/* bound to session */
 	struct event *events;			/* list of events */
 	struct tag *tags;			/* list of tags */
@@ -1065,7 +1066,6 @@ static struct tag *trace_get_tag(struct afb_trace *trace, const char *name, int 
  */
 static struct event *trace_get_event(struct afb_trace *trace, const char *name, int alloc)
 {
-	struct afb_event e;
 	struct event *event;
 
 	/* search the event */
@@ -1076,8 +1076,7 @@ static struct event *trace_get_event(struct afb_trace *trace, const char *name, 
 	if (!event && alloc) {
 		event = malloc(sizeof * event);
 		if (event) {
-			e = afb_daemon_make_event_v1(*trace->daemon, name);
-			event->evtid = afb_evt_eventid_to_evtid(afb_event_to_eventid(e));
+			event->evtid = afb_evt_evtid_create2(trace->apiname, name);
 			if (event->evtid) {
 				event->next = trace->events;
 				trace->events = event;
@@ -1437,17 +1436,17 @@ static void drop_session(void *closure, struct json_object *object)
 /*******************************************************************************/
 
 /* allocates an afb_trace instance */
-struct afb_trace *afb_trace_create(struct afb_daemon *daemon, struct afb_session *bound)
+struct afb_trace *afb_trace_create(const char *apiname, struct afb_session *bound)
 {
 	struct afb_trace *trace;
 
-	assert(daemon);
+	assert(apiname);
 
 	trace = calloc(1, sizeof *trace);
 	if (trace) {
 		trace->refcount = 1;
 		trace->bound = bound;
-		trace->daemon = daemon;
+		trace->apiname = apiname;
 		pthread_mutex_init(&trace->mutex, NULL);
 	}
 	return trace;

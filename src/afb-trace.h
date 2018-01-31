@@ -20,10 +20,10 @@
 
 struct afb_trace;
 
-extern struct afb_trace *afb_trace_create(struct afb_daemon *daemon, struct afb_session *bound);
+extern struct afb_trace *afb_trace_create(const char *api, struct afb_session *bound);
+
 extern void afb_trace_addref(struct afb_trace *trace);
 extern void afb_trace_unref(struct afb_trace *trace);
-
 
 extern int afb_trace_add(struct afb_req req, struct json_object *args, struct afb_trace *trace);
 extern int afb_trace_drop(struct afb_req req, struct json_object *args, struct afb_trace *trace);
