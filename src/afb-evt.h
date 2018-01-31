@@ -40,6 +40,7 @@ extern struct afb_evt_listener *afb_evt_listener_addref(struct afb_evt_listener 
 extern void afb_evt_listener_unref(struct afb_evt_listener *listener);
 
 extern struct afb_evtid *afb_evt_evtid_create(const char *fullname);
+extern struct afb_evtid *afb_evt_evtid_create2(const char *prefix, const char *name);
 
 extern struct afb_evtid *afb_evt_evtid_addref(struct afb_evtid *evtid);
 extern struct afb_evtid *afb_evt_evtid_hooked_addref(struct afb_evtid *evtid);
@@ -66,6 +67,7 @@ extern void afb_evt_update_hooks();
 
 
 extern struct afb_eventid *afb_evt_eventid_create(const char *fullname);
+extern struct afb_eventid *afb_evt_eventid_create2(const char *prefix, const char *name);
 extern const char *afb_evt_eventid_fullname(struct afb_eventid *eventid);
 extern int afb_evt_eventid_id(struct afb_eventid *eventid);
 extern struct afb_eventid *afb_evt_eventid_addref(struct afb_eventid *eventid);

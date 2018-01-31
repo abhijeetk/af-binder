@@ -153,8 +153,6 @@ static void old_vverbose_cb(void *closure, int level, const char *file, int line
 
 static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
 {
-	size_t plen, nlen;
-	char *event;
 	struct afb_export *export = closure;
 
 	/* check daemon state */
@@ -164,16 +162,8 @@ static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
 		return NULL;
 	}
 
-	/* makes the event name */
-	plen = strlen(export->apiname);
-	nlen = strlen(name);
-	event = alloca(nlen + plen + 2);
-	memcpy(event, export->apiname, plen);
-	event[plen] = '/';
-	memcpy(event + plen + 1, name, nlen + 1);
-
 	/* create the event */
-	return afb_evt_eventid_create(event);
+	return afb_evt_eventid_create2(export->apiname, name);
 }
 
 static struct afb_event event_make_cb(void *closure, const char *name)

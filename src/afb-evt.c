@@ -352,6 +352,26 @@ error:
 }
 
 /*
+ * Creates an event of name 'prefix'/'name' and returns it or NULL on error.
+ */
+struct afb_evtid *afb_evt_evtid_create2(const char *prefix, const char *name)
+{
+	size_t prelen, postlen;
+	char *fullname;
+
+	/* makes the event fullname */
+	prelen = strlen(prefix);
+	postlen = strlen(name);
+	fullname = alloca(prelen + postlen + 2);
+	memcpy(fullname, prefix, prelen);
+	fullname[prelen] = '/';
+	memcpy(fullname + prelen + 1, name, postlen + 1);
+
+	/* create the event */
+	return afb_evt_evtid_create(fullname);
+}
+
+/*
  * increment the reference count of the event 'evtid'
  */
 struct afb_evtid *afb_evt_evtid_addref(struct afb_evtid *evtid)
@@ -651,6 +671,15 @@ inline struct afb_eventid *afb_evt_eventid_from_evtid(struct afb_evtid *evtid)
 struct afb_eventid *afb_evt_eventid_create(const char *fullname)
 {
 	return afb_evt_eventid_from_evtid(afb_evt_evtid_create(fullname));
+}
+
+/*
+ * Creates an event of name 'prefix'/'name' and returns it.
+ * Returns an event with closure==NULL in case of error.
+ */
+struct afb_eventid *afb_evt_eventid_create2(const char *prefix, const char *name)
+{
+	return afb_evt_eventid_from_evtid(afb_evt_evtid_create2(prefix, name));
 }
 
 /*
