@@ -30,8 +30,6 @@ struct afb_eventid;
 struct afb_verb_desc_v1;
 struct afb_verb_v2;
 struct afb_req;
-struct afb_req_itf;
-struct afb_request;
 struct afb_stored_req;
 
 struct afb_xreq_query_itf {
@@ -79,7 +77,7 @@ struct afb_xreq
  * @param ptr the pointer to an element 'field'
  * @return the pointer to the structure that contains the 'field' at address 'ptr'
  */
-#define CONTAINER_OF(type,field,ptr) ((type*)(((intptr_t)(ptr))-((intptr_t)&(((type*)NULL)->field))))
+#define CONTAINER_OF(type,field,ptr) ((type*)(((char*)(ptr))-((char*)&(((type*)NULL)->field))))
 
 /**
  * Macro for retrieve the pointer of a structure of 'type' having a field named "xreq"
@@ -148,3 +146,15 @@ extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);
 extern void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 *verb);
 extern void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb);
 extern void afb_xreq_call_verb_vdyn(struct afb_xreq *xreq, const struct afb_api_dyn_verb *verb);
+
+static inline struct afb_request *xreq_to_request(struct afb_xreq *xreq)
+{
+	return &xreq->request;
+}
+
+static inline struct afb_xreq *xreq_from_request(struct afb_request *request)
+{
+	return CONTAINER_OF(struct afb_xreq, request, request);
+}
+
+
