@@ -44,5 +44,10 @@ extern struct sd_event *jobs_get_sd_event();
 
 extern void jobs_terminate();
 
-extern int jobs_start(int allowed_count, int start_count, int waiter_count, void (*start)(int signum));
+extern int jobs_start(
+		int allowed_count,
+		int start_count,
+		int waiter_count,
+		void (*start)(int signum, void* arg),
+		void *arg);
 

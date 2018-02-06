@@ -535,7 +535,7 @@ static void run_startup_calls()
  | job for starting the daemon
  +--------------------------------------------------------- */
 
-static void start(int signum)
+static void start(int signum, void *arg)
 {
 	struct afb_hsrv *hsrv;
 
@@ -674,7 +674,7 @@ int main(int argc, char *argv[])
 	afb_debug("main-start");
 
 	/* enter job processing */
-	jobs_start(3, 0, 50, start);
+	jobs_start(3, 0, 50, start, NULL);
 	WARNING("hoops returned from jobs_enter! [report bug]");
 	return 1;
 }
