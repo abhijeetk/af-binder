@@ -33,8 +33,8 @@
 
 #define SIZEUUID	37
 #define HEADCOUNT	16
-#define COOKEYCOUNT	8
-#define COOKEYMASK	(COOKEYCOUNT - 1)
+#define COOKIECOUNT	8
+#define COOKIEMASK	(COOKIECOUNT - 1)
 
 #define _MAXEXP_	((time_t)(~(time_t)0))
 #define _MAXEXP2_	((time_t)((((unsigned long long)_MAXEXP_) >> 1)))
@@ -56,7 +56,7 @@ struct afb_session
 	int timeout;
 	time_t expiration;	// expiration time of the token
 	pthread_mutex_t mutex;
-	struct cookie *cookies[COOKEYCOUNT];
+	struct cookie *cookies[COOKIECOUNT];
 	char autoclose;
 	char idx;
 	char uuid[SIZEUUID];	// long term authentication of remote client
@@ -98,7 +98,7 @@ static void close_session(struct afb_session *session)
 	struct cookie *cookie;
 
 	/* free cookies */
-	for (idx = 0 ; idx < COOKEYCOUNT ; idx++) {
+	for (idx = 0 ; idx < COOKIECOUNT ; idx++) {
 		while ((cookie = session->cookies[idx])) {
 			session->cookies[idx] = cookie->next;
 			if (cookie->freecb != NULL)
@@ -458,7 +458,7 @@ static int cookeyidx(const void *key)
 {
 	intptr_t x = (intptr_t)key;
 	unsigned r = (unsigned)((x >> 5) ^ (x >> 15));
-	return r & COOKEYMASK;
+	return r & COOKIEMASK;
 }
 
 /**
