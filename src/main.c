@@ -546,12 +546,6 @@ static void start(int signum, void *arg)
 		exit(1);
 	}
 
-	// ------------------ sanity check ----------------------------------------
-	if (config->httpdPort <= 0) {
-		ERROR("no port is defined");
-		goto error;
-	}
-
 	/* set the directories */
 	mkdir(config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
 	if (chdir(config->workdir) < 0) {
@@ -566,10 +560,6 @@ static void start(int signum, void *arg)
 	/* configure the daemon */
 	if (afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token)) {
 		ERROR("initialisation of session manager failed");
-		goto error;
-	}
-	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
-		ERROR("initialisation of cookies failed");
 		goto error;
 	}
 	main_apiset = afb_apiset_create("main", config->apiTimeout);
@@ -616,6 +606,16 @@ static void start(int signum, void *arg)
 	/* start the HTTP server */
 	afb_debug("start-http");
 	if (!config->noHttpd) {
+		if (config->httpdPort <= 0) {
+			ERROR("no port is defined");
+			goto error;
+		}
+
+		if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
+			ERROR("initialisation of HTTP cookies failed");
+			goto error;
+		}
+
 		hsrv = start_http_server();
 		if (hsrv == NULL)
 			goto error;
