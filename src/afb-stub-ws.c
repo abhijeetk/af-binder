@@ -485,7 +485,7 @@ static void record_session(struct afb_stub_ws *stubws, struct afb_session *sessi
 			prv = &s->next;
 		else {
 			*prv = s->next;
-			afb_session_addref(s->session);
+			afb_session_unref(s->session);
 			free(s);
 		}
 	}
