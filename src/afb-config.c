@@ -148,7 +148,7 @@ static AFB_options cliOptions[] = {
 	{SET_WEAK_LDPATH,   1, "weak-ldpaths","Same as --ldpaths but ignore errors"},
 	{NO_LDPATH,         0, "no-ldpaths",  "Discard default ldpaths loading"},
 
-	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=no-session, --token= for session without authentication]"},
+	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=random, use --token="" to allow any token]"},
 	{SET_RNDTOKEN,      0, "random-token","Enforce a random token"},
 
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
