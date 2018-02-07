@@ -35,6 +35,7 @@ struct afb_hook_xreq;
 struct afb_hook_ditf;
 struct afb_hook_svc;
 struct afb_hook_evt;
+struct afb_hook_session;
 struct afb_hook_global;
 
 /*********************************************************
@@ -330,6 +331,42 @@ extern int afb_hook_flags_evt(const char *name);
 extern struct afb_hook_evt *afb_hook_create_evt(const char *pattern, int flags, struct afb_hook_evt_itf *itf, void *closure);
 extern struct afb_hook_evt *afb_hook_addref_evt(struct afb_hook_evt *hook);
 extern void afb_hook_unref_evt(struct afb_hook_evt *hook);
+
+/*********************************************************
+* section hooking session (session interface)
+*********************************************************/
+
+#define afb_hook_flag_session_create			0x000001
+#define afb_hook_flag_session_close			0x000002
+#define afb_hook_flag_session_destroy			0x000004
+#define afb_hook_flag_session_renew			0x000008
+#define afb_hook_flag_session_addref			0x000010
+#define afb_hook_flag_session_unref			0x000020
+
+#define afb_hook_flags_session_common	(afb_hook_flag_session_create|afb_hook_flag_session_close\
+					|afb_hook_flag_session_renew)
+#define afb_hook_flags_session_all	(afb_hook_flags_session_common|afb_hook_flag_session_destroy\
+					|afb_hook_flag_session_addref|afb_hook_flag_session_unref)
+
+struct afb_hook_session_itf {
+	void (*hook_session_create)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+	void (*hook_session_close)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+	void (*hook_session_destroy)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+	void (*hook_session_renew)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+	void (*hook_session_addref)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+	void (*hook_session_unref)(void *closure, const struct afb_hookid *hookid, struct afb_session *session);
+};
+
+extern void afb_hook_session_create(struct afb_session *session);
+extern void afb_hook_session_close(struct afb_session *session);
+extern void afb_hook_session_destroy(struct afb_session *session);
+extern void afb_hook_session_renew(struct afb_session *session);
+extern void afb_hook_session_addref(struct afb_session *session);
+extern void afb_hook_session_unref(struct afb_session *session);
+
+extern struct afb_hook_session *afb_hook_create_session(const char *pattern, int flags, struct afb_hook_session_itf *itf, void *closure);
+extern struct afb_hook_session *afb_hook_addref_session(struct afb_hook_session *hook);
+extern void afb_hook_unref_session(struct afb_hook_session *hook);
 
 /*********************************************************
 * section hooking global (global interface)

@@ -47,10 +47,10 @@
 struct afb_hook_xreq {
 	struct afb_hook_xreq *next; /**< next hook */
 	unsigned refcount; /**< reference count */
+	unsigned flags; /**< hook flags */
 	char *api; /**< api hooked or NULL for any */
 	char *verb; /**< verb hooked or NULL for any */
 	struct afb_session *session; /**< session hooked or NULL if any */
-	unsigned flags; /**< hook flags */
 	struct afb_hook_xreq_itf *itf; /**< interface of hook */
 	void *closure; /**< closure for callbacks */
 };
@@ -61,8 +61,8 @@ struct afb_hook_xreq {
 struct afb_hook_ditf {
 	struct afb_hook_ditf *next; /**< next hook */
 	unsigned refcount; /**< reference count */
-	char *api; /**< api hooked or NULL for any */
 	unsigned flags; /**< hook flags */
+	char *api; /**< api hooked or NULL for any */
 	struct afb_hook_ditf_itf *itf; /**< interface of hook */
 	void *closure; /**< closure for callbacks */
 };
@@ -73,8 +73,8 @@ struct afb_hook_ditf {
 struct afb_hook_svc {
 	struct afb_hook_svc *next; /**< next hook */
 	unsigned refcount; /**< reference count */
-	char *api; /**< api hooked or NULL for any */
 	unsigned flags; /**< hook flags */
+	char *api; /**< api hooked or NULL for any */
 	struct afb_hook_svc_itf *itf; /**< interface of hook */
 	void *closure; /**< closure for callbacks */
 };
@@ -85,9 +85,21 @@ struct afb_hook_svc {
 struct afb_hook_evt {
 	struct afb_hook_evt *next; /**< next hook */
 	unsigned refcount; /**< reference count */
-	char *pattern; /**< event pattern name hooked or NULL for any */
 	unsigned flags; /**< hook flags */
+	char *pattern; /**< event pattern name hooked or NULL for any */
 	struct afb_hook_evt_itf *itf; /**< interface of hook */
+	void *closure; /**< closure for callbacks */
+};
+
+/**
+ * Definition of a hook for session
+ */
+struct afb_hook_session {
+	struct afb_hook_session *next; /**< next hook */
+	unsigned refcount; /**< reference count */
+	unsigned flags; /**< hook flags */
+	char *pattern; /**< event pattern name hooked or NULL for any */
+	struct afb_hook_session_itf *itf; /**< interface of hook */
 	void *closure; /**< closure for callbacks */
 };
 
@@ -116,6 +128,9 @@ static struct afb_hook_svc *list_of_svc_hooks = NULL;
 
 /* list of hooks for evt */
 static struct afb_hook_evt *list_of_evt_hooks = NULL;
+
+/* list of hooks for session */
+static struct afb_hook_session *list_of_session_hooks = NULL;
 
 /* list of hooks for global */
 static struct afb_hook_global *list_of_global_hooks = NULL;
@@ -1415,6 +1430,178 @@ void afb_hook_unref_evt(struct afb_hook_evt *hook)
 		else {
 			/* unlink */
 			prv = &list_of_evt_hooks;
+			while (*prv && *prv != hook)
+				prv = &(*prv)->next;
+			if(*prv)
+				*prv = hook->next;
+		}
+		pthread_rwlock_unlock(&rwlock);
+		if (hook) {
+			/* free */
+			free(hook->pattern);
+			free(hook);
+		}
+	}
+}
+
+/******************************************************************************
+ * section: default callbacks for sessions (session)
+ *****************************************************************************/
+
+static void _hook_session_(struct afb_session *session, const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	_hook_("session-%s", format, ap, afb_session_uuid(session));
+	va_end(ap);
+}
+
+static void hook_session_create_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "create -> token=%s", afb_session_token(session));
+}
+
+static void hook_session_close_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "close");
+}
+
+static void hook_session_destroy_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "destroy");
+}
+
+static void hook_session_renew_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "renew -> token=%s", afb_session_token(session));
+}
+
+static void hook_session_addref_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "addref");
+}
+
+static void hook_session_unref_default_cb(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	_hook_session_(session, "unref");
+}
+
+static struct afb_hook_session_itf hook_session_default_itf = {
+	.hook_session_create = hook_session_create_default_cb,
+	.hook_session_close = hook_session_close_default_cb,
+	.hook_session_destroy = hook_session_destroy_default_cb,
+	.hook_session_renew = hook_session_renew_default_cb,
+	.hook_session_addref = hook_session_addref_default_cb,
+	.hook_session_unref = hook_session_unref_default_cb
+};
+
+/******************************************************************************
+ * section: hooks for tracing sessions (session)
+ *****************************************************************************/
+
+#define _HOOK_SESSION_(what,...)   \
+	struct afb_hook_session *hook; \
+	struct afb_hookid hookid; \
+	const char *sessid = 0; \
+	pthread_rwlock_rdlock(&rwlock); \
+	init_hookid(&hookid); \
+	hook = list_of_session_hooks; \
+	while (hook) { \
+		if (hook->itf->hook_session_##what \
+		 && (hook->flags & afb_hook_flag_session_##what) != 0 \
+		 && (!hook->pattern || !fnmatch(hook->pattern, (sessid?:(sessid=afb_session_uuid(session))), FNM_CASEFOLD))) { \
+			hook->itf->hook_session_##what(hook->closure, &hookid, __VA_ARGS__); \
+		} \
+		hook = hook->next; \
+	} \
+	pthread_rwlock_unlock(&rwlock);
+
+void afb_hook_session_create(struct afb_session *session)
+{
+	_HOOK_SESSION_(create, session);
+}
+
+void afb_hook_session_close(struct afb_session *session)
+{
+	_HOOK_SESSION_(close, session);
+}
+
+void afb_hook_session_destroy(struct afb_session *session)
+{
+	_HOOK_SESSION_(destroy, session);
+}
+
+void afb_hook_session_renew(struct afb_session *session)
+{
+	_HOOK_SESSION_(renew, session);
+}
+
+void afb_hook_session_addref(struct afb_session *session)
+{
+	_HOOK_SESSION_(addref, session);
+}
+
+void afb_hook_session_unref(struct afb_session *session)
+{
+	_HOOK_SESSION_(unref, session);
+}
+
+
+/******************************************************************************
+ * section: hooking sessions (session)
+ *****************************************************************************/
+
+struct afb_hook_session *afb_hook_create_session(const char *pattern, int flags, struct afb_hook_session_itf *itf, void *closure)
+{
+	struct afb_hook_session *hook;
+
+	/* alloc the result */
+	hook = calloc(1, sizeof *hook);
+	if (hook == NULL)
+		return NULL;
+
+	/* get a copy of the names */
+	hook->pattern = pattern ? strdup(pattern) : NULL;
+	if (pattern && !hook->pattern) {
+		free(hook);
+		return NULL;
+	}
+
+	/* initialise the rest */
+	hook->refcount = 1;
+	hook->flags = flags;
+	hook->itf = itf ? itf : &hook_session_default_itf;
+	hook->closure = closure;
+
+	/* record the hook */
+	pthread_rwlock_wrlock(&rwlock);
+	hook->next = list_of_session_hooks;
+	list_of_session_hooks = hook;
+	pthread_rwlock_unlock(&rwlock);
+
+	/* returns it */
+	return hook;
+}
+
+struct afb_hook_session *afb_hook_addref_session(struct afb_hook_session *hook)
+{
+	pthread_rwlock_wrlock(&rwlock);
+	hook->refcount++;
+	pthread_rwlock_unlock(&rwlock);
+	return hook;
+}
+
+void afb_hook_unref_session(struct afb_hook_session *hook)
+{
+	struct afb_hook_session **prv;
+
+	if (hook) {
+		pthread_rwlock_wrlock(&rwlock);
+		if (--hook->refcount)
+			hook = NULL;
+		else {
+			/* unlink */
+			prv = &list_of_session_hooks;
 			while (*prv && *prv != hook)
 				prv = &(*prv)->next;
 			if(*prv)
