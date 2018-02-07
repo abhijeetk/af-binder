@@ -21,9 +21,9 @@
 #include <time.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <uuid/uuid.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <json-c/json.h>
@@ -41,39 +41,51 @@
 #define MAX_EXPIRATION	(_MAXEXP_ >= 0 ? _MAXEXP_ : _MAXEXP2_)
 #define NOW		(time(NULL))
 
+/* structure for a cookie added to sessions */
 struct cookie
 {
-	struct cookie *next;
-	const void *key;
-	void *value;
-	void (*freecb)(void*);
+	struct cookie *next;	/* link to next cookie */
+	const void *key;	/* pointer key */
+	void *value;		/* value */
+	void (*freecb)(void*);	/* function to call when session is closed */
 };
 
+/*
+ * structure for session
+ */
 struct afb_session
 {
 	struct afb_session *next; /* link to the next */
-	unsigned refcount;
-	int timeout;
-	time_t expiration;	// expiration time of the token
-	pthread_mutex_t mutex;
-	struct cookie *cookies[COOKIECOUNT];
-	char autoclose;
-	char idx;
-	char uuid[SIZEUUID];	// long term authentication of remote client
-	char token[SIZEUUID];	// short term authentication of remote client
+	unsigned refcount;      /* external reference count of the session */
+	int timeout;            /* timeout of the session */
+	time_t expiration;	/* expiration time of the token */
+	pthread_mutex_t mutex;  /* mutex of the session */
+	struct cookie *cookies[COOKIECOUNT]; /* cookies of the session */
+	uint8_t closed: 1;      /* is the session closed ? */
+	uint8_t autoclose: 1;   /* close the session when unreferenced */
+	uint8_t notinset: 1;	/* session removed from the set of sessions */
+	char uuid[SIZEUUID];    /* long term authentication of remote client */
+	char token[SIZEUUID];   /* short term authentication of remote client */
 };
 
-// Session UUID are store in a simple array [for 10 sessions this should be enough]
+/* Session UUID are store in a simple array [for 10 sessions this should be enough] */
 static struct {
-	pthread_mutex_t mutex;	// declare a mutex to protect hash table
-	struct afb_session *heads[HEADCOUNT]; // sessions
-	int count;	// current number of sessions
-	int max;
-	int timeout;
-	char initok[SIZEUUID];
-} sessions;
+	int count;              /* current number of sessions */
+	int max;                /* maximum count of sessions */
+	int timeout;            /* common initial timeout */
+	struct afb_session *heads[HEADCOUNT]; /* sessions */
+	char initok[SIZEUUID];  /* common initial token */
+	pthread_mutex_t mutex;  /* declare a mutex to protect hash table */
+} sessions = {
+	.count = 0,
+	.max = 10,
+	.timeout = 3600,
+	.heads = { 0 },
+	.initok = { 0 },
+	.mutex = PTHREAD_MUTEX_INITIALIZER
+};
 
-/* generate a uuid */
+/* generate a new fresh 'uuid' */
 static void new_uuid(char uuid[SIZEUUID])
 {
 	uuid_t newuuid;
@@ -81,35 +93,12 @@ static void new_uuid(char uuid[SIZEUUID])
 	uuid_unparse_lower(newuuid, uuid);
 }
 
-static inline void lock(struct afb_session *session)
-{
-	pthread_mutex_lock(&session->mutex);
-}
-
-static inline void unlock(struct afb_session *session)
-{
-	pthread_mutex_unlock(&session->mutex);
-}
-
-// Free context [XXXX Should be protected again memory abort XXXX]
-static void close_session(struct afb_session *session)
-{
-	int idx;
-	struct cookie *cookie;
-
-	/* free cookies */
-	for (idx = 0 ; idx < COOKIECOUNT ; idx++) {
-		while ((cookie = session->cookies[idx])) {
-			session->cookies[idx] = cookie->next;
-			if (cookie->freecb != NULL)
-				cookie->freecb(cookie->value);
-			free(cookie);
-		}
-	}
-}
-
-/* tiny hash function inspired from pearson */
-static int pearson4(const char *text)
+/*
+ * Returns a tiny hash value for the 'text'.
+ *
+ * Tiny hash function inspired from pearson
+ */
+static uint8_t pearson4(const char *text)
 {
 	static uint8_t T[16] = {
 		 4,  1,  6,  0,  9, 14, 11,  5,
@@ -124,97 +113,111 @@ static int pearson4(const char *text)
 	return r; // % HEADCOUNT;
 }
 
-/**
- * Initialize the session manager with a 'max_session_count',
- * an initial common 'timeout' and an initial common token 'initok'.
- *
- * @param max_session_count  maximum allowed session count in the same time
- * @param timeout            the initial default timeout of sessions
- * @param initok             the initial default token of sessions
- * 
+/* lock the set of sessions for exclusive access */
+static inline void sessionset_lock()
+{
+	pthread_mutex_lock(&sessions.mutex);
+}
+
+/* unlock the set of sessions of exclusive access */
+static inline void sessionset_unlock()
+{
+	pthread_mutex_unlock(&sessions.mutex);
+}
+
+/*
+ * search within the set of sessions the session of 'uuid'.
+ * 'hashidx' is the precomputed hash for 'uuid'
+ * return the session or NULL
  */
-int afb_session_init (int max_session_count, int timeout, const char *initok)
-{
-	pthread_mutex_init(&sessions.mutex, NULL);
-	sessions.max = max_session_count;
-	sessions.timeout = timeout;
-	if (initok == NULL)
-		/* without token, a secret is made to forbid creation of sessions */
-		new_uuid(sessions.initok);
-	else if (strlen(initok) < sizeof sessions.initok)
-		strcpy(sessions.initok, initok);
-	else {
-		ERROR("initial token '%s' too long (max length %d)", initok, ((int)(sizeof sessions.initok)) - 1);
-		errno = EINVAL;
-		return -1;
-	}
-	return 0;
-}
-
-const char *afb_session_initial_token()
-{
-	return sessions.initok;
-}
-
-static struct afb_session *search (const char* uuid, int idx)
+static struct afb_session *sessionset_search(const char *uuid, uint8_t hashidx)
 {
 	struct afb_session *session;
 
-	session = sessions.heads[idx];
+	session = sessions.heads[hashidx];
 	while (session && strcmp(uuid, session->uuid))
 		session = session->next;
 
 	return session;
 }
 
-static void destroy (struct afb_session *session)
+/* add 'session' to the set of sessions */
+static int sessionset_add(struct afb_session *session, uint8_t hashidx)
 {
-	struct afb_session **prv;
+	/* check availability */
+	if (sessions.count >= sessions.max) {
+		errno = EBUSY;
+		return -1;
+	}
 
-	assert (session != NULL);
-
-	close_session(session);
-	pthread_mutex_lock(&sessions.mutex);
-	prv = &sessions.heads[(int)session->idx];
-	while (*prv)
-		if (*prv != session)
-			prv = &((*prv)->next);
-		else {
-			*prv = session->next;
-			sessions.count--;
-			pthread_mutex_destroy(&session->mutex);
-			free(session);
-			break;
-		}
-	pthread_mutex_unlock(&sessions.mutex);
+	/* add the session */
+	session->next = sessions.heads[hashidx];
+	sessions.heads[hashidx] = session;
+	sessions.count++;
+	return 0;
 }
 
-// Loop on every entry and remove old context sessions.hash
-static time_t cleanup ()
+/* make a new uuid not used in the set of sessions */
+static uint8_t sessionset_make_uuid (char uuid[SIZEUUID])
 {
-	struct afb_session *session, *next;
-	int idx;
-	time_t now;
+	uint8_t hashidx;
 
-	// Loop on Sessions Table and remove anything that is older than timeout
-	now = NOW;
-	for (idx = 0 ; idx < HEADCOUNT; idx++) {
-		session = sessions.heads[idx];
-		while (session) {
-			next = session->next;
-			if (session->expiration < now)
-				afb_session_close(session);
-			session = next;
+	do {
+		new_uuid(uuid);
+		hashidx = pearson4(uuid);
+	} while(sessionset_search(uuid, hashidx));
+	return hashidx;
+}
+
+/* lock the 'session' for exclusive access */
+static inline void session_lock(struct afb_session *session)
+{
+	pthread_mutex_lock(&session->mutex);
+}
+
+/* unlock the 'session' of exclusive access */
+static inline void session_unlock(struct afb_session *session)
+{
+	pthread_mutex_unlock(&session->mutex);
+}
+
+/* close the 'session' */
+static void session_close(struct afb_session *session)
+{
+	int idx;
+	struct cookie *cookie;
+
+	/* close only one time */
+	if (!session->closed) {
+		session->closed = 1;
+
+		/* free cookies */
+		for (idx = 0 ; idx < COOKIECOUNT ; idx++) {
+			while ((cookie = session->cookies[idx])) {
+				session->cookies[idx] = cookie->next;
+				if (cookie->freecb != NULL)
+					cookie->freecb(cookie->value);
+				free(cookie);
+			}
 		}
 	}
-	return now;
 }
 
-static void update_timeout(struct afb_session *session, time_t now, int timeout)
+/* destroy the 'session' */
+static void session_destroy (struct afb_session *session)
 {
+	pthread_mutex_destroy(&session->mutex);
+	free(session);
+}
+
+/* update expiration of 'session' according to 'now' */
+static void session_update_expiration(struct afb_session *session, time_t now)
+{
+	int timeout;
 	time_t expiration;
 
 	/* compute expiration */
+	timeout = session->timeout;
 	if (timeout == AFB_SESSION_TIMEOUT_INFINITE)
 		expiration = MAX_EXPIRATION;
 	else {
@@ -226,17 +229,17 @@ static void update_timeout(struct afb_session *session, time_t now, int timeout)
 			expiration = MAX_EXPIRATION;
 	}
 
-	/* record the values */
-	session->timeout = timeout;
+	/* record the expiration */
 	session->expiration = expiration;
 }
 
-static void update_expiration(struct afb_session *session, time_t now)
-{
-	update_timeout(session, now, session->timeout);
-}
-
-static struct afb_session *add_session (const char *uuid, int timeout, time_t now, int idx)
+/*
+ * Add a new session with the 'uuid' (of 'hashidx')
+ * and the 'timeout' starting from 'now'.
+ * Add it to the set of sessions
+ * Return the created session
+ */
+static struct afb_session *session_add(const char *uuid, int timeout, time_t now, uint8_t hashidx)
 {
 	struct afb_session *session;
 
@@ -244,12 +247,6 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 	if (!AFB_SESSION_TIMEOUT_IS_VALID(timeout)
 	 || (uuid && strlen(uuid) >= sizeof session->uuid)) {
 		errno = EINVAL;
-		return NULL;
-	}
-
-	/* check session count */
-	if (sessions.count >= sessions.max) {
-		errno = EBUSY;
 		return NULL;
 	}
 
@@ -265,43 +262,98 @@ static struct afb_session *add_session (const char *uuid, int timeout, time_t no
 	session->refcount = 1;
 	strcpy(session->uuid, uuid);
 	strcpy(session->token, sessions.initok);
-	update_timeout(session, now, timeout);
+	session->timeout = timeout;
+	session_update_expiration(session, now);
 
-	/* link */
-	session->idx = (char)idx;
-	session->next = sessions.heads[idx];
-	sessions.heads[idx] = session;
-	sessions.count++;
+	/* add */
+	if (sessionset_add(session, hashidx)) {
+		free(session);
+		return NULL;
+	}
 
 	return session;
 }
 
-/* create a new session for the given timeout */
-static struct afb_session *new_session (int timeout, time_t now)
+/* Remove expired sessions and return current time (now) */
+static time_t sessionset_cleanup (int force)
 {
+	struct afb_session *session, **prv;
 	int idx;
-	char uuid[SIZEUUID];
+	time_t now;
 
-	do {
-		new_uuid(uuid);
-		idx = pearson4(uuid);
-	} while(search(uuid, idx));
-	return add_session(uuid, timeout, now, idx);
+	/* Loop on Sessions Table and remove anything that is older than timeout */
+	now = NOW;
+	for (idx = 0 ; idx < HEADCOUNT; idx++) {
+		prv = &sessions.heads[idx];
+		while ((session = *prv)) {
+			session_lock(session);
+			if (force || session->expiration < now)
+				session_close(session);
+			if (!session->closed)
+				prv = &session->next;
+			else {
+				*prv = session->next;
+				sessions.count--;
+				session->notinset = 1;
+				if ( !session->refcount) {
+					session_destroy(session);
+					continue;
+				}
+			}
+			session_unlock(session);
+		}
+	}
+	return now;
 }
 
-/* Creates a new session with 'timeout' */
-struct afb_session *afb_session_create (int timeout)
+/**
+ * Initialize the session manager with a 'max_session_count',
+ * an initial common 'timeout' and an initial common token 'initok'.
+ *
+ * @param max_session_count  maximum allowed session count in the same time
+ * @param timeout            the initial default timeout of sessions
+ * @param initok             the initial default token of sessions
+ * 
+ */
+int afb_session_init (int max_session_count, int timeout, const char *initok)
 {
-	time_t now;
-	struct afb_session *session;
+	/* check parameters */
+	if (initok && strlen(initok) >= sizeof sessions.initok) {
+		ERROR("initial token '%s' too long (max length %d)",
+			initok, ((int)(sizeof sessions.initok)) - 1);
+		errno = EINVAL;
+		return -1;
+	}
 
-	/* cleaning */
-	pthread_mutex_lock(&sessions.mutex);
-	now = cleanup();
-	session = new_session(timeout, now);
-	pthread_mutex_unlock(&sessions.mutex);
+	/* init the sessionset (after cleanup) */
+	sessionset_lock();
+	sessionset_cleanup(1);
+	sessions.max = max_session_count;
+	sessions.timeout = timeout;
+	if (initok == NULL)
+		new_uuid(sessions.initok);
+	else
+		strcpy(sessions.initok, initok);
+	sessionset_unlock();
+	return 0;
+}
 
-	return session;
+/**
+ * Cleanup the sessionset of its closed or expired sessions
+ */
+void afb_session_purge()
+{
+	sessionset_lock();
+	sessionset_cleanup(0);
+	sessionset_unlock();
+}
+
+/**
+ * @return the initial token set at initialization
+ */
+const char *afb_session_initial_token()
+{
+	return sessions.initok;
 }
 
 /* Searchs the session of 'uuid' */
@@ -309,52 +361,62 @@ struct afb_session *afb_session_search (const char *uuid)
 {
 	struct afb_session *session;
 
-	/* cleaning */
-	pthread_mutex_lock(&sessions.mutex);
-	cleanup();
-	session = search(uuid, pearson4(uuid));
-	if (session)
-		__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
-	pthread_mutex_unlock(&sessions.mutex);
+	sessionset_lock();
+	sessionset_cleanup(0);
+	session = sessionset_search(uuid, pearson4(uuid));
+	session = afb_session_addref(session);
+	sessionset_unlock();
 	return session;
 
+}
+
+/**
+ * Creates a new session with 'timeout'
+ */
+struct afb_session *afb_session_create (int timeout)
+{
+	return afb_session_get(NULL, timeout, NULL);
 }
 
 /* This function will return exiting session or newly created session */
 struct afb_session *afb_session_get (const char *uuid, int timeout, int *created)
 {
-	int idx;
+	char _uuid_[SIZEUUID];
+	uint8_t hashidx;
 	struct afb_session *session;
 	time_t now;
+	int c;
 
 	/* cleaning */
-	pthread_mutex_lock(&sessions.mutex);
-	now = cleanup();
+	sessionset_lock();
+	now = sessionset_cleanup(0);
 
 	/* search for an existing one not too old */
-	if (!uuid)
-		session = new_session(timeout, now);
-	else {
-		idx = pearson4(uuid);
-		session = search(uuid, idx);
+	if (!uuid) {
+		hashidx = sessionset_make_uuid(_uuid_);
+		uuid = _uuid_;
+	} else {
+		hashidx = pearson4(uuid);
+		session = sessionset_search(uuid, hashidx);
 		if (session) {
-			__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
-			pthread_mutex_unlock(&sessions.mutex);
-			if (created)
-				*created = 0;
-			return session;
+			/* session found */
+			afb_session_addref(session);
+			c = 0;
+			goto end;
 		}
-		session = add_session (uuid, timeout, now, idx);
 	}
-	pthread_mutex_unlock(&sessions.mutex);
-
+	/* create the session */
+	session = session_add(uuid, timeout, now, hashidx);
+	c = 1;
+end:
+	sessionset_unlock();
 	if (created)
-		*created = !!session;
+		*created = c;
 
 	return session;
 }
 
-/* increase the use count on the session */
+/* increase the use count on 'session' (can be NULL) */
 struct afb_session *afb_session_addref(struct afb_session *session)
 {
 	if (session != NULL)
@@ -362,100 +424,87 @@ struct afb_session *afb_session_addref(struct afb_session *session)
 	return session;
 }
 
-/* decrease the use count of the session */
+/* decrease the use count of 'session' (can be NULL) */
 void afb_session_unref(struct afb_session *session)
 {
-	if (session != NULL) {
-		assert(session->refcount != 0);
-		if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
-			pthread_mutex_lock(&session->mutex);
-			if (session->autoclose || session->uuid[0] == 0)
-				destroy (session);
-			else
-				pthread_mutex_unlock(&session->mutex);
-		}
-	}
-}
+	if (session == NULL)
+		return;
 
-// close Client Session Context
-void afb_session_close (struct afb_session *session)
-{
-	assert(session != NULL);
-	pthread_mutex_lock(&session->mutex);
-	if (session->uuid[0] != 0) {
-		session->uuid[0] = 0;
-		if (session->refcount)
-			close_session(session);
-		else {
-			destroy (session);
+	session_lock(session);
+	if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
+		if (session->autoclose)
+			session_close(session);
+		if (session->notinset) {
+			session_destroy(session);
 			return;
 		}
 	}
-	pthread_mutex_unlock(&session->mutex);
+	session_unlock(session);
 }
 
-/* set the autoclose flag */
+/* close 'session' */
+void afb_session_close (struct afb_session *session)
+{
+	session_lock(session);
+	session_close(session);
+	session_unlock(session);
+}
+
+/**
+ * Set the 'autoclose' flag of the 'session'
+ *
+ * A session whose autoclose flag is true will close as
+ * soon as it is no more referenced. 
+ *
+ * @param session    the session to set
+ * @param autoclose  the value to set
+ */
 void afb_session_set_autoclose(struct afb_session *session, int autoclose)
 {
-	assert(session != NULL);
-	session->autoclose = (char)!!autoclose;
+	session->autoclose = !!autoclose;
 }
 
-// is the session active?
-int afb_session_is_active (struct afb_session *session)
-{
-	assert(session != NULL);
-	return !!session->uuid[0];
-}
-
-// is the session closed?
+/* is 'session' closed? */
 int afb_session_is_closed (struct afb_session *session)
 {
-	assert(session != NULL);
-	return !session->uuid[0];
+	return session->closed;
 }
 
-// Sample Generic Ping Debug API
+/*
+ * check whether the token of 'session' is 'token'
+ * return 1 if true or 0 otherwise
+ */
 int afb_session_check_token (struct afb_session *session, const char *token)
 {
-	assert(session != NULL);
-	assert(token != NULL);
+	int r;
 
-	if (!session->uuid[0])
-		return 0;
-
-	if (session->expiration < NOW)
-		return 0;
-
-	if (session->token[0] && strcmp (token, session->token) != 0)
-		return 0;
-
-	return 1;
+	session_unlock(session);
+	r = !session->closed
+	  && session->expiration >= NOW
+	  && !(session->token[0] && strcmp (token, session->token));
+	session_unlock(session);
+	return r;
 }
 
-// generate a new token and update client context
+/* generate a new token and update client context */
 void afb_session_new_token (struct afb_session *session)
 {
-	assert(session != NULL);
-
-	// Old token was valid let's regenerate a new one
+	/* Old token was valid let's regenerate a new one */
 	new_uuid(session->token);
 
-	// keep track of time for session timeout and further clean up
-	update_expiration(session, NOW);
+	/* keep track of time for session timeout and further clean up */
+	session_update_expiration(session, NOW);
 }
 
 /* Returns the uuid of 'session' */
 const char *afb_session_uuid (struct afb_session *session)
 {
-	assert(session != NULL);
 	return session->uuid;
 }
 
 /* Returns the token of 'session' */
 const char *afb_session_token (struct afb_session *session)
 {
-	assert(session != NULL);
 	return session->token;
 }
 
@@ -505,7 +554,7 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 	idx = cookeyidx(key);
 
 	/* lock session and search for the cookie of 'key' */
-	lock(session);
+	session_lock(session);
 	prv = &session->cookies[idx];
 	for (;;) {
 		cookie = *prv;
@@ -543,14 +592,14 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 				if (cookie->value != value && cookie->freecb)
 					cookie->freecb(cookie->value);
 
-				/* store the value and its releaser */
-				cookie->value = value;
-				cookie->freecb = freecb;
-
-				/* but if both are NULL drop the cookie */
+				/* if both value and freecb are NULL drop the cookie */
 				if (!value && !freecb) {
 					*prv = cookie->next;
 					free(cookie);
+				} else {
+					/* store the value and its releaser */
+					cookie->value = value;
+					cookie->freecb = freecb;
 				}
 			}
 			break;
@@ -560,15 +609,35 @@ void *afb_session_cookie(struct afb_session *session, const void *key, void *(*m
 	}
 
 	/* unlock the session and return the value */
-	unlock(session);
+	session_unlock(session);
 	return value;
 }
 
+/**
+ * Get the cookie of 'key' in the 'session'.
+ *
+ * @param session  the session to search in
+ * @param key      the key of the data to retrieve
+ *
+ * @return the data staored for the key or NULL if the key isn't found
+ */
 void *afb_session_get_cookie(struct afb_session *session, const void *key)
 {
 	return afb_session_cookie(session, key, NULL, NULL, NULL, 0);
 }
 
+/**
+ * Set the cookie of 'key' in the 'session' to the 'value' that can be
+ * cleaned using 'freecb' (if not null).
+ *
+ * @param session  the session to set
+ * @param key      the key of the data to store
+ * @param value    the value to store at key
+ * @param freecb   a function to use when the cookie value is to remove (or null)
+ *
+ * @return the data staored for the key or NULL if the key isn't found
+ * 
+ */
 int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*))
 {
 	return -(value != afb_session_cookie(session, key, NULL, freecb, value, 1));

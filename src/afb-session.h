@@ -24,6 +24,7 @@ struct afb_session;
 #define AFB_SESSION_TIMEOUT_IS_VALID(x) ((x) >= AFB_SESSION_TIMEOUT_DEFAULT)
 
 extern int afb_session_init(int max_session_count, int timeout, const char *initok);
+extern void afb_session_purge();
 extern const char *afb_session_initial_token();
 
 extern struct afb_session *afb_session_create (int timeout);
@@ -36,7 +37,6 @@ extern void afb_session_unref(struct afb_session *session);
 extern void afb_session_set_autoclose(struct afb_session *session, int autoclose);
 
 extern void afb_session_close(struct afb_session *session);
-extern int afb_session_is_active (struct afb_session *session);
 extern int afb_session_is_closed (struct afb_session *session);
 
 extern int afb_session_check_token(struct afb_session *session, const char *token);

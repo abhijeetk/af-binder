@@ -481,13 +481,13 @@ static void record_session(struct afb_stub_ws *stubws, struct afb_session *sessi
 	while ((s = *prv)) {
 		if (s->session == session)
 			return;
-		if (afb_session_is_active(s->session))
-			prv = &s->next;
-		else {
+		if (afb_session_is_closed(s->session)) {
 			*prv = s->next;
 			afb_session_unref(s->session);
 			free(s);
 		}
+		else
+			prv = &s->next;
 	}
 
 	/* create */

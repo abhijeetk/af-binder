@@ -16,12 +16,8 @@
 # limitations under the License.
 ###########################################################################
 
+add_executable(test-session test-session.c)
+target_include_directories(test-session PRIVATE ../..)
+target_link_libraries(test-session afb-lib ${link_libraries})
+add_test(NAME session COMMAND test-session)
 
-PKG_CHECK_MODULES(check check)
-if(check_FOUND)
-	INCLUDE_DIRECTORIES(${INCLUDE_DIRS} ${check_INCLUDE_DIRS})
-	SET(link_libraries ${link_libraries} ${check_LDFLAGS})
-	add_subdirectory(session)
-else(check_FOUND)
-	MESSAGE(WARNING "check not found! no test!")
-endif(check_FOUND)
