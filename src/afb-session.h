@@ -23,7 +23,7 @@ struct afb_session;
 #define AFB_SESSION_TIMEOUT_DEFAULT   -2
 #define AFB_SESSION_TIMEOUT_IS_VALID(x) ((x) >= AFB_SESSION_TIMEOUT_DEFAULT)
 
-extern void afb_session_init(int max_session_count, int timeout, const char *initok);
+extern int afb_session_init(int max_session_count, int timeout, const char *initok);
 extern const char *afb_session_initial_token();
 
 extern struct afb_session *afb_session_create (int timeout);

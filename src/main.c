@@ -564,7 +564,10 @@ static void start(int signum, void *arg)
 	}
 
 	/* configure the daemon */
-	afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token);
+	if (afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token)) {
+		ERROR("initialisation of session manager failed");
+		goto error;
+	}
 	if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
 		ERROR("initialisation of cookies failed");
 		goto error;

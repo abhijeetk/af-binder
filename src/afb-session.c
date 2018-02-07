@@ -124,8 +124,16 @@ static int pearson4(const char *text)
 	return r; // % HEADCOUNT;
 }
 
-// Create a new store in RAM, not that is too small it will be automatically extended
-void afb_session_init (int max_session_count, int timeout, const char *initok)
+/**
+ * Initialize the session manager with a 'max_session_count',
+ * an initial common 'timeout' and an initial common token 'initok'.
+ *
+ * @param max_session_count  maximum allowed session count in the same time
+ * @param timeout            the initial default timeout of sessions
+ * @param initok             the initial default token of sessions
+ * 
+ */
+int afb_session_init (int max_session_count, int timeout, const char *initok)
 {
 	pthread_mutex_init(&sessions.mutex, NULL);
 	sessions.max = max_session_count;
@@ -137,8 +145,10 @@ void afb_session_init (int max_session_count, int timeout, const char *initok)
 		strcpy(sessions.initok, initok);
 	else {
 		ERROR("initial token '%s' too long (max length %d)", initok, ((int)(sizeof sessions.initok)) - 1);
-		exit(1);
+		errno = EINVAL;
+		return -1;
 	}
+	return 0;
 }
 
 const char *afb_session_initial_token()
