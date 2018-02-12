@@ -29,6 +29,7 @@
 #include <json-c/json.h>
 
 #include "afb-session.h"
+#include "afb-hook.h"
 #include "verbose.h"
 
 #define SIZEUUID	37
@@ -189,9 +190,13 @@ static void session_close(struct afb_session *session)
 
 	/* close only one time */
 	if (!session->closed) {
+		/* close it now */
 		session->closed = 1;
 
-		/* free cookies */
+		/* emit the hook */
+		afb_hook_session_close(session);
+
+		/* release cookies */
 		for (idx = 0 ; idx < COOKIECOUNT ; idx++) {
 			while ((cookie = session->cookies[idx])) {
 				session->cookies[idx] = cookie->next;
@@ -206,6 +211,7 @@ static void session_close(struct afb_session *session)
 /* destroy the 'session' */
 static void session_destroy (struct afb_session *session)
 {
+	afb_hook_session_destroy(session);
 	pthread_mutex_destroy(&session->mutex);
 	free(session);
 }
@@ -270,6 +276,8 @@ static struct afb_session *session_add(const char *uuid, int timeout, time_t now
 		free(session);
 		return NULL;
 	}
+
+	afb_hook_session_create(session);
 
 	return session;
 }
@@ -419,8 +427,12 @@ end:
 /* increase the use count on 'session' (can be NULL) */
 struct afb_session *afb_session_addref(struct afb_session *session)
 {
-	if (session != NULL)
-		__atomic_add_fetch(&session->refcount, 1, __ATOMIC_RELAXED);
+	if (session != NULL) {
+		afb_hook_session_unref(session);
+		afb_hook_session_addref(session);
+		session->refcount++;
+		session_unlock(session);
+	}
 	return session;
 }
 
@@ -431,7 +443,8 @@ void afb_session_unref(struct afb_session *session)
 		return;
 
 	session_lock(session);
-	if (!__atomic_sub_fetch(&session->refcount, 1, __ATOMIC_RELAXED)) {
+	afb_hook_session_unref(session);
+	if (!--session->refcount) {
 		if (session->autoclose)
 			session_close(session);
 		if (session->notinset) {
@@ -489,11 +502,11 @@ int afb_session_check_token (struct afb_session *session, const char *token)
 /* generate a new token and update client context */
 void afb_session_new_token (struct afb_session *session)
 {
-	/* Old token was valid let's regenerate a new one */
+	session_unlock(session);
 	new_uuid(session->token);
-
-	/* keep track of time for session timeout and further clean up */
 	session_update_expiration(session, NOW);
+	afb_hook_session_renew(session);
+	session_unlock(session);
 }
 
 /* Returns the uuid of 'session' */
