@@ -37,6 +37,7 @@
 #include "afb-xreq.h"
 #include "afb-export.h"
 #include "afb-evt.h"
+#include "afb-session.h"
 #include "afb-trace.h"
 
 #include "wrap-json.h"
@@ -98,6 +99,7 @@ enum trace_type
 	Trace_Type_Ditf,	/* export hooks */
 	Trace_Type_Svc,		/* export hooks */
 	Trace_Type_Evt,		/* evt hooks */
+	Trace_Type_Session,	/* session hooks */
 	Trace_Type_Global,	/* global hooks */
 	Trace_Type_Count	/* count of types of hooks */
 };
@@ -871,6 +873,77 @@ static struct afb_hook_evt_itf hook_evt_itf = {
 };
 
 /*******************************************************************************/
+/*****  trace the sessions                                                 *****/
+/*******************************************************************************/
+
+static struct flag session_flags[] = { /* must be sorted by names */
+		{ "addref",		afb_hook_flag_session_addref },
+		{ "all",		afb_hook_flags_session_all },
+		{ "close",		afb_hook_flag_session_close },
+		{ "common",		afb_hook_flags_session_common },
+		{ "create",		afb_hook_flag_session_create },
+		{ "destroy",		afb_hook_flag_session_destroy },
+		{ "renew",		afb_hook_flag_session_renew },
+		{ "unref",		afb_hook_flag_session_unref },
+};
+
+/* get the session value for flag of 'name' */
+static int get_session_flag(const char *name)
+{
+	return get_flag(name, session_flags, (int)(sizeof session_flags / sizeof *session_flags));
+}
+
+static void hook_session(void *closure, const struct afb_hookid *hookid, struct afb_session *session, const char *action, const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
+	emit(closure, hookid, "session", "{ss ss}", format, ap,
+					"uuid", session,
+					"action", action);
+	va_end(ap);
+}
+
+static void hook_session_create(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "create", "{ss}", "token", afb_session_token(session));
+}
+
+static void hook_session_close(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "close", NULL);
+}
+
+static void hook_session_destroy(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "destroy", NULL);
+}
+
+static void hook_session_renew(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "renew", "{ss}", "token", afb_session_token(session));
+}
+
+static void hook_session_addref(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "addref", NULL);
+}
+
+static void hook_session_unref(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hook_session(closure, hookid, session, "unref", NULL);
+}
+
+static struct afb_hook_session_itf hook_session_itf = {
+	.hook_session_create = hook_session_create,
+	.hook_session_close = hook_session_close,
+	.hook_session_destroy = hook_session_destroy,
+	.hook_session_renew = hook_session_renew,
+	.hook_session_addref = hook_session_addref,
+	.hook_session_unref = hook_session_unref
+};
+
+/*******************************************************************************/
 /*****  trace the globals                                                  *****/
 /*******************************************************************************/
 
@@ -960,6 +1033,12 @@ abstracting[Trace_Type_Count] =
 		.name = "event",
 		.unref =  (void(*)(void*))afb_hook_unref_evt,
 		.get_flag = get_evt_flag
+	},
+	[Trace_Type_Session] =
+	{
+		.name = "session",
+		.unref =  (void(*)(void*))afb_hook_unref_session,
+		.get_flag = get_session_flag
 	},
 	[Trace_Type_Global] =
 	{
@@ -1172,7 +1251,7 @@ struct desc
 	struct context *context;
 	const char *name;
 	const char *tag;
-	const char *session;
+	const char *uuid;
 	const char *api;
 	const char *verb;
 	const char *pattern;
@@ -1194,7 +1273,7 @@ static void addhook(struct desc *desc, enum trace_type type)
 			ctxt_error(&desc->context->errors, "tracing %s is forbidden", abstracting[type].name);
 			return;
 		}
-		if (desc->session) {
+		if (desc->uuid) {
 			ctxt_error(&desc->context->errors, "setting session is forbidden");
 			return;
 		}
@@ -1210,10 +1289,10 @@ static void addhook(struct desc *desc, enum trace_type type)
 	/* create the hook handler */
 	switch (type) {
 	case Trace_Type_Xreq:
-		if (!desc->session)
+		if (!desc->uuid)
 			session = afb_session_addref(bind);
 		else {
-			session = trace_get_session_by_uuid(trace, desc->session, 1);
+			session = trace_get_session_by_uuid(trace, desc->uuid, 1);
 			if (!session) {
 				ctxt_error(&desc->context->errors, "allocation of session failed");
 				free(hook);
@@ -1232,6 +1311,9 @@ static void addhook(struct desc *desc, enum trace_type type)
 		break;
 	case Trace_Type_Evt:
 		hook->handler = afb_hook_create_evt(desc->pattern, desc->flags[type], &hook_evt_itf, hook);
+		break;
+	case Trace_Type_Session:
+		hook->handler = afb_hook_create_session(desc->uuid, desc->flags[type], &hook_session_itf, hook);
 		break;
 	case Trace_Type_Global:
 		hook->handler = afb_hook_create_global(desc->flags[type], &hook_global_itf, hook);
@@ -1301,6 +1383,11 @@ static void add_evt_flags(void *closure, struct json_object *object)
 	add_flags(closure, object, Trace_Type_Evt);
 }
 
+static void add_session_flags(void *closure, struct json_object *object)
+{
+	add_flags(closure, object, Trace_Type_Session);
+}
+
 static void add_global_flags(void *closure, struct json_object *object)
 {
 	add_flags(closure, object, Trace_Type_Global);
@@ -1311,7 +1398,7 @@ static void add(void *closure, struct json_object *object)
 {
 	int rc;
 	struct desc desc;
-	struct json_object *request, *event, *daemon, *service, *sub, *global;
+	struct json_object *request, *event, *daemon, *service, *sub, *global, *session;
 
 	memcpy (&desc, closure, sizeof desc);
 	request = event = daemon = service = sub = global = NULL;
@@ -1321,12 +1408,13 @@ static void add(void *closure, struct json_object *object)
 			"tag", &desc.tag,
 			"api", &desc.api,
 			"verb", &desc.verb,
-			"session", &desc.session,
+			"uuid", &desc.uuid,
 			"pattern", &desc.pattern,
 			"request", &request,
 			"daemon", &daemon,
 			"service", &service,
 			"event", &event,
+			"session", &session,
 			"global", &global,
 			"for", &sub);
 
@@ -1338,8 +1426,8 @@ static void add(void *closure, struct json_object *object)
 		if (desc.verb && desc.verb[0] == '*' && !desc.verb[1])
 			desc.verb = NULL;
 
-		if (desc.session && desc.session[0] == '*' && !desc.session[1])
-			desc.session = NULL;
+		if (desc.uuid && desc.uuid[0] == '*' && !desc.uuid[1])
+			desc.uuid = NULL;
 
 		/* get what is expected */
 		if (request)
@@ -1353,6 +1441,9 @@ static void add(void *closure, struct json_object *object)
 
 		if (event)
 			wrap_json_optarray_for_all(event, add_evt_flags, &desc);
+
+		if (session)
+			wrap_json_optarray_for_all(event, add_session_flags, &desc);
 
 		if (global)
 			wrap_json_optarray_for_all(global, add_global_flags, &desc);
@@ -1500,7 +1591,7 @@ extern int afb_trace_drop(struct afb_req req, struct json_object *args, struct a
 {
 	int rc;
 	struct context context;
-	struct json_object *tags, *events, *sessions;
+	struct json_object *tags, *events, *uuids;
 
 	memset(&context, 0, sizeof context);
 	context.trace = trace;
@@ -1517,13 +1608,13 @@ extern int afb_trace_drop(struct afb_req req, struct json_object *args, struct a
 		return 0;
 	}
 
-	tags = events = sessions = NULL;
+	tags = events = uuids = NULL;
 	rc = wrap_json_unpack(args, "{s?o s?o s?o}",
 			"event", &events,
 			"tag", &tags,
-			"session", &sessions);
+			"uuid", &uuids);
 
-	if (rc < 0 || !(events || tags || sessions)) {
+	if (rc < 0 || !(events || tags || uuids)) {
 		afb_req_fail(req, "error-detected", "bad drop arguments");
 		return -1;
 	}
@@ -1536,8 +1627,8 @@ extern int afb_trace_drop(struct afb_req req, struct json_object *args, struct a
 	if (events)
 		wrap_json_optarray_for_all(events, drop_event, &context);
 
-	if (sessions)
-		wrap_json_optarray_for_all(sessions, drop_session, &context);
+	if (uuids)
+		wrap_json_optarray_for_all(uuids, drop_session, &context);
 
 	trace_cleanup(trace);
 
@@ -1550,4 +1641,3 @@ extern int afb_trace_drop(struct afb_req req, struct json_object *args, struct a
 	free(context.errors);
 	return -1;
 }
-

@@ -138,12 +138,13 @@
           "tag": { "type": "string", "description": "tag for grouping traces", "default": "trace" },
           "api": { "type": "string", "description": "api for requests, daemons and services" },
           "verb": { "type": "string", "description": "verb for requests" },
-          "session": { "type": "string", "description": "session for requests" },
+          "uuid": { "type": "string", "description": "uuid of session for requests" },
           "pattern": { "type": "string", "description": "pattern for events" },
           "request": { "$ref": "#/components/schemas/trace-add-request" },
           "daemon": { "$ref": "#/components/schemas/trace-add-daemon" },
           "service": { "$ref": "#/components/schemas/trace-add-service" },
           "event": { "$ref": "#/components/schemas/trace-add-event" },
+          "session": { "$ref": "#/components/schemas/trace-add-session" },
           "for": { "$ref": "#/components/schemas/trace-add" }
         },
         "examples": [
@@ -267,6 +268,26 @@
           "push_before"
         ]
       },
+      "trace-add-session": {
+        "anyOf": [
+          { "type": "array", "items": { "$ref": "#/components/schemas/trace-session-names" } },
+          { "$ref": "#/components/schemas/trace-session-names" }
+        ]
+      },
+      "trace-session-names": {
+        "title": "name of traceable items for sessions",
+        "enum": [
+          "*",
+          "addref",
+          "all",
+          "close",
+          "common",
+          "create",
+          "destroy",
+          "renew",
+          "unref"
+        ]
+      },
       "trace-drop": {
         "anyOf": [
           { "type": "boolean" },
@@ -275,7 +296,7 @@
             "properties": {
               "event": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] },
               "tag": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] },
-              "session": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] }
+              "uuid": { "anyOf": [  { "type": "string" }, { "type": "array", "items": "string" } ] }
             }
           }
         ]
