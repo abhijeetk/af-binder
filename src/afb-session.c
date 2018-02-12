@@ -347,6 +347,28 @@ int afb_session_init (int max_session_count, int timeout, const char *initok)
 }
 
 /**
+ * Iterate the sessions and call 'callback' with
+ * the 'closure' for each session.
+ */
+void afb_session_foreach(void (*callback)(void *closure, struct afb_session *session), void *closure)
+{
+	struct afb_session *session;
+	int idx;
+
+	/* Loop on Sessions Table and remove anything that is older than timeout */
+	sessionset_lock();
+	for (idx = 0 ; idx < HEADCOUNT; idx++) {
+		session = sessions.heads[idx];
+		while (session) {
+			if (!session->closed)
+				callback(closure, session);
+			session = session->next;
+		}
+	}
+	sessionset_unlock();
+}
+
+/**
  * Cleanup the sessionset of its closed or expired sessions
  */
 void afb_session_purge()

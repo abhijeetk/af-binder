@@ -26,6 +26,7 @@ struct afb_session;
 extern int afb_session_init(int max_session_count, int timeout, const char *initok);
 extern void afb_session_purge();
 extern const char *afb_session_initial_token();
+extern void afb_session_foreach(void (*callback)(void *closure, struct afb_session *session), void *closure);
 
 extern struct afb_session *afb_session_create (int timeout);
 extern struct afb_session *afb_session_search (const char *uuid);
