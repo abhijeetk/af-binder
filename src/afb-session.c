@@ -428,7 +428,6 @@ end:
 struct afb_session *afb_session_addref(struct afb_session *session)
 {
 	if (session != NULL) {
-		afb_hook_session_unref(session);
 		afb_hook_session_addref(session);
 		session->refcount++;
 		session_unlock(session);
@@ -444,7 +443,7 @@ void afb_session_unref(struct afb_session *session)
 
 	session_lock(session);
 	afb_hook_session_unref(session);
-	if (!--session->refcount) {
+	if (--session->refcount) {
 		if (session->autoclose)
 			session_close(session);
 		if (session->notinset) {

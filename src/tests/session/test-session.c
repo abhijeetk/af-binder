@@ -7,11 +7,14 @@
 #include <check.h>
 
 #include "afb-session.h"
+#include "afb-hook.h"
 
 #define GOOD_UUID  "123456789012345678901234567890123456"
 #define BAD_UUID   "1234567890123456789012345678901234567"
 
-START_TEST (test_initialisation)
+/*********************************************************************/
+/* check the initialisation */
+START_TEST (check_initialisation)
 {
 	ck_assert_int_eq(0, afb_session_init(0, 0, NULL));
 	ck_assert_int_eq(0, afb_session_init(200, 0, NULL));
@@ -22,8 +25,9 @@ START_TEST (test_initialisation)
 }
 END_TEST
 
-
-START_TEST (test_sanity)
+/*********************************************************************/
+/* check that NULL is a valid value for addref/unref */
+START_TEST (check_sanity)
 {
 	struct afb_session *s;
 	s = afb_session_addref(NULL);
@@ -33,8 +37,9 @@ START_TEST (test_sanity)
 }
 END_TEST
 
-
-START_TEST (test_creation)
+/*********************************************************************/
+/* check creation and retrieval of sessions */
+START_TEST (check_creation)
 {
 	char *uuid;
 	struct afb_session *s, *x;
@@ -85,8 +90,9 @@ START_TEST (test_creation)
 }
 END_TEST
 
-
-START_TEST (test_capacity)
+/*********************************************************************/
+/* check that the maximum capacity is ensured */
+START_TEST (check_capacity)
 {
 	struct afb_session *s[3];
 	ck_assert_int_eq(0, afb_session_init(2, 3600, GOOD_UUID));
@@ -108,7 +114,8 @@ START_TEST (test_capacity)
 }
 END_TEST
 
-
+/*********************************************************************/
+/* check the handling of cookies */
 void *mkcookie_got;
 void *mkcookie(void *closure)
 {
@@ -122,7 +129,7 @@ void freecookie(void *item)
 	freecookie_got = item;
 }
 
-START_TEST (test_cookies)
+START_TEST (check_cookies)
 {
 	char *k[] = { "key1", "key2", "key3", NULL }, *p, *q, *d = "default";
 	struct afb_session *s;
@@ -130,8 +137,6 @@ START_TEST (test_cookies)
 
 	/* init */
 	ck_assert_int_eq(0, afb_session_init(10, 3600, GOOD_UUID));
-
-extern void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace);
 
 	/* create a session */
 	s = afb_session_create(AFB_SESSION_TIMEOUT_DEFAULT);
@@ -178,6 +183,125 @@ extern void *afb_session_cookie(struct afb_session *session, const void *key, vo
 }
 END_TEST
 
+
+/*********************************************************************/
+/* check hooking */
+
+int hookflag;
+
+void on_create(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_create;
+}
+
+void on_close(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_close;
+}
+
+void on_destroy(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_destroy;
+}
+
+void on_renew(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_renew;
+}
+
+void on_addref(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_addref;
+}
+
+void on_unref(void *closure, const struct afb_hookid *hookid, struct afb_session *session)
+{
+	hookflag |= afb_hook_flag_session_unref;
+}
+
+struct afb_hook_session_itf hookitf = {
+	.hook_session_create = on_create,
+	.hook_session_close = on_close,
+	.hook_session_destroy = on_destroy,
+	.hook_session_renew = on_renew,
+	.hook_session_addref = on_addref,
+	.hook_session_unref = on_unref
+};
+
+extern void afb_hook_session_create(struct afb_session *session);
+extern void afb_hook_session_close(struct afb_session *session);
+extern void afb_hook_session_destroy(struct afb_session *session);
+extern void afb_hook_session_renew(struct afb_session *session);
+extern void afb_hook_session_addref(struct afb_session *session);
+extern void afb_hook_session_unref(struct afb_session *session);
+
+extern struct afb_hook_session *afb_hook_create_session(const char *pattern, int flags, struct afb_hook_session_itf *itf, void *closure);
+extern struct afb_hook_session *afb_hook_addref_session(struct afb_hook_session *hook);
+extern void afb_hook_unref_session(struct afb_hook_session *hook);
+
+
+START_TEST (check_hooking)
+{
+	struct afb_hook_session *hs;
+	struct afb_session *s;
+
+	/* init */
+	ck_assert_int_eq(0, afb_session_init(10, 3600, GOOD_UUID));
+
+	/* create the hooking */
+	hs = afb_hook_create_session(NULL, afb_hook_flags_session_all, &hookitf, NULL);
+	ck_assert_ptr_ne(hs, 0);
+
+	/* create a session */
+	hookflag = 0;
+	s = afb_session_create(AFB_SESSION_TIMEOUT_DEFAULT);
+	ck_assert_ptr_ne(s, 0);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_create);
+
+	/* addref session */
+	hookflag = 0;
+	afb_session_addref(s);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_addref);
+
+	/* unref session */
+	hookflag = 0;
+	afb_session_unref(s);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_unref);
+
+	/* renew session token */
+	hookflag = 0;
+	afb_session_new_token(s);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_renew);
+
+	/* close session */
+	hookflag = 0;
+	afb_session_close(s);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_close);
+
+	/* unref session */
+	hookflag = 0;
+	afb_session_unref(s);
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_unref);
+
+	/* purge */
+	hookflag = 0;
+	afb_session_purge();
+	ck_assert_int_eq(hookflag, afb_hook_flag_session_destroy);
+
+	/* drop hooks */
+	hookflag = 0;
+	afb_hook_unref_session(hs);
+	s = afb_session_create(AFB_SESSION_TIMEOUT_DEFAULT);
+	ck_assert_ptr_ne(s, 0);
+	ck_assert_int_eq(hookflag, 0);
+	afb_session_unref(s);
+	ck_assert_int_eq(hookflag, 0);
+}
+END_TEST
+
+/*********************************************************************/
+
+
 static Suite *suite;
 static TCase *tcase;
 
@@ -198,10 +322,11 @@ int main(int ac, char **av)
 {
 	mksuite("session");
 		addtcase("session");
-			addtest(test_initialisation);
-			addtest(test_sanity);
-			addtest(test_creation);
-			addtest(test_capacity);
-			addtest(test_cookies);
+			addtest(check_initialisation);
+			addtest(check_sanity);
+			addtest(check_creation);
+			addtest(check_capacity);
+			addtest(check_cookies);
+			addtest(check_hooking);
 	return !!srun();
 }
