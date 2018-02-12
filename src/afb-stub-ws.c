@@ -651,10 +651,12 @@ static void on_hangup(void *closure)
 {
 	struct afb_stub_ws *stubws = closure;
 
+	afb_stub_ws_addref(stubws);
 	if (stubws->on_hangup)
 		stubws->on_hangup(stubws);
 
 	release_sessions(stubws);
+	afb_stub_ws_unref(stubws);
 }
 
 /*****************************************************/
