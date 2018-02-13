@@ -63,8 +63,8 @@
 #define SELF_PGROUP 1
 
 struct afb_apiset *main_apiset;
+struct afb_config *main_config;
 
-static struct afb_config *config;
 static pid_t childpid;
 
 /*----------------------------------------------------------
@@ -164,7 +164,7 @@ static void daemonize()
 	int pid;
 
 	// open /dev/console to redirect output messAFBes
-	consoleFD = open(config->console, O_WRONLY | O_APPEND | O_CREAT, 0640);
+	consoleFD = open(main_config->console, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (consoleFD < 0) {
 		ERROR("AFB-daemon cannot open /dev/console (use --foreground)");
 		exit(1);
@@ -183,7 +183,7 @@ static void daemonize()
 
 	// son process get all data in standalone mode
 	NOTICE("background mode [pid:%d console:%s]", getpid(),
-	       config->console);
+	       main_config->console);
 
 	// redirect default I/O on console
 	close(2);
@@ -221,25 +221,25 @@ static int init_alias(void *closure, char *spec)
 static int init_http_server(struct afb_hsrv *hsrv)
 {
 	if (!afb_hsrv_add_handler
-	    (hsrv, config->rootapi, afb_hswitch_websocket_switch, main_apiset, 20))
+	    (hsrv, main_config->rootapi, afb_hswitch_websocket_switch, main_apiset, 20))
 		return 0;
 
 	if (!afb_hsrv_add_handler
-	    (hsrv, config->rootapi, afb_hswitch_apis, main_apiset, 10))
+	    (hsrv, main_config->rootapi, afb_hswitch_apis, main_apiset, 10))
 		return 0;
 
-	if (run_for_list(config->aliases, init_alias, hsrv))
+	if (run_for_list(main_config->aliases, init_alias, hsrv))
 		return 0;
 
-	if (config->roothttp != NULL) {
+	if (main_config->roothttp != NULL) {
 		if (!afb_hsrv_add_alias
-		    (hsrv, "", afb_common_rootdir_get_fd(), config->roothttp,
+		    (hsrv, "", afb_common_rootdir_get_fd(), main_config->roothttp,
 		     -10, 1))
 			return 0;
 	}
 
 	if (!afb_hsrv_add_handler
-	    (hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL,
+	    (hsrv, main_config->rootbase, afb_hswitch_one_page_api_redirect, NULL,
 	     -20))
 		return 0;
 
@@ -251,8 +251,8 @@ static struct afb_hsrv *start_http_server()
 	int rc;
 	struct afb_hsrv *hsrv;
 
-	if (afb_hreq_init_download_path(config->uploaddir)) {
-		ERROR("unable to set the upload directory %s", config->uploaddir);
+	if (afb_hreq_init_download_path(main_config->uploaddir)) {
+		ERROR("unable to set the upload directory %s", main_config->uploaddir);
 		return NULL;
 	}
 
@@ -262,17 +262,17 @@ static struct afb_hsrv *start_http_server()
 		return NULL;
 	}
 
-	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
+	if (!afb_hsrv_set_cache_timeout(hsrv, main_config->cacheTimeout)
 	    || !init_http_server(hsrv)) {
 		ERROR("initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
 
-	NOTICE("Waiting port=%d rootdir=%s", config->httpdPort, config->rootdir);
-	NOTICE("Browser URL= http://localhost:%d", config->httpdPort);
+	NOTICE("Waiting port=%d rootdir=%s", main_config->httpdPort, main_config->rootdir);
+	NOTICE("Browser URL= http://localhost:%d", main_config->httpdPort);
 
-	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
+	rc = afb_hsrv_start(hsrv, (uint16_t) main_config->httpdPort, 15);
 	if (!rc) {
 		ERROR("starting of httpd failed");
 		afb_hsrv_put(hsrv);
@@ -383,11 +383,11 @@ static int instanciate_command_args(const char *port, const char *token)
 	int i;
 
 	/* instanciate the arguments */
-	for (i = 0 ; config->exec[i] ; i++) {
-		repl = instanciate_string(config->exec[i], port, token);
+	for (i = 0 ; main_config->exec[i] ; i++) {
+		repl = instanciate_string(main_config->exec[i], port, token);
 		if (!repl)
 			return -1;
-		config->exec[i] = repl;
+		main_config->exec[i] = repl;
 	}
 	return 0;
 }
@@ -400,7 +400,7 @@ static int execute_command()
 	int rc;
 
 	/* check whether a command is to execute or not */
-	if (!config->exec || !config->exec[0])
+	if (!main_config->exec || !main_config->exec[0])
 		return 0;
 
 	if (SELF_PGROUP)
@@ -418,8 +418,8 @@ static int execute_command()
 		return 0;
 
 	/* compute the string for port */
-	if (config->httpdPort)
-		rc = snprintf(port, sizeof port, "%d", config->httpdPort);
+	if (main_config->httpdPort)
+		rc = snprintf(port, sizeof port, "%d", main_config->httpdPort);
 	else
 		rc = snprintf(port, sizeof port, "%cp", SUBST_CHAR);
 	if (rc < 0 || rc >= (int)(sizeof port)) {
@@ -433,8 +433,8 @@ static int execute_command()
 			/* run */
 			if (!SELF_PGROUP)
 				setpgid(0, 0);
-			execv(config->exec[0], config->exec);
-			ERROR("can't launch %s: %m", config->exec[0]);
+			execv(main_config->exec[0], main_config->exec);
+			ERROR("can't launch %s: %m", main_config->exec[0]);
 		}
 	}
 	exit(1);
@@ -523,7 +523,7 @@ static void run_startup_calls()
 	struct afb_config_list *list;
 	struct startup_req *sreq;
 
-	list = config->calls;
+	list = main_config->calls;
 	if (list) {
 		sreq = calloc(1, sizeof *sreq);
 		sreq->session = afb_session_create(3600);
@@ -548,22 +548,22 @@ static void start(int signum, void *arg)
 	}
 
 	/* set the directories */
-	mkdir(config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
-	if (chdir(config->workdir) < 0) {
-		ERROR("Can't enter working dir %s", config->workdir);
+	mkdir(main_config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
+	if (chdir(main_config->workdir) < 0) {
+		ERROR("Can't enter working dir %s", main_config->workdir);
 		goto error;
 	}
-	if (afb_common_rootdir_set(config->rootdir) < 0) {
+	if (afb_common_rootdir_set(main_config->rootdir) < 0) {
 		ERROR("failed to set common root directory");
 		goto error;
 	}
 
 	/* configure the daemon */
-	if (afb_session_init(config->nbSessionMax, config->cntxTimeout, config->token)) {
+	if (afb_session_init(main_config->nbSessionMax, main_config->cntxTimeout, main_config->token)) {
 		ERROR("initialisation of session manager failed");
 		goto error;
 	}
-	main_apiset = afb_apiset_create("main", config->apiTimeout);
+	main_apiset = afb_apiset_create("main", main_config->apiTimeout);
 	if (!main_apiset) {
 		ERROR("can't create main api set");
 		goto error;
@@ -578,25 +578,25 @@ static void start(int signum, void *arg)
 	}
 
 	/* install hooks */
-	if (config->tracereq)
-		afb_hook_create_xreq(NULL, NULL, NULL, config->tracereq, NULL, NULL);
-	if (config->traceditf)
-		afb_hook_create_ditf(NULL, config->traceditf, NULL, NULL);
-	if (config->tracesvc)
-		afb_hook_create_svc(NULL, config->tracesvc, NULL, NULL);
-	if (config->traceevt)
-		afb_hook_create_evt(NULL, config->traceevt, NULL, NULL);
+	if (main_config->tracereq)
+		afb_hook_create_xreq(NULL, NULL, NULL, main_config->tracereq, NULL, NULL);
+	if (main_config->traceditf)
+		afb_hook_create_ditf(NULL, main_config->traceditf, NULL, NULL);
+	if (main_config->tracesvc)
+		afb_hook_create_svc(NULL, main_config->tracesvc, NULL, NULL);
+	if (main_config->traceevt)
+		afb_hook_create_evt(NULL, main_config->traceevt, NULL, NULL);
 
 	/* load bindings */
 	afb_debug("start-load");
-	apiset_start_list(config->so_bindings, afb_api_so_add_binding, "the binding");
-	apiset_start_list(config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
-	apiset_start_list(config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
-	apiset_start_list(config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
-	apiset_start_list(config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
+	apiset_start_list(main_config->so_bindings, afb_api_so_add_binding, "the binding");
+	apiset_start_list(main_config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
+	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
+	apiset_start_list(main_config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
+	apiset_start_list(main_config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
 
-	apiset_start_list(config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
-	apiset_start_list(config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
+	apiset_start_list(main_config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
+	apiset_start_list(main_config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
 
 	DEBUG("Init config done");
 
@@ -610,13 +610,13 @@ static void start(int signum, void *arg)
 
 	/* start the HTTP server */
 	afb_debug("start-http");
-	if (!config->noHttpd) {
-		if (config->httpdPort <= 0) {
+	if (!main_config->noHttpd) {
+		if (main_config->httpdPort <= 0) {
 			ERROR("no port is defined");
 			goto error;
 		}
 
-		if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, config->cntxTimeout)) {
+		if (!afb_hreq_init_cookie(main_config->httpdPort, main_config->rootapi, main_config->cntxTimeout)) {
 			ERROR("initialisation of HTTP cookies failed");
 			goto error;
 		}
@@ -657,16 +657,16 @@ int main(int argc, char *argv[])
 	sd_fds_init();
 
 	// ------------- Build session handler & init config -------
-	config = afb_config_parse_arguments(argc, argv);
-	if (config->name) {
-		verbose_set_name(config->name, 0);
-		process_name_set_name(config->name);
-		process_name_replace_cmdline(argv, config->name);
+	main_config = afb_config_parse_arguments(argc, argv);
+	if (main_config->name) {
+		verbose_set_name(main_config->name, 0);
+		process_name_set_name(main_config->name);
+		process_name_replace_cmdline(argv, main_config->name);
 	}
 	afb_debug("main-args");
 
 	// --------- run -----------
-	if (config->background) {
+	if (main_config->background) {
 		// --------- in background mode -----------
 		INFO("entering background mode");
 		daemonize();

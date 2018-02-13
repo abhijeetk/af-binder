@@ -38,12 +38,15 @@
 #include "afb-xreq.h"
 #include "afb-trace.h"
 #include "afb-session.h"
+#include "afb-config.h"
 #include "afb-supervision.h"
 #include "afs-supervision.h"
 #include "afb-stub-ws.h"
 #include "afb-debug.h"
 #include "verbose.h"
 #include "wrap-json.h"
+
+extern struct afb_config *main_config;
 
 /* api and apiset name */
 static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
@@ -265,8 +268,8 @@ static void slist(void *closure, struct afb_session *session)
 ******************************************************************************/
 
 static const char *verbs[] = {
-	"break", "do", "exit", "sclose", "slist", "trace", "wait" };
-enum  {  Break ,  Do ,  Exit ,  Sclose ,  Slist ,  Trace ,  Wait  };
+	"break", "config", "do", "exit", "sclose", "slist", "trace", "wait" };
+enum  {  Break ,  Config ,  Do ,  Exit ,  Sclose ,  Slist ,  Trace ,  Wait  };
 
 
 static void on_supervision_call(void *closure, struct afb_xreq *xreq)
@@ -318,6 +321,9 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		list = json_object_new_object();
 		afb_session_foreach(slist, list);
 		afb_xreq_success(xreq, list, NULL);
+		break;
+	case Config:
+		afb_xreq_success(xreq, afb_config_json(main_config), NULL);
 		break;
 	case Trace:
 		if (!trace)

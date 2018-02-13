@@ -339,6 +339,7 @@ static void start(int signum, void *arg)
  */
 int main(int ac, char **av)
 {
+	verbosity = Verbosity_Level_Debug;
 	/* enter job processing */
 	jobs_start(3, 0, 10, start, av[1]);
 	WARNING("hoops returned from jobs_enter! [report bug]");
@@ -413,6 +414,11 @@ static void f_do(struct afb_req req)
 	propagate(req, NULL);
 }
 
+static void f_config(struct afb_req req)
+{
+	propagate(req, NULL);
+}
+
 static void f_trace(struct afb_req req)
 {
 	propagate(req, NULL);
@@ -455,6 +461,13 @@ static const struct afb_verb_v2 _afb_verbs_v2_supervision[] = {
     {
         .verb = "list",
         .callback = f_list,
+        .auth = &_afb_auths_v2_supervision[0],
+        .info = NULL,
+        .session = AFB_SESSION_NONE_V2
+    },
+    {
+        .verb = "config",
+        .callback = f_config,
         .auth = &_afb_auths_v2_supervision[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
