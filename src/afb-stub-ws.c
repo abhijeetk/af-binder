@@ -709,7 +709,8 @@ void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 {
 	if (!__atomic_sub_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED)) {
 		drop_all_events(stubws);
-		afb_evt_listener_unref(stubws->listener);
+		if (stubws->listener)
+			afb_evt_listener_unref(stubws->listener);
 		release_sessions(stubws);
 		afb_proto_ws_unref(stubws->proto);
 		afb_cred_unref(stubws->cred);
