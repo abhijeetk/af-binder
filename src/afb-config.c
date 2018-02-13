@@ -24,6 +24,8 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include <json-c/json.h>
+
 #include "verbose.h"
 #include "afb-config.h"
 #include "afb-hook.h"
@@ -693,7 +695,6 @@ void afb_config_dump(struct afb_config *config)
 #define PE      P("\n")
 #define S(x)	PF(x);P("%s",NN(config->x));PE;
 #define D(x)	PF(x);P("%d",config->x);PE;
-#define H(x)	PF(x);P("%x",config->x);PE;
 #define B(x)	PF(x);P("%s",config->x?"yes":"no");PE;
 #define L(x)	PF(x);l=config->x;if(l){P("%s\n",NN(l->value));for(l=l->next;l;l=l->next)P("-- %15s  %s\n","",NN(l->value));}else PE;
 #define E(x,d)	for(e=d;e->name&&e->value!=config->x;e++);if(e->name){PF(x);P("%s",e->name);PE;}else{D(x);}
@@ -745,7 +746,6 @@ void afb_config_dump(struct afb_config *config)
 #undef E
 #undef L
 #undef B
-#undef H
 #undef D
 #undef S
 #undef PE
@@ -800,5 +800,94 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 	if (verbosity >= 3)
 		afb_config_dump(result);
 	return result;
+}
+
+struct json_object *afb_config_json(struct afb_config *config)
+{
+	struct json_object *r, *a;
+	struct afb_config_list *l;
+	struct enumdesc *e;
+	char **v;
+
+#define XA(t,o)		json_object_array_add(t,o);
+#define XO(t,x,o)	json_object_object_add(t,x,o);
+#define YS(s)		((s)?json_object_new_string(s):NULL)
+
+#define AO(o)		XA(a,o)
+#define AS(s)		AO(YS(s))
+#define RO(x,o)		XO(r,x,o)
+#define RS(x,s)		RO(x,YS(s))
+#define RA(x)		RO(x,(a=json_object_new_array()))
+#define RI(x,i)		RO(x,json_object_new_int(i))
+#define RB(x,b)		RO(x,json_object_new_boolean(b))
+
+#define S(x)		RS(#x,config->x)
+#define V(x)		RA(#x);for(v=config->x;v&&*v;v++)AS(*v);
+#define L(x)		RA(#x);for(l=config->x;l;l=l->next)AS(l->value);
+#define D(x)		RI(#x,config->x)
+#define B(x)		RB(#x,config->x)
+#define E(x,d)		for(e=d;e->name&&e->value!=config->x;e++);if(e->name){RS(#x,e->name);}else{D(x);}
+
+	r = json_object_new_object();
+	S(console)
+	S(rootdir)
+	S(roothttp)
+	S(rootbase)
+	S(rootapi)
+	S(workdir)
+	S(uploaddir)
+	S(token)
+	S(name)
+
+	L(aliases)
+	L(dbus_clients)
+	L(dbus_servers)
+	L(ws_clients)
+	L(ws_servers)
+	L(so_bindings)
+	L(ldpaths)
+	L(weak_ldpaths)
+	L(calls)
+
+	V(exec)
+
+	D(httpdPort)
+	D(cacheTimeout)
+	D(apiTimeout)
+	D(cntxTimeout)
+	D(nbSessionMax)
+
+	E(mode,mode_desc)
+	E(tracereq,tracereq_desc)
+	E(traceditf,traceditf_desc)
+	E(tracesvc,tracesvc_desc)
+	E(traceevt,traceevt_desc)
+
+	B(no_ldpaths)
+	B(noHttpd)
+	B(background)
+	B(monitoring)
+	B(random_token)
+
+#undef E
+#undef B
+#undef D
+#undef L
+#undef V
+#undef S
+
+#undef RB
+#undef RI
+#undef RA
+#undef RS
+#undef RS
+#undef AS
+#undef AO
+
+#undef YS
+#undef XO
+#undef XA
+
+	return r;
 }
 

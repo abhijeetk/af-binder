@@ -16,6 +16,8 @@
 
 #pragma once
 
+struct json_object;
+
 /*
  * other definitions ---------------------------------------------------
  */
@@ -73,3 +75,5 @@ struct afb_config {
 
 extern struct afb_config *afb_config_parse_arguments(int argc, char **argv);
 extern void afb_config_dump(struct afb_config *config);
+extern struct json_object *afb_config_json(struct afb_config *config);
+
