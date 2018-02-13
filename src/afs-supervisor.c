@@ -63,7 +63,8 @@ struct supervised
 };
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
+static const char supervision_apiname[] = AFS_SURPERVISION_APINAME_INTERNAL;
+static const char supervisor_apiname[] = "supervisor";
 
 /* the main apiset */
 struct afb_apiset *main_apiset;
@@ -269,14 +270,14 @@ static int init(const char *spec)
 	/* TODO check that value */
 
 	/* create the apisets */
-	main_apiset = afb_apiset_create(supervision_apiname, 0);
+	main_apiset = afb_apiset_create(supervisor_apiname, 0);
 	if (!main_apiset) {
-		ERROR("Can't create supervision's apiset");
+		ERROR("Can't create supervisor's apiset");
 		return -1;
 	}
 	empty_apiset = afb_apiset_create(supervision_apiname, 0);
 	if (!empty_apiset) {
-		ERROR("Can't create supervised apiset");
+		ERROR("Can't create supervision apiset");
 		return -1;
 	}
 
@@ -525,7 +526,7 @@ static const struct afb_verb_v2 _afb_verbs_v2_supervision[] = {
 };
 
 static const struct afb_binding_v2 _afb_binding_v2_supervision = {
-    .api = supervision_apiname,
+    .api = supervisor_apiname,
     .specification = NULL,
     .info = NULL,
     .verbs = _afb_verbs_v2_supervision,

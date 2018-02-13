@@ -49,7 +49,7 @@
 extern struct afb_config *main_config;
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
+static const char supervision_apiname[] = AFS_SURPERVISION_APINAME_INTERNAL;
 
 /* path of the supervision socket */
 static const char supervisor_socket_path[] = AFS_SURPERVISION_SOCKET;
