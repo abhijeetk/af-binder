@@ -85,7 +85,7 @@ INSTALL(TARGETS afb-daemon
 ###########################################
 # build and install afb-daemon
 ###########################################
-ADD_EXECUTABLE(afs-supervisor afs-supervisor.c)
+ADD_EXECUTABLE(afs-supervisor afs-supervisor.c afs-discover.c)
 TARGET_LINK_LIBRARIES(afs-supervisor
 	afb-lib
 	${link_libraries}

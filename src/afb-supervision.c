@@ -45,6 +45,7 @@
 #include "afb-debug.h"
 #include "verbose.h"
 #include "wrap-json.h"
+#include "jobs.h"
 
 extern struct afb_config *main_config;
 
@@ -111,20 +112,24 @@ static int open_supervisor_socket(const char *path)
 	return fd;
 }
 
-static void cleanup_supervisor(void *nada)
-{
-	struct afb_trace *t = __atomic_exchange_n(&trace, NULL, __ATOMIC_RELAXED);
-	if (t)
-		afb_trace_unref(t);
-	supervisor = NULL;
-}
-
 static void disconnect_supervisor()
 {
-	struct afb_stub_ws *s = __atomic_exchange_n(&supervisor, NULL, __ATOMIC_RELAXED);
+	struct afb_stub_ws *s;
+	struct afb_trace *t;
 
+	INFO("Disconnecting supervision");
+	s = __atomic_exchange_n(&supervisor, NULL, __ATOMIC_RELAXED);
+	t = __atomic_exchange_n(&trace, NULL, __ATOMIC_RELAXED);
 	if (s)
 		afb_stub_ws_unref(s);
+	if (t)
+		afb_trace_unref(t);
+}
+
+static void on_supervisor_hangup(struct afb_stub_ws *s)
+{
+	if (s && s == supervisor)
+		disconnect_supervisor();
 }
 
 /* try to connect to supervisor */
@@ -195,6 +200,7 @@ static void try_connect_supervisor()
 		ERROR("Creation of supervisor failed: %m");
 		goto end2;
 	}
+	afb_stub_ws_on_hangup(supervisor, on_supervisor_hangup);
 
 	/* successful termination */
 	goto end;
@@ -205,9 +211,16 @@ end:
 	pthread_mutex_unlock(&mutex);
 }
 
+static void try_connect_supervisor_job(int signum, void *args)
+{
+	INFO("Try to connect supervisor after SIGHUP");
+	try_connect_supervisor();
+}
+
 static void on_sighup(int signum)
 {
-	try_connect_supervisor();
+	INFO("Supervision received a SIGHUP");
+	jobs_queue(NULL, 0, try_connect_supervisor_job, NULL);
 }
 
 /**

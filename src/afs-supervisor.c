@@ -49,6 +49,8 @@
 #include "verbose.h"
 #include "wrap-json.h"
 
+extern void afs_discover(const char *pattern, void (*callback)(void *closure, pid_t pid), void *closure);
+
 /* supervised items */
 struct supervised
 {
@@ -210,6 +212,22 @@ static int make_supervised(int fd, struct afb_cred *cred)
 	return 0;
 }
 
+/**
+ * Search the supervised of 'pid', return it or NULL.
+ */
+static struct supervised *supervised_of_pid(pid_t pid)
+{
+	struct supervised *s;
+
+	pthread_mutex_lock(&mutex);
+	s = superviseds;
+	while (s && pid != s->cred->pid)
+		s = s->next;
+	pthread_mutex_unlock(&mutex);
+
+	return s;
+}
+
 /*
  * handles incoming connection on 'sock'
  */
@@ -252,6 +270,21 @@ static int listening(sd_event_source *src, int fd, uint32_t revents, void *closu
 	return 0;
 }
 
+/*
+ */
+static void discovered_cb(void *closure, pid_t pid)
+{
+	struct supervised *s;
+
+	s = supervised_of_pid(pid);
+	if (!s)
+		kill(pid, SIGHUP);
+}
+
+static void discover_supervised()
+{
+	afs_discover("afb-daemon", discovered_cb, NULL);
+}
 
 /**
  * initalize the supervision
@@ -333,6 +366,8 @@ static void start(int signum, void *arg)
 		exit(1);
 
 	sd_notify(1, "READY=1");
+
+	discover_supervised();
 }
 
 /**
@@ -396,9 +431,7 @@ static void propagate(struct afb_req req, const char *verb)
 		afb_xreq_fail(xreq, "bad-pid", NULL);
 		return;
 	}
-	s = superviseds;
-	while (s && p != (int)s->cred->pid)
-		s = s->next;
+	s = supervised_of_pid((pid_t)p);
 	if (!s) {
 		afb_req_fail(req, "unknown-pid", NULL);
 		return;
