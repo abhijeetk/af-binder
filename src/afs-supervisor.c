@@ -277,13 +277,17 @@ static void discovered_cb(void *closure, pid_t pid)
 	struct supervised *s;
 
 	s = supervised_of_pid(pid);
-	if (!s)
+	if (!s) {
+		(*(int*)closure)++;
 		kill(pid, SIGHUP);
+	}
 }
 
-static void discover_supervised()
+static int discover_supervised()
 {
-	afs_discover("afb-daemon", discovered_cb, NULL);
+	int n = 0;
+	afs_discover("afb-daemon", discovered_cb, &n);
+	return n;
 }
 
 /**
@@ -409,6 +413,12 @@ static void f_list(struct afb_req req)
 		s = s->next;
 	}
 	afb_req_success(req, resu, NULL);
+}
+
+static void f_discover(struct afb_req req)
+{
+	discover_supervised();
+	afb_req_success(req, NULL, NULL);
 }
 
 static void propagate(struct afb_req req, const char *verb)
@@ -551,6 +561,13 @@ static const struct afb_verb_v2 _afb_verbs_v2_supervision[] = {
     {
         .verb = "debug-break",
         .callback = f_debug_break,
+        .auth = &_afb_auths_v2_supervision[0],
+        .info = NULL,
+        .session = AFB_SESSION_NONE_V2
+    },
+    {
+        .verb = "discover",
+        .callback = f_discover,
         .auth = &_afb_auths_v2_supervision[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
