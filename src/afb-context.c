@@ -148,6 +148,10 @@ void afb_context_refresh(struct afb_context *context)
 	else {
 		assert(context->validated);
 		context->refreshing = 1;
+		if (!context->refreshed) {
+			afb_session_new_token (context->session);
+			context->refreshed = 1;
+		}
 	}
 }
 
