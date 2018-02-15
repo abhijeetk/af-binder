@@ -30,6 +30,7 @@
 #include "afb-evt.h"
 #include "afb-xreq.h"
 #include "afb-trace.h"
+#include "afb-session.h"
 #include "verbose.h"
 #include "wrap-json.h"
 
@@ -295,6 +296,7 @@ static struct json_object *get_apis(struct json_object *spec)
 
 static const char _verbosity_[] = "verbosity";
 static const char _apis_[] = "apis";
+static const char _refresh_token_[] = "refresh-token";
 
 static void f_get(struct afb_req req)
 {
@@ -358,4 +360,31 @@ end:
 	afb_apiset_update_hooks(main_apiset, NULL);
 	afb_evt_update_hooks();
 }
+
+static void f_session(struct afb_req req)
+{
+	struct json_object *r = NULL;
+	int refresh = 0;
+	struct afb_xreq *xreq = xreq_from_request(req.closure);
+
+	/* check right to call it */
+	if (xreq->context.super) {
+		afb_req_fail(req, "invalid", "reserved to direct clients");
+		return;
+	}
+
+	/* renew the token if required */
+	wrap_json_unpack(afb_req_json(req), "{s?:b}", _refresh_token_, &refresh);
+	if (refresh)
+		afb_context_refresh(&xreq->context);
+
+	/* make the result */
+	wrap_json_pack(&r, "{s:s,s:s,s:i,s:i}",
+			"uuid", afb_session_uuid(xreq->context.session),
+			"token", afb_session_token(xreq->context.session),
+			"timeout", afb_session_timeout(xreq->context.session),
+			"remain", afb_session_what_remains(xreq->context.session));
+	afb_req_success(req, r, NULL);
+}
+
 

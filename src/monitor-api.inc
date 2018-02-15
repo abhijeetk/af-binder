@@ -89,67 +89,68 @@ static const char _afb_description_v2_monitor[] =
     "type\":\"array\",\"items\":\"string\"}]},\"tag\":{\"anyOf\":[{\"type\":\""
     "string\"},{\"type\":\"array\",\"items\":\"string\"}]},\"uuid\":{\"anyOf\""
     ":[{\"type\":\"string\"},{\"type\":\"array\",\"items\":\"string\"}]}}}]}}"
-    ",\"x-permissions\":{\"trace\":{\"permission\":\"urn:AGL:permission:monit"
-    "or:public:trace\"},\"set\":{\"permission\":\"urn:AGL:permission:monitor:"
-    "public:set\"},\"get\":{\"permission\":\"urn:AGL:permission:monitor:publi"
-    "c:get\"},\"get-or-set\":{\"anyOf\":[{\"$ref\":\"#/components/x-permissio"
-    "ns/get\"},{\"$ref\":\"#/components/x-permissions/set\"}]}}},\"paths\":{\""
-    "/get\":{\"description\":\"Get monitoring data.\",\"get\":{\"x-permission"
-    "s\":{\"$ref\":\"#/components/x-permissions/get-or-set\"},\"parameters\":"
-    "[{\"in\":\"query\",\"name\":\"verbosity\",\"required\":false,\"schema\":"
-    "{\"$ref\":\"#/components/schemas/get-verbosity\"}},{\"in\":\"query\",\"n"
-    "ame\":\"apis\",\"required\":false,\"schema\":{\"$ref\":\"#/components/sc"
-    "hemas/get-apis\"}}],\"responses\":{\"200\":{\"description\":\"A complex "
-    "object array response\",\"content\":{\"application/json\":{\"schema\":{\""
-    "$ref\":\"#/components/schemas/afb-reply\"}}}}}}},\"/set\":{\"description"
-    "\":\"Set monitoring actions.\",\"get\":{\"x-permissions\":{\"$ref\":\"#/"
-    "components/x-permissions/set\"},\"parameters\":[{\"in\":\"query\",\"name"
-    "\":\"verbosity\",\"required\":false,\"schema\":{\"$ref\":\"#/components/"
-    "schemas/set-verbosity\"}}],\"responses\":{\"200\":{\"description\":\"A c"
-    "omplex object array response\",\"content\":{\"application/json\":{\"sche"
-    "ma\":{\"$ref\":\"#/components/schemas/afb-reply\"}}}}}}},\"/trace\":{\"d"
-    "escription\":\"Set monitoring actions.\",\"get\":{\"x-permissions\":{\"$"
-    "ref\":\"#/components/x-permissions/trace\"},\"parameters\":[{\"in\":\"qu"
-    "ery\",\"name\":\"add\",\"required\":false,\"schema\":{\"$ref\":\"#/compo"
-    "nents/schemas/trace-add\"}},{\"in\":\"query\",\"name\":\"drop\",\"requir"
-    "ed\":false,\"schema\":{\"$ref\":\"#/components/schemas/trace-drop\"}}],\""
-    "responses\":{\"200\":{\"description\":\"A complex object array response\""
-    ",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/"
-    "schemas/afb-reply\"}}}}}}}}}"
+    "},\"paths\":{\"/get\":{\"description\":\"Get monitoring data.\",\"get\":"
+    "{\"x-permissions\":{\"session\":\"check\"},\"parameters\":[{\"in\":\"que"
+    "ry\",\"name\":\"verbosity\",\"required\":false,\"schema\":{\"$ref\":\"#/"
+    "components/schemas/get-verbosity\"}},{\"in\":\"query\",\"name\":\"apis\""
+    ",\"required\":false,\"schema\":{\"$ref\":\"#/components/schemas/get-apis"
+    "\"}}],\"responses\":{\"200\":{\"description\":\"A complex object array r"
+    "esponse\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/co"
+    "mponents/schemas/afb-reply\"}}}}}}},\"/set\":{\"description\":\"Set moni"
+    "toring actions.\",\"get\":{\"x-permissions\":{\"session\":\"check\"},\"p"
+    "arameters\":[{\"in\":\"query\",\"name\":\"verbosity\",\"required\":false"
+    ",\"schema\":{\"$ref\":\"#/components/schemas/set-verbosity\"}}],\"respon"
+    "ses\":{\"200\":{\"description\":\"A complex object array response\",\"co"
+    "ntent\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schem"
+    "as/afb-reply\"}}}}}}},\"/trace\":{\"description\":\"Set monitoring actio"
+    "ns.\",\"get\":{\"x-permissions\":{\"session\":\"check\"},\"parameters\":"
+    "[{\"in\":\"query\",\"name\":\"add\",\"required\":false,\"schema\":{\"$re"
+    "f\":\"#/components/schemas/trace-add\"}},{\"in\":\"query\",\"name\":\"dr"
+    "op\",\"required\":false,\"schema\":{\"$ref\":\"#/components/schemas/trac"
+    "e-drop\"}}],\"responses\":{\"200\":{\"description\":\"A complex object a"
+    "rray response\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":"
+    "\"#/components/schemas/afb-reply\"}}}}}}},\"/session\":{\"description\":"
+    "\"describes the session.\",\"get\":{\"x-permissions\":{\"session\":\"che"
+    "ck\"},\"parameters\":[{\"in\":\"query\",\"name\":\"refresh-token\",\"req"
+    "uired\":false,\"schema\":{\"type\":\"boolean\"}}],\"responses\":{\"200\""
+    ":{\"description\":\"A complex object array response\",\"content\":{\"app"
+    "lication/json\":{\"schema\":{\"$ref\":\"#/components/schemas/afb-reply\""
+    "}}}}}}}}}"
 ;
-
-static const struct afb_auth _afb_auths_v2_monitor[] = {
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:set" },
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:get" },
-	{ .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] },
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:trace" }
-};
 
 static void f_get(struct afb_req req);
 static void f_set(struct afb_req req);
 static void f_trace(struct afb_req req);
+static void f_session(struct afb_req req);
 
 static const struct afb_verb_v2 _afb_verbs_v2_monitor[] = {
     {
         .verb = "get",
         .callback = f_get,
-        .auth = &_afb_auths_v2_monitor[2],
+        .auth = NULL,
         .info = "Get monitoring data.",
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "set",
         .callback = f_set,
-        .auth = &_afb_auths_v2_monitor[0],
+        .auth = NULL,
         .info = "Set monitoring actions.",
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "trace",
         .callback = f_trace,
-        .auth = &_afb_auths_v2_monitor[3],
+        .auth = NULL,
         .info = "Set monitoring actions.",
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
+    },
+    {
+        .verb = "session",
+        .callback = f_session,
+        .auth = NULL,
+        .info = "describes the session.",
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = NULL,

@@ -301,32 +301,13 @@
           }
         ]
       }
-    },
-    "x-permissions": {
-        "trace": {
-          "permission": "urn:AGL:permission:monitor:public:trace"
-        },
-        "set": {
-          "permission": "urn:AGL:permission:monitor:public:set"
-        },
-        "get": {
-          "permission": "urn:AGL:permission:monitor:public:get"
-        },
-        "get-or-set": {
-          "anyOf": [
-            { "$ref": "#/components/x-permissions/get" },
-            { "$ref": "#/components/x-permissions/set" }
-          ]
-        }
     }
   },
   "paths": {
     "/get": {
       "description": "Get monitoring data.",
       "get": {
-        "x-permissions": {
-          "$ref": "#/components/x-permissions/get-or-set"
-        },
+        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -358,9 +339,7 @@
     "/set": {
       "description": "Set monitoring actions.",
       "get": {
-        "x-permissions": {
-          "$ref": "#/components/x-permissions/set"
-        },
+        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -386,9 +365,7 @@
     "/trace": {
       "description": "Set monitoring actions.",
       "get": {
-        "x-permissions": {
-          "$ref": "#/components/x-permissions/trace"
-        },
+        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -401,6 +378,32 @@
             "name": "drop",
             "required": false,
             "schema": { "$ref": "#/components/schemas/trace-drop" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A complex object array response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/afb-reply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session": {
+      "description": "describes the session.",
+      "get": {
+        "x-permissions": { "session": "check" },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh-token",
+            "required": false,
+            "schema": { "type": "boolean" }
           }
         ],
         "responses": {
