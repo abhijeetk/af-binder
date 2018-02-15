@@ -738,7 +738,9 @@ void afb_config_dump(struct afb_config *config)
 	B(no_ldpaths)
 	B(noHttpd)
 	B(background)
+#if defined(WITH_MONITORING_OPTION)
 	B(monitoring)
+#endif
 	B(random_token)
 	P("---END-OF-CONFIG---\n");
 
@@ -866,7 +868,9 @@ struct json_object *afb_config_json(struct afb_config *config)
 	B(no_ldpaths)
 	B(noHttpd)
 	B(background)
+#if defined(WITH_MONITORING_OPTION)
 	B(monitoring)
+#endif
 	B(random_token)
 
 #undef E
