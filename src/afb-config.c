@@ -38,8 +38,8 @@
 #endif
 
 // default
-#define DEFLT_CNTX_TIMEOUT  3600	// default Client Connection
-					// Timeout
+#define DEFLT_CNTX_TIMEOUT  32000000	// default Client Connection
+					// Timeout: few more than one year
 #define DEFLT_API_TIMEOUT   20		// default Plugin API Timeout [0=NoLimit
 					// for Debug Only]
 #define DEFLT_CACHE_TIMEOUT 100000	// default Static File Chache
