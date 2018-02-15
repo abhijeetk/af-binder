@@ -40,7 +40,7 @@
 #define _MAXEXP_	((time_t)(~(time_t)0))
 #define _MAXEXP2_	((time_t)((((unsigned long long)_MAXEXP_) >> 1)))
 #define MAX_EXPIRATION	(_MAXEXP_ >= 0 ? _MAXEXP_ : _MAXEXP2_)
-#define NOW		(time(NULL))
+#define NOW		(time_now())
 
 /* structure for a cookie added to sessions */
 struct cookie
@@ -85,6 +85,14 @@ static struct {
 	.initok = { 0 },
 	.mutex = PTHREAD_MUTEX_INITIALIZER
 };
+
+/* Get the actual raw time */
+static inline time_t time_now()
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	return ts.tv_sec;
+}
 
 /* generate a new fresh 'uuid' */
 static void new_uuid(char uuid[SIZEUUID])
