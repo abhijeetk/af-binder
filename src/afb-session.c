@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <limits.h>
 #include <string.h>
 #include <uuid/uuid.h>
 #include <errno.h>
@@ -227,21 +228,12 @@ static void session_destroy (struct afb_session *session)
 /* update expiration of 'session' according to 'now' */
 static void session_update_expiration(struct afb_session *session, time_t now)
 {
-	int timeout;
 	time_t expiration;
 
 	/* compute expiration */
-	timeout = session->timeout;
-	if (timeout == AFB_SESSION_TIMEOUT_INFINITE)
+	expiration = now + afb_session_timeout(session);
+	if (expiration < 0)
 		expiration = MAX_EXPIRATION;
-	else {
-		if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
-			expiration = now + sessions.timeout;
-		else
-			expiration = now + timeout;
-		if (expiration < 0)
-			expiration = MAX_EXPIRATION;
-	}
 
 	/* record the expiration */
 	session->expiration = expiration;
@@ -414,6 +406,30 @@ struct afb_session *afb_session_search (const char *uuid)
 struct afb_session *afb_session_create (int timeout)
 {
 	return afb_session_get(NULL, timeout, NULL);
+}
+
+/**
+ * Returns the timeout of 'session' in seconds
+ */
+int afb_session_timeout(struct afb_session *session)
+{
+	int timeout;
+
+	/* compute timeout */
+	timeout = session->timeout;
+	if (timeout == AFB_SESSION_TIMEOUT_DEFAULT)
+		timeout = sessions.timeout;
+	if (timeout < 0)
+		timeout = INT_MAX;
+	return timeout;
+}
+
+/**
+ * Returns the second remaining before expiration of 'session'
+ */
+int afb_session_what_remains(struct afb_session *session)
+{
+	return (int)(session->expiration - NOW);
 }
 
 /* This function will return exiting session or newly created session */
