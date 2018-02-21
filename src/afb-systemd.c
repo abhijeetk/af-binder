@@ -22,6 +22,7 @@
 
 #include <systemd/sd-event.h>
 #include <systemd/sd-bus.h>
+#include <systemd/sd-daemon.h>
 
 #include "afb-systemd.h"
 #include "jobs.h"
@@ -60,5 +61,43 @@ struct sd_bus *afb_systemd_get_system_bus()
 {
 	static struct sd_bus *result = NULL;
 	return sdbusopen((void*)&result, (void*)sd_bus_open_system);
+}
+
+static char **fds_names()
+{
+	static char *null;
+	static char **names;
+
+	int rc;
+
+	if (!names) {
+		rc = sd_listen_fds_with_names(1, &names);
+		if (rc <= 0) {
+			errno = -rc;
+			names = &null;
+		}
+	}
+	return names;
+}
+
+int systemd_fds_init()
+{
+	errno = 0;
+	fds_names();
+	return -!!errno;
+}
+
+int systemd_fds_for(const char *name)
+{
+	int idx;
+	char **names;
+
+	names = fds_names();
+	for (idx = 0 ; names[idx] != NULL ; idx++)
+		if (!strcmp(name, names[idx]))
+			return idx + SD_LISTEN_FDS_START;
+
+	errno = ENOENT;
+	return -1;
 }
 

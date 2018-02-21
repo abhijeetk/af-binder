@@ -36,7 +36,6 @@
 #include "afb-systemd.h"
 #include "afb-stub-ws.h"
 #include "verbose.h"
-#include "sd-fds.h"
 
 struct api_ws
 {
@@ -177,7 +176,7 @@ static int api_ws_socket(const char *path, int server)
 
 	/* check for systemd socket */
 	if (0 == strncmp(path, "sd:", 3))
-		fd = sd_fds_for(path + 3);
+		fd = systemd_fds_for(path + 3);
 	else {
 		/* check for unix socket */
 		if (0 == strncmp(path, "unix:", 5))

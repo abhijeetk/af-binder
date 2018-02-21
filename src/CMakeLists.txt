@@ -64,7 +64,6 @@ ADD_LIBRARY(afb-lib STATIC
 	jobs.c
 	locale-root.c
 	process-name.c
-	sd-fds.c
 	sig-monitor.c
 	subpath.c
 	verbose.c

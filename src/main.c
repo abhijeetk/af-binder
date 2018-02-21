@@ -51,7 +51,6 @@
 #include "afb-common.h"
 #include "afb-monitor.h"
 #include "afb-hook.h"
-#include "sd-fds.h"
 #include "afb-debug.h"
 #include "process-name.h"
 #include "afb-supervision.h"
@@ -653,8 +652,6 @@ int main(int argc, char *argv[])
 
 	// let's run this program with a low priority
 	nice(20);
-
-	sd_fds_init();
 
 	// ------------- Build session handler & init config -------
 	main_config = afb_config_parse_arguments(argc, argv);
