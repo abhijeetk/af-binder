@@ -5,8 +5,8 @@
     "keywords": "AGL, Development, application, framework, binder",
     "author": "IoT.Bzh Team",
     "website": "http://iot.bzh",
-    "published": "September 2017",
-    "version": "4.99-EERC1",
+    "published": "February 2018",
+    "version": "5.99-FFRC0",
 
     "gitbook": "3.2.2",
     "root": "docs",
