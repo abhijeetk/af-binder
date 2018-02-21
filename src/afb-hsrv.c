@@ -38,7 +38,7 @@
 #include "verbose.h"
 #include "locale-root.h"
 
-#include "afb-common.h"
+#include "afb-systemd.h"
 #include "jobs.h"
 
 #define JSON_CONTENT  "application/json"
@@ -420,7 +420,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		return 0;
 	}
 
-	rc = sd_event_add_io(afb_common_get_event_loop(), &evsrc, info->listen_fd, EPOLLIN, io_event_callback, hsrv);
+	rc = sd_event_add_io(afb_systemd_get_event_loop(), &evsrc, info->listen_fd, EPOLLIN, io_event_callback, hsrv);
 	if (rc < 0) {
 		MHD_stop_daemon(httpd);
 		errno = -rc;

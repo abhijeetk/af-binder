@@ -53,6 +53,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-session.c
 	afb-stub-ws.c
 	afb-supervision.c
+	afb-systemd.c
 	afb-trace.c
 	afb-websock.c
 	afb-ws-client.c

@@ -17,56 +17,16 @@
 
 #define _GNU_SOURCE
 
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <systemd/sd-event.h>
-#include <systemd/sd-bus.h>
 
 #include "afb-common.h"
 #include "locale-root.h"
-#include "jobs.h"
 
 static const char *default_locale = NULL;
 static struct locale_root *rootdir = NULL;
-
-static struct sd_bus *sdbusopen(struct sd_bus **p, int (*f)(struct sd_bus **))
-{
-	if (*p == NULL) {
-		int rc = f(p);
-		if (rc < 0) {
-			errno = -rc;
-			*p = NULL;
-		} else {
-			rc = sd_bus_attach_event(*p, afb_common_get_event_loop(), 0);
-			if (rc < 0) {
-				sd_bus_unref(*p);
-				errno = -rc;
-				*p = NULL;
-			}
-		}
-	}
-	return *p;
-}
-
-struct sd_event *afb_common_get_event_loop()
-{
-	return jobs_get_sd_event();
-}
-
-struct sd_bus *afb_common_get_user_bus()
-{
-	static struct sd_bus *result = NULL;
-	return sdbusopen((void*)&result, (void*)sd_bus_open_user);
-}
-
-struct sd_bus *afb_common_get_system_bus()
-{
-	static struct sd_bus *result = NULL;
-	return sdbusopen((void*)&result, (void*)sd_bus_open_system);
-}
 
 void afb_common_default_locale_set(const char *locale)
 {

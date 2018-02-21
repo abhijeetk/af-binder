@@ -30,6 +30,7 @@
 #include "afb-apiset.h"
 #include "afb-api-dyn.h"
 #include "afb-common.h"
+#include "afb-systemd.h"
 #include "afb-cred.h"
 #include "afb-evt.h"
 #include "afb-export.h"
@@ -300,21 +301,21 @@ static int hooked_event_broadcast_cb(void *closure, const char *name, struct jso
 static struct sd_event *hooked_get_event_loop(void *closure)
 {
 	struct afb_export *export = closure;
-	struct sd_event *r = afb_common_get_event_loop();
+	struct sd_event *r = afb_systemd_get_event_loop();
 	return afb_hook_ditf_get_event_loop(export, r);
 }
 
 static struct sd_bus *hooked_get_user_bus(void *closure)
 {
 	struct afb_export *export = closure;
-	struct sd_bus *r = afb_common_get_user_bus();
+	struct sd_bus *r = afb_systemd_get_user_bus();
 	return afb_hook_ditf_get_user_bus(export, r);
 }
 
 static struct sd_bus *hooked_get_system_bus(void *closure)
 {
 	struct afb_export *export = closure;
-	struct sd_bus *r = afb_common_get_system_bus();
+	struct sd_bus *r = afb_systemd_get_system_bus();
 	return afb_hook_ditf_get_system_bus(export, r);
 }
 
@@ -382,9 +383,9 @@ static const struct afb_daemon_itf daemon_itf = {
 	.vverbose_v2 = vverbose_cb,
 	.event_make = event_make_cb,
 	.event_broadcast = event_broadcast_cb,
-	.get_event_loop = afb_common_get_event_loop,
-	.get_user_bus = afb_common_get_user_bus,
-	.get_system_bus = afb_common_get_system_bus,
+	.get_event_loop = afb_systemd_get_event_loop,
+	.get_user_bus = afb_systemd_get_user_bus,
+	.get_system_bus = afb_systemd_get_system_bus,
 	.rootdir_get_fd = afb_common_rootdir_get_fd,
 	.rootdir_open_locale = rootdir_open_locale_cb,
 	.queue_job = queue_job_cb,
@@ -940,9 +941,9 @@ static const struct afb_dynapi_itf dynapi_itf = {
 
 	.vverbose = (void*)vverbose_cb,
 
-	.get_event_loop = afb_common_get_event_loop,
-	.get_user_bus = afb_common_get_user_bus,
-	.get_system_bus = afb_common_get_system_bus,
+	.get_event_loop = afb_systemd_get_event_loop,
+	.get_user_bus = afb_systemd_get_user_bus,
+	.get_system_bus = afb_systemd_get_system_bus,
 	.rootdir_get_fd = afb_common_rootdir_get_fd,
 	.rootdir_open_locale = rootdir_open_locale_cb,
 	.queue_job = queue_job_cb,

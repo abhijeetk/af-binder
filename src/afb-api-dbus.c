@@ -29,7 +29,7 @@
 
 #include <afb/afb-event.h>
 
-#include "afb-common.h"
+#include "afb-systemd.h"
 
 #include "afb-session.h"
 #include "afb-msg-json.h"
@@ -128,7 +128,7 @@ static struct api_dbus *make_api_dbus_3(int system, const char *path, size_t pat
 	}
 
 	/* choose the bus */
-	sdbus = (system ? afb_common_get_system_bus : afb_common_get_user_bus)();
+	sdbus = (system ? afb_systemd_get_system_bus : afb_systemd_get_user_bus)();
 	if (sdbus == NULL)
 		goto error2;
 

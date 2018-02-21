@@ -36,7 +36,7 @@
 #include <afb/afb-binding-v2.h>
 
 #include "afs-supervision.h"
-#include "afb-common.h"
+#include "afb-systemd.h"
 #include "afb-session.h"
 #include "afb-cred.h"
 #include "afb-stub-ws.h"
@@ -339,7 +339,7 @@ static int init(const char *spec)
 	}
 
 	/* integrate the socket to the loop */
-	rc = sd_event_add_io(afb_common_get_event_loop(),
+	rc = sd_event_add_io(afb_systemd_get_event_loop(),
 				NULL, fd, EPOLLIN,
 				listening, NULL);
 	if (rc < 0) {

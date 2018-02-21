@@ -17,10 +17,11 @@
 
 #pragma once
 
-extern void afb_common_default_locale_set(const char *locale);
-extern const char *afb_common_default_locale_get();
+struct sd_event;
+struct sd_bus;
 
-extern int afb_common_rootdir_set(const char *rootdir);
-extern int afb_common_rootdir_get_fd();
-extern int afb_common_rootdir_open_locale(const char *filename, int flags, const char *locale);
+extern struct sd_event *afb_systemd_get_event_loop();
+extern struct sd_bus *afb_systemd_get_user_bus();
+extern struct sd_bus *afb_systemd_get_system_bus();
+
 

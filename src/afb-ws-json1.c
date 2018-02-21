@@ -27,7 +27,7 @@
 
 #include "afb-wsj1.h"
 #include "afb-ws-json1.h"
-#include "afb-common.h"
+#include "afb-systemd.h"
 #include "afb-msg-json.h"
 #include "afb-session.h"
 #include "afb-cred.h"
@@ -118,7 +118,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, stru
 	if (result->session == NULL)
 		goto error2;
 
-	result->wsj1 = afb_wsj1_create(afb_common_get_event_loop(), fd, &wsj1_itf, result);
+	result->wsj1 = afb_wsj1_create(afb_systemd_get_event_loop(), fd, &wsj1_itf, result);
 	if (result->wsj1 == NULL)
 		goto error3;
 

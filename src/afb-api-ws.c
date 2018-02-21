@@ -33,7 +33,7 @@
 #include <systemd/sd-event.h>
 #include "afb-api.h"
 #include "afb-apiset.h"
-#include "afb-common.h"
+#include "afb-systemd.h"
 #include "afb-stub-ws.h"
 #include "verbose.h"
 #include "sd-fds.h"
@@ -310,7 +310,7 @@ static int api_ws_server_connect(struct api_ws *apiws)
 		ERROR("can't create socket %s", apiws->path);
 	else {
 		/* listen for service */
-		rc = sd_event_add_io(afb_common_get_event_loop(),
+		rc = sd_event_add_io(afb_systemd_get_event_loop(),
 				&apiws->listensrc, apiws->fd, EPOLLIN,
 				api_ws_server_listen_callback, apiws);
 		if (rc >= 0)
