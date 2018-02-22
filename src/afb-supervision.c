@@ -43,6 +43,7 @@
 #include "afs-supervision.h"
 #include "afb-stub-ws.h"
 #include "afb-debug.h"
+#include "afb-fdev.h"
 #include "verbose.h"
 #include "wrap-json.h"
 #include "jobs.h"
@@ -138,6 +139,7 @@ static void try_connect_supervisor()
 	int fd;
 	ssize_t srd;
 	struct afs_supervision_initiator initiator;
+	struct fdev *fdev;
 
 	/* get the mutex */
 	pthread_mutex_lock(&mutex);
@@ -195,10 +197,15 @@ static void try_connect_supervisor()
 	}
 
 	/* make the supervisor link */
-	supervisor = afb_stub_ws_create_server(fd, supervision_apiname, supervision_apiset);
+	fdev = afb_fdev_create(fd);
+	if (!fdev) {
+		ERROR("Creation of fdev failed: %m");
+		goto end2;
+	}
+	supervisor = afb_stub_ws_create_server(fdev, supervision_apiname, supervision_apiset);
 	if (!supervisor) {
 		ERROR("Creation of supervisor failed: %m");
-		goto end2;
+		goto end;
 	}
 	afb_stub_ws_on_hangup(supervisor, on_supervisor_hangup);
 

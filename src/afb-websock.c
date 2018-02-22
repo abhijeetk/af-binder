@@ -30,6 +30,7 @@
 #include "afb-hreq.h"
 #include "afb-websock.h"
 #include "afb-ws-json1.h"
+#include "afb-fdev.h"
 
 /**************** WebSocket connection upgrade ****************************/
 
@@ -94,7 +95,7 @@ static int headerhas(const char *header, const char *needle)
 struct protodef
 {
 	const char *name;
-	void *(*create)(int fd, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure);
+	void *(*create)(struct fdev *fdev, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure);
 };
 
 static const struct protodef *search_proto(const struct protodef *protodefs, const char *protocols)
@@ -142,11 +143,18 @@ static void upgrade_to_websocket(
 {
 	struct memo_websocket *memo = cls;
 	void *ws;
+	struct fdev *fdev;
 
-	ws = memo->proto->create(sock, memo->apiset, &memo->hreq->xreq.context, close_websocket, urh);
-	if (ws == NULL) {
+	fdev = afb_fdev_create(sock);
+	if (!fdev) {
 		/* TODO */
 		close_websocket(urh);
+	} else {
+		ws = memo->proto->create(fdev, memo->apiset, &memo->hreq->xreq.context, close_websocket, urh);
+		if (ws == NULL) {
+			/* TODO */
+			close_websocket(urh);
+		}
 	}
 	afb_hreq_unref(memo->hreq);
 	free(memo);

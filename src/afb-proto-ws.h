@@ -18,7 +18,7 @@
 
 #pragma once
 
-struct sd_event;
+struct fdev;
 struct afb_proto_ws;
 struct afb_proto_ws_call;
 struct afb_proto_ws_subcall;
@@ -47,8 +47,8 @@ struct afb_proto_ws_server_itf
 	void (*on_describe)(void *closure, struct afb_proto_ws_describe *describe);
 };
 
-extern struct afb_proto_ws *afb_proto_ws_create_client(struct sd_event *eloop, int fd, const struct afb_proto_ws_client_itf *itf, void *closure);
-extern struct afb_proto_ws *afb_proto_ws_create_server(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itf, void *closure);
+extern struct afb_proto_ws *afb_proto_ws_create_client(struct fdev *fdev, const struct afb_proto_ws_client_itf *itf, void *closure);
+extern struct afb_proto_ws *afb_proto_ws_create_server(struct fdev *fdev, const struct afb_proto_ws_server_itf *itf, void *closure);
 
 extern void afb_proto_ws_unref(struct afb_proto_ws *protows);
 extern void afb_proto_ws_addref(struct afb_proto_ws *protows);

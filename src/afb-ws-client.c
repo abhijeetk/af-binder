@@ -29,6 +29,7 @@
 #include <fcntl.h>
 
 #include "afb-wsj1.h"
+#include "fdev-systemd.h"
 
 /**************** WebSocket handshake ****************************/
 
@@ -320,6 +321,7 @@ struct afb_wsj1 *afb_ws_client_connect_wsj1(struct sd_event *eloop, const char *
 	const char *path;
 	struct addrinfo hint, *rai, *iai;
 	struct afb_wsj1 *result;
+	struct fdev *fdev;
 
 	/* scan the uri */
 	rc = parse_uri(uri, &host, &service, &path);
@@ -354,10 +356,13 @@ struct afb_wsj1 *afb_ws_client_connect_wsj1(struct sd_event *eloop, const char *
 			if (rc == 0) {
 				rc = negociate(fd, proto_json1, path, xhost);
 				if (rc == 0) {
-					result = afb_wsj1_create(eloop, fd, itf, closure);
-					if (result != NULL) {
-						fcntl(fd, F_SETFL, O_NONBLOCK);
-						break;
+					fdev = fdev_systemd_create(eloop, fd);
+					if (fdev) {
+						result = afb_wsj1_create(fdev, itf, closure);
+						if (result != NULL) {
+							fcntl(fd, F_SETFL, O_NONBLOCK);
+							break;
+						}
 					}
 				}
 			}
@@ -505,16 +510,18 @@ struct afb_proto_ws *afb_ws_client_connect_api(struct sd_event *eloop, const cha
 {
 	int fd;
 	struct afb_proto_ws *pws;
+	struct fdev *fdev;
 
 	fd = get_socket(uri);
 	if (fd >= 0) {
-		pws = afb_proto_ws_create_client(eloop, fd, itf, closure);
-		if (pws)
-			return pws;
+		fdev = fdev_systemd_create(eloop, fd);
+		if (fdev) {
+			pws = afb_proto_ws_create_client(fdev, itf, closure);
+			if (pws)
+				return pws;
+		}
 		close(fd);
 	}
 	return NULL;
 }
-
-
 

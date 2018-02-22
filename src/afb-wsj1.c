@@ -29,6 +29,7 @@
 
 #include "afb-ws.h"
 #include "afb-wsj1.h"
+#include "fdev.h"
 
 #define CALL 2
 #define RETOK 3
@@ -81,12 +82,11 @@ struct afb_wsj1
 	pthread_mutex_t mutex;
 };
 
-struct afb_wsj1 *afb_wsj1_create(struct sd_event *eloop, int fd, struct afb_wsj1_itf *itf, void *closure)
+struct afb_wsj1 *afb_wsj1_create(struct fdev *fdev, struct afb_wsj1_itf *itf, void *closure)
 {
 	struct afb_wsj1 *result;
 
-	assert(eloop);
-	assert(fd >= 0);
+	assert(fdev);
 	assert(itf);
 	assert(itf->on_call);
 
@@ -103,7 +103,7 @@ struct afb_wsj1 *afb_wsj1_create(struct sd_event *eloop, int fd, struct afb_wsj1
 	if (result->tokener == NULL)
 		goto error2;
 
-	result->ws = afb_ws_create(eloop, fd, &wsj1_itf, result);
+	result->ws = afb_ws_create(fdev, &wsj1_itf, result);
 	if (result->ws == NULL)
 		goto error3;
 
@@ -114,7 +114,7 @@ error3:
 error2:
 	free(result);
 error:
-	close(fd);
+	fdev_unref(fdev);
 	return NULL;
 }
 

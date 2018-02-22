@@ -36,6 +36,7 @@
 #include "afb-context.h"
 #include "afb-evt.h"
 #include "verbose.h"
+#include "fdev.h"
 
 /* predeclaration of structures */
 struct afb_ws_json1;
@@ -99,11 +100,11 @@ static const struct afb_evt_itf evt_itf = {
 ****************************************************************
 ***************************************************************/
 
-struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
+struct afb_ws_json1 *afb_ws_json1_create(struct fdev *fdev, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
 {
 	struct afb_ws_json1 *result;
 
-	assert(fd >= 0);
+	assert(fdev);
 	assert(context != NULL);
 
 	result = malloc(sizeof * result);
@@ -118,7 +119,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, stru
 	if (result->session == NULL)
 		goto error2;
 
-	result->wsj1 = afb_wsj1_create(afb_systemd_get_event_loop(), fd, &wsj1_itf, result);
+	result->wsj1 = afb_wsj1_create(fdev, &wsj1_itf, result);
 	if (result->wsj1 == NULL)
 		goto error3;
 
@@ -126,7 +127,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_apiset *apiset, stru
 	if (result->listener == NULL)
 		goto error4;
 
-	result->cred = afb_cred_create_for_socket(fd);
+	result->cred = afb_cred_create_for_socket(fdev_fd(fdev));
 	result->apiset = afb_apiset_addref(apiset);
 	return result;
 
@@ -137,7 +138,7 @@ error3:
 error2:
 	free(result);
 error:
-	close(fd);
+	fdev_unref(fdev);
 	return NULL;
 }
 

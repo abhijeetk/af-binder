@@ -30,19 +30,19 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include <systemd/sd-event.h>
+#include "afb-fdev.h"
+#include "afb-systemd.h"
 #include "afb-api.h"
 #include "afb-apiset.h"
-#include "afb-systemd.h"
 #include "afb-stub-ws.h"
 #include "verbose.h"
+#include "fdev.h"
 
 struct api_ws
 {
 	char *path;		/* path of the object for the API */
 	char *api;		/* api name of the interface */
-	int fd;			/* file descriptor */
-	sd_event_source *listensrc; /**< systemd source for server socket */
+	struct fdev *fdev;	/* fdev handler */
 	struct afb_apiset *apiset;
 };
 
@@ -77,7 +77,6 @@ static struct api_ws *api_ws_make(const char *path)
 		goto error2;
 	}
 
-	api->fd = -1;
 	return api;
 
 error2:
@@ -176,7 +175,7 @@ static int api_ws_socket(const char *path, int server)
 
 	/* check for systemd socket */
 	if (0 == strncmp(path, "sd:", 3))
-		fd = systemd_fds_for(path + 3);
+		fd = afb_systemd_fds_for(path + 3);
 	else {
 		/* check for unix socket */
 		if (0 == strncmp(path, "unix:", 5))
@@ -200,6 +199,24 @@ static int api_ws_socket(const char *path, int server)
 	return fd;
 }
 
+static struct fdev *api_ws_socket_fdev(const char *path, int server)
+{
+	int fd;
+	struct fdev *fdev;
+
+	fd = api_ws_socket(path, server);
+	if (fd < 0)
+		fdev = 0;
+	else {
+		fdev = afb_fdev_create(fd);
+		if (!fdev)
+			close(fd);
+	}
+	if (!fdev)
+		ERROR("can't make %s socket for %s", server ? "server" : "client", path);
+	return fdev;
+}
+
 /**********************************************************************************/
 
 int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset, int strong)
@@ -213,27 +230,23 @@ int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset, int stron
 		goto error;
 
 	/* connect to the service */
-	apiws->fd = api_ws_socket(apiws->path, 0);
-	if (apiws->fd < 0) {
-		ERROR("can't connect to ws service %s", apiws->path);
+	apiws->fdev = api_ws_socket_fdev(apiws->path, 0);
+	if (!apiws->fdev)
 		goto error2;
-	}
 
-	stubws = afb_stub_ws_create_client(apiws->fd, apiws->api, apiset);
+	stubws = afb_stub_ws_create_client(apiws->fdev, apiws->api, apiset);
 	if (!stubws) {
 		ERROR("can't setup client ws service to %s", apiws->path);
 		goto error3;
 	}
 	if (afb_stub_ws_client_add(stubws, apiset) < 0) {
 		ERROR("can't add the client to the apiset for service %s", apiws->path);
-		goto error4;
+		goto error3;
 	}
 	free(apiws);
 	return 0;
-error4:
-	afb_stub_ws_unref(stubws);
 error3:
-	close(apiws->fd);
+	afb_stub_ws_unref(stubws);
 error2:
 	free(apiws);
 error:
@@ -250,9 +263,9 @@ int afb_api_ws_add_client_weak(const char *path, struct afb_apiset *apiset)
 	return afb_api_ws_add_client(path, apiset, 0);
 }
 
-static int api_ws_server_accept_client(struct api_ws *apiws, int fd)
+static int api_ws_server_accept_client(struct api_ws *apiws, struct fdev *fdev)
 {
-	return -!afb_stub_ws_create_server(fd, apiws->api, apiws->apiset);
+	return -!afb_stub_ws_create_server(fdev, apiws->api, apiws->apiset);
 }
 
 static void api_ws_server_accept(struct api_ws *apiws)
@@ -260,20 +273,28 @@ static void api_ws_server_accept(struct api_ws *apiws)
 	int rc, fd;
 	struct sockaddr addr;
 	socklen_t lenaddr;
+	struct fdev *fdev;
 
 	lenaddr = (socklen_t)sizeof addr;
-	fd = accept(apiws->fd, &addr, &lenaddr);
-	if (fd >= 0) {
-		rc = api_ws_server_accept_client(apiws, fd);
-		if (rc >= 0)
-			return;
-		close(fd);
+	fd = accept(fdev_fd(apiws->fdev), &addr, &lenaddr);
+	if (fd < 0) {
+		ERROR("can't accept connection to %s: %m", apiws->path);
+	} else {
+		fdev = afb_fdev_create(fd);
+		if (!fdev) {
+			ERROR("can't hold accepted connection to %s: %m", apiws->path);
+			close(fd);
+		} else {
+			rc = api_ws_server_accept_client(apiws, fdev);
+			if (rc < 0)
+				ERROR("can't serve accepted connection to %s: %m", apiws->path);
+		}
 	}
 }
 
 static int api_ws_server_connect(struct api_ws *apiws);
 
-static int api_ws_server_listen_callback(sd_event_source *src, int fd, uint32_t revents, void *closure)
+static void api_ws_server_listen_callback(void *closure, uint32_t revents, struct fdev *fdev)
 {
 	struct api_ws *apiws = closure;
 
@@ -281,42 +302,28 @@ static int api_ws_server_listen_callback(sd_event_source *src, int fd, uint32_t 
 		api_ws_server_accept(apiws);
 	if ((revents & EPOLLHUP) != 0)
 		api_ws_server_connect(apiws);
-	return 0;
 }
 
 static void api_ws_server_disconnect(struct api_ws *apiws)
 {
-	if (apiws->listensrc != NULL) {
-		sd_event_source_unref(apiws->listensrc);
-		apiws->listensrc = NULL;
-	}
-	if (apiws->fd >= 0) {
-		close(apiws->fd);
-		apiws->fd = -1;
-	}
+	fdev_unref(apiws->fdev);
+	apiws->fdev = 0;
 }
 
 static int api_ws_server_connect(struct api_ws *apiws)
 {
-	int rc;
-
 	/* ensure disconnected */
 	api_ws_server_disconnect(apiws);
 
 	/* request the service object name */
-	apiws->fd = api_ws_socket(apiws->path, 1);
-	if (apiws->fd < 0)
+	apiws->fdev = api_ws_socket_fdev(apiws->path, 1);
+	if (!apiws->fdev)
 		ERROR("can't create socket %s", apiws->path);
 	else {
 		/* listen for service */
-		rc = sd_event_add_io(afb_systemd_get_event_loop(),
-				&apiws->listensrc, apiws->fd, EPOLLIN,
-				api_ws_server_listen_callback, apiws);
-		if (rc >= 0)
-			return 0;
-		close(apiws->fd);
-		errno = -rc;
-		ERROR("can't add ws object %s", apiws->path);
+		fdev_set_events(apiws->fdev, EPOLLIN);
+		fdev_set_callback(apiws->fdev, api_ws_server_listen_callback, apiws);
+		return 0;
 	}
 	return -1;
 }

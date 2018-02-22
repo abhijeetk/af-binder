@@ -38,6 +38,7 @@
 #include "afb-msg-json.h"
 #include "afb-proto-ws.h"
 #include "jobs.h"
+#include "fdev.h"
 
 struct afb_proto_ws;
 
@@ -161,7 +162,7 @@ struct afb_proto_ws
 	int refcount;
 
 	/* file descriptor */
-	int fd;
+	struct fdev *fdev;
 
 	/* resource control */
 	pthread_mutex_t mutex;
@@ -1157,9 +1158,9 @@ static void on_hangup(void *closure)
 		free(cd);
 	}
 
-	if (protows->fd >= 0) {
-		close(protows->fd);
-		protows->fd = -1;
+	if (protows->fdev) {
+		fdev_unref(protows->fdev);
+		protows->fdev = 0;
 		if (protows->on_hangup)
 			protows->on_hangup(protows->closure);
 	}
@@ -1187,7 +1188,7 @@ static const struct afb_ws_itf server_ws_itf =
 
 /*****************************************************/
 
-static struct afb_proto_ws *afb_proto_ws_create(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itfs, const struct afb_proto_ws_client_itf *itfc, void *closure, const struct afb_ws_itf *itf)
+static struct afb_proto_ws *afb_proto_ws_create(struct fdev *fdev, const struct afb_proto_ws_server_itf *itfs, const struct afb_proto_ws_client_itf *itfc, void *closure, const struct afb_ws_itf *itf)
 {
 	struct afb_proto_ws *protows;
 
@@ -1195,11 +1196,11 @@ static struct afb_proto_ws *afb_proto_ws_create(struct sd_event *eloop, int fd, 
 	if (protows == NULL)
 		errno = ENOMEM;
 	else {
-		fcntl(fd, F_SETFD, FD_CLOEXEC);
-		fcntl(fd, F_SETFL, O_NONBLOCK);
-		protows->ws = afb_ws_create(eloop, fd, itf, protows);
+		fcntl(fdev_fd(fdev), F_SETFD, FD_CLOEXEC);
+		fcntl(fdev_fd(fdev), F_SETFL, O_NONBLOCK);
+		protows->ws = afb_ws_create(fdev, itf, protows);
 		if (protows->ws != NULL) {
-			protows->fd = fd;
+			protows->fdev = fdev;
 			protows->refcount = 1;
 			protows->subcalls = NULL;
 			protows->closure = closure;
@@ -1213,14 +1214,14 @@ static struct afb_proto_ws *afb_proto_ws_create(struct sd_event *eloop, int fd, 
 	return NULL;
 }
 
-struct afb_proto_ws *afb_proto_ws_create_client(struct sd_event *eloop, int fd, const struct afb_proto_ws_client_itf *itf, void *closure)
+struct afb_proto_ws *afb_proto_ws_create_client(struct fdev *fdev, const struct afb_proto_ws_client_itf *itf, void *closure)
 {
-	return afb_proto_ws_create(eloop, fd, NULL, itf, closure, &proto_ws_client_ws_itf);
+	return afb_proto_ws_create(fdev, NULL, itf, closure, &proto_ws_client_ws_itf);
 }
 
-struct afb_proto_ws *afb_proto_ws_create_server(struct sd_event *eloop, int fd, const struct afb_proto_ws_server_itf *itf, void *closure)
+struct afb_proto_ws *afb_proto_ws_create_server(struct fdev *fdev, const struct afb_proto_ws_server_itf *itf, void *closure)
 {
-	return afb_proto_ws_create(eloop, fd, itf, NULL, closure, &server_ws_itf);
+	return afb_proto_ws_create(fdev, itf, NULL, closure, &server_ws_itf);
 }
 
 void afb_proto_ws_unref(struct afb_proto_ws *protows)

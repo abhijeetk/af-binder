@@ -42,6 +42,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-debug.c
 	afb-evt.c
 	afb-export.c
+	afb-fdev.c
 	afb-hook.c
 	afb-hreq.c
 	afb-hsrv.c
@@ -61,6 +62,9 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-ws.c
 	afb-wsj1.c
 	afb-xreq.c
+	fdev.c
+	fdev-epoll.c
+	fdev-systemd.c
 	jobs.c
 	locale-root.c
 	process-name.c
@@ -96,7 +100,7 @@ INSTALL(TARGETS afs-supervisor
 ###########################################
 # build and install libafbwsc
 ###########################################
-ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-proto-ws.c jobs-fake.c)
+ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-proto-ws.c jobs-fake.c fdev.c fdev-systemd.c)
 SET_TARGET_PROPERTIES(afbwsc PROPERTIES
 	VERSION ${LIBAFBWSC_VERSION}
 	SOVERSION ${LIBAFBWSC_SOVERSION})

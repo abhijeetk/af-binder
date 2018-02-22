@@ -80,14 +80,14 @@ static char **fds_names()
 	return names;
 }
 
-int systemd_fds_init()
+int afb_systemd_fds_init()
 {
 	errno = 0;
 	fds_names();
 	return -!!errno;
 }
 
-int systemd_fds_for(const char *name)
+int afb_systemd_fds_for(const char *name)
 {
 	int idx;
 	char **names;

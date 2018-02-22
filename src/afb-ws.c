@@ -26,12 +26,9 @@
 #include <stdarg.h>
 #include <poll.h>
 
-#include <systemd/sd-event.h>
-
 #include "websock.h"
 #include "afb-ws.h"
-
-#include "afb-common.h"
+#include "fdev.h"
 
 /*
  * declaration of the websock interface for afb-ws
@@ -89,7 +86,7 @@ struct afb_ws
 	const struct afb_ws_itf *itf; /* the callback interface */
 	void *closure;		/* closure when calling the callbacks */
 	struct websock *ws;	/* the websock handler */
-	sd_event_source *evsrc;	/* the event source for the socket */
+	struct fdev *fdev;	/* the fdev for the socket */
 	struct buf buffer;	/* the last read fragment */
 };
 
@@ -123,8 +120,7 @@ static void aws_disconnect(struct afb_ws *ws, int call_on_hangup)
 	struct websock *wsi = ws->ws;
 	if (wsi != NULL) {
 		ws->ws = NULL;
-		sd_event_source_unref(ws->evsrc);
-		ws->evsrc = NULL;
+		fdev_unref(ws->fdev);
 		websock_destroy(wsi);
 		free(ws->buffer.buffer);
 		ws->state = waiting;
@@ -133,13 +129,12 @@ static void aws_disconnect(struct afb_ws *ws, int call_on_hangup)
 	}
 }
 
-static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *ws)
+static void fdevcb(void *ws, uint32_t revents, struct fdev *fdev)
 {
 	if ((revents & EPOLLIN) != 0)
 		aws_on_readable(ws);
 	if ((revents & EPOLLHUP) != 0)
 		afb_ws_hangup(ws);
-	return 0;
 }
 
 /*
@@ -151,12 +146,11 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
  *
  * Returns the handle for the afb_ws created or NULL on error.
  */
-struct afb_ws *afb_ws_create(struct sd_event *eloop, int fd, const struct afb_ws_itf *itf, void *closure)
+struct afb_ws *afb_ws_create(struct fdev *fdev, const struct afb_ws_itf *itf, void *closure)
 {
-	int rc;
 	struct afb_ws *result;
 
-	assert(fd >= 0);
+	assert(fdev);
 
 	/* allocation */
 	result = malloc(sizeof * result);
@@ -164,7 +158,8 @@ struct afb_ws *afb_ws_create(struct sd_event *eloop, int fd, const struct afb_ws
 		goto error;
 
 	/* init */
-	result->fd = fd;
+	result->fdev = fdev;
+	result->fd = fdev_fd(fdev);
 	result->state = waiting;
 	result->itf = itf;
 	result->closure = closure;
@@ -176,19 +171,15 @@ struct afb_ws *afb_ws_create(struct sd_event *eloop, int fd, const struct afb_ws
 	if (result->ws == NULL)
 		goto error2;
 
-	/* creates the evsrc */
-	rc = sd_event_add_io(eloop, &result->evsrc, result->fd, EPOLLIN, io_event_callback, result);
-	if (rc < 0) {
-		errno = -rc;
-		goto error3;
-	}
+	/* finalize */
+	fdev_set_events(fdev, EPOLLIN);
+	fdev_set_callback(fdev, fdevcb, result);
 	return result;
 
-error3:
-	websock_destroy(result->ws);
 error2:
 	free(result);
 error:
+	fdev_unref(fdev);
 	return NULL;
 }
 

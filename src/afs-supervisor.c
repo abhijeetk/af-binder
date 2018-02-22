@@ -45,6 +45,7 @@
 #include "afb-api-so-v2.h"
 #include "afb-api-ws.h"
 #include "afb-apiset.h"
+#include "afb-fdev.h"
 #include "jobs.h"
 #include "verbose.h"
 #include "wrap-json.h"
@@ -193,13 +194,20 @@ static void on_supervised_hangup(struct afb_stub_ws *stub)
 static int make_supervised(int fd, struct afb_cred *cred)
 {
 	struct supervised *s;
+	struct fdev *fdev;
 
 	s = malloc(sizeof *s);
 	if (!s)
 		return -1;
 
+	fdev = afb_fdev_create(fd);
+	if (!fdev) {
+		free(s);
+		return -1;
+	}
+
 	s->cred = cred;
-	s->stub = afb_stub_ws_create_client(fd, supervision_apiname, empty_apiset);
+	s->stub = afb_stub_ws_create_client(fdev, supervision_apiname, empty_apiset);
 	if (!s->stub) {
 		free(s);
 		return -1;

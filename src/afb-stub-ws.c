@@ -36,8 +36,6 @@
 
 #include <afb/afb-event.h>
 
-#include "afb-systemd.h"
-
 #include "afb-session.h"
 #include "afb-cred.h"
 #include "afb-api.h"
@@ -48,6 +46,7 @@
 #include "afb-evt.h"
 #include "afb-xreq.h"
 #include "verbose.h"
+#include "fdev.h"
 #include "jobs.h"
 
 struct afb_stub_ws;
@@ -661,7 +660,7 @@ static void on_hangup(void *closure)
 
 /*****************************************************/
 
-static struct afb_stub_ws *afb_stub_ws_create(int fd, const char *apiname, struct afb_apiset *apiset, int client)
+static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset, int client)
 {
 	struct afb_stub_ws *stubws;
 
@@ -670,10 +669,11 @@ static struct afb_stub_ws *afb_stub_ws_create(int fd, const char *apiname, struc
 		errno = ENOMEM;
 	else {
 		if (client)
-			stubws->proto = afb_proto_ws_create_client(afb_systemd_get_event_loop(), fd, &client_itf, stubws);
+			stubws->proto = afb_proto_ws_create_client(fdev, &client_itf, stubws);
 		else
-			stubws->proto = afb_proto_ws_create_server(afb_systemd_get_event_loop(), fd, &server_itf, stubws);
-		if (stubws->proto != NULL) {
+			stubws->proto = afb_proto_ws_create_server(fdev, &server_itf, stubws);
+
+		if (stubws->proto) {
 			strcpy(stubws->apiname, apiname);
 			stubws->apiset = afb_apiset_addref(apiset);
 			stubws->refcount = 1;
@@ -682,21 +682,22 @@ static struct afb_stub_ws *afb_stub_ws_create(int fd, const char *apiname, struc
 		}
 		free(stubws);
 	}
+	fdev_unref(fdev);
 	return NULL;
 }
 
-struct afb_stub_ws *afb_stub_ws_create_client(int fd, const char *apiname, struct afb_apiset *apiset)
+struct afb_stub_ws *afb_stub_ws_create_client(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset)
 {
-	return afb_stub_ws_create(fd, apiname, apiset, 1);
+	return afb_stub_ws_create(fdev, apiname, apiset, 1);
 }
 
-struct afb_stub_ws *afb_stub_ws_create_server(int fd, const char *apiname, struct afb_apiset *apiset)
+struct afb_stub_ws *afb_stub_ws_create_server(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset)
 {
 	struct afb_stub_ws *stubws;
 
-	stubws = afb_stub_ws_create(fd, apiname, apiset, 0);
+	stubws = afb_stub_ws_create(fdev, apiname, apiset, 0);
 	if (stubws) {
-		stubws->cred = afb_cred_create_for_socket(fd);
+		stubws->cred = afb_cred_create_for_socket(fdev_fd(fdev));
 		stubws->listener = afb_evt_listener_create(&server_evt_itf, stubws);
 		if (stubws->listener != NULL)
 			return stubws;

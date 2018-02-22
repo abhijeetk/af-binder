@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2016, 2017 "IoT.bzh"
- * Author: José Bollo <jose.bollo@iot.bzh>
+ * Copyright (C) 2018 "IoT.bzh"
+ * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,7 @@
 
 #pragma once
 
-struct afb_ws_json1;
-struct afb_context;
-struct afb_apiset;
 struct fdev;
+struct sd_event;
 
-extern struct afb_ws_json1 *afb_ws_json1_create(struct fdev *fdev, struct afb_apiset *apiset, struct afb_context *context, void (*cleanup)(void*), void *closure);
-extern struct afb_ws_json1 *afb_ws_json1_addref(struct afb_ws_json1 *ws);
-extern void afb_ws_json1_unref(struct afb_ws_json1 *ws);
-
+extern struct fdev *fdev_systemd_create(struct sd_event *eloop, int fd);

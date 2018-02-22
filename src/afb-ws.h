@@ -18,7 +18,7 @@
 #pragma once
 
 struct afb_ws;
-struct sd_event;
+struct fdev;
 struct iovec;
 
 struct afb_ws_itf
@@ -30,7 +30,7 @@ struct afb_ws_itf
 	void (*on_hangup) (void *); /* optional, it is safe too call afb_ws_destroy within the callback */
 };
 
-extern struct afb_ws *afb_ws_create(struct sd_event *eloop, int fd, const struct afb_ws_itf *itf, void *closure);
+extern struct afb_ws *afb_ws_create(struct fdev *fdev, const struct afb_ws_itf *itf, void *closure);
 extern void afb_ws_destroy(struct afb_ws *ws);
 extern void afb_ws_hangup(struct afb_ws *ws);
 extern int afb_ws_is_connected(struct afb_ws *ws);
