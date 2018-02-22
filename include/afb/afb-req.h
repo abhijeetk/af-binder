@@ -17,18 +17,8 @@
 
 #pragma once
 
-#include "afb-request-itf.h"
-
+#include "afb-req-itf.h"
 #include "afb-event.h"
-
-/*
- * Describes the request by bindings from afb-daemon
- */
-struct afb_req
-{
-	const struct afb_request_itf *itf;	/* the interface to use */
-	struct afb_request *closure;		/* the closure argument for functions of 'itf' */
-};
 
 /*
  * Converts the 'req' to an afb_request.

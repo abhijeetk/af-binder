@@ -66,13 +66,6 @@ inline void afb_xreq_unhooked_unref(struct afb_xreq *xreq)
 
 /******************************************************************************/
 
-static inline struct afb_req to_req(struct afb_xreq *xreq)
-{
-	return (struct afb_req){ .itf = xreq->request.itf, .closure = &xreq->request };
-}
-
-/******************************************************************************/
-
 struct subcall
 {
 	struct afb_xreq xreq;
@@ -179,7 +172,7 @@ static void subcall_on_reply(struct subcall *subcall, int status, struct json_ob
 
 static void subcall_req_on_reply(struct subcall *subcall, int status, struct json_object *result)
 {
-	subcall->callback_req(subcall->closure, status, result, to_req(subcall->xreq.caller));
+	subcall->callback_req(subcall->closure, status, result, xreq_to_req(subcall->xreq.caller));
 }
 
 static void subcall_request_on_reply(struct subcall *subcall, int status, struct json_object *result)
@@ -507,7 +500,7 @@ static void xreq_subcall_req_cb(struct afb_request *closure, const char *api, co
 	sc = subcall_alloc(xreq, api, verb, args);
 	if (sc == NULL) {
 		if (callback)
-			callback(cb_closure, 1, afb_msg_json_internal_error(), to_req(xreq));
+			callback(cb_closure, 1, afb_msg_json_internal_error(), xreq_to_req(xreq));
 		json_object_put(args);
 	} else {
 		subcall_req(sc, callback, cb_closure);
@@ -728,7 +721,7 @@ static void xreq_hooked_subcall_req_cb(struct afb_request *closure, const char *
 	sc = subcall_alloc(xreq, api, verb, args);
 	if (sc == NULL) {
 		if (callback)
-			callback(cb_closure, 1, afb_msg_json_internal_error(), to_req(xreq));
+			callback(cb_closure, 1, afb_msg_json_internal_error(), xreq_to_req(xreq));
 		json_object_put(args);
 	} else {
 		subcall_req_hooked(sc, callback, cb_closure);
@@ -873,7 +866,7 @@ struct afb_req afb_xreq_unstore(struct afb_stored_req *sreq)
 	struct afb_xreq *xreq = (struct afb_xreq *)sreq;
 	if (xreq->hookflags)
 		afb_hook_xreq_unstore(xreq);
-	return to_req(xreq);
+	return xreq_to_req(xreq);
 }
 
 struct json_object *afb_xreq_json(struct afb_xreq *xreq)
@@ -1033,7 +1026,7 @@ void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 
 		afb_xreq_fail_unknown_verb(xreq);
 	else
 		if (!xreq_session_check_apply_v1(xreq, verb->session))
-			verb->callback(to_req(xreq));
+			verb->callback(xreq_to_req(xreq));
 }
 
 void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb)
@@ -1042,7 +1035,7 @@ void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb
 		afb_xreq_fail_unknown_verb(xreq);
 	else
 		if (!xreq_session_check_apply_v2(xreq, verb->session, verb->auth))
-			verb->callback(to_req(xreq));
+			verb->callback(xreq_to_req(xreq));
 }
 
 void afb_xreq_call_verb_vdyn(struct afb_xreq *xreq, const struct afb_api_dyn_verb *verb)

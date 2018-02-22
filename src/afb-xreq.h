@@ -18,6 +18,7 @@
 #pragma once
 
 #include <afb/afb-request-itf.h>
+#include <afb/afb-req-itf.h>
 #include "afb-context.h"
 
 struct json_object;
@@ -146,6 +147,13 @@ extern void afb_xreq_process(struct afb_xreq *xreq, struct afb_apiset *apiset);
 extern void afb_xreq_call_verb_v1(struct afb_xreq *xreq, const struct afb_verb_desc_v1 *verb);
 extern void afb_xreq_call_verb_v2(struct afb_xreq *xreq, const struct afb_verb_v2 *verb);
 extern void afb_xreq_call_verb_vdyn(struct afb_xreq *xreq, const struct afb_api_dyn_verb *verb);
+
+/******************************************************************************/
+
+static inline struct afb_req xreq_to_req(struct afb_xreq *xreq)
+{
+	return (struct afb_req){ .itf = xreq->request.itf, .closure = &xreq->request };
+}
 
 static inline struct afb_request *xreq_to_request(struct afb_xreq *xreq)
 {
