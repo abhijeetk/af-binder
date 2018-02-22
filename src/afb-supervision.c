@@ -291,7 +291,6 @@ static const char *verbs[] = {
 	"break", "config", "do", "exit", "sclose", "slist", "trace", "wait" };
 enum  {  Break ,  Config ,  Do ,  Exit ,  Sclose ,  Slist ,  Trace ,  Wait  };
 
-
 static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 {
 	int i, rc;
@@ -349,7 +348,8 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		if (!trace)
 			trace = afb_trace_create(supervision_apiname, NULL /* not bound to any session */);
 
-		req = afb_xreq_unstore((struct afb_stored_req*)xreq);
+		req = xreq_to_req(xreq);
+		add = drop = NULL;
 		wrap_json_unpack(args, "{s?o s?o}", "add", &add, "drop", &drop);
 		if (add) {
 			rc = afb_trace_add(req, add, trace);

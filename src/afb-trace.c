@@ -1401,7 +1401,7 @@ static void add(void *closure, struct json_object *object)
 	struct json_object *request, *event, *daemon, *service, *sub, *global, *session;
 
 	memcpy (&desc, closure, sizeof desc);
-	request = event = daemon = service = sub = global = NULL;
+	request = event = daemon = service = sub = global = session = NULL;
 
 	rc = wrap_json_unpack(object, "{s?s s?s s?s s?s s?s s?s s?o s?o s?o s?o s?o s?o}",
 			"name", &desc.name,
