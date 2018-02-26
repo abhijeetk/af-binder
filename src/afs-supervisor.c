@@ -22,33 +22,25 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include <systemd/sd-event.h>
-#include <systemd/sd-daemon.h>
-
-#include <uuid/uuid.h>
 #include <json-c/json.h>
 #include <afb/afb-binding-v2.h>
 
-#include "afb-systemd.h"
-#include "afb-session.h"
 #include "afb-cred.h"
 #include "afb-stub-ws.h"
 #include "afb-api.h"
 #include "afb-xreq.h"
 #include "afb-api-so-v2.h"
-#include "afb-api-ws.h"
 #include "afb-apiset.h"
 #include "afb-fdev.h"
-#include "jobs.h"
+
+#include "fdev.h"
 #include "verbose.h"
 #include "wrap-json.h"
-#include "process-name.h"
 
 #include "afs-supervision.h"
 #include "afs-supervisor.h"
@@ -76,6 +68,7 @@ static struct afb_apiset *empty_apiset;
 
 /* supervision socket path */
 static const char supervision_socket_path[] = AFS_SURPERVISION_SOCKET;
+static struct fdev *supervision_fdev;
 
 /* global mutex */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -265,15 +258,14 @@ static void accept_supervision_link(int sock)
 /*
  * handle even on server socket
  */
-static int listening(sd_event_source *src, int fd, uint32_t revents, void *closure)
+static void listening(void *closure, uint32_t revents, struct fdev *fdev)
 {
 	if ((revents & EPOLLIN) != 0)
-		accept_supervision_link(fd);
+		accept_supervision_link((int)(intptr_t)closure);
 	if ((revents & EPOLLHUP) != 0) {
 		ERROR("supervision socket closed");
 		exit(1);
 	}
-	return 0;
 }
 
 /*
@@ -432,13 +424,12 @@ static int init_supervisor()
 	}
 
 	/* integrate the socket to the loop */
-	rc = sd_event_add_io(afb_systemd_get_event_loop(),
-				NULL, fd, EPOLLIN,
-				listening, NULL);
+	supervision_fdev = afb_fdev_create(fd);
 	if (rc < 0) {
 		ERROR("handling socket event isn't possible");
 		return rc;
 	}
+	fdev_set_callback(supervision_fdev, listening, (void*)(intptr_t)fd);
 
 	return 0;
 }
