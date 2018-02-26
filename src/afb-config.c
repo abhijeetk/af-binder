@@ -97,6 +97,7 @@
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
 #define SET_TRACESVC       'S'
+#define SET_TRACESES       's'
 #define SET_TRACEREQ       'T'
 #define SET_AUTH_TOKEN     't'
 #define SET_UPLOAD_DIR     'u'
@@ -105,7 +106,7 @@
 #define SET_WORK_DIR       'w'
 
 const char shortopts[] =
-	"c:D:E:ehn:p:qrT:t:u:Vvw:"
+	"c:D:E:ehn:p:qrS:s:T:t:u:Vvw:"
 #if defined(WITH_MONITORING_OPTION)
 	"M"
 #endif
@@ -169,6 +170,7 @@ static AFB_options cliOptions[] = {
 	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
 	{SET_TRACESVC,      1, "tracesvc",    "Log the requests: no, all"},
 	{SET_TRACEEVT,      1, "traceevt",    "Log the requests: no, common, extra, all"},
+	{SET_TRACESES,      1, "traceses",    "Log the sessions: no, all"},
 
 	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
@@ -216,6 +218,13 @@ static struct enumdesc traceevt_desc[] = {
 	{ "common", afb_hook_flags_evt_common },
 	{ "extra",  afb_hook_flags_evt_extra },
 	{ "all",    afb_hook_flags_evt_all },
+	{ NULL, 0 }
+};
+
+static struct enumdesc traceses_desc[] = {
+	{ "no",     0 },
+	{ "common", afb_hook_flags_session_common },
+	{ "all",    afb_hook_flags_session_all },
 	{ NULL, 0 }
 };
 
@@ -588,6 +597,10 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->traceevt = argvalenum(optc, traceevt_desc);
 			break;
 
+		case SET_TRACESES:
+			config->traceses = argvalenum(optc, traceses_desc);
+			break;
+
 		case SET_NO_HTTPD:
 			noarg(optc);
 			config->noHttpd = 1;
@@ -734,6 +747,7 @@ void afb_config_dump(struct afb_config *config)
 	E(traceditf,traceditf_desc)
 	E(tracesvc,tracesvc_desc)
 	E(traceevt,traceevt_desc)
+	E(traceses,traceses_desc)
 
 	B(no_ldpaths)
 	B(noHttpd)
@@ -787,6 +801,7 @@ static void parse_environment(struct afb_config *config)
 	on_environment_enum(&config->traceditf, "AFB_TRACEDITF", traceditf_desc);
 	on_environment_enum(&config->tracesvc, "AFB_TRACESVC", tracesvc_desc);
 	on_environment_enum(&config->traceevt, "AFB_TRACEEVT", traceevt_desc);
+	on_environment_enum(&config->traceses, "AFB_TRACESES", traceses_desc);
 	on_environment_list(&config->ldpaths, "AFB_LDPATHS");
 }
 
@@ -864,6 +879,7 @@ struct json_object *afb_config_json(struct afb_config *config)
 	E(traceditf,traceditf_desc)
 	E(tracesvc,tracesvc_desc)
 	E(traceevt,traceevt_desc)
+	E(traceses,traceses_desc)
 
 	B(no_ldpaths)
 	B(noHttpd)

@@ -585,6 +585,8 @@ static void start(int signum, void *arg)
 		afb_hook_create_svc(NULL, main_config->tracesvc, NULL, NULL);
 	if (main_config->traceevt)
 		afb_hook_create_evt(NULL, main_config->traceevt, NULL, NULL);
+	if (main_config->traceses)
+		afb_hook_create_session(NULL, main_config->traceses, NULL, NULL);
 
 	/* load bindings */
 	afb_debug("start-load");
