@@ -89,13 +89,15 @@ INSTALL(TARGETS afb-daemon
 ###########################################
 # build and install afb-daemon
 ###########################################
-ADD_EXECUTABLE(afs-supervisor afs-main.c afs-supervisor.c afs-discover.c afs-config.c)
-TARGET_LINK_LIBRARIES(afs-supervisor
-	afb-lib
-	${link_libraries}
-)
-INSTALL(TARGETS afs-supervisor
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+IF(INCLUDE_SUPERVISOR)
+	ADD_EXECUTABLE(afs-supervisor afs-main.c afs-supervisor.c afs-discover.c afs-config.c)
+	TARGET_LINK_LIBRARIES(afs-supervisor
+		afb-lib
+		${link_libraries}
+	)
+	INSTALL(TARGETS afs-supervisor
+		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+ENDIF()
 
 ###########################################
 # build and install libafbwsc

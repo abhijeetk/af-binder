@@ -39,6 +39,11 @@ INCLUDE(CTest)
 # possible settings
 set(AGL_DEVEL OFF CACHE BOOL "Activates developping features")
 set(INCLUDE_MONITORING OFF CACHE BOOL "Activates installation of monitoring")
+set(INCLUDE_SUPERVISOR OFF CACHE BOOL "Activates installation of supervisor")
+set(AFS_SURPERVISION_SOCKET "@urn:AGL:afs:supervision:socket" CACHE STRING "Internal socket for supervision")
+set(AFS_SUPERVISOR_PORT 1619 CACHE STRING "Port of service for the supervisor")
+set(AFS_SUPERVISOR_TOKEN HELLO CACHE STRING "Secret token for the supervisor")
+set(UNITDIR_SYSTEM ${CMAKE_INSTALL_LIBDIR}/systemd/system CACHE STRING "Path to systemd system unit files")
 
 ###########################################################################
 
@@ -79,6 +84,8 @@ PKG_CHECK_MODULES(libmicrohttpd libmicrohttpd>=0.9.55)
 PKG_CHECK_MODULES(openssl openssl)
 PKG_CHECK_MODULES(uuid uuid)
 PKG_CHECK_MODULES(cynara cynara-client)
+
+ADD_DEFINITIONS("-DAFS_SURPERVISION_SOCKET=\"${AFS_SURPERVISION_SOCKET}\"")
 
 IF(AGL_DEVEL)
 	ADD_DEFINITIONS(-DAGL_DEVEL)
@@ -176,3 +183,13 @@ ELSE()
 	)
 
 ENDIF()
+
+IF(INCLUDE_SUPERVISOR)
+	CONFIGURE_FILE(afs-supervisor.service.in afs-supervisor.service @ONLY)
+	INSTALL(FILES
+	    ${CMAKE_CURRENT_BINARY_DIR}/afs-supervisor.service
+	    DESTINATION
+	    ${UNITDIR_SYSTEM}
+	)
+ENDIF()
+
