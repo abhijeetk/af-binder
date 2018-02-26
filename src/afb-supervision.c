@@ -51,7 +51,8 @@
 extern struct afb_config *main_config;
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME_INTERNAL;
+static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
+static const char supervisor_apiname[] = AFS_SURPERVISOR_APINAME;
 
 /* path of the supervision socket */
 static const char supervisor_socket_path[] = AFS_SURPERVISION_SOCKET;
@@ -346,7 +347,7 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		break;
 	case Trace:
 		if (!trace)
-			trace = afb_trace_create(supervision_apiname, NULL /* not bound to any session */);
+			trace = afb_trace_create(supervisor_apiname, NULL /* not bound to any session */);
 
 		req = xreq_to_req(xreq);
 		add = drop = NULL;

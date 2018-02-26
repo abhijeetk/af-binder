@@ -35,7 +35,6 @@
 #include <json-c/json.h>
 #include <afb/afb-binding-v2.h>
 
-#include "afs-supervision.h"
 #include "afb-systemd.h"
 #include "afb-session.h"
 #include "afb-cred.h"
@@ -49,8 +48,11 @@
 #include "jobs.h"
 #include "verbose.h"
 #include "wrap-json.h"
+#include "process-name.h"
 
-extern void afs_discover(const char *pattern, void (*callback)(void *closure, pid_t pid), void *closure);
+#include "afs-supervision.h"
+#include "afs-supervisor.h"
+#include "afs-discover.h"
 
 /* supervised items */
 struct supervised
@@ -66,11 +68,8 @@ struct supervised
 };
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME_INTERNAL;
-static const char supervisor_apiname[] = "supervisor";
-
-/* the main apiset */
-struct afb_apiset *main_apiset;
+static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
+static const char supervisor_apiname[] = AFS_SURPERVISOR_APINAME;
 
 /* the empty apiset */
 static struct afb_apiset *empty_apiset;
@@ -86,7 +85,6 @@ static struct supervised *superviseds;
 
 /*************************************************************************************/
 
-static int afb_init_supervision_api();
 
 /*************************************************************************************/
 
@@ -291,110 +289,14 @@ static void discovered_cb(void *closure, pid_t pid)
 	}
 }
 
-static int discover_supervised()
+int afs_supervisor_discover()
 {
 	int n = 0;
 	afs_discover("afb-daemon", discovered_cb, &n);
 	return n;
 }
 
-/**
- * initalize the supervision
- */
-static int init(const char *spec)
-{
-	int rc, fd;
-
-	/* check argument */
-	if (!spec) {
-		ERROR("invalid socket spec");
-		return -1;
-	}
-
-	rc = afb_session_init(100, 600, "");
-	/* TODO check that value */
-
-	/* create the apisets */
-	main_apiset = afb_apiset_create(supervisor_apiname, 0);
-	if (!main_apiset) {
-		ERROR("Can't create supervisor's apiset");
-		return -1;
-	}
-	empty_apiset = afb_apiset_create(supervision_apiname, 0);
-	if (!empty_apiset) {
-		ERROR("Can't create supervision apiset");
-		return -1;
-	}
-
-
-	/* init the main apiset */
-	rc = afb_init_supervision_api();
-	if (rc < 0) {
-		ERROR("Can't create supervision's apiset: %m");
-		return -1;
-	}
-
-	/* create the supervision socket */
-	fd = create_supervision_socket(supervision_socket_path);
-	if (fd < 0)
-		return fd;
-
-	/* listen the socket */
-	rc = listen(fd, 5);
-	if (rc < 0) {
-		ERROR("refused to listen on socket");
-		return rc;
-	}
-
-	/* integrate the socket to the loop */
-	rc = sd_event_add_io(afb_systemd_get_event_loop(),
-				NULL, fd, EPOLLIN,
-				listening, NULL);
-	if (rc < 0) {
-		ERROR("handling socket event isn't possible");
-		return rc;
-	}
-
-	/* adds the server socket */
-	rc = afb_api_ws_add_server(spec, main_apiset);
-	if (rc < 0) {
-		ERROR("can't start the server socket");
-		return -1;
-	}
-	return 0;
-}
-
-/* start should not be null but */
-static void start(int signum, void *arg)
-{
-	char *xpath = arg;
-	int rc;
-
-	if (signum)
-		exit(1);
-
-	rc = init(xpath);
-	if (rc)
-		exit(1);
-
-	sd_notify(1, "READY=1");
-
-	discover_supervised();
-}
-
-/**
- * initalize the supervision
- */
-int main(int ac, char **av)
-{
-	verbosity = Verbosity_Level_Debug;
-	/* enter job processing */
-	jobs_start(3, 0, 10, start, av[1]);
-	WARNING("hoops returned from jobs_enter! [report bug]");
-	return 1;
-}
-
-/*********************************************************************************************************/
+/*************************************************************************************/
 
 static struct afb_binding_data_v2 datav2;
 
@@ -425,7 +327,7 @@ static void f_list(struct afb_req req)
 
 static void f_discover(struct afb_req req)
 {
-	discover_supervised();
+	afs_supervisor_discover();
 	afb_req_success(req, NULL, NULL);
 }
 
@@ -501,7 +403,49 @@ static void f_debug_break(struct afb_req req)
 	propagate(req, "break");
 }
 
-static const struct afb_auth _afb_auths_v2_supervision[] = {
+/*************************************************************************************/
+
+/**
+ * initalize the supervisor
+ */
+static int init_supervisor()
+{
+	int rc, fd;
+
+	/* create an empty set for superviseds */
+	empty_apiset = afb_apiset_create(supervision_apiname, 0);
+	if (!empty_apiset) {
+		ERROR("Can't create supervision apiset");
+		return -1;
+	}
+
+	/* create the supervision socket */
+	fd = create_supervision_socket(supervision_socket_path);
+	if (fd < 0)
+		return fd;
+
+	/* listen the socket */
+	rc = listen(fd, 5);
+	if (rc < 0) {
+		ERROR("refused to listen on socket");
+		return rc;
+	}
+
+	/* integrate the socket to the loop */
+	rc = sd_event_add_io(afb_systemd_get_event_loop(),
+				NULL, fd, EPOLLIN,
+				listening, NULL);
+	if (rc < 0) {
+		ERROR("handling socket event isn't possible");
+		return rc;
+	}
+
+	return 0;
+}
+
+/*************************************************************************************/
+
+static const struct afb_auth _afb_auths_v2_supervisor[] = {
 	/* 0 */
 	{
 		.type = afb_auth_Permission,
@@ -509,93 +453,93 @@ static const struct afb_auth _afb_auths_v2_supervision[] = {
 	}
 };
 
-static const struct afb_verb_v2 _afb_verbs_v2_supervision[] = {
+static const struct afb_verb_v2 _afb_verbs_v2_supervisor[] = {
     {
         .verb = "list",
         .callback = f_list,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "config",
         .callback = f_config,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "do",
         .callback = f_do,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "trace",
         .callback = f_trace,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "sessions",
         .callback = f_sessions,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "session-close",
         .callback = f_session_close,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "exit",
         .callback = f_exit,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "debug-wait",
         .callback = f_debug_wait,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "debug-break",
         .callback = f_debug_break,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "discover",
         .callback = f_discover,
-        .auth = &_afb_auths_v2_supervision[0],
+        .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
         .session = AFB_SESSION_NONE_V2
     },
     { .verb = NULL }
 };
 
-static const struct afb_binding_v2 _afb_binding_v2_supervision = {
+static const struct afb_binding_v2 _afb_binding_v2_supervisor = {
     .api = supervisor_apiname,
     .specification = NULL,
     .info = NULL,
-    .verbs = _afb_verbs_v2_supervision,
+    .verbs = _afb_verbs_v2_supervisor,
     .preinit = NULL,
-    .init = NULL,
+    .init = init_supervisor,
     .onevent = NULL,
     .noconcurrency = 0
 };
 
-static int afb_init_supervision_api()
+int afs_supervisor_add(struct afb_apiset *apiset)
 {
-	return afb_api_so_v2_add_binding(&_afb_binding_v2_supervision, NULL, main_apiset, &datav2);
+	return afb_api_so_v2_add_binding(&_afb_binding_v2_supervisor, NULL, apiset, &datav2);
 }
 
