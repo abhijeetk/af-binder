@@ -429,6 +429,7 @@ static int init_supervisor()
 		ERROR("handling socket event isn't possible");
 		return rc;
 	}
+	fdev_set_events(supervision_fdev, EPOLLIN);
 	fdev_set_callback(supervision_fdev, listening, (void*)(intptr_t)fd);
 
 	return 0;
