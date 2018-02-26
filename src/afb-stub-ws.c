@@ -498,14 +498,17 @@ static void record_session(struct afb_stub_ws *stubws, struct afb_session *sessi
 	}
 }
 
-static void release_sessions(struct afb_stub_ws *stubws)
+static void release_all_sessions(struct afb_stub_ws *stubws)
 {
-	struct server_session *s;
+	struct server_session *s, *n;
 
-	while((s = stubws->sessions)) {
-		stubws->sessions = s->next;
+	s = stubws->sessions;
+	stubws->sessions = NULL;
+	while(s) {
+		n = s->next;
 		afb_session_unref(s->session);
 		free(s);
+		s = n;
 	}
 }
 
@@ -654,7 +657,7 @@ static void on_hangup(void *closure)
 	if (stubws->on_hangup)
 		stubws->on_hangup(stubws);
 
-	release_sessions(stubws);
+	release_all_sessions(stubws);
 	afb_stub_ws_unref(stubws);
 }
 
@@ -712,7 +715,7 @@ void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 		drop_all_events(stubws);
 		if (stubws->listener)
 			afb_evt_listener_unref(stubws->listener);
-		release_sessions(stubws);
+		release_all_sessions(stubws);
 		afb_proto_ws_unref(stubws->proto);
 		afb_cred_unref(stubws->cred);
 		afb_apiset_unref(stubws->apiset);
