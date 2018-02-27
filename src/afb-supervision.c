@@ -316,7 +316,7 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		i = 0;
 		if (wrap_json_unpack(args, "i", &i))
 			wrap_json_unpack(args, "{si}", "code", &i);
-		ERROR("existing from supervision with code %d -> %d", i, i & 127);
+		ERROR("exiting from supervision with code %d -> %d", i, i & 127);
 		exit(i & 127);
 		break;
 	case Sclose:
