@@ -454,70 +454,70 @@ static const struct afb_verb_v2 _afb_verbs_v2_supervisor[] = {
         .callback = f_list,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "config",
         .callback = f_config,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "do",
         .callback = f_do,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "trace",
         .callback = f_trace,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "sessions",
         .callback = f_sessions,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "session-close",
         .callback = f_session_close,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "exit",
         .callback = f_exit,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "debug-wait",
         .callback = f_debug_wait,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "debug-break",
         .callback = f_debug_break,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     {
         .verb = "discover",
         .callback = f_discover,
         .auth = &_afb_auths_v2_supervisor[0],
         .info = NULL,
-        .session = AFB_SESSION_NONE_V2
+        .session = AFB_SESSION_CHECK_V2
     },
     { .verb = NULL }
 };
