@@ -383,16 +383,19 @@ static void f_session_close(struct afb_req req)
 static void f_exit(struct afb_req req)
 {
 	propagate(req, NULL);
+	afb_req_success(req, NULL, NULL);
 }
 
 static void f_debug_wait(struct afb_req req)
 {
 	propagate(req, "wait");
+	afb_req_success(req, NULL, NULL);
 }
 
 static void f_debug_break(struct afb_req req)
 {
 	propagate(req, "break");
+	afb_req_success(req, NULL, NULL);
 }
 
 /*************************************************************************************/
