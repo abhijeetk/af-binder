@@ -79,6 +79,7 @@ static struct afb_proto_ws_client_itf pws_itf = {
 /* global variables */
 static struct afb_wsj1 *wsj1;
 static struct afb_proto_ws *pws;
+static int breakcon;
 static int exonrep;
 static int callcount;
 static int human;
@@ -92,8 +93,8 @@ static void usage(int status, char *arg0)
 {
 	char *name = strrchr(arg0, '/');
 	name = name ? name + 1 : arg0;
-	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] uri [api verb [data]]\n", name);
-	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] uri [verb [data]]\n", name);
+	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] [-b] uri [api verb [data]]\n", name);
+	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] [-b] uri [verb [data]]\n", name);
 	exit(status);
 }
 
@@ -121,6 +122,9 @@ int main(int ac, char **av, char **env)
 			else if (!strcmp(av[1], "--direct")) /* request for direct api */
 				direct = 1;
 
+			else if (!strcmp(av[1], "--break")) /* request to break connection */
+				breakcon = 1;
+
 			/* emit usage and exit */
 			else
 				usage(!!strcmp(av[1], "--help"), a0);
@@ -131,6 +135,7 @@ int main(int ac, char **av, char **env)
 				case 'H': human = 1; break;
 				case 'r': raw = 1; break;
 				case 'd': direct = 1; break;
+				case 'b': breakcon = 1; break;
 				default: usage(av[1][rc] != 'h', a0);
 				}
 		}
@@ -286,6 +291,8 @@ static void wsj1_emit(const char *api, const char *verb, const char *object)
 		wsj1_event(verb, object);
 	else
 		wsj1_call(api, verb, object);
+	if (breakcon)
+		exit(0);
 }
 
 /* called when something happens on stdin */
@@ -456,6 +463,8 @@ static void pws_call(const char *verb, const char *object)
 		fprintf(stderr, "calling %s(%s) failed: %m\n", verb, object?:"");
 		dec_callcount();
 	}
+	if (breakcon)
+		exit(0);
 }
 
 /* called when pws hangsup */

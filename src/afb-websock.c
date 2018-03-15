@@ -158,7 +158,9 @@ static void upgrade_to_websocket(
 			close_websocket(urh);
 		}
 	}
+#if MHD_VERSION <= 0x00095900
 	afb_hreq_unref(memo->hreq);
+#endif
 	free(memo);
 }
 
