@@ -45,7 +45,7 @@ struct fdev *fdev_create(int fd)
 	else {
 		fdev->fd = fd;
 		fdev->refcount = 3; /* set autoclose by default */
-		fdev->repeat = -1;
+		fdev->repeat = -1; /* always repeat by default */
 	}
 	return fdev;
 }
@@ -151,8 +151,8 @@ void fdev_set_repeat(struct fdev *fdev, int count)
 void fdev_set_autoclose(struct fdev *fdev, int autoclose)
 {
 	if (autoclose)
-		fdev->refcount |= 1;
+		fdev->refcount |= (unsigned)1;
 	else
-		fdev->refcount &= -2;
+		fdev->refcount &= ~(unsigned)1;
 }
 
