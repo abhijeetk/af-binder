@@ -31,6 +31,7 @@
 #include "afb-websock.h"
 #include "afb-ws-json1.h"
 #include "afb-fdev.h"
+#include "fdev.h"
 
 /**************** WebSocket connection upgrade ****************************/
 
@@ -150,6 +151,7 @@ static void upgrade_to_websocket(
 		/* TODO */
 		close_websocket(urh);
 	} else {
+		fdev_set_autoclose(fdev, 0);
 		ws = memo->proto->create(fdev, memo->apiset, &memo->hreq->xreq.context, close_websocket, urh);
 		if (ws == NULL) {
 			/* TODO */
