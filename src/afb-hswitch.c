@@ -31,19 +31,34 @@
 
 int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 {
-	const char *api, *verb;
+	const char *api, *verb, *i;
 	size_t lenapi, lenverb;
 	struct afb_apiset *apiset = data;
 
-	api = &hreq->tail[strspn(hreq->tail, "/")];
-	lenapi = strcspn(api, "/");
-	verb = &api[lenapi];
-	verb = &verb[strspn(verb, "/")];
-	lenverb = strcspn(verb, "/");
+	/* api is the first hierarchical item */
+	i = hreq->tail;
+	while (*i == '/')
+		i++;
+	if (!*i)
+		return 0; /* no API */
+	api = i;
 
-	if (!(*api && *verb && lenapi && lenverb))
-		return 0;
+	/* search end of the api and get its length */
+	while (*++i && *i != '/');
+	lenapi = (size_t)(i - api);
 
+	/* search the verb */
+	while (*i == '/')
+		i++;
+	if (!*i)
+		return 0; /* no verb */
+	verb = i;
+
+	/* get the verb length */
+	while (*++i);
+	lenverb = (size_t)(i - verb);
+
+	/* found api + verb so process the call */
 	afb_hreq_call(hreq, apiset, api, lenapi, verb, lenverb);
 	return 1;
 }
