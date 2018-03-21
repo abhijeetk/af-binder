@@ -51,11 +51,11 @@
 extern struct afb_config *main_config;
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
-static const char supervisor_apiname[] = AFS_SURPERVISOR_APINAME;
+static const char supervision_apiname[] = AFS_SUPERVISION_APINAME;
+static const char supervisor_apiname[] = AFS_SUPERVISOR_APINAME;
 
 /* path of the supervision socket */
-static const char supervisor_socket_path[] = AFS_SURPERVISION_SOCKET;
+static const char supervisor_socket_path[] = AFS_SUPERVISION_SOCKET;
 
 /* mutual exclusion */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -176,7 +176,7 @@ static void try_connect_supervisor()
 		ERROR("Bad interface of supervisor %s", supervisor_socket_path);
 		goto end2;
 	}
-	if (strcmp(initiator.interface, AFS_SURPERVISION_INTERFACE_1)) {
+	if (strcmp(initiator.interface, AFS_SUPERVISION_INTERFACE_1)) {
 		ERROR("Unknown interface %s for supervisor %s", initiator.interface, supervisor_socket_path);
 		goto end2;
 	}

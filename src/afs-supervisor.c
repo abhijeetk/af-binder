@@ -60,14 +60,14 @@ struct supervised
 };
 
 /* api and apiset name */
-static const char supervision_apiname[] = AFS_SURPERVISION_APINAME;
-static const char supervisor_apiname[] = AFS_SURPERVISOR_APINAME;
+static const char supervision_apiname[] = AFS_SUPERVISION_APINAME;
+static const char supervisor_apiname[] = AFS_SUPERVISOR_APINAME;
 
 /* the empty apiset */
 static struct afb_apiset *empty_apiset;
 
 /* supervision socket path */
-static const char supervision_socket_path[] = AFS_SURPERVISION_SOCKET;
+static const char supervision_socket_path[] = AFS_SUPERVISION_SOCKET;
 static struct fdev *supervision_fdev;
 
 /* global mutex */
@@ -137,7 +137,7 @@ static int send_initiator(int fd, const char *command)
 
 	/* set  */
 	memset(&asi, 0, sizeof asi);
-	strcpy(asi.interface, AFS_SURPERVISION_INTERFACE_1);
+	strcpy(asi.interface, AFS_SUPERVISION_INTERFACE_1);
 	if (command)
 		strncpy(asi.extra, command, sizeof asi.extra - 1);
 

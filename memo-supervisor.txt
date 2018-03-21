@@ -2,12 +2,12 @@
 Run the supervisor on the target for the public IP:
 ---------------------------------------------------
 
-	# afs-supervisor --port 1712 --token HELLO 
+	# afs-supervisor --port 1619 --token HELLO 
 
 Run the client
 --------------
 
-	# afb-client-demo -H host:1712/api?token=HELLO
+	# afb-client-demo -H host:1619/api?token=HELLO
 
 
 verbs that can be run, all are of the API 'supervisor':

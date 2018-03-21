@@ -25,15 +25,15 @@
  * anyone to create a such socket and usurpate the
  * supervisor.
  */
-#if !defined(AFS_SURPERVISION_SOCKET)
-#  define AFS_SURPERVISION_SOCKET "@urn:AGL:afs:supervision:socket" /* abstract */
+#if !defined(AFS_SUPERVISION_SOCKET)
+#  define AFS_SUPERVISION_SOCKET "@urn:AGL:afs:supervision:socket" /* abstract */
 #endif
 
 /*
  * generated using
  * uuid -v 5 ns:URL urn:AGL:afs:supervision:interface:1
  */
-#define AFS_SURPERVISION_INTERFACE_1 "86040e8d-eee5-5900-a129-3edb8da3ed46"
+#define AFS_SUPERVISION_INTERFACE_1 "86040e8d-eee5-5900-a129-3edb8da3ed46"
 
 
 /**
@@ -45,5 +45,5 @@ struct afs_supervision_initiator
 	char extra[27];		/**< zero terminated extra computed here to be 64-37 */
 };
 
-#define AFS_SURPERVISION_APINAME      "$"
-#define AFS_SURPERVISOR_APINAME       "supervisor"
+#define AFS_SUPERVISION_APINAME      "$"
+#define AFS_SUPERVISOR_APINAME       "supervisor"

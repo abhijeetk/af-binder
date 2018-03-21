@@ -28,8 +28,17 @@
 #include "afs-config.h"
 
 #if !defined(AFB_VERSION)
-#error "you should define AFB_VERSION"
+#  error "you should define AFB_VERSION"
 #endif
+
+#if !defined(AFS_SUPERVISOR_TOKEN)
+#  define AFS_SUPERVISOR_TOKEN    ""
+#endif
+#if !defined(AFS_SUPERVISOR_PORT)
+#  define AFS_SUPERVISOR_PORT     1619
+#endif
+#define _STRINGIFY_(x) #x
+#define STRINGIFY(x) _STRINGIFY_(x)
 
 // default
 #define DEFLT_CNTX_TIMEOUT  32000000	// default Client Connection
@@ -88,7 +97,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_NAME,          1, "name",        "Set the visible name"},
 
-	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default 1234]"},
+	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default " STRINGIFY(AFS_SUPERVISOR_PORT) "]"},
 	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
 	{SET_ROOT_BASE,     1, "rootbase",    "Angular Base Root URL [default /opa]"},
 	{SET_ROOT_API,      1, "rootapi",     "HTML Root API URL [default /api]"},
@@ -102,7 +111,7 @@ static AFB_options cliOptions[] = {
 	{SET_ROOT_DIR,      1, "rootdir",     "Root Directory of the application [default: workdir]"},
 	{SET_SESSION_DIR,   1, "sessiondir",  "OBSOLETE (was: Sessions file path)"},
 
-	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=random, use --token="" to allow any token]"},
+	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=" AFS_SUPERVISOR_TOKEN ", use --token="" to allow any token]"},
 
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
@@ -335,7 +344,7 @@ static void fulfill_config(struct afs_config *config)
 {
 	// default HTTP port
 	if (config->httpdPort == 0)
-		config->httpdPort = 1234;
+		config->httpdPort = AFS_SUPERVISOR_PORT;
 
 	// default binding API timeout
 	if (config->apiTimeout == 0)
@@ -369,6 +378,9 @@ static void fulfill_config(struct afs_config *config)
 
 	if (config->rootapi == NULL)
 		config->rootapi = "/api";
+
+	if (config->token == NULL)
+		config->token = AFS_SUPERVISOR_TOKEN;
 }
 
 void afs_config_dump(struct afs_config *config)
