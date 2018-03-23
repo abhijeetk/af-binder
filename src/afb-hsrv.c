@@ -28,13 +28,14 @@
 #include <sys/stat.h>
 
 #include <microhttpd.h>
-#include <systemd/sd-event.h>
 
 #include "afb-method.h"
 #include "afb-context.h"
 #include "afb-xreq.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
+#include "afb-fdev.h"
+#include "fdev.h"
 #include "verbose.h"
 #include "locale-root.h"
 
@@ -63,7 +64,7 @@ struct afb_hsrv {
 	unsigned refcount;
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
-	sd_event_source *evsrc;
+	struct fdev *fdev;
 	char *cache_to;
 };
 
@@ -243,20 +244,19 @@ static void do_run(int signum, void *arg)
 	if (!signum) {
 		do { MHD_run(hsrv->httpd); } while(MHD_get_timeout(hsrv->httpd, &to) == MHD_YES && !to);
 	}
-	sd_event_source_set_io_events(hsrv->evsrc, EPOLLIN);
+	fdev_set_events(hsrv->fdev, EPOLLIN);
 }
 
 void run_micro_httpd(struct afb_hsrv *hsrv)
 {
-	sd_event_source_set_io_events(hsrv->evsrc, 0);
+	fdev_set_events(hsrv->fdev, 0);
 	if (jobs_queue(hsrv, 0, do_run, hsrv) < 0)
 		do_run(0, hsrv);
 }
 
-static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *hsrv)
+static void listen_callback(void *hsrv, uint32_t revents, struct fdev *fdev)
 {
 	run_micro_httpd(hsrv);
-	return 0;
 }
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
@@ -394,8 +394,7 @@ int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration)
 
 int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection_timeout)
 {
-	sd_event_source *evsrc;
-	int rc;
+	struct fdev *fdev;
 	struct MHD_Daemon *httpd;
 	const union MHD_DaemonInfo *info;
 
@@ -420,24 +419,26 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		return 0;
 	}
 
-	rc = sd_event_add_io(afb_systemd_get_event_loop(), &evsrc, info->listen_fd, EPOLLIN, io_event_callback, hsrv);
-	if (rc < 0) {
+	fdev = afb_fdev_create(info->listen_fd);
+	if (fdev == NULL) {
 		MHD_stop_daemon(httpd);
-		errno = -rc;
 		ERROR("connection to events for httpd failed");
 		return 0;
 	}
+	fdev_set_autoclose(fdev, 0);
+	fdev_set_events(fdev, EPOLLIN);
+	fdev_set_callback(fdev, listen_callback, hsrv);
 
 	hsrv->httpd = httpd;
-	hsrv->evsrc = evsrc;
+	hsrv->fdev = fdev;
 	return 1;
 }
 
 void afb_hsrv_stop(struct afb_hsrv *hsrv)
 {
-	if (hsrv->evsrc != NULL) {
-		sd_event_source_unref(hsrv->evsrc);
-		hsrv->evsrc = NULL;
+	if (hsrv->fdev != NULL) {
+		fdev_unref(hsrv->fdev);
+		hsrv->fdev = NULL;
 	}
 	if (hsrv->httpd != NULL)
 		MHD_stop_daemon(hsrv->httpd);
