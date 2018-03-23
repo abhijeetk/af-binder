@@ -24,5 +24,5 @@ extern struct fdev_epoll *fdev_epoll_create();
 extern void fdev_epoll_destroy(struct fdev_epoll *fdev_epoll);
 extern int fdev_epoll_fd(struct fdev_epoll *fdev_epoll);
 extern struct fdev *fdev_epoll_add(struct fdev_epoll *fdev_epoll, int fd);
-extern void fdev_epoll_wait_and_dispatch(struct fdev_epoll *fdev_epoll, int timeout_ms);
+extern int fdev_epoll_wait_and_dispatch(struct fdev_epoll *fdev_epoll, int timeout_ms);
 

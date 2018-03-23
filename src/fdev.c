@@ -76,7 +76,8 @@ void fdev_unref(struct fdev *fdev)
 	if (fdev && __atomic_sub_fetch(&fdev->refcount, 2, __ATOMIC_RELAXED) <= 1) {
 		if (fdev->itf) {
 			fdev->itf->disable(fdev->closure_itf, fdev);
-			fdev->itf->unref(fdev->closure_itf);
+			if (fdev->itf->unref)
+				fdev->itf->unref(fdev->closure_itf);
 		}
 		if (fdev->refcount)
 			close(fdev->fd);
@@ -135,7 +136,7 @@ void fdev_set_events(struct fdev *fdev, uint32_t events)
 	if (events != fdev->events) {
 		fdev->events = events;
 		if (is_active(fdev))
-			fdev->itf->enable(fdev->closure_itf, fdev);
+			fdev->itf->update(fdev->closure_itf, fdev);
 	}
 }
 

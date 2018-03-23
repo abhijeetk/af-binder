@@ -53,7 +53,8 @@ static struct fdev_itf itf =
 {
 	.unref = unref,
 	.disable = disable,
-	.enable = enable
+	.enable = enable,
+	.update = enable
 };
 
 struct fdev *fdev_systemd_create(struct sd_event *eloop, int fd)

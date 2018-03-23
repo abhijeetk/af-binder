@@ -27,6 +27,7 @@ struct fdev_itf
 	void (*unref)(void *closure);
 	void (*disable)(void *closure, const struct fdev *fdev);
 	void (*enable)(void *closure, const struct fdev *fdev);
+	void (*update)(void *closure, const struct fdev *fdev);
 };
 
 extern struct fdev *fdev_create(int fd);
