@@ -17,6 +17,12 @@
 
 #define _GNU_SOURCE
 
+#if defined(NO_JOBS_WATCHDOG)
+#   define HAS_WATCHDOG 0
+#else
+#   define HAS_WATCHDOG 1
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -29,7 +35,7 @@
 #include <sys/eventfd.h>
 
 #include <systemd/sd-event.h>
-#ifndef NO_JOBS_WATCHDOG
+#if HAS_WATCHDOG
 #include <systemd/sd-daemon.h>
 #endif
 
@@ -38,7 +44,7 @@
 #include "verbose.h"
 
 #if 0
-#define _alert_ "do you really want to remove monitoring?"
+#define _alert_ "do you really want to remove signal monitoring?"
 #define sig_monitor_init_timeouts()  ((void)0)
 #define sig_monitor_clean_timeouts() ((void)0)
 #define sig_monitor(to,cb,arg)       (cb(0,arg))
@@ -144,7 +150,7 @@ static struct job *job_create(
 	if (job)
 		free_jobs = job->next;
 	else {
-		/* allocation  without blocking */
+		/* allocation without blocking */
 		pthread_mutex_unlock(&mutex);
 		job = malloc(sizeof *job);
 		pthread_mutex_lock(&mutex);
@@ -765,7 +771,7 @@ int jobs_start(int allowed_count, int start_count, int waiter_count, void (*star
 	running = 0;
 	remains = waiter_count;
 
-#ifndef NO_JOBS_WATCHDOG
+#if HAS_WATCHDOG
 	/* set the watchdog */
 	if (sd_watchdog_enabled(0, NULL))
 		sd_event_set_watchdog(get_sd_event_locked(), 1);
