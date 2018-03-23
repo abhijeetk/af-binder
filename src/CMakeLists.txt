@@ -26,7 +26,6 @@ ADD_DEFINITIONS(-DINFER_EXTENSION)
 
 ADD_LIBRARY(afb-lib STATIC
 	afb-api.c
-	afb-api-dbus.c
 	afb-api-dyn.c
 	afb-api-so.c
 	afb-api-so-v1.c
@@ -74,6 +73,11 @@ ADD_LIBRARY(afb-lib STATIC
 	websock.c
 	wrap-json.c
 )
+
+IF(INCLUDE_DBUS_TRANSPARENCY)
+	ADD_DEFINITIONS(-DWITH_DBUS_TRANSPARENCY)
+	TARGET_SOURCES(afb-lib PUBLIC afb-api-dbus.c)
+ENDIF()
 
 ###########################################
 # build and install afb-daemon

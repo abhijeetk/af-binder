@@ -40,8 +40,10 @@ struct afb_config {
 	char *name;		/* name to set to the daemon */
 
 	struct afb_config_list *aliases;
+#if defined(WITH_DBUS_TRANSPARENCY)
 	struct afb_config_list *dbus_clients;
 	struct afb_config_list *dbus_servers;
+#endif
 	struct afb_config_list *ws_clients;
 	struct afb_config_list *ws_servers;
 	struct afb_config_list *so_bindings;
@@ -70,7 +72,9 @@ struct afb_config {
 	unsigned no_ldpaths: 1;		/* disable default ldpaths */
 	unsigned noHttpd: 1;
 	unsigned background: 1;		/* run in backround mode */
+#if defined(WITH_MONITORING_OPTION)
 	unsigned monitoring: 1;		/* activates monitoring */
+#endif
 	unsigned random_token: 1;	/* expects a random token */
 };
 
