@@ -17,6 +17,7 @@
 
 #pragma once
 
+struct fdev_epoll;
 struct sd_event;
 struct jobloop;
 
@@ -41,6 +42,7 @@ extern int jobs_call(
 		void *arg);
 
 extern struct sd_event *jobs_get_sd_event();
+extern struct fdev_epoll *jobs_get_fdev_epoll();
 
 extern void jobs_terminate();
 
