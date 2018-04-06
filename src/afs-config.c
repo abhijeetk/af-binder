@@ -71,6 +71,7 @@
 #define SET_NAME           'n'
 #define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
+#define WS_SERVICE         's'
 #define SET_AUTH_TOKEN     't'
 #define SET_UPLOAD_DIR     'u'
 #define DISPLAY_VERSION    'V'
@@ -78,7 +79,7 @@
 #define SET_WORK_DIR       'w'
 
 const char shortopts[] =
-	"hn:p:qrt:u:Vvw:"
+	"hn:p:qrs:t:u:Vvw:"
 ;
 
 // Command line structure hold cli --command + help text
@@ -113,6 +114,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=" AFS_SUPERVISOR_TOKEN ", use --token="" to allow any token]"},
 
+	{WS_SERVICE,        1, "ws-server",   "Povide supervisor as websocket"},
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
@@ -324,6 +326,10 @@ static void parse_arguments(int argc, char **argv, struct afs_config *config)
 			config->name = argvalstr(optc);
 			break;
 
+		case WS_SERVICE:
+			config->ws_server = argvalstr(optc);
+			break;
+
 		case DISPLAY_VERSION:
 			noarg(optc);
 			printVersion(stdout);
@@ -401,6 +407,7 @@ void afs_config_dump(struct afs_config *config)
 	S(uploaddir)
 	S(token)
 	S(name)
+	S(ws_server)
 
 	D(httpdPort)
 	D(cacheTimeout)

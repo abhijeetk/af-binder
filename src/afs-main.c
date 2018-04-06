@@ -30,6 +30,7 @@
 #include "afb-hswitch.h"
 #include "afb-hreq.h"
 #include "afb-apiset.h"
+#include "afb-api-ws.h"
 #include "afb-session.h"
 
 #include "afs-supervisor.h"
@@ -147,6 +148,15 @@ static void start(int signum, void *arg)
 	if (rc < 0) {
 		ERROR("Can't create supervision's apiset: %m");
 		goto error;
+	}
+
+	/* export the service if required */
+	if (main_config->ws_server) {
+		rc = afb_api_ws_add_server(main_config->ws_server, main_apiset);
+		if (rc < 0) {
+			ERROR("Can't export (ws-server) api %s: %m", main_config->ws_server);
+			goto error;
+		}
 	}
 
 	/* start the services */

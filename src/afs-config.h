@@ -26,6 +26,7 @@ struct afs_config {
 	char *uploaddir;	// where to store transient files
 	char *token;		// initial authentication token [default NULL no session]
 	char *name;		/* name to set to the daemon */
+	char *ws_server;	/* exported api */
 
 	/* integers */
 	int httpdPort;
