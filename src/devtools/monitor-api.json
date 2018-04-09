@@ -172,11 +172,11 @@
           "end",
           "event",
           "extra",
-          "fail",
           "get",
           "json",
           "life",
           "ref",
+	  "reply",
           "result",
           "session",
           "session_close",
@@ -190,7 +190,6 @@
           "subcallsync",
           "subcallsync_result",
           "subscribe",
-          "success",
           "unref",
           "unstore",
           "unsubscribe",
@@ -306,8 +305,8 @@
   "paths": {
     "/get": {
       "description": "Get monitoring data.",
+      "x-permissions": { "session": "check" },
       "get": {
-        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -338,8 +337,8 @@
     },
     "/set": {
       "description": "Set monitoring actions.",
+      "x-permissions": { "session": "check" },
       "get": {
-        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -364,8 +363,8 @@
     },
     "/trace": {
       "description": "Set monitoring actions.",
+      "x-permissions": { "session": "check" },
       "get": {
-        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",
@@ -396,8 +395,8 @@
     },
     "/session": {
       "description": "describes the session.",
+      "x-permissions": { "session": "check" },
       "get": {
-        "x-permissions": { "session": "check" },
         "parameters": [
           {
             "in": "query",

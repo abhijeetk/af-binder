@@ -1,5 +1,5 @@
 
-static const char _afb_description_v2_monitor[] =
+static const char _afb_description_monitor[] =
     "{\"openapi\":\"3.0.0\",\"info\":{\"description\":\"monitoring of binding"
     "s and internals\",\"title\":\"monitor\",\"version\":\"1.0\",\"x-binding-"
     "c-generator\":{\"api\":\"monitor\",\"version\":2,\"prefix\":\"f_\",\"pos"
@@ -118,57 +118,68 @@ static const char _afb_description_v2_monitor[] =
     "}}}}}}}}}"
 ;
 
-static void f_get(struct afb_req req);
-static void f_set(struct afb_req req);
-static void f_trace(struct afb_req req);
-static void f_session(struct afb_req req);
+static void f_get(afb_req_t req);
+static void f_set(afb_req_t req);
+static void f_trace(afb_req_t req);
+static void f_session(afb_req_t req);
 
-static const struct afb_verb_v2 _afb_verbs_v2_monitor[] = {
+static const struct afb_verb_v3 _afb_verbs_monitor[] = {
     {
         .verb = "get",
         .callback = f_get,
         .auth = NULL,
         .info = "Get monitoring data.",
-        .session = AFB_SESSION_CHECK_V2
+        .session = AFB_SESSION_CHECK,
+        .vcbdata = NULL,
+        .glob = 0
     },
     {
         .verb = "set",
         .callback = f_set,
         .auth = NULL,
         .info = "Set monitoring actions.",
-        .session = AFB_SESSION_CHECK_V2
+        .session = AFB_SESSION_CHECK,
+        .vcbdata = NULL,
+        .glob = 0
     },
     {
         .verb = "trace",
         .callback = f_trace,
         .auth = NULL,
         .info = "Set monitoring actions.",
-        .session = AFB_SESSION_CHECK_V2
+        .session = AFB_SESSION_CHECK,
+        .vcbdata = NULL,
+        .glob = 0
     },
     {
         .verb = "session",
         .callback = f_session,
         .auth = NULL,
         .info = "describes the session.",
-        .session = AFB_SESSION_CHECK_V2
+        .session = AFB_SESSION_CHECK,
+        .vcbdata = NULL,
+        .glob = 0
     },
     {
         .verb = NULL,
         .callback = NULL,
         .auth = NULL,
         .info = NULL,
-        .session = 0
+        .session = 0,
+        .vcbdata = NULL,
+        .glob = 0
 	}
 };
 
-static const struct afb_binding_v2 _afb_binding_v2_monitor = {
+static const struct afb_binding_v3 _afb_binding_monitor = {
     .api = "monitor",
-    .specification = _afb_description_v2_monitor,
+    .specification = _afb_description_monitor,
     .info = "monitoring of bindings and internals",
-    .verbs = _afb_verbs_v2_monitor,
+    .verbs = _afb_verbs_monitor,
     .preinit = NULL,
     .init = NULL,
     .onevent = NULL,
+    .userdata = NULL,
     .noconcurrency = 0
 };
 

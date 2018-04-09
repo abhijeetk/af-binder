@@ -1,0 +1,9 @@
+sub_verb -> del_verb
+hookable : $ -> .
+glob added every where
+event filtering facility
+incompatibility of afb-proto-ws
+afb_req_context -> signature changed to afb_req_context_make
+get_client_info
+
+

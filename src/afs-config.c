@@ -263,11 +263,11 @@ static void parse_arguments(int argc, char **argv, struct afs_config *config)
 	while ((optc = getopt_long(argc, argv, shortopts, gnuOptions, NULL)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
-			verbosity++;
+			verbose_inc();
 			break;
 
 		case SET_QUIET:
-			verbosity--;
+			verbose_dec();
 			break;
 
 		case SET_TCP_PORT:
@@ -441,7 +441,7 @@ struct afs_config *afs_config_parse_arguments(int argc, char **argv)
 	parse_environment(result);
 	parse_arguments(argc, argv, result);
 	fulfill_config(result);
-	if (verbosity >= 3)
+	if (verbose_wants(Log_Level_Info))
 		afs_config_dump(result);
 	return result;
 }

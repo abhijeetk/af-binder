@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -26,6 +27,8 @@
 #include <sys/socket.h>
 
 #include "afb-cred.h"
+#include "verbose.h"
+
 
 #define MAX_LABEL_LENGTH  1024
 
@@ -45,6 +48,10 @@
 #if !defined(DEFAULT_PEERCRED_PID)
 #  define DEFAULT_PEERCRED_PID 0  /* no process */
 #endif
+
+static char on_behalf_credential_permission[] = "urn:AGL:permission:*:partner:on-behalf-credentials";
+static char export_format[] = "%x:%x:%x-%s";
+static char import_format[] = "%x:%x:%x-%n";
 
 static struct afb_cred *current;
 
@@ -70,6 +77,7 @@ static struct afb_cred *mkcred(uid_t uid, gid_t gid, pid_t pid, const char *labe
 		cred->uid = uid;
 		cred->gid = gid;
 		cred->pid = pid;
+		cred->exported = NULL;
 		dest = (char*)(&cred[1]);
 		cred->user = dest;
 		while(i)
@@ -174,4 +182,106 @@ struct afb_cred *afb_cred_current()
 		current = mkcurrent();
 	return afb_cred_addref(current);
 }
+
+const char *afb_cred_export(struct afb_cred *cred)
+{
+	int rc;
+
+	if (!cred->exported) {
+		rc = asprintf((char**)&cred->exported,
+			export_format,
+				(int)cred->uid,
+				(int)cred->gid,
+				(int)cred->pid,
+				cred->label);
+		if (rc < 0) {
+			errno = ENOMEM;
+			cred->exported = NULL;
+		}
+	}
+	return cred->exported;
+}
+
+struct afb_cred *afb_cred_import(const char *string)
+{
+	struct afb_cred *cred;
+	int rc, uid, gid, pid, pos;
+
+	rc = sscanf(string, import_format, &uid, &gid, &pid, &pos);
+	if (rc == 3)
+		cred = afb_cred_create((uid_t)uid, (gid_t)gid, (pid_t)pid, &string[pos]);
+	else {
+		errno = EINVAL;
+		cred = NULL;
+	}
+	return cred;
+}
+
+struct afb_cred *afb_cred_mixed_on_behalf_import(struct afb_cred *cred, const char *context, const char *exported)
+
+{
+	struct afb_cred *imported;
+	if (exported) {
+		if (afb_cred_has_permission(cred, on_behalf_credential_permission, context)) {
+			imported = afb_cred_import(exported);
+			if (imported)
+				return imported;
+			ERROR("Can't import on behalf credentials: %m");
+		} else {
+			ERROR("On behalf credentials refused");
+		}
+	}
+	return afb_cred_addref(cred);
+}
+
+/*********************************************************************************/
+#ifdef BACKEND_PERMISSION_IS_CYNARA
+
+#include <pthread.h>
+#include <cynara-client.h>
+
+static cynara *handle;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int afb_cred_has_permission(struct afb_cred *cred, const char *permission, const char *context)
+{
+	int rc;
+
+	if (!cred) {
+		/* case of permission for self */
+		return 1;
+	}
+	if (!permission) {
+		ERROR("Got a null permission!");
+		return 0;
+	}
+
+	/* cynara isn't reentrant */
+	pthread_mutex_lock(&mutex);
+
+	/* lazy initialisation */
+	if (!handle) {
+		rc = cynara_initialize(&handle, NULL);
+		if (rc != CYNARA_API_SUCCESS) {
+			handle = NULL;
+			ERROR("cynara initialisation failed with code %d", rc);
+			return 0;
+		}
+	}
+
+	/* query cynara permission */
+	rc = cynara_check(handle, cred->label, context ?: "", cred->user, permission);
+
+	pthread_mutex_unlock(&mutex);
+	return rc == CYNARA_API_ACCESS_ALLOWED;
+}
+
+/*********************************************************************************/
+#else
+int afb_cred_has_permission(struct afb_cred *cred, const char *permission, const char *context)
+{
+	WARNING("Granting permission %s by default of backend", permission ?: "(null)");
+	return !!permission;
+}
+#endif
 

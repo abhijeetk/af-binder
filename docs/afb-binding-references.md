@@ -2,47 +2,98 @@
 
 ## Structure for declaring binding
 
-### struct afb_binding_v2
+### afb_binding_t
 
-The main structure, of type **afb_binding_v2**, for describing the binding
-must be exported under the name **afbBindingV2**.
+The main structure, of type **afb_binding_t**, for describing the binding
+must be exported under the name **afbBindingExport**.
 
 This structure is defined as below.
 
 ```C
-/*
- * Description of the bindings of type version 2
+typedef struct afb_binding_v3 afb_binding_t;
+```
+
+Where:
+
+```C
+/**
+ * Description of the bindings of type version 3
  */
-struct afb_binding_v2
+struct afb_binding_v3
 {
-        const char *api;                        /* api name for the binding */
-        const char *specification;              /* textual openAPIv3 specification of the binding */
-        const char *info;                       /* some info about the api, can be NULL */
-        const struct afb_verb_v2 *verbs;        /* array of descriptions of verbs terminated by a NULL name */
-        int (*preinit)();                       /* callback at load of the binding */
-        int (*init)();                          /* callback for starting the service */
-        void (*onevent)(const char *event, struct json_object *object); /* callback for handling events */
-        unsigned noconcurrency: 1;              /* avoids concurrent requests to verbs */
+	/** api name for the binding, can't be NULL */
+	const char *api;
+
+	/** textual specification of the binding, can be NULL */
+	const char *specification;
+
+	/** some info about the api, can be NULL */
+	const char *info;
+
+	/** array of descriptions of verbs terminated by a NULL name, can be NULL */
+	const struct afb_verb_v3 *verbs;
+
+	/** callback at load of the binding */
+	int (*preinit)(struct afb_api_x3 *api);
+
+	/** callback for starting the service */
+	int (*init)(struct afb_api_x3 *api);
+
+	/** callback for handling events */
+	void (*onevent)(struct afb_api_x3 *api, const char *event, struct json_object *object);
+
+	/** userdata for afb_api_x3 */
+	void *userdata;
+
+	/** space separated list of provided class(es) */
+	const char *provide_class;
+
+	/** space separated list of required class(es) */
+	const char *require_class;
+
+	/** space separated list of required API(es) */
+	const char *require_api;
+
+	/** avoids concurrent requests to verbs */
+	unsigned noconcurrency: 1;
 };
 ```
 
-### struct afb_verb_v2
+### struct afb_verb_t
 
-Each verb is described with a structure of type **afb_verb_v2**
+Each verb is described with a structure of type **afb_verb_t**
 defined below:
 
 ```C
-/*
- * Description of one verb of the API provided by the binding
- * This enumeration is valid for bindings of type version 2
+typedef struct afb_verb_v3 afb_verb_t;
+```
+
+```C
+/**
+ * Description of one verb as provided for binding API version 3
  */
-struct afb_verb_v2
+struct afb_verb_v3
 {
-        const char *verb;                       /* name of the verb */
-        void (*callback)(struct afb_req req);   /* callback function implementing the verb */
-        const struct afb_auth *auth;            /* required authorization */
-        const char *info;                       /* some info about the verb, can be NULL */
-        uint32_t session;                       /* authorization and session requirements of the verb */
+	/** name of the verb, NULL only at end of the array */
+	const char *verb;
+
+	/** callback function implementing the verb */
+	void (*callback)(afb_req_t_x2 *req);
+
+	/** required authorization, can be NULL */
+	const struct afb_auth *auth;
+
+	/** some info about the verb, can be NULL */
+	const char *info;
+
+	/**< data for the verb callback */
+	void *vcbdata;
+
+	/** authorization and session requirements of the verb */
+	uint16_t session;
+
+	/** is the verb glob name */
+	uint16_t glob: 1;
 };
 ```
 
@@ -55,55 +106,91 @@ The **session** flags is one of the constant defined below:
 - AFB_SESSION_LOA_3 : Requires the LOA to be 3 or more
 - AFB_SESSION_CHECK : Requires the token to be set and valid
 - AFB_SESSION_REFRESH : Implies a token refresh
-- AFB_SESSION_CLOSE : Implies cloing the session
+- AFB_SESSION_CLOSE : Implies closing the session after request processed
 
-The LOA (Level Of Assurance) is set, by binding, using the function **afb_req_session_set_LOA**.
+The LOA (Level Of Assurance) is set, by binding api, using the function **afb_req_session_set_LOA**.
 
-### struct afb_auth and enum afb_auth_type
+The session can be closed, by binding api, using the function **afb_req_session_close**.
 
-The structure **afb_auth** is used within verb description to
+### afb_auth_t and afb_auth_type_t
+
+The structure **afb_auth_t** is used within verb description to
 set security requirements.  
 The interpretation of the structure depends on the value of the field **type**.
 
 ```C
+typedef struct afb_auth afb_auth_t;
+
+/**
+ * Definition of an authorization entry
+ */
 struct afb_auth
 {
-        const enum afb_auth_type type;
-        union {
-                const char *text;
-                const unsigned loa;
-                const struct afb_auth *first;
-        };
-        const struct afb_auth *next;
+	/** type of entry @see afb_auth_type */
+	enum afb_auth_type type;
+	
+	union {
+		/** text when @ref type == @ref afb_auth_Permission */
+		const char *text;
+		
+		/** level of assurancy when @ref type ==  @ref afb_auth_LOA */
+		unsigned loa;
+		
+		/** first child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And, @ref afb_auth_Not } */
+		const struct afb_auth *first;
+	};
+	
+	/** second child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And } */
+	const struct afb_auth *next;
 };
+
 ```
 
 The possible values for **type** is defined here:
 
 ```C
-/*
- * Enum for Session/Token/Assurance middleware.
+typedef enum afb_auth_type afb_auth_type_t;
+
+/**
+ * Enumeration  for authority (Session/Token/Assurance) definitions.
+ *
+ * @see afb_auth
  */
 enum afb_auth_type
 {
-        afb_auth_No = 0,        /** never authorized, no data */
-        afb_auth_Token,         /** authorized if token valid, no data */
-        afb_auth_LOA,           /** authorized if LOA greater than data 'loa' */
-        afb_auth_Permission,    /** authorized if permission 'text' is granted */
-        afb_auth_Or,            /** authorized if 'first' or 'next' is authorized */
-        afb_auth_And,           /** authorized if 'first' and 'next' are authorized */
-        afb_auth_Not,           /** authorized if 'first' is not authorized */
-        afb_auth_Yes            /** always authorized, no data */
+	/** never authorized, no data */
+	afb_auth_No = 0,
+
+	/** authorized if token valid, no data */
+	afb_auth_Token,
+
+	/** authorized if LOA greater than data 'loa' */
+	afb_auth_LOA,
+
+	/** authorized if permission 'text' is granted */
+	afb_auth_Permission,
+
+	/** authorized if 'first' or 'next' is authorized */
+	afb_auth_Or,
+
+	/** authorized if 'first' and 'next' are authorized */
+	afb_auth_And,
+
+	/** authorized if 'first' is not authorized */
+	afb_auth_Not,
+
+	/** always authorized, no data */
+	afb_auth_Yes
 };
 ```
 
 Example:
 
 ```C
-static const struct afb_auth _afb_auths_v2_monitor[] = {
-    { .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:set" },
-    { .type = afb_auth_Permission, .text = "urn:AGL:permission:monitor:public:get" },
-    { .type = afb_auth_Or, .first = &_afb_auths_v2_monitor[1], .next = &_afb_auths_v2_monitor[0] }
+static const afb_auth_t myauth[] = {
+    { .type = afb_auth_Permission, .text = "urn:AGL:permission:me:public:set" },
+    { .type = afb_auth_Permission, .text = "urn:AGL:permission:me:public:get" },
+    { .type = afb_auth_Or, .first = &myauth[1], .next = &myauth[0] }
 };
 ```
 
@@ -115,17 +202,18 @@ to **sd_bus** features.
 
 ```C
 /*
- * Retrieves the common systemd's event loop of AFB
+ * Retrieves the common systemd's event loop of AFB 
+ * 
  */
 struct sd_event *afb_daemon_get_event_loop();
 
 /*
- * Retrieves the common systemd's user/session d-bus of AFB
+ * Retrieves the common systemd's user/session d-bus of AFB if active
  */
 struct sd_bus *afb_daemon_get_user_bus();
 
 /*
- * Retrieves the common systemd's system d-bus of AFB
+ * Retrieves the common systemd's system d-bus of AFB if active or NULL
  */
 struct sd_bus *afb_daemon_get_system_bus();
 ```
@@ -155,7 +243,7 @@ int afb_daemon_broadcast_event(const char *name, struct json_object *object);
  *
  * See afb_event_is_valid to check if there is an error.
  */
-struct afb_event afb_daemon_make_event(const char *name);
+afb_event_t afb_daemon_make_event(const char *name);
 ```
 
 The following function is used by logging macros and should normally
@@ -319,7 +407,7 @@ It must be used when creating events.
  *
  * Returns 0 if not valid or 1 if valid.
  */
-int afb_event_is_valid(struct afb_event event);
+int afb_event_is_valid(afb_event_t event);
 ```
 
 The two following functions are used to broadcast or push
@@ -336,7 +424,7 @@ event with its data.
  *
  * Returns the count of clients that received the event.
  */
-int afb_event_broadcast(struct afb_event event, struct json_object *object);
+int afb_event_broadcast(afb_event_t event, struct json_object *object);
 
 /*
  * Pushes the 'event' with the data 'object' to its observers.
@@ -348,18 +436,29 @@ int afb_event_broadcast(struct afb_event event, struct json_object *object);
  *
  * Returns the count of clients that received the event.
  */
-int afb_event_push(struct afb_event event, struct json_object *object);
+int afb_event_push(afb_event_t event, struct json_object *object);
 ```
 
-The following function destiys the event.
+The following function remove one reference to the event.
 
 ```C
 /*
- * Drops the data associated to the 'event'
+ * Decrease the reference count of the event.
  * After calling this function, the event
  * MUST NOT BE USED ANYMORE.
  */
-void afb_event_drop(struct afb_event event);
+void afb_event_unref(afb_event_t event);
+```
+
+The following function add one reference to the event.
+
+```C
+/*
+ * Decrease the reference count of the event.
+ * After calling this function, the event
+ * MUST NOT BE USED ANYMORE.
+ */
+void afb_event_unref(afb_event_t event);
 ```
 
 This function allows to retrieve the exact name of the event.
@@ -368,7 +467,7 @@ This function allows to retrieve the exact name of the event.
 /*
  * Gets the name associated to the 'event'.
  */
-const char *afb_event_name(struct afb_event event);
+const char *afb_event_name(afb_event_t event);
 ```
 
 ## Functions of class afb_req
@@ -381,7 +480,7 @@ This function checks the validity of the **req**.
  *
  * Returns 0 if not valid or 1 if valid.
  */
-int afb_req_is_valid(struct afb_req req);
+int afb_req_is_valid(afb_req_t req);
 ```
 
 The following functions retrieves parameters of the request.
@@ -399,7 +498,7 @@ The following functions retrieves parameters of the request.
  * an HTTP POST of Content-Type "application/json". In that case, the
  * argument of name "" receives the value of the body of the HTTP request.
  */
-struct afb_arg afb_req_get(struct afb_req req, const char *name);
+afb_arg_t afb_req_get(afb_req_t req, const char *name);
 
 /*
  * Gets from the request 'req' the string value of the argument of 'name'.
@@ -408,7 +507,7 @@ struct afb_arg afb_req_get(struct afb_req req, const char *name);
  *
  * Shortcut for: afb_req_get(req, name).value
  */
-const char *afb_req_value(struct afb_req req, const char *name);
+const char *afb_req_value(afb_req_t req, const char *name);
 
 /*
  * Gets from the request 'req' the path for file attached to the argument of 'name'.
@@ -417,13 +516,13 @@ const char *afb_req_value(struct afb_req req, const char *name);
  *
  * Shortcut for: afb_req_get(req, name).path
  */
-const char *afb_req_path(struct afb_req req, const char *name);
+const char *afb_req_path(afb_req_t req, const char *name);
 
 /*
  * Gets from the request 'req' the json object hashing the arguments.
  * The returned object must not be released using 'json_object_put'.
  */
-struct json_object *afb_req_json(struct afb_req req);
+struct json_object *afb_req_json(afb_req_t req);
 ```
 
 The following functions emit the reply to the request.
@@ -439,7 +538,7 @@ The following functions emit the reply to the request.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
-void afb_req_success(struct afb_req req, struct json_object *obj, const char *info);
+void afb_req_success(afb_req_t req, struct json_object *obj, const char *info);
 
 /*
  * Same as 'afb_req_success' but the 'info' is a formatting
@@ -449,7 +548,7 @@ void afb_req_success(struct afb_req req, struct json_object *obj, const char *in
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
-void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...);
+void afb_req_success_f(afb_req_t req, struct json_object *obj, const char *info, ...);
 
 /*
  * Same as 'afb_req_success_f' but the arguments to the format 'info'
@@ -459,30 +558,30 @@ void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
-void afb_req_success_v(struct afb_req req, struct json_object *obj, const char *info, va_list args);
+void afb_req_success_v(afb_req_t req, struct json_object *obj, const char *info, va_list args);
 
 /*
  * Sends a reply of kind failure to the request 'req'.
  * The status of the reply is set to 'status' and an
- * informationnal comment 'info' (can also be NULL) can be added.
+ * informational comment 'info' (can also be NULL) can be added.
  *
  * Note that calling afb_req_fail("success", info) is equivalent
  * to call afb_req_success(NULL, info). Thus even if possible it
  * is strongly recommended to NEVER use "success" for status.
  */
-void afb_req_fail(struct afb_req req, const char *status, const char *info);
+void afb_req_fail(afb_req_t req, const char *status, const char *info);
 
 /*
  * Same as 'afb_req_fail' but the 'info' is a formatting
  * string followed by arguments.
  */
-void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
+void afb_req_fail_f(afb_req_t req, const char *status, const char *info, ...);
 
 /*
  * Same as 'afb_req_fail_f' but the arguments to the format 'info'
  * are given as a variable argument list instance.
  */
-void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args);
+void afb_req_fail_v(afb_req_t req, const char *status, const char *info, va_list args);
 ```
 
 The following functions handle the session data.
@@ -492,14 +591,14 @@ The following functions handle the session data.
  * Gets the pointer stored by the binding for the session of 'req'.
  * When the binding has not yet recorded a pointer, NULL is returned.
  */
-void *afb_req_context_get(struct afb_req req);
+void *afb_req_context_get(afb_req_t req);
 
 /*
  * Stores for the binding the pointer 'context' to the session of 'req'.
  * The function 'free_context' will be called when the session is closed
  * or if binding stores an other pointer.
  */
-void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*));
+void afb_req_context_set(afb_req_t req, void *context, void (*free_context)(void*));
 
 /*
  * Gets the pointer stored by the binding for the session of 'req'.
@@ -508,7 +607,7 @@ void afb_req_context_set(struct afb_req req, void *context, void (*free_context)
  * the function 'create_context' and stores it with the freeing function
  * 'free_context'.
  */
-void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*));
+void *afb_req_context(afb_req_t req, void *(*create_context)(), void (*free_context)(void*));
 
 /*
  * Frees the pointer stored by the binding for the session of 'req'
@@ -516,13 +615,13 @@ void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free
  *
  * Shortcut for: afb_req_context_set(req, NULL, NULL)
  */
-void afb_req_context_clear(struct afb_req req);
+void afb_req_context_clear(afb_req_t req);
 
 /*
  * Closes the session associated with 'req'
  * and delete all associated contexts.
  */
-void afb_req_session_close(struct afb_req req);
+void afb_req_session_close(afb_req_t req);
 
 /*
  * Sets the level of assurance of the session of 'req'
@@ -530,7 +629,7 @@ void afb_req_session_close(struct afb_req req);
  * security policies.
  * Returns 1 on success or 0 if failed.
  */
-int afb_req_session_set_LOA(struct afb_req req, unsigned level);
+int afb_req_session_set_LOA(afb_req_t req, unsigned level);
 ```
 
 The 4 following functions must be used for asynchronous handling requests.
@@ -541,14 +640,14 @@ The 4 following functions must be used for asynchronous handling requests.
  * This function MUST be called by asynchronous implementations
  * of verbs if no reply was sent before returning.
  */
-void afb_req_addref(struct afb_req req);
+void afb_req_addref(afb_req_t req);
 
 /*
  * Substracts one to the count of references of 'req'.
  * This function MUST be called by asynchronous implementations
  * of verbs after sending the asynchronous reply.
  */
-void afb_req_unref(struct afb_req req);
+void afb_req_unref(afb_req_t req);
 
 /*
  * Stores 'req' on heap for asynchronous use.
@@ -556,7 +655,7 @@ void afb_req_unref(struct afb_req req);
  * The count of reference to 'req' is incremented on success
  * (see afb_req_addref).
  */
-struct afb_stored_req *afb_req_store(struct afb_req req);
+struct afb_stored_req *afb_req_store(afb_req_t req);
 
 /*
  * Retrieves the afb_req stored at 'sreq'.
@@ -565,7 +664,7 @@ struct afb_stored_req *afb_req_store(struct afb_req req);
  * function 'afb_req_unref' should be called on the result
  * after that the asynchronous reply if sent.
  */
-struct afb_req afb_req_unstore(struct afb_stored_req *sreq);
+afb_req_t afb_req_unstore(struct afb_stored_req *sreq);
 ```
 
 The two following functions are used to associate client with events
@@ -577,14 +676,14 @@ The two following functions are used to associate client with events
  * to the 'event'.
  * Returns 0 in case of successful subscription or -1 in case of error.
  */
-int afb_req_subscribe(struct afb_req req, struct afb_event event);
+int afb_req_subscribe(afb_req_t req, afb_event_t event);
 
 /*
  * Revokes the subscription established to the 'event' for the client
  * link identified by 'req'.
  * Returns 0 in case of successful subscription or -1 in case of error.
  */
-int afb_req_unsubscribe(struct afb_req req, struct afb_event event);
+int afb_req_unsubscribe(afb_req_t req, afb_event_t event);
 ```
 
 The following functions must be used to make request in the name of the
@@ -609,7 +708,7 @@ client (with its permissions).
  *  - 'afb_req_subcall_sync' the synchronous version
  */
 void afb_req_subcall(
-                struct afb_req req,
+                afb_req_t req,
                 const char *api,
                 const char *verb,
                 struct json_object *args,
@@ -634,7 +733,7 @@ void afb_req_subcall(
  *  - 'afb_req_subcall' that doesn't keep request alive automatically.
  *  - 'afb_req_subcall_sync' the synchronous version
  */
-static inline void afb_req_subcall_req(struct afb_req req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result, struct afb_req req), void *closure)
+static inline void afb_req_subcall_req(afb_req_t req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result, afb_req_t req), void *closure)
 {
 	req.itf->subcall_req(req.closure, api, verb, args, callback, closure);
 }
@@ -656,7 +755,7 @@ static inline void afb_req_subcall_req(struct afb_req req, const char *api, cons
  *  - 'afb_req_subcall' that doesn't keep request alive automatically.
  */
 int afb_req_subcall_sync(
-                struct afb_req req,
+                afb_req_t req,
                 const char *api,
                 const char *verb,
                 struct json_object *args,
@@ -691,7 +790,7 @@ Instead, you should use the macros:
  *      INFO              6        Informational
  *      DEBUG             7        Debug-level messages
  */
-void afb_req_verbose(struct afb_req req, int level, const char *file, int line, const char * func, const char *fmt, ...);
+void afb_req_verbose(afb_req_t req, int level, const char *file, int line, const char * func, const char *fmt, ...);
 ```
 
 The functions below allow a binding involved in the platform security
@@ -705,7 +804,7 @@ application identity.
  *
  * Returns 1 if the permission is granted or 0 otherwise.
  */
-int afb_req_has_permission(struct afb_req req, const char *permission);
+int afb_req_has_permission(afb_req_t req, const char *permission);
 
 /*
  * Get the application identifier of the client application for the
@@ -716,7 +815,7 @@ int afb_req_has_permission(struct afb_req req, const char *permission);
  *
  * The returned value if not NULL must be freed by the caller
  */
-char *afb_req_get_application_id(struct afb_req req);
+char *afb_req_get_application_id(afb_req_t req);
 
 /*
  * Get the user identifier (UID) of the client application for the
@@ -724,7 +823,7 @@ char *afb_req_get_application_id(struct afb_req req);
  *
  * Returns -1 when the application can not be identified.
  */
-int afb_req_get_uid(struct afb_req req);
+int afb_req_get_uid(afb_req_t req);
 ```
 
 ## Logging macros

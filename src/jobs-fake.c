@@ -71,7 +71,7 @@ static int add_job(const void *group, int timeout, void (*callback)(int signum, 
 	else
 		first = j;
 	last = j;
-	pthread_mutex_unlock(&mutex);	
+	pthread_mutex_unlock(&mutex);
 	return 0;
 }
 
@@ -83,7 +83,7 @@ static void *thrrun(void *arg)
 	j = first;
 	if (j)
 		first = j->next;
-	pthread_mutex_unlock(&mutex);	
+	pthread_mutex_unlock(&mutex);
 	if (j) {
 		j->callback(0, j->closure);
 		free(j);

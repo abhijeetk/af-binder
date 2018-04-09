@@ -32,7 +32,6 @@
          3         : ERROR, WARNING, NOTICE, INFO
     greater than 3 : ERROR, WARNING, NOTICE, INFO, DEBUG
 
-*/
 extern int verbosity;
 
 enum verbosity_levels
@@ -43,6 +42,7 @@ enum verbosity_levels
 	Verbosity_Level_Info = 3,
 	Verbosity_Level_Debug = 4
 };
+*/
 
 extern void verbose_set_name(const char *name, int authority);
 
@@ -58,7 +58,7 @@ extern void verbose_set_name(const char *name, int authority);
        KERN_DEBUG             7        Debug-level messages
 */
 
-enum log_levels
+enum
 {
 	Log_Level_Emergency = 0,
 	Log_Level_Alert = 1,
@@ -70,27 +70,53 @@ enum log_levels
 	Log_Level_Debug = 7
 };
 
+extern int logmask;
+
 extern void verbose(int loglevel, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 extern void vverbose(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args);
 
 #if defined(VERBOSE_NO_DATA)
-# define __VERBOSE__(lvl,...)      do{if((lvl)<=Log_Level_Error) verbose(lvl, __FILE__, __LINE__, __func__, __VA_ARGS__)\
-					else verbose(lvl, __FILE__, __LINE__, __func__, NULL);}while(0)
+# define __VERBOSE__(lvl,...)      do{if((lvl)<=Log_Level_Error) verbose(lvl, __FILE__, __LINE__, NULL, __VA_ARGS__)\
+					else verbose(lvl, __FILE__, __LINE__, NULL, NULL);}while(0)
 #elif defined(VERBOSE_NO_DETAILS)
 # define __VERBOSE__(lvl,...)      verbose(lvl, NULL, 0, NULL, __VA_ARGS__)
 #else
 # define __VERBOSE__(lvl,...)      verbose(lvl, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #endif
 
-# define _VERBOSE_(vlvl,llvl,...)  do{ if (verbosity >= vlvl) __VERBOSE__(llvl, __VA_ARGS__); } while(0)
+#define _LOGMASK_(lvl)		((lvl) < 0 ? -1 : (1 << (lvl)))
+#define _WANTLOG_(lvl)		(logmask & _LOGMASK_(lvl))
+#define _VERBOSE_(lvl,...)	do{ if (_WANTLOG_(lvl)) __VERBOSE__((lvl), __VA_ARGS__); } while(0)
 
-# define ERROR(...)                _VERBOSE_(Verbosity_Level_Error, Log_Level_Error, __VA_ARGS__)
-# define WARNING(...)              _VERBOSE_(Verbosity_Level_Warning, Log_Level_Warning, __VA_ARGS__)
-# define NOTICE(...)               _VERBOSE_(Verbosity_Level_Notice, Log_Level_Notice, __VA_ARGS__)
-# define INFO(...)                 _VERBOSE_(Verbosity_Level_Info, Log_Level_Info, __VA_ARGS__)
-# define DEBUG(...)                _VERBOSE_(Verbosity_Level_Debug, Log_Level_Debug, __VA_ARGS__)
+#define EMERGENCY(...)            _VERBOSE_(Log_Level_Emergency, __VA_ARGS__)
+#define ALERT(...)                _VERBOSE_(Log_Level_Alert, __VA_ARGS__)
+#define CRITICAL(...)             _VERBOSE_(Log_Level_Critical, __VA_ARGS__)
+#define ERROR(...)                _VERBOSE_(Log_Level_Error, __VA_ARGS__)
+#define WARNING(...)              _VERBOSE_(Log_Level_Warning, __VA_ARGS__)
+#define NOTICE(...)               _VERBOSE_(Log_Level_Notice, __VA_ARGS__)
+#define INFO(...)                 _VERBOSE_(Log_Level_Info, __VA_ARGS__)
+#define DEBUG(...)                _VERBOSE_(Log_Level_Debug, __VA_ARGS__)
 
-# define LOGUSER(app)              verbose_set_name(app,0)
-# define LOGAUTH(app)              verbose_set_name(app,1)
+#define LOGUSER(app)              verbose_set_name(app,0)
+#define LOGAUTH(app)              verbose_set_name(app,1)
 
 extern void (*verbose_observer)(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args);
+
+static inline int verbose_wants(int lvl) { return _WANTLOG_(lvl); }
+
+extern void verbose_dec();
+extern void verbose_inc();
+extern void verbose_clear();
+extern void verbose_add(int level);
+extern void verbose_sub(int level);
+
+extern int verbose_level_of_name(const char *name);
+extern const char *verbose_name_of_level(int level);
+
+#define _DEVERBOSITY_(vlvl)	((vlvl) + Log_Level_Error)
+#define _VERBOSITY_(llvl)	((llvl) - Log_Level_Error)
+extern int verbosity_get();
+extern void verbosity_set(int verbo);
+extern int verbosity_from_mask(int mask);
+extern int verbosity_to_mask(int verbo);
+

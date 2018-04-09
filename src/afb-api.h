@@ -24,24 +24,21 @@ struct json_object;
 struct afb_api_itf
 {
 	void (*call)(void *closure, struct afb_xreq *xreq);
-	int (*service_start)(void *closure, int share_session, int onneed, struct afb_apiset *apiset);
+	int (*service_start)(void *closure, int share_session, int onneed);
 	void (*update_hooks)(void *closure);
-	int (*get_verbosity)(void *closure);
-	void (*set_verbosity)(void *closure, int level);
+	int (*get_logmask)(void *closure);
+	void (*set_logmask)(void *closure, int level);
 	struct json_object *(*describe)(void *closure);
 	void (*unref)(void *closure);
 };
 
-struct afb_api
+struct afb_api_item
 {
 	void *closure;
 	struct afb_api_itf *itf;
 	const void *group;
 };
 
-extern int afb_api_is_valid_name(const char *name, int hookable);
+extern int afb_api_is_valid_name(const char *name);
 
-#define AFB_API_UNHOOKABLE_PREFIX_CHAR    '$'
-#define AFB_API_UNHOOKABLE_PREFIX_STRING  "$"
-#define afb_api_is_hookable(api)          ((api)[0] != AFB_API_UNHOOKABLE_PREFIX_CHAR)
 

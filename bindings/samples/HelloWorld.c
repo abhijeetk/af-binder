@@ -21,7 +21,7 @@
 
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 2
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -29,7 +29,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 struct event
 {
 	struct event *next;
-	struct afb_event event;
+	afb_event_t event;
 	char tag[1];
 };
 
@@ -80,7 +80,7 @@ static int event_add(const char *tag, const char *name)
 
 	/* make the event */
 	e->event = afb_daemon_make_event(name);
-	if (!e->event.closure) { free(e); return -1; }
+	if (!e->event) { free(e); return -1; }
 
 	/* link */
 	e->next = events;
@@ -88,14 +88,14 @@ static int event_add(const char *tag, const char *name)
 	return 0;
 }
 
-static int event_subscribe(afb_req request, const char *tag)
+static int event_subscribe(afb_req_t request, const char *tag)
 {
 	struct event *e;
 	e = event_get(tag);
 	return e ? afb_req_subscribe(request, e->event) : -1;
 }
 
-static int event_unsubscribe(afb_req request, const char *tag)
+static int event_unsubscribe(afb_req_t request, const char *tag)
 {
 	struct event *e;
 	e = event_get(tag);
@@ -117,34 +117,34 @@ static int event_broadcast(struct json_object *args, const char *tag)
 }
 
 // Sample Generic Ping Debug API
-static void ping(afb_req request, json_object *jresp, const char *tag)
+static void ping(afb_req_t request, json_object *jresp, const char *tag)
 {
 	static int pingcount = 0;
 	json_object *query = afb_req_json(request);
 	afb_req_success_f(request, jresp, "Ping Binder Daemon tag=%s count=%d query=%s", tag, ++pingcount, json_object_to_json_string(query));
 }
 
-static void pingSample (afb_req request)
+static void pingSample (afb_req_t request)
 {
 	ping(request, json_object_new_string ("Some String"), "pingSample");
 }
 
-static void pingFail (afb_req request)
+static void pingFail (afb_req_t request)
 {
 	afb_req_fail(request, "failed", "Ping Binder Daemon fails");
 }
 
-static void pingNull (afb_req request)
+static void pingNull (afb_req_t request)
 {
 	ping(request, NULL, "pingNull");
 }
 
-static void pingBug (afb_req request)
+static void pingBug (afb_req_t request)
 {
-	ping((afb_req){NULL,NULL}, NULL, "pingBug");
+	ping(NULL, NULL, "pingBug");
 }
 
-static void pingEvent(afb_req request)
+static void pingEvent(afb_req_t request)
 {
 	json_object *query = afb_req_json(request);
 	afb_daemon_broadcast_event("event", json_object_get(query));
@@ -153,7 +153,7 @@ static void pingEvent(afb_req request)
 
 
 // For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
-static void pingJson (afb_req request) {
+static void pingJson (afb_req_t request) {
     json_object *jresp, *embed;
 
     jresp = json_object_new_object();
@@ -169,17 +169,12 @@ static void pingJson (afb_req request) {
     ping(request, jresp, "pingJson");
 }
 
-static void subcallcb (void *prequest, int status, json_object *object)
+static void subcallcb (void *closure, json_object *object, const char *error, const char *info, afb_req_t request)
 {
-	afb_req request = afb_req_unstore(prequest);
-	if (status < 0)
-		afb_req_fail(request, "failed", json_object_to_json_string(object));
-	else
-		afb_req_success(request, json_object_get(object), NULL);
-	afb_req_unref(request);
+        afb_req_reply(request, json_object_get(object), error, info);
 }
 
-static void subcall (afb_req request)
+static void subcall (afb_req_t request)
 {
 	const char *api = afb_req_value(request, "api");
 	const char *verb = afb_req_value(request, "verb");
@@ -189,31 +184,10 @@ static void subcall (afb_req request)
 	if (object == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else
-		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
+		afb_req_subcall(request, api, verb, object, afb_req_subcall_pass_events, subcallcb, NULL);
 }
 
-static void subcallreqcb (void *prequest, int status, json_object *object, afb_req request)
-{
-	if (status < 0)
-		afb_req_fail(request, "failed", json_object_to_json_string(object));
-	else
-		afb_req_success(request, json_object_get(object), NULL);
-}
-
-static void subcallreq (afb_req request)
-{
-	const char *api = afb_req_value(request, "api");
-	const char *verb = afb_req_value(request, "verb");
-	const char *args = afb_req_value(request, "args");
-	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
-
-	if (object == NULL)
-		afb_req_fail(request, "failed", "bad arguments");
-	else
-		afb_req_subcall_req(request, api, verb, object, subcallreqcb, NULL);
-}
-
-static void subcallsync (afb_req request)
+static void subcallsync (afb_req_t request)
 {
 	int rc;
 	const char *api = afb_req_value(request, "api");
@@ -224,7 +198,7 @@ static void subcallsync (afb_req request)
 	if (object == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else {
-		rc = afb_req_subcall_sync(request, api, verb, object, &result);
+		rc = afb_req_subcall_sync_legacy(request, api, verb, object, &result);
 		if (rc >= 0)
 			afb_req_success(request, result, NULL);
 		else {
@@ -234,7 +208,7 @@ static void subcallsync (afb_req request)
 	}
 }
 
-static void eventadd (afb_req request)
+static void eventadd (afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 	const char *name = afb_req_value(request, "name");
@@ -249,7 +223,7 @@ static void eventadd (afb_req request)
 	pthread_mutex_unlock(&mutex);
 }
 
-static void eventdel (afb_req request)
+static void eventdel (afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
@@ -263,7 +237,7 @@ static void eventdel (afb_req request)
 	pthread_mutex_unlock(&mutex);
 }
 
-static void eventsub (afb_req request)
+static void eventsub (afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
@@ -277,7 +251,7 @@ static void eventsub (afb_req request)
 	pthread_mutex_unlock(&mutex);
 }
 
-static void eventunsub (afb_req request)
+static void eventunsub (afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 
@@ -291,7 +265,7 @@ static void eventunsub (afb_req request)
 	pthread_mutex_unlock(&mutex);
 }
 
-static void eventpush (afb_req request)
+static void eventpush (afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 	const char *data = afb_req_value(request, "data");
@@ -308,9 +282,9 @@ static void eventpush (afb_req request)
 	json_object_put(object);
 }
 
-static void callcb (void *prequest, int status, json_object *object)
+static void callcb (void *prequest, int status, json_object *object, afb_api_t api)
 {
-	afb_req request = afb_req_unstore(prequest);
+	afb_req_t request = prequest;
 	if (status < 0)
 		afb_req_fail(request, "failed", json_object_to_json_string(object));
 	else
@@ -318,7 +292,7 @@ static void callcb (void *prequest, int status, json_object *object)
 	afb_req_unref(request);
 }
 
-static void call (afb_req request)
+static void call (afb_req_t request)
 {
 	const char *api = afb_req_value(request, "api");
 	const char *verb = afb_req_value(request, "verb");
@@ -328,10 +302,10 @@ static void call (afb_req request)
 	if (object == NULL)
 		afb_req_fail(request, "failed", "bad arguments");
 	else
-		afb_service_call(api, verb, object, callcb, afb_req_store(request));
+		afb_service_call(api, verb, object, callcb, afb_req_addref(request));
 }
 
-static void callsync (afb_req request)
+static void callsync (afb_req_t request)
 {
 	int rc;
 	const char *api = afb_req_value(request, "api");
@@ -352,7 +326,7 @@ static void callsync (afb_req request)
 	}
 }
 
-static void verbose (afb_req request)
+static void verbose (afb_req_t request)
 {
 	int level = 5;
 	json_object *query = afb_req_json(request), *l;
@@ -369,7 +343,7 @@ static void verbose (afb_req request)
 	afb_req_success(request, NULL, NULL);
 }
 
-static void exitnow (afb_req request)
+static void exitnow (afb_req_t request)
 {
 	int code = 0;
 	json_object *query = afb_req_json(request), *l;
@@ -387,7 +361,7 @@ static void exitnow (afb_req request)
 	exit(code);
 }
 
-static void broadcast(afb_req request)
+static void broadcast(afb_req_t request)
 {
 	const char *tag = afb_req_value(request, "tag");
 	const char *name = afb_req_value(request, "name");
@@ -412,7 +386,7 @@ static void broadcast(afb_req request)
 	json_object_put(object);
 }
 
-static void hasperm (afb_req request)
+static void hasperm (afb_req_t request)
 {
 	const char *perm = afb_req_value(request, "perm");
 	if (afb_req_has_permission(request, perm))
@@ -421,39 +395,39 @@ static void hasperm (afb_req request)
 		afb_req_fail_f(request, "not-granted", "permission %s NOT granted", perm?:"(null)");
 }
 
-static void appid (afb_req request)
+static void appid (afb_req_t request)
 {
 	char *aid = afb_req_get_application_id(request);
 	afb_req_success_f(request, aid ? json_object_new_string(aid) : NULL, "application is %s", aid?:"?");
 	free(aid);
 }
 
-static void uid (afb_req request)
+static void uid (afb_req_t request)
 {
 	int uid = afb_req_get_uid(request);
 	afb_req_success_f(request, json_object_new_int(uid), "uid is %d", uid);
 }
 
-static int preinit()
+static int preinit(afb_api_t api)
 {
-	AFB_NOTICE("hello binding comes to live");
+	AFB_API_NOTICE(api, "hello binding comes to live");
 	return 0;
 }
 
-static int init()
+static int init(afb_api_t api)
 {
-	AFB_NOTICE("hello binding starting");
+	AFB_API_NOTICE(api, "hello binding starting");
 	return 0;
 }
 
-static void onevent(const char *event, struct json_object *object)
+static void onevent(afb_api_t api, const char *event, struct json_object *object)
 {
-	AFB_NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
+	AFB_API_NOTICE(api, "received event %s(%s)", event, json_object_to_json_string(object));
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const afb_verb_v2 verbs[]= {
+static const struct afb_verb_v3 verbs[]= {
   { .verb="ping",        .callback=pingSample },
   { .verb="pingfail",    .callback=pingFail },
   { .verb="pingnull",    .callback=pingNull },
@@ -461,7 +435,6 @@ static const afb_verb_v2 verbs[]= {
   { .verb="pingJson",    .callback=pingJson },
   { .verb="pingevent",   .callback=pingEvent },
   { .verb="subcall",     .callback=subcall },
-  { .verb="subcallreq",  .callback=subcallreq },
   { .verb="subcallsync", .callback=subcallsync },
   { .verb="eventadd",    .callback=eventadd },
   { .verb="eventdel",    .callback=eventdel },
@@ -479,7 +452,7 @@ static const afb_verb_v2 verbs[]= {
   { .verb=NULL}
 };
 
-const afb_binding_v2 afbBindingV2 = {
+const struct afb_binding_v3 afbBindingV3 = {
 	.api = "hello",
 	.specification = NULL,
 	.verbs = verbs,

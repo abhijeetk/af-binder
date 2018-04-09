@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016, 2017, 2018 "IoT.bzh"
- * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,14 +31,68 @@
 
 #define INCR 8		/* CAUTION: must be a power of 2 */
 
+struct afb_apiset;
+struct api_desc;
+struct api_class;
+struct api_alias;
+struct api_depend;
+
+/**
+ * array of items
+ */
+struct api_array {
+	int count;			/* count of items */
+	union {
+		void **anys;
+		struct api_desc **apis;
+		struct api_class **classes;
+		struct api_alias **aliases;
+		struct api_depend **depends;
+	};
+};
+
 /**
  * Internal description of an api
  */
 struct api_desc
 {
-	int status;
-	const char *name;	/**< name of the api */
-	struct afb_api api;	/**< handler of the api */
+	struct api_desc *next;
+	const char *name;		/**< name of the api */
+	int status;			/**< initialisation status */
+	struct afb_api_item api;	/**< handler of the api */
+	struct {
+		struct api_array classes;
+		struct api_array apis;
+	} require;
+};
+
+/**
+ * internal description of aliases
+ */
+struct api_alias
+{
+	struct api_alias *next;
+	struct api_desc *api;
+	char name[1];
+};
+
+/**
+ *
+ */
+struct api_class
+{
+	struct api_class *next;
+	struct api_array providers;
+	char name[1];
+};
+
+/**
+ *
+ */
+struct api_depend
+{
+	struct afb_apiset *set;
+	char name[1];
 };
 
 /**
@@ -47,13 +100,131 @@ struct api_desc
  */
 struct afb_apiset
 {
-	struct api_desc *apis;		/**< description of apis */
+	struct api_array apis;		/**< the apis */
+	struct api_alias *aliases;	/**< the aliases */
 	struct afb_apiset *subset;	/**< subset if any */
-	int count;			/**< count of apis in the set */
+	struct {
+		int (*callback)(void*, struct afb_apiset*, const char*); /* not found handler */
+		void *closure;
+		void (*cleanup)(void*);
+	} onlack;			/** not found handler */
 	int timeout;			/**< the timeout in second for the apiset */
 	int refcount;			/**< reference count for freeing resources */
 	char name[1];			/**< name of the apiset */
 };
+
+/**
+ * global apis
+ */
+static struct api_desc *all_apis;
+
+/**
+ * global classes
+ */
+static struct api_class *all_classes;
+
+/**
+ * Ensure enough room in 'array' for 'count' items
+ */
+static int api_array_ensure_count(struct api_array *array, int count)
+{
+	int c;
+	void **anys;
+
+	c = (count + INCR - 1) & ~(INCR - 1);
+	anys = realloc(array->anys, c * sizeof *anys);
+	if (!anys) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	array->count = count;
+	array->anys = anys;
+	return 0;
+}
+
+/**
+ * Insert in 'array' the item 'any' at the 'index'
+ */
+static int api_array_insert(struct api_array *array, void *any, int index)
+{
+	int n = array->count;
+
+	if (api_array_ensure_count(array, n + 1) < 0)
+		return -1;
+
+	while (index < n) {
+		array->anys[n] = array->anys[n - 1];
+		n--;
+	}
+
+	array->anys[index] = any;
+	return 0;
+}
+
+/**
+ * Add the item 'any' to the 'array'
+ */
+static int api_array_add(struct api_array *array, void *any)
+{
+	int i, n = array->count;
+
+	for (i = 0 ; i < n ; i++) {
+		if (array->anys[i] == any)
+			return 0;
+	}
+
+	if (api_array_ensure_count(array, n + 1) < 0)
+		return -1;
+
+	array->anys[n] = any;
+	return 0;
+}
+
+/**
+ * Delete the 'api' from the 'array'
+ * Returns 1 if delete or 0 if not found
+ */
+static int api_array_del(struct api_array *array, void *any)
+{
+	int i = array->count;
+	while (i) {
+		if (array->anys[--i] == any) {
+			array->anys[i] = array->anys[--array->count];
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Search the class of 'name' and return it.
+ * In case where the class of 'namle' isn't found, it returns
+ * NULL when 'create' is null or a fresh created instance if 'create' isn't
+ * zero (but NULL on allocation failure).
+ */
+static struct api_class *class_search(const char *name, int create)
+{
+	struct api_class *c;
+
+	for (c= all_classes ; c ; c = c->next) {
+		if (!strcasecmp(name, c->name))
+			return c;
+	}
+
+	if (!create)
+		return NULL;
+
+	c = calloc(1, strlen(name) + sizeof *c);
+	if (!c)
+		errno = ENOMEM;
+	else {
+		strcpy(c->name, name);
+		c->next = all_classes;
+		all_classes = c;
+	}
+	return c;
+}
 
 /**
  * Search the api of 'name'.
@@ -65,20 +236,16 @@ static struct api_desc *search(struct afb_apiset *set, const char *name)
 {
 	int i, c, up, lo;
 	struct api_desc *a;
+	struct api_alias *aliases;
 
 	/* dichotomic search of the api */
 	/* initial slice */
 	lo = 0;
-	up = set->count;
-	for (;;) {
-		/* check remaining slice */
-		if (lo >= up) {
-			/* not found */
-			return NULL;
-		}
+	up = set->apis.count;
+	while (lo < up) {
 		/* check the mid of the slice */
 		i = (lo + up) >> 1;
-		a = &set->apis[i];
+		a = set->apis.apis[i];
 		c = strcasecmp(a->name, name);
 		if (c == 0) {
 			/* found */
@@ -90,6 +257,37 @@ static struct api_desc *search(struct afb_apiset *set, const char *name)
 		else
 			up = i;
 	}
+
+	/* linear search of aliases */
+	aliases = set->aliases;
+	for(;;) {
+		if (!aliases)
+			break;
+		c = strcasecmp(aliases->name, name);
+		if (!c)
+			return aliases->api;
+		if (c > 0)
+			break;
+		aliases = aliases->next;
+	}
+	return NULL;
+}
+
+/**
+ * Search the api of 'name' in the apiset and in its subsets.
+ * @param set the api set
+ * @param name the api name to search
+ * @return the descriptor if found or NULL otherwise
+ */
+static struct api_desc *searchrec(struct afb_apiset *set, const char *name)
+{
+	struct api_desc *result;
+
+	do {
+		result = search(set, name);
+	} while (result == NULL && (set = set->subset) != NULL);
+
+	return result;
 }
 
 /**
@@ -111,9 +309,24 @@ struct afb_apiset *afb_apiset_addref(struct afb_apiset *set)
  */
 void afb_apiset_unref(struct afb_apiset *set)
 {
+	struct api_alias *a;
+	struct api_desc *d;
+
 	if (set && !__atomic_sub_fetch(&set->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_apiset_unref(set->subset);
-		free(set->apis);
+		if (set->onlack.cleanup)
+			set->onlack.cleanup(set->onlack.closure);
+		while((a = set->aliases)) {
+			set->aliases = a->next;
+			free(a);
+		}
+		while (set->apis.count) {
+			d = set->apis.apis[--set->apis.count];
+			if (d->api.itf->unref)
+				d->api.itf->unref(d->api.closure);
+			free(d);
+		}
+		free(set->apis.apis);
 		free(set);
 	}
 }
@@ -128,19 +341,46 @@ struct afb_apiset *afb_apiset_create(const char *name, int timeout)
 {
 	struct afb_apiset *set;
 
-	set = malloc((name ? strlen(name) : 0) + sizeof *set);
+	set = calloc(1, (name ? strlen(name) : 0) + sizeof *set);
 	if (set) {
-		set->apis = malloc(INCR * sizeof *set->apis);
-		set->count = 0;
 		set->timeout = timeout;
 		set->refcount = 1;
-		set->subset = NULL;
 		if (name)
 			strcpy(set->name, name);
-		else
-			set->name[0] = 0;
 	}
 	return set;
+}
+
+/**
+ * Create an apiset being the last subset of 'set'
+ * @param set     the set to extend with the created subset (can be NULL)
+ * @param name    the name of the created apiset (can be NULL)
+ * @param timeout the default timeout in seconds for the created apiset
+ * @return the created apiset or NULL in case of error
+ */
+struct afb_apiset *afb_apiset_create_subset_last(struct afb_apiset *set, const char *name, int timeout)
+{
+	if (set)
+		while (set->subset)
+			set = set->subset;
+	return afb_apiset_create_subset_first(set, name, timeout);
+}
+
+/**
+ * Create an apiset being the first subset of 'set'
+ * @param set     the set to extend with the created subset (can be NULL)
+ * @param name    the name of the created apiset (can be NULL)
+ * @param timeout the default timeout in seconds for the created apiset
+ * @return the created apiset or NULL in case of error
+ */
+struct afb_apiset *afb_apiset_create_subset_first(struct afb_apiset *set, const char *name, int timeout)
+{
+	struct afb_apiset *result = afb_apiset_create(name, timeout);
+	if (result && set) {
+		result->subset = set->subset;
+		set->subset = result;
+	}
+	return result;
 }
 
 /**
@@ -200,6 +440,15 @@ void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
 	afb_apiset_unref(tmp);
 }
 
+void afb_apiset_onlack_set(struct afb_apiset *set, int (*callback)(void*, struct afb_apiset*, const char*), void *closure, void (*cleanup)(void*))
+{
+	if (set->onlack.cleanup)
+		set->onlack.cleanup(set->onlack.closure);
+	set->onlack.callback = callback;
+	set->onlack.closure = closure;
+	set->onlack.cleanup = cleanup;
+}
+
 /**
  * Adds the api of 'name' described by 'api'.
  * @param set the api set
@@ -210,50 +459,115 @@ void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
  *   - EEXIST if name already registered
  *   - ENOMEM when out of memory
  */
-int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api api)
+int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api_item api)
 {
-	struct api_desc *apis;
+	struct api_desc *desc;
 	int i, c;
 
-	/* check previously existing plugin */
-	for (i = 0 ; i < set->count ; i++) {
-		c = strcasecmp(set->apis[i].name, name);
-		if (c == 0) {
-			ERROR("api of name %s already exists", name);
-			errno = EEXIST;
-			goto error;
-		}
+	/* check whether it exists already */
+	if (search(set, name)) {
+		ERROR("api of name %s already exists", name);
+		errno = EEXIST;
+		goto error;
+	}
+
+	/* search insertion place */
+	for (i = 0 ; i < set->apis.count ; i++) {
+		c = strcasecmp(set->apis.apis[i]->name, name);
 		if (c > 0)
 			break;
 	}
 
-	/* allocates enough memory */
-	c = (set->count + INCR) & ~(INCR - 1);
-	apis = realloc(set->apis, ((unsigned)c) * sizeof * apis);
-	if (apis == NULL) {
-		ERROR("out of memory");
-		errno = ENOMEM;
+	/* allocates memory */
+	desc = calloc(1, sizeof *desc);
+	if (!desc)
+		goto oom;
+
+	desc->status = -1;
+	desc->api = api;
+	desc->name = name;
+
+	if (api_array_insert(&set->apis, desc, i) < 0) {
+		free(desc);
 		goto error;
 	}
-	set->apis = apis;
 
-	/* copy higher part of the array */
-	apis += i;
-	if (i != set->count)
-		memmove(apis + 1, apis, ((unsigned)(set->count - i)) * sizeof *apis);
-
-	/* record the plugin */
-	apis->status = -1;
-	apis->api = api;
-	apis->name = name;
-	set->count++;
+	desc->next = all_apis;
+	all_apis = desc;
 
 	INFO("API %s added", name);
 
 	return 0;
 
+oom:
+	ERROR("out of memory");
+	errno = ENOMEM;
 error:
 	return -1;
+}
+
+/**
+ * Adds a the 'alias' name to the api of 'name'.
+ * @params set the api set
+ * @param name the name of the api to alias
+ * @param alias the aliased name to add to the api of name
+ * @returns 0 in case of success or -1 in case
+ * of error with errno set:
+ *   - ENOENT if the api doesn't exist
+ *   - EEXIST if name (of alias) already registered
+ *   - ENOMEM when out of memory
+ */
+int afb_apiset_add_alias(struct afb_apiset *set, const char *name, const char *alias)
+{
+	struct api_desc *api;
+	struct api_alias *ali, **pali;
+
+	/* check alias doesn't already exist */
+	if (search(set, alias)) {
+		ERROR("api of name %s already exists", alias);
+		errno = EEXIST;
+		goto error;
+	}
+
+	/* check aliased api exists */
+	api = search(set, name);
+	if (api == NULL) {
+		ERROR("api of name %s doesn't exists", name);
+		errno = ENOENT;
+		goto error;
+	}
+
+	/* allocates and init the struct */
+	ali = malloc(sizeof *ali + strlen(alias));
+	if (ali == NULL) {
+		ERROR("out of memory");
+		errno = ENOMEM;
+		goto error;
+	}
+	ali->api = api;
+	strcpy(ali->name, alias);
+
+	/* insert the alias in the sorted order */
+	pali = &set->aliases;
+	while(*pali && strcmp((*pali)->name, alias) < 0)
+		pali = &(*pali)->next;
+	ali->next = *pali;
+	*pali = ali;
+	return 0;
+error:
+	return -1;
+}
+
+int afb_apiset_is_alias(struct afb_apiset *set, const char *name)
+{
+	struct api_desc *api = searchrec(set, name);
+	return api && strcasecmp(api->name, name);
+}
+
+const char *afb_apiset_unalias(struct afb_apiset *set, const char *name)
+{
+	struct api_desc *api = searchrec(set, name);
+	return api ? api->name : NULL;
 }
 
 /**
@@ -264,28 +578,72 @@ error:
  */
 int afb_apiset_del(struct afb_apiset *set, const char *name)
 {
-	struct api_desc *i, *e;
-	int c;
+	struct api_class *cla;
+	struct api_alias *ali, **pali;
+	struct api_desc *desc, **pdesc, *odesc;
+	int i, c;
 
-	/* search the api */
-	i = set->apis;
-	e = i + set->count;
-	while (i != e) {
-		c = strcasecmp(i->name, name);
-		if (c == 0) {
-			if (i->api.itf->unref)
-				i->api.itf->unref(i->api.closure);
-			set->count--;
-			e--;
-			while (i != e) {
-				i[0] = i[1];
-				i++;
-			}
+	/* search the alias */
+	pali = &set->aliases;
+	while ((ali = *pali)) {
+		c = strcasecmp(ali->name, name);
+		if (!c) {
+			*pali = ali->next;
+			free(ali);
 			return 0;
 		}
 		if (c > 0)
 			break;
-		i++;
+		pali = &ali->next;
+	}
+
+	/* search the api */
+	for (i = 0 ; i < set->apis.count ; i++) {
+		desc = set->apis.apis[i];
+		c = strcasecmp(desc->name, name);
+		if (c == 0) {
+			/* remove from classes */
+			for (cla = all_classes ; cla ; cla = cla->next)
+				api_array_del(&cla->providers, desc);
+
+			/* unlink from the whole set and their requires */
+			pdesc = &all_apis;
+			while ((odesc = *pdesc) != desc) {
+				pdesc = &odesc->next;
+			}
+			*pdesc = odesc = desc->next;
+			while (odesc) {
+				odesc = odesc->next;
+			}
+
+			/* remove references from classes */
+			free(desc->require.classes.classes);
+
+			/* drop the aliases */
+			pali = &set->aliases;
+			while ((ali = *pali)) {
+				if (ali->api != desc)
+					pali = &ali->next;
+				else {
+					*pali = ali->next;
+					free(ali);
+				}
+			}
+
+			/* unref the api */
+			if (desc->api.itf->unref)
+				desc->api.itf->unref(desc->api.closure);
+
+			set->apis.count--;
+			while(i < set->apis.count) {
+				set->apis.apis[i] = set->apis.apis[i + 1];
+				i++;
+			}
+			free(desc);
+			return 0;
+		}
+		if (c > 0)
+			break;
 	}
 	errno = ENOENT;
 	return -1;
@@ -300,8 +658,21 @@ int afb_apiset_del(struct afb_apiset *set, const char *name)
  */
 static struct api_desc *lookup(struct afb_apiset *set, const char *name, int rec)
 {
-	struct api_desc *i = search(set, name);
-	return i || !rec || !set->subset ? i : lookup(set->subset, name, rec);
+	struct api_desc *result;
+
+	result = search(set, name);
+	while (!result) {
+		/* lacking the api, try onlack behaviour */
+		if (set->onlack.callback && set->onlack.callback(set->onlack.closure, set, name) > 0) {
+			result = search(set, name);
+			if (result)
+				break;
+		}
+		if (!rec || !(set = set->subset))
+			break;
+		result = search(set, name);
+	}
+	return result;
 }
 
 /**
@@ -311,7 +682,7 @@ static struct api_desc *lookup(struct afb_apiset *set, const char *name, int rec
  * @param rec if not zero look also recursively in subsets
  * @return the api pointer in case of success or NULL in case of error
  */
-const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name, int rec)
+const struct afb_api_item *afb_apiset_lookup(struct afb_apiset *set, const char *name, int rec)
 {
 	struct api_desc *i;
 
@@ -320,6 +691,78 @@ const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name
 		return &i->api;
 	errno = ENOENT;
 	return NULL;
+}
+
+static int start_api(struct api_desc *api, int share_session, int onneed);
+
+/**
+ * Start the apis of the 'array'
+ * The attribute 'share_session' is sent to the start function.
+ */
+static int start_array_apis(struct api_array *array, int share_session)
+{
+	int i, rc = 0, rc2;
+
+	i = array->count;
+	while (i) {
+		rc2 = start_api(array->apis[--i], share_session, 1);
+		if (rc2 < 0) {
+			rc = rc2;
+		}
+	}
+	return rc;
+}
+
+/**
+ * Start the class 'cla' (start the apis that provide it).
+ * The attribute 'share_session' is sent to the start function.
+ */
+static int start_class(struct api_class *cla, int share_session)
+{
+	return start_array_apis(&cla->providers, share_session);
+}
+
+/**
+ * Start the classes of the 'array'
+ * The attribute 'share_session' is sent to the start function.
+ */
+static int start_array_classes(struct api_array *array, int share_session)
+{
+	int i, rc = 0, rc2;
+
+	i = array->count;
+	while (i) {
+		rc2 = start_class(array->classes[--i], share_session);
+		if (rc2 < 0) {
+			rc = rc2;
+		}
+	}
+	return rc;
+}
+
+/**
+ * Start the depends of the 'array'
+ * The attribute 'share_session' is sent to the start function.
+ */
+static int start_array_depends(struct api_array *array, int share_session)
+{
+	struct api_desc *api;
+	int i, rc = 0, rc2;
+
+	i = array->count;
+	while (i) {
+		i--;
+		api = searchrec(array->depends[i]->set, array->depends[i]->name);
+		if (!api)
+			rc = -1;
+		else {
+			rc2 = start_api(api, share_session, 1);
+			if (rc2 < 0) {
+				rc = rc2;
+			}
+		}
+	}
+	return rc;
 }
 
 /**
@@ -331,7 +774,7 @@ const struct afb_api *afb_apiset_lookup(struct afb_apiset *set, const char *name
  *               must be a service
  * @return a positive number on success
  */
-static int start_api(struct afb_apiset *set, struct api_desc *api, int share_session, int onneed)
+static int start_api(struct api_desc *api, int share_session, int onneed)
 {
 	int rc;
 
@@ -343,9 +786,11 @@ static int start_api(struct afb_apiset *set, struct api_desc *api, int share_ses
 	}
 
 	INFO("API %s starting...", api->name);
+	rc = start_array_classes(&api->require.classes, share_session);
+	rc = start_array_depends(&api->require.apis, share_session);
 	if (api->api.itf->service_start) {
 		api->status = EBUSY;
-		rc = api->api.itf->service_start(api->api.closure, share_session, onneed, set);
+		rc = api->api.itf->service_start(api->api.closure, share_session, onneed);
 		if (rc < 0) {
 			api->status = errno ?: ECANCELED;
 			ERROR("The api %s failed to start (%d)", api->name, rc);
@@ -369,13 +814,13 @@ static int start_api(struct afb_apiset *set, struct api_desc *api, int share_ses
  * @param rec if not zero look also recursively in subsets
  * @return 0 in case of success or -1 in case of error
  */
-const struct afb_api *afb_apiset_lookup_started(struct afb_apiset *set, const char *name, int rec)
+const struct afb_api_item *afb_apiset_lookup_started(struct afb_apiset *set, const char *name, int rec)
 {
 	struct api_desc *i;
 
 	i = lookup(set, name, rec);
 	if (i)
-		return i->status && start_api(set, i, 1, 1) ? NULL : &i->api;
+		return i->status && start_api(i, 1, 1) ? NULL : &i->api;
 	errno = ENOENT;
 	return NULL;
 }
@@ -394,14 +839,14 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
 {
 	struct api_desc *a;
 
-	a = search(set, name);
+	a = searchrec(set, name);
 	if (!a) {
 		ERROR("can't find service %s", name);
 		errno = ENOENT;
 		return -1;
 	}
 
-	return start_api(set, a, share_session, onneed);
+	return start_api(a, share_session, onneed);
 }
 
 /**
@@ -414,18 +859,19 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
 int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
 {
 	int rc;
-	struct api_desc *i, *e;
+	int i;
 
-	i = set->apis;
-	e = &set->apis[set->count];
-	while (i != e) {
-		rc = start_api(set, i, share_session, 1);
-		if (rc < 0)
-			return rc;
-		i++;
+	while (set) {
+		i = 0;
+		while (i < set->apis.count) {
+			rc = start_api(set->apis.apis[i], share_session, 1);
+			if (rc < 0)
+				return rc;
+			i++;
+		}
+		set = set->subset;
 	}
-
-	return set->subset ? afb_apiset_start_all_services(set->subset, share_session) : 0;
+	return 0;
 }
 
 /**
@@ -435,65 +881,66 @@ int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
  */
 void afb_apiset_update_hooks(struct afb_apiset *set, const char *name)
 {
-	const struct api_desc *i, *e;
+	struct api_desc **i, **e, *d;
 
 	if (!name) {
-		i = set->apis;
-		e = &set->apis[set->count];
+		i = set->apis.apis;
+		e = &set->apis.apis[set->apis.count];
+		while (i != e) {
+			d = *i++;
+			if (d->api.itf->update_hooks)
+				d->api.itf->update_hooks(d->api.closure);
+		}
 	} else {
-		i = search(set, name);
-		e = &i[!!i];
-	}
-	while (i != e) {
-		if (i->api.itf->update_hooks)
-			i->api.itf->update_hooks(i->api.closure);
-		i++;
+		d = searchrec(set, name);
+		if (d && d->api.itf->update_hooks)
+			d->api.itf->update_hooks(d->api.closure);
 	}
 }
 
 /**
- * Set the verbosity level of the 'api'
+ * Set the logmask of the 'api' to 'mask'
  * @param set the api set
  * @param name the api to set (NULL set all)
  */
-void afb_apiset_set_verbosity(struct afb_apiset *set, const char *name, int level)
+void afb_apiset_set_logmask(struct afb_apiset *set, const char *name, int mask)
 {
-	const struct api_desc *i, *e;
+	int i;
+	struct api_desc *d;
 
 	if (!name) {
-		i = set->apis;
-		e = &set->apis[set->count];
+		for (i = 0 ; i < set->apis.count ; i++) {
+			d = set->apis.apis[i];;
+			if (d->api.itf->set_logmask)
+				d->api.itf->set_logmask(d->api.closure, mask);
+		}
 	} else {
-		i = search(set, name);
-		e = &i[!!i];
-	}
-	while (i != e) {
-		if (i->api.itf->set_verbosity)
-			i->api.itf->set_verbosity(i->api.closure, level);
-		i++;
+		d = searchrec(set, name);
+		if (d && d->api.itf->set_logmask)
+			d->api.itf->set_logmask(d->api.closure, mask);
 	}
 }
 
 /**
- * Get the verbosity level of the 'api'
+ * Get the logmask level of the 'api'
  * @param set the api set
  * @param name the api to get
- * @return the verbosity level or -1 in case of error
+ * @return the logmask level or -1 in case of error
  */
-int afb_apiset_get_verbosity(struct afb_apiset *set, const char *name)
+int afb_apiset_get_logmask(struct afb_apiset *set, const char *name)
 {
 	const struct api_desc *i;
 
-	i = name ? search(set, name) : NULL;
+	i = name ? searchrec(set, name) : NULL;
 	if (!i) {
 		errno = ENOENT;
 		return -1;
 	}
 
-	if (!i->api.itf->get_verbosity)
-		return verbosity;
+	if (!i->api.itf->get_logmask)
+		return logmask;
 
-	return i->api.itf->get_verbosity(i->api.closure);
+	return i->api.itf->get_logmask(i->api.closure);
 }
 
 /**
@@ -506,36 +953,79 @@ struct json_object *afb_apiset_describe(struct afb_apiset *set, const char *name
 {
 	const struct api_desc *i;
 
-	i = name ? search(set, name) : NULL;
+	i = name ? searchrec(set, name) : NULL;
 	return i && i->api.itf->describe ? i->api.itf->describe(i->api.closure) : NULL;
 }
+
+struct get_names {
+	union  {
+		struct {
+			size_t count;
+			size_t size;
+		};
+		struct {
+			const char **ptr;
+			char *data;
+		};
+	};
+	int type;
+};
+
+static void get_names_count(void *closure, struct afb_apiset *set, const char *name, int isalias)
+{
+	struct get_names *gc = closure;
+	if ((1 + isalias) & gc->type) {
+		gc->size += strlen(name);
+		gc->count++;
+	}
+}
+
+static void get_names_value(void *closure, struct afb_apiset *set, const char *name, int isalias)
+{
+	struct get_names *gc = closure;
+	if ((1 + isalias) & gc->type) {
+		*gc->ptr++ = gc->data;
+		gc->data = stpcpy(gc->data, name) + 1;
+	}
+}
+
+#if !defined(APISET_NO_SORT)
+static int get_names_sortcb(const void *a, const void *b)
+{
+	return strcasecmp(*(const char **)a, *(const char **)b);
+}
+#endif
 
 /**
  * Get the list of api names
  * @param set the api set
+ * @param rec recursive
+ * @param type expected type: 1 names, 3 names+aliases, 2 aliases
  * @return a NULL terminated array of api names. Must be freed.
  */
-const char **afb_apiset_get_names(struct afb_apiset *set)
+const char **afb_apiset_get_names(struct afb_apiset *set, int rec, int type)
 {
+	struct get_names gc;
 	size_t size;
-	char *dest;
 	const char **names;
-	int i;
 
-	size = set->count * (1 + sizeof(*names)) + sizeof(*names);
-	for (i = 0 ; i < set->count ; i++)
-		size += strlen(set->apis[i].name);
+	gc.count = gc.size = 0;
+	gc.type = type >= 1 && type <= 3 ? type : 1;
+	afb_apiset_enum(set, rec, get_names_count, &gc);
 
+	size = gc.size + gc.count * (1 + sizeof *names) + sizeof(*names);
 	names = malloc(size);
+
 	if (!names)
 		errno = ENOMEM;
 	else {
-		dest = (void*)&names[set->count+1];
-		for (i = 0 ; i < set->count ; i++) {
-			names[i] = dest;
-			dest = stpcpy(dest, set->apis[i].name) + 1;
-		}
-		names[i] = NULL;
+		gc.data = (char*)&names[gc.count + 1];
+		gc.ptr = names;
+		afb_apiset_enum(set, rec, get_names_value, &gc);
+#if !defined(APISET_NO_SORT)
+		qsort(names, gc.ptr - names, sizeof *names, get_names_sortcb);
+#endif
+		*gc.ptr = NULL;
 	}
 	return names;
 }
@@ -543,24 +1033,97 @@ const char **afb_apiset_get_names(struct afb_apiset *set)
 /**
  * Enumerate the api names to a callback.
  * @param set the api set
+ * @param rec should the enumeration be recursive
  * @param callback the function to call for each name
  * @param closure the closure for the callback
  */
-void afb_apiset_enum(struct afb_apiset *set, int rec, void (*callback)(struct afb_apiset *set, const char *name, void *closure), void *closure)
+void afb_apiset_enum(
+	struct afb_apiset *set,
+	int rec,
+	void (*callback)(void *closure, struct afb_apiset *set, const char *name, int isalias),
+	void *closure)
 {
+	int i;
 	struct afb_apiset *iset;
-	struct api_desc *i, *e;
+	struct api_desc *d;
+	struct api_alias *a;
 
 	iset = set;
 	while (iset) {
-		i = iset->apis;
-		e = &i[iset->count];
-		while (i != e) {
-			if (lookup(set, i->name, 1) == i)
-				callback(iset, i->name, closure);
-			i++;
+		for (i = 0 ; i < set->apis.count ; i++) {
+			d = set->apis.apis[i];;
+			if (searchrec(set, d->name) == d)
+				callback(closure, iset, d->name, 0);
+		}
+		a = iset->aliases;
+		while (a) {
+			if (searchrec(set, a->name) == a->api)
+				callback(closure, iset, a->name, 1);
+			a = a->next;
 		}
 		iset = rec ? iset->subset : NULL;
 	}
+}
+
+/**
+ * Declare that the api of 'name' requires the api of name 'required'.
+ * The api is searched in the apiset 'set' and if 'rec' isn't null also in its subset.
+ * Returns 0 if the declaration successed or -1 in case of failure
+ * (ENOMEM: allocation failure, ENOENT: api name not found)
+ */
+int afb_apiset_require(struct afb_apiset *set, const char *name, const char *required)
+{
+	struct api_desc *a;
+	struct api_depend *d;
+	int rc = -1;
+
+	a = searchrec(set, name);
+	if (!a)
+		errno = ENOENT;
+	else {
+		d = malloc(strlen(required) + sizeof *d);
+		if (!d)
+			errno = ENOMEM;
+		else {
+			d->set = set;
+			strcpy(d->name, required);
+			rc = api_array_add(&a->require.apis, d);
+		}
+	}
+	return rc;
+}
+
+/**
+ * Declare that the api of name 'apiname' requires the class of name 'classname'.
+ * Returns 0 if the declaration successed or -1 in case of failure
+ * (ENOMEM: allocation failure, ENOENT: api name not found)
+ */
+int afb_apiset_require_class(struct afb_apiset *set, const char *apiname, const char *classname)
+{
+	struct api_desc *a = searchrec(set, apiname);
+	struct api_class *c = class_search(classname, 1);
+	return a && c ? api_array_add(&a->require.classes, c) : (errno = ENOENT, -1);
+}
+
+/**
+ * Declare that the api of name 'apiname' provides the class of name 'classname'
+ * Returns 0 if the declaration successed or -1 in case of failure
+ * (ENOMEM: allocation failure, ENOENT: api name not found)
+ */
+int afb_apiset_provide_class(struct afb_apiset *set, const char *apiname, const char *classname)
+{
+	struct api_desc *a = searchrec(set, apiname);
+	struct api_class *c = class_search(classname, 1);
+	return a && c ? api_array_add(&c->providers, a) : (errno = ENOENT, -1);
+}
+
+/**
+ * Start any API that provides the class of name 'classname'
+ * The attribute 'share_session' is sent to the start function.
+ */
+int afb_apiset_class_start(const char *classname, int share_session)
+{
+	struct api_class *cla = class_search(classname, 0);
+	return cla ? start_class(cla, share_session) : (errno = ENOENT, -1);
 }
 

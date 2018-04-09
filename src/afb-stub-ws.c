@@ -34,7 +34,7 @@
 
 #include <json-c/json.h>
 
-#include <afb/afb-event.h>
+#include <afb/afb-event-x2.h>
 
 #include "afb-session.h"
 #include "afb-cred.h"
@@ -51,29 +51,6 @@
 
 struct afb_stub_ws;
 
-
-/******************* handling subcalls *****************************/
-
-/**
- * Structure on server side for recording pending
- * subcalls.
- */
-struct server_subcall
-{
-	struct server_subcall *next;	/**< next subcall for the client */
-	uint32_t subcallid;		/**< the subcallid */
-	void (*callback)(void*, int, struct json_object*); /**< callback on completion */
-	void *closure;			/**< closure of the callback */
-};
-
-/**
- * Structure for sending back replies on client side
- */
-struct client_subcall
-{
-	struct afb_stub_ws *stubws;	/**< stub descriptor */
-	uint32_t subcallid;		/**< subcallid for the reply */
-};
 
 /*
  * structure for recording calls on client side
@@ -100,7 +77,7 @@ struct server_req {
 struct client_event
 {
 	struct client_event *next;
-	struct afb_eventid *eventid;
+	struct afb_event_x2 *event;
 	int id;
 	int refcount;
 };
@@ -152,7 +129,7 @@ struct afb_stub_ws
 	/* event replica (client side) */
 	struct client_event *events;
 
-	/* credentials (server side) */
+	/* credentials of the client (server side) */
 	struct afb_cred *cred;
 
 	/* sessions (server side) */
@@ -183,57 +160,37 @@ static void server_req_destroy_cb(struct afb_xreq *xreq)
 	free(wreq);
 }
 
-static void server_req_success_cb(struct afb_xreq *xreq, struct json_object *obj, const char *info)
+static void server_req_reply_cb(struct afb_xreq *xreq, struct json_object *obj, const char *error, const char *info)
 {
 	int rc;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
 
-	rc = afb_proto_ws_call_success(wreq->call, obj, info);
+	rc = afb_proto_ws_call_reply(wreq->call, obj, error, info);
 	if (rc < 0)
-		ERROR("error while sending success");
+		ERROR("error while sending reply");
 	json_object_put(obj);
 }
 
-static void server_req_fail_cb(struct afb_xreq *xreq, const char *status, const char *info)
+static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_event_x2 *event)
 {
 	int rc;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
 
-	rc = afb_proto_ws_call_fail(wreq->call, status, info);
-	if (rc < 0)
-		ERROR("error while sending fail");
-}
-
-static void server_req_subcall_cb(struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
-{
-	int rc;
-	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
-
-	rc = afb_proto_ws_call_subcall(wreq->call, api, verb, args, callback, cb_closure);
-	if (rc < 0)
-		ERROR("error while sending subcall");
-}
-
-static int server_req_subscribe_cb(struct afb_xreq *xreq, struct afb_eventid *event)
-{
-	int rc;
-	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
-
-	rc = afb_evt_eventid_add_watch(wreq->stubws->listener, event);
+	rc = afb_evt_event_x2_add_watch(wreq->stubws->listener, event);
 	if (rc >= 0)
-		rc = afb_proto_ws_call_subscribe(wreq->call,  afb_evt_eventid_fullname(event), afb_evt_eventid_id(event));
+		rc = afb_proto_ws_call_subscribe(wreq->call,  afb_evt_event_x2_fullname(event), afb_evt_event_x2_id(event));
 	if (rc < 0)
 		ERROR("error while subscribing event");
 	return rc;
 }
 
-static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_eventid *event)
+static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_event_x2 *event)
 {
 	int rc, rc2;
 	struct server_req *wreq = CONTAINER_OF_XREQ(struct server_req, xreq);
 
-	rc = afb_proto_ws_call_unsubscribe(wreq->call,  afb_evt_eventid_fullname(event), afb_evt_eventid_id(event));
-	rc2 = afb_evt_eventid_remove_watch(wreq->stubws->listener, event);
+	rc = afb_proto_ws_call_unsubscribe(wreq->call,  afb_evt_event_x2_fullname(event), afb_evt_event_x2_id(event));
+	rc2 = afb_evt_event_x2_remove_watch(wreq->stubws->listener, event);
 	if (rc >= 0 && rc2 < 0)
 		rc = rc2;
 	if (rc < 0)
@@ -242,10 +199,8 @@ static int server_req_unsubscribe_cb(struct afb_xreq *xreq, struct afb_eventid *
 }
 
 static const struct afb_xreq_query_itf server_req_xreq_itf = {
-	.success = server_req_success_cb,
-	.fail = server_req_fail_cb,
+	.reply = server_req_reply_cb,
 	.unref = server_req_destroy_cb,
-	.subcall = server_req_subcall_cb,
 	.subscribe = server_req_subscribe_cb,
 	.unsubscribe = server_req_unsubscribe_cb
 };
@@ -258,7 +213,7 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 	struct client_event *ev;
 
 	ev = stubws->events;
-	while (ev != NULL && (ev->id != eventid || 0 != strcmp(afb_evt_eventid_fullname(ev->eventid), name)))
+	while (ev != NULL && (ev->id != eventid || 0 != strcmp(afb_evt_event_x2_fullname(ev->event), name)))
 		ev = ev->next;
 
 	return ev;
@@ -269,7 +224,13 @@ static void client_call_cb(void * closure, struct afb_xreq *xreq)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_client_call(stubws->proto, xreq->request.verb, afb_xreq_json(xreq), afb_session_uuid(xreq->context.session), xreq);
+	afb_proto_ws_client_call(
+			stubws->proto,
+			xreq->request.called_verb,
+			afb_xreq_json(xreq),
+			afb_session_uuid(xreq->context.session),
+			xreq,
+			xreq_on_behalf_cred_export(xreq));
 	afb_xreq_unhooked_addref(xreq);
 }
 
@@ -339,19 +300,11 @@ static void server_event_broadcast(void *closure, const char *event, int eventid
 
 /*****************************************************/
 
-static void on_reply_success(void *closure, void *request, struct json_object *result, const char *info)
+static void on_reply(void *closure, void *request, struct json_object *object, const char *error, const char *info)
 {
 	struct afb_xreq *xreq = request;
 
-	afb_xreq_success(xreq, result, *info ? info : NULL);
-	afb_xreq_unhooked_unref(xreq);
-}
-
-static void on_reply_fail(void *closure, void *request, const char *status, const char *info)
-{
-	struct afb_xreq *xreq = request;
-
-	afb_xreq_fail(xreq, status, *info ? info : NULL);
+	afb_xreq_reply(xreq, object, error, info);
 	afb_xreq_unhooked_unref(xreq);
 }
 
@@ -370,8 +323,8 @@ static void on_event_create(void *closure, const char *event_name, int event_id)
 	/* no conflict, try to add it */
 	ev = malloc(sizeof *ev);
 	if (ev != NULL) {
-		ev->eventid = afb_evt_eventid_create(event_name);
-		if (ev->eventid != NULL) {
+		ev->event = afb_evt_event_x2_create(event_name);
+		if (ev->event != NULL) {
 			ev->refcount = 1;
 			ev->id = event_id;
 			ev->next = stubws->events;
@@ -404,7 +357,7 @@ static void on_event_remove(void *closure, const char *event_name, int event_id)
 	*prv = ev->next;
 
 	/* destroys the event */
-	afb_evt_eventid_unref(ev->eventid);
+	afb_evt_event_x2_unref(ev->event);
 	free(ev);
 }
 
@@ -419,7 +372,7 @@ static void on_event_subscribe(void *closure, void *request, const char *event_n
 	if (ev == NULL)
 		return;
 
-	if (afb_xreq_subscribe(xreq, ev->eventid) < 0)
+	if (afb_xreq_subscribe(xreq, ev->event) < 0)
 		ERROR("can't subscribe: %m");
 }
 
@@ -434,7 +387,7 @@ static void on_event_unsubscribe(void *closure, void *request, const char *event
 	if (ev == NULL)
 		return;
 
-	if (afb_xreq_unsubscribe(xreq, ev->eventid) < 0)
+	if (afb_xreq_unsubscribe(xreq, ev->event) < 0)
 		ERROR("can't unsubscribe: %m");
 }
 
@@ -446,7 +399,7 @@ static void on_event_push(void *closure, const char *event_name, int event_id, s
 	/* check conflicts */
 	ev = client_event_search(stubws, event_id, event_name);
 	if (ev)
-		afb_evt_eventid_push(ev->eventid, data);
+		afb_evt_event_x2_push(ev->event, data);
 	else
 		ERROR("unreadable push event");
 }
@@ -454,19 +407,6 @@ static void on_event_push(void *closure, const char *event_name, int event_id, s
 static void on_event_broadcast(void *closure, const char *event_name, struct json_object *data)
 {
 	afb_evt_broadcast(event_name, data);
-}
-
-static void client_subcall_reply_cb(void *closure, int status, json_object *object, struct afb_request *request)
-{
-	struct afb_proto_ws_subcall *subcall = closure;
-	afb_proto_ws_subcall_reply(subcall, status, object);
-}
-
-static void on_subcall(void *closure, struct afb_proto_ws_subcall *subcall, void *request, const char *api, const char *verb, struct json_object *args)
-{
-	struct afb_xreq *xreq = request;
-
-	afb_xreq_subcall(xreq, api, verb, args, client_subcall_reply_cb, subcall);
 }
 
 /*****************************************************/
@@ -514,7 +454,7 @@ static void release_all_sessions(struct afb_stub_ws *stubws)
 
 /*****************************************************/
 
-static void on_call(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid)
+static void on_call(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid, const char *user_creds)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct server_req *wreq;
@@ -539,9 +479,9 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 		afb_session_set_autoclose(wreq->xreq.context.session, 1);
 
 	/* makes the call */
-	wreq->xreq.cred = afb_cred_addref(stubws->cred);
-	wreq->xreq.request.api = stubws->apiname;
-	wreq->xreq.request.verb = verb;
+	wreq->xreq.cred = afb_cred_mixed_on_behalf_import(stubws->cred, sessionid, user_creds);
+	wreq->xreq.request.called_api = stubws->apiname;
+	wreq->xreq.request.called_verb = verb;
 	wreq->xreq.json = args;
 	afb_xreq_process(&wreq->xreq, stubws->apiset);
 	return;
@@ -551,7 +491,7 @@ unconnected:
 out_of_memory:
 	json_object_put(args);
 	afb_stub_ws_unref(stubws);
-	afb_proto_ws_call_fail(call, "internal-error", NULL);
+	afb_proto_ws_call_reply(call, NULL, "internal-error", NULL);
 	afb_proto_ws_call_unref(call);
 }
 
@@ -601,15 +541,13 @@ static void on_describe(void *closure, struct afb_proto_ws_describe *describe)
 
 static const struct afb_proto_ws_client_itf client_itf =
 {
-	.on_reply_success = on_reply_success,
-	.on_reply_fail = on_reply_fail,
+	.on_reply = on_reply,
 	.on_event_create = on_event_create,
 	.on_event_remove = on_event_remove,
 	.on_event_subscribe = on_event_subscribe,
 	.on_event_unsubscribe = on_event_unsubscribe,
 	.on_event_push = on_event_push,
 	.on_event_broadcast = on_event_broadcast,
-	.on_subcall = on_subcall
 };
 
 static const struct afb_proto_ws_server_itf server_itf =
@@ -642,7 +580,7 @@ static void drop_all_events(struct afb_stub_ws *stubws)
 
 	while (ev) {
 		nxt = ev->next;
-		afb_evt_eventid_unref(ev->eventid);
+		afb_evt_event_x2_unref(ev->event);
 		free(ev);
 		ev = nxt;
 	}
@@ -738,9 +676,9 @@ const char *afb_stub_ws_name(struct afb_stub_ws *stubws)
 	return stubws->apiname;
 }
 
-struct afb_api afb_stub_ws_client_api(struct afb_stub_ws *stubws)
+struct afb_api_item afb_stub_ws_client_api(struct afb_stub_ws *stubws)
 {
-	struct afb_api api;
+	struct afb_api_item api;
 
 	assert(!stubws->listener); /* check client */
 	api.closure = stubws;

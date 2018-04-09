@@ -6,14 +6,14 @@ the services that it needs.
 It provides a fast way to securely offer APIs to applications
 written in any language and running almost anywhere.
 
-- The ***binder*** is developed for AGL.
+- The ***binder*** is developed for AGL (Automotive Grade Linux) but it is not bound to AGL.
 - The ***binder*** is the usual name.
 - The binary is named **afb-daemon**.
 - The name **afb-daemon** stands for ***Application Framework Binder Daemon***.
 
 The word *daemon*, here, denote the fact that the ***binder*** makes witchcraft to
-connect applications to their expected services.  
-(note: that usually the term of daemon denotes background process but not here).
+connect applications to their expected services. (note: that usually the term of 
+daemon denotes background process but not here).
 
 Each ***binder*** **afb-daemon** is in charge to bind one instance of 
 an application or service to the rest of the system, applications and services.  

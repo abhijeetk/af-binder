@@ -1,93 +1,154 @@
-### Application Framework Binder
-This is an undergoing work, publication is only intended for developers to review and provide feedback.
+# AGL Framework Binder
 
-### License
-Apache 2
+This project provides the binder component of the the microservice architecture 
+of Automotive Grade Linux (AGL).
 
-### Building
-Building Application Framework Binder has been tested under **Ubuntu 16.04 LTS (Xenial Xerus)** or **Fedora 23**, and requires the following libraries:
+This project is available there https://git.automotivelinux.org/src/app-framework-binder/
+
+It can be cloned with **git clone https://git.automotivelinux.org/src/app-framework-binder**.
+
+
+## License and copying
+
+This software is an open source software funded by LinuxFoundation and Renesas.
+
+This software is delivered under the terms of the open source license Apache 2.
+
+This license is available in the file LICENSE-2.0.txt or on the worl wide web at the
+location https://opensource.org/licenses/Apache-2.0
+
+
+## Building
+
+### Requirements
+
+Building the AGL framework binder has been tested under 
+  **Ubuntu**, **Debian** and **Fedora 26** with gcc 6 and 7.
+
+It requires the following libraries:
+
  * libmagic ("libmagic-dev" under Ubuntu, "file-devel" under Fedora);
- * libmicrohttpd >= 0.9.48  (fetch and build from "http://ftp.gnu.org/gnu/libmicrohttpd");
+ * libmicrohttpd >= 0.9.55  (fetch and build from "http://ftp.gnu.org/gnu/libmicrohttpd");
  * json-c ("libjson-c-dev/devel");
  * uuid ("uuid-dev/libuuid-devel");
  * openssl ("libssl-dev/openssl-devel");
  * systemd >= 222 ("libsystemd-dev/systemd-devel");
 
-Optionally, for plugins :
- * alsa ("libasound2-dev/alsa-devel");
- * pulseaudio ("libpulse-dev/libpulse-devel");
- * rtl-sdr >= 0.5.0 ("librtlsdr-dev", or fetch and build from "git://git.osmocom.org/rtl-sdr" under Fedora);
- * GUPnP ("libglib2.0-dev libgupnp-av-1.0-dev/glib2-devel libgupnp-av-devel");
+The following library can be used for checking permissions:
 
-Libmicrohttpd :
- * version >= 0.9.54
+ * cynara (https://github.com/Samsung/cynara)
 
 and the following tools:
+
  * gcc;
- * make;
  * pkg-config;
- * cmake >= 2.8.8.
+ * cmake >= 3.0
 
 To install all dependencies under Ubuntu (excepting libmicrohttpd), please type:
-```
-$ apt-get install libmagic-dev libjson-c-dev uuid-dev libsystemd-dev libssl-dev libasound2-dev libpulse-dev librtlsdr-dev libglib2.0-dev libgupnp-av-1.0-dev gcc make pkg-config cmake
-```
+
+	$ apt-get install libmagic-dev libjson-c-dev uuid-dev libsystemd-dev libssl-dev gcc make pkg-config cmake
+
 or under Fedora (excepting libmicrohttpd and rtl-sdr):
-```
-$ dnf install git passwd iproute openssh-server openssh-client openssh-server # Tools needed on top of Docker Minimal Fedora
-$ dnf install file-devel gcc gdb make pkgconfig cmake  # install gcc development tool chain + cmake
-$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel
-$ dnf install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # optional but require to build audio plugin
-```
 
- To build, move to your HOME directory and type:
-```
-$ LIB_MH_VERSION=0.9.54
-$ export LIBMICRODEST=/opt/libmicrohttpd-${LIB_MH_VERSION}
-$ wget https://ftp.gnu.org/gnu/libmicrohttpd/libmicrohttpd-${LIB_MH_VERSION}.tar.gz
-$ tar -xzf libmicrohttpd-${LIB_MH_VERSION}.tar.gz
-$ cd libmicrohttpd-${LIB_MH_VERSION}
-$ ./configure --prefix=${LIBMICRODEST}
-$ make
-$ sudo make install-strip
+	$ dnf install git passwd iproute openssh-server openssh-client
+	$ dnf install file-devel gcc gdb make pkgconfig cmake
+	$ dnf install json-c-devel libuuid-devel systemd-devel openssl-devel
 
-$ AFB_DAEMON_DIR=$HOME/app-framework-binder
-$ git clone https://gerrit.automotivelinux.org/gerrit/src/app-framework-binder ${AFB_DAEMON_DIR}
-$ cd ${AFB_DAEMON_DIR}
-$ mkdir -p build; cd build<br />
-$ export PKG_CONFIG_PATH=${LIBMICRODEST}/lib/pkgconfig
-$ cmake ..<br />
-$ make;
-$ sudo make install<br />
-```
+### Simple compilation
 
-### Archive
+The following commands will install the binder in your subdirectory
+**$HOME/local** (instead of **/usr/local** the default when 
+*CMAKE_INSTALL_PREFIX* isn't set).
 
-```
-VERSION=2.0
-GIT_TAG=master
-PKG_NAME=app-framework-binder
-git archive --format=tar.gz --prefix=agl-${PKG_NAME}-${VERSION}/ ${GIT_TAG} -o agl-${PKG_NAME}_${VERSION}.orig.tar.gz
-```
+	$ git clone https://git.automotivelinux.org/src/app-framework-binder
+	$ cd app-framework-binder
+	$ mkdir build
+	$ cd build
+	$ cmake -DCMAKE_INSTALL_PREFIX=$HOME/local ..
+	$ make install
+
+### Advanced compilation
+
+You can tune options when calling cmake. Here are the known options with
+their default values.
+
+	$ git clone https://git.automotivelinux.org/src/app-framework-binder
+	$ cd app-framework-binder
+	$ mkdir build
+	$ cd build
+	$ cmake \
+	      -DCMAKE_INSTALL_PREFIX=/usr/local  \
+	      -DAGL_DEVEL=OFF                    \
+	      -DINCLUDE_MONITORING=OFF           \
+	      -DINCLUDE_SUPERVISOR=OFF           \
+	      -DINCLUDE_DBUS_TRANSPARENCY=OFF    \
+	      -DINCLUDE_LEGACY_BINDING_V1=OFF    \
+	      -DINCLUDE_LEGACY_BINDING_VDYN=OFF  \
+	      -DAFS_SUPERVISOR_PORT=1619         \
+	      -DAFS_SUPERVISOR_TOKEN="HELLO"     \
+	      -DAFS_SUPERVISION_SOCKET="@urn:AGL:afs:supervision:socket" \
+	      -DUNITDIR_SYSTEM=${CMAKE_INSTALL_LIBDIR}/systemd/system    \
+	    ..
+	$ make install
+
+The configuration options are:
+
+| Variable                    | Type    | Feature
+|:----------------------------|:-------:|:------------------------------
+| AGL_DEVEL                   | BOOLEAN | Activates development features
+| INCLUDE_MONITORING          | BOOLEAN | Activates installation of monitoring
+| INCLUDE_SUPERVISOR          | BOOLEAN | Activates installation of supervisor
+| INCLUDE_DBUS_TRANSPARENCY   | BOOLEAN | Allows API transparency over DBUS
+| INCLUDE_LEGACY_BINDING_V1   | BOOLEAN | Includes the legacy Binding API version 1
+| INCLUDE_LEGACY_BINDING_VDYN | BOOLEAN | Includes the legacy Binding API version dynamic
+| AFS_SUPERVISOR_PORT         | INTEGER | Port of service for the supervisor
+| AFS_SUPERVISOR_TOKEN        | STRING  | Secret token for the supervisor
+| AFS_SUPERVISION_SOCKET      | STRING  | Internal socket path for supervision (internal if starts with @)
+| UNITDIR_SYSTEM              | STRING  | Path to systemd system unit files for installing supervisor
+
+
+
+
+***** TO BE COMPLETED *****
+
+
+
+
+
+
+
+
+
+
+
+
+## Simple demo
+
+
+
 
 ### Testing/Debug
+
 ```
 $ ${AFB_DAEMON_DIR}/build/src/afb-daemon --help
 $ ${AFB_DAEMON_DIR}/build/src/afb-daemon --port=1234 --token='' --ldpaths=${AFB_DAEMON_DIR}/build --sessiondir=/tmp --rootdir=${AFB_DAEMON_DIR}/test
 ```
 
 ### Starting
+
 ```
 $ afb-daemon --help
 $ afb-daemon --verbose --port=<port> --token='' --sessiondir=<working directory> --rootdir=<web directory (index.html)>
 ```
 
 ### Example
+
 ```
 $ afb-daemon --verbose --port=1234 --token='' --sessiondir=/tmp --rootdir=/srv/www/htdocs --alias=icons:/usr/share/icons
 ```
 
 ### Directories & Paths
+
 Default behaviour is to locate ROOTDIR in $HOME/.AFB
 
 ### REST API
@@ -136,4 +197,3 @@ Only use alias for external support static files. This should not be used for AP
 ### Ongoing work
 
 Javascript plugins. As of today, only C plugins are supported, but JS plugins are on the TODO list.
-

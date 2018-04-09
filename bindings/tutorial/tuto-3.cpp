@@ -1,11 +1,12 @@
 #include <string.h>
 #include <json-c/json.h>
 
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding>
 
 afb::event event_login, event_logout;
 
-void login(afb_req r)
+void login(afb_req_t r)
 {
 	json_object *args, *user, *passwd;
 	char *usr;
@@ -26,20 +27,21 @@ void login(afb_req r)
 		usr = strdup(json_object_get_string(user));
 		AFB_REQ_NOTICE(req, "login user: %s", usr);
 		req.session_set_LOA(1);
-		req.context_set(usr, free);
+//		req.context(1, nullptr, free, usr);
 		req.success();
 		event_login.push(json_object_new_string(usr));
 	}
 }
 
-void action(afb_req r)
+void action(afb_req_t r)
 {
 	json_object *args, *val;
 	char *usr;
 	afb::req req(r);
 
 	args = req.json();
-	usr = (char*)req.context_get();
+//	usr = (char*)req.context_get();
+usr = nullptr;
 	AFB_REQ_NOTICE(req, "action for user %s: %s", usr, json_object_get_string(args));
 	if (json_object_object_get_ex(args, "subscribe", &val)) {
 		if (json_object_get_boolean(val)) {
@@ -55,20 +57,25 @@ void action(afb_req r)
 	req.success(json_object_get(args));
 }
 
-void logout(afb_req r)
+void logout(afb_req_t r)
 {
 	char *usr;
 	afb::req req(r);
 
-	usr = (char*)req.context_get();
+//	usr = (char*)req.context_get();
+usr = nullptr;
 	AFB_REQ_NOTICE(req, "login user %s out", usr);
 	event_logout.push(json_object_new_string(usr));
 	req.session_set_LOA(0);
-	req.context_clear();
+//	req.context_clear();
 	req.success();
 }
 
-int init()
+int init(
+#if AFB_BINDING_VERSION >= 3
+	afb_api_t api
+#endif
+)
 {
 	AFB_NOTICE("init");
 	event_login = afb_daemon_make_event("login");
@@ -79,12 +86,13 @@ int init()
 	return -1;
 }
 
-const afb_verb_v2 verbs[] = {
+const afb_verb_t verbs[] = {
 	afb::verb("login", login, "log in the system"),
 	afb::verb("action", action, "perform an action", AFB_SESSION_LOA_1),
 	afb::verb("logout", logout, "log out the system", AFB_SESSION_LOA_1),
 	afb::verbend()
 };
 
-const afb_binding_v2 afbBindingV2 = afb::binding("tuto-3", verbs, "third tutorial: C++", init);
+const afb_binding_t afbBindingExport = afb::binding("tuto-3", verbs, "third tutorial: C++", init);
+
 

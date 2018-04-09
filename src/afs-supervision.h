@@ -45,5 +45,5 @@ struct afs_supervision_initiator
 	char extra[27];		/**< zero terminated extra computed here to be 64-37 */
 };
 
-#define AFS_SUPERVISION_APINAME      "$"
+#define AFS_SUPERVISION_APINAME      "."
 #define AFS_SUPERVISOR_APINAME       "supervisor"

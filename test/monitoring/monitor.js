@@ -454,12 +454,12 @@ function gottraceevent(obj) {
 	x.className = x.className + " " + type;
 	get(".time", x).textContent = data.time;
 	get(".tag", x).textContent = ({
-		request: function(r) { return r.api + "/" + r.verb + "  [" + r.index + "] " + r.action; },
+		request: function(r,d) { return r.api + "/" + r.verb + "  [" + r.index + "] " + r.action + (r.action == 'reply' ? ' '+d.data.error  : ''); },
 		service: function(r) { return r.api + "@" + r.action; },
 		daemon: function(r) { return r.api + ":" + r.action; },
 		event: function(r) { return r.name + "!" + r.action; },
 		global: function(r) { return "$" + r.action; },
-		})[type](desc);
+		})[type](desc,data);
 	var tab = makeobj(desc, 4);
 	if ("data" in data)
 		makeobjitem(tab, 2, "data", data.data);

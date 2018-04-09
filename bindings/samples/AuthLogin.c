@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 1
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
 // Dummy sample of Client Application Context
@@ -37,7 +37,7 @@ static void clientContextFree(void *context) {
 }
 
 // Request Creation of new context if it does not exist
-static void clientContextConnect (struct afb_req request)
+static void clientContextConnect (afb_req_t request)
 {
     json_object *jresp;
 
@@ -56,7 +56,7 @@ static void clientContextConnect (struct afb_req request)
 }
 
 // Before entering here token will be check and renew
-static void clientContextRefresh (struct afb_req request) {
+static void clientContextRefresh (afb_req_t request) {
     json_object *jresp;
 
 
@@ -68,7 +68,7 @@ static void clientContextRefresh (struct afb_req request) {
 
 
 // Session token will we verified before entering here
-static void clientContextCheck (struct afb_req request) {
+static void clientContextCheck (afb_req_t request) {
 
     json_object *jresp = json_object_new_object();
     json_object_object_add(jresp, "isvalid", json_object_new_boolean (TRUE));
@@ -78,7 +78,7 @@ static void clientContextCheck (struct afb_req request) {
 
 
 // Close and Free context
-static void clientContextLogout (struct afb_req request) {
+static void clientContextLogout (afb_req_t request) {
     json_object *jresp;
 
     /* after this call token will be reset
@@ -95,7 +95,7 @@ static void clientContextLogout (struct afb_req request) {
     afb_req_session_set_LOA(request, 0);
 }
 // Close and Free context
-static void clientGetPing (struct afb_req request) {
+static void clientGetPing (afb_req_t request) {
     static int count=0;
     json_object *jresp;
 
@@ -106,25 +106,18 @@ static void clientGetPing (struct afb_req request) {
 }
 
 
-static const struct afb_verb_desc_v1 verbs[]= {
-  {"ping"    , AFB_SESSION_NONE                        , clientGetPing       ,"Ping Rest Test Service"},
-  {"connect" , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextConnect,"Connect/Login Client"},
-  {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Authentication Token"},
-  {"check"   , AFB_SESSION_LOA_GE_1                    , clientContextCheck  ,"Check Client Authentication Token"},
-  {"logout"  , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextLogout ,"Logout Client and Free resources"},
+static const struct afb_verb_v3 verbs[]= {
+  {.verb="ping"    , .session=AFB_SESSION_NONE                     , .callback=clientGetPing       ,.info="Ping Rest Test Service"},
+  {.verb="connect" , .session=AFB_SESSION_LOA_0 | AFB_SESSION_RENEW, .callback=clientContextConnect,.info="Connect/Login Client"},
+  {.verb="refresh" , .session=AFB_SESSION_LOA_1 | AFB_SESSION_RENEW, .callback=clientContextRefresh,.info="Refresh Client Authentication Token"},
+  {.verb="check"   , .session=AFB_SESSION_LOA_1                    , .callback=clientContextCheck  ,.info="Check Client Authentication Token"},
+  {.verb="logout"  , .session=AFB_SESSION_LOA_1 | AFB_SESSION_CLOSE, .callback=clientContextLogout ,.info="Logout Client and Free resources"},
   {NULL}
 };
 
-static const struct afb_binding plugin_desc = {
-	.type = AFB_BINDING_VERSION_1,
-	.v1 = {
-		.info = "Application Framework Binder Authentication sample",
-		.prefix = "auth",
-		.verbs = verbs
-	}
-};
-
-const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
+const struct afb_binding_v3 afbBindingV3 =
 {
-	return &plugin_desc;
-}
+    .api   = "auth",		/* the API name (or binding name or prefix) */
+    .info  = "Application Framework Binder Authentication sample",	/* short description of of the binding */
+    .verbs = verbs	/* the array describing the verbs of the API */
+};

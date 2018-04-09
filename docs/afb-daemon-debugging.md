@@ -1,4 +1,4 @@
-# Debugging afb-daemon and its bindings
+# Debugging binder and bindings
 
 When compiled with the symbol AGL_DEVEL defined, the ***binder***
 understand the 2 configuration variables:

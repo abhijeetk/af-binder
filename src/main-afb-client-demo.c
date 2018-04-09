@@ -41,15 +41,13 @@ static void on_wsj1_call(void *closure, const char *api, const char *verb, struc
 static void on_wsj1_event(void *closure, const char *event, struct afb_wsj1_msg *msg);
 
 static void on_pws_hangup(void *closure);
-static void on_pws_reply_success(void *closure, void *request, struct json_object *result, const char *info);
-static void on_pws_reply_fail(void *closure, void *request, const char *status, const char *info);
+static void on_pws_reply(void *closure, void *request, struct json_object *result, const char *error, const char *info);
 static void on_pws_event_create(void *closure, const char *event_name, int event_id);
 static void on_pws_event_remove(void *closure, const char *event_name, int event_id);
 static void on_pws_event_subscribe(void *closure, void *request, const char *event_name, int event_id);
 static void on_pws_event_unsubscribe(void *closure, void *request, const char *event_name, int event_id);
 static void on_pws_event_push(void *closure, const char *event_name, int event_id, struct json_object *data);
 static void on_pws_event_broadcast(void *closure, const char *event_name, struct json_object *data);
-static void on_pws_subcall(void *closure, struct afb_proto_ws_subcall *subcall, void *request, const char *api, const char *verb, struct json_object *args);
 
 static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *closure);
 
@@ -65,15 +63,13 @@ static struct afb_wsj1_itf wsj1_itf = {
 
 /* the callback interface for pws */
 static struct afb_proto_ws_client_itf pws_itf = {
-	.on_reply_success = on_pws_reply_success,
-	.on_reply_fail = on_pws_reply_fail,
+	.on_reply = on_pws_reply,
 	.on_event_create = on_pws_event_create,
 	.on_event_remove = on_pws_event_remove,
 	.on_event_subscribe = on_pws_event_subscribe,
 	.on_event_unsubscribe = on_pws_event_unsubscribe,
 	.on_event_push = on_pws_event_push,
 	.on_event_broadcast = on_pws_event_broadcast,
-	.on_subcall = on_pws_subcall,
 };
 
 /* global variables */
@@ -96,18 +92,18 @@ static void usage(int status, char *arg0)
 	name = name ? name + 1 : arg0;
 	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] [-b] [-e] uri [api verb [data]]\n", name);
 	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] [-b] [-e] uri [verb [data]]\n", name);
-    fprintf(status ? stderr : stdout, "\n" \
-        "allowed options\n" \
-        "  --break, -b         Break connection just after event/call has been emitted.\n" \
-        "  --direct, -d        Direct api\n" \
-        "  --echo, -e          Echo inputs\n" \
-        "  --help, -h          Display this help\n" \
-        "  --human, -H         Display human readable JSON\n" \
-        "  --raw, -r           Raw output (default)\n" \
-        "Example:\n" \
-        " %s --human 'localhost:1234/api?token=HELLO&uuid=magic' hello ping\n"
-        "\n", name
-    );
+	fprintf(status ? stderr : stdout, "\n"
+		"allowed options\n"
+		"  --break, -b         Break connection just after event/call has been emitted.\n"
+		"  --direct, -d        Direct api\n"
+		"  --echo, -e          Echo inputs\n"
+		"  --help, -h          Display this help\n"
+		"  --human, -H         Display human readable JSON\n"
+		"  --raw, -r           Raw output (default)\n"
+		"Example:\n"
+		" %s --human 'localhost:1234/api?token=HELLO&uuid=magic' hello ping\n"
+		"\n", name
+	);
 
 	exit(status);
 }
@@ -233,7 +229,7 @@ static void on_wsj1_call(void *closure, const char *api, const char *verb, struc
 {
 	int rc;
 	if (raw)
-		printf("%s", afb_wsj1_msg_object_s(msg));
+		printf("%s\n", afb_wsj1_msg_object_s(msg));
 	if (human)
 		printf("ON-CALL %s/%s:\n%s\n", api, verb,
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
@@ -248,7 +244,7 @@ static void on_wsj1_call(void *closure, const char *api, const char *verb, struc
 static void on_wsj1_event(void *closure, const char *event, struct afb_wsj1_msg *msg)
 {
 	if (raw)
-		printf("%s", afb_wsj1_msg_object_s(msg));
+		printf("%s\n", afb_wsj1_msg_object_s(msg));
 	if (human)
 		printf("ON-EVENT %s:\n%s\n", event,
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
@@ -260,7 +256,7 @@ static void on_wsj1_event(void *closure, const char *event, struct afb_wsj1_msg 
 static void on_wsj1_reply(void *closure, struct afb_wsj1_msg *msg)
 {
 	if (raw)
-		printf("%s", afb_wsj1_msg_object_s(msg));
+		printf("%s\n", afb_wsj1_msg_object_s(msg));
 	if (human)
 		printf("ON-REPLY %s: %s\n%s\n", (char*)closure,
 				afb_wsj1_msg_is_reply_ok(msg) ? "OK" : "ERROR",
@@ -393,20 +389,25 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 	return 1;
 }
 
-static void on_pws_reply_success(void *closure, void *request, struct json_object *result, const char *info)
+static void on_pws_reply(void *closure, void *request, struct json_object *result, const char *error, const char *info)
 {
-	if (raw)
-		printf("%s", json_object_to_json_string(result));
-	if (human)
-		printf("ON-REPLY-SUCCESS %s: %s\n%s\n", (char*)request, info?:"", json_object_to_json_string_ext(result, JSON_C_TO_STRING_PRETTY));
-	fflush(stdout);
-	free(request);
-	dec_callcount();
-}
+	error = error ?: "success";
+	if (raw) {
+		/* TODO: transitionnal: fake the structured response */
+		struct json_object *x = json_object_new_object(), *y = json_object_new_object();
+		json_object_object_add(x, "jtype", json_object_new_string("afb-reply"));
+		json_object_object_add(x, "request", y);
+		json_object_object_add(y, "status", json_object_new_string(error));
+		if (info)
+			json_object_object_add(y, "info", json_object_new_string(info));
+		if (result)
+			json_object_object_add(x, "response", json_object_get(result));
 
-static void on_pws_reply_fail(void *closure, void *request, const char *status, const char *info)
-{
-	printf("ON-REPLY-FAIL %s: %s [%s]\n", (char*)request, status?:"?", info?:"");
+		printf("%s\n", json_object_to_json_string(x));
+		json_object_put(x);
+	}
+	if (human)
+		printf("ON-REPLY %s: %s %s\n%s\n", (char*)request, error, info ?: "", json_object_to_json_string_ext(result, JSON_C_TO_STRING_PRETTY));
 	fflush(stdout);
 	free(request);
 	dec_callcount();
@@ -439,7 +440,7 @@ static void on_pws_event_unsubscribe(void *closure, void *request, const char *e
 static void on_pws_event_push(void *closure, const char *event_name, int event_id, struct json_object *data)
 {
 	if (raw)
-		printf("%s", json_object_to_json_string(data));
+		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, 0));
 	if (human)
 		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY));
 	fflush(stdout);
@@ -448,19 +449,9 @@ static void on_pws_event_push(void *closure, const char *event_name, int event_i
 static void on_pws_event_broadcast(void *closure, const char *event_name, struct json_object *data)
 {
 	if (raw)
-		printf("%s", json_object_to_json_string(data));
+		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, 0));
 	if (human)
 		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY));
-	fflush(stdout);
-}
-
-static void on_pws_subcall(void *closure, struct afb_proto_ws_subcall *subcall, void *request, const char *api, const char *verb, struct json_object *args)
-{
-	if (raw)
-		printf("%s", json_object_to_json_string(args));
-	if (human)
-		printf("ON-SUBCALL %s: %s/%s\n%s\n", (char*)request, api, verb, json_object_to_json_string_ext(args, JSON_C_TO_STRING_PRETTY));
-	afb_proto_ws_subcall_reply(subcall, 1, NULL);
 	fflush(stdout);
 }
 
@@ -488,7 +479,7 @@ static void pws_call(const char *verb, const char *object)
 		if (!o)
 			o = json_object_new_string(object);
 	}
-	rc = afb_proto_ws_client_call(pws, verb, o, sessionid, key);
+	rc = afb_proto_ws_client_call(pws, verb, o, sessionid, key, NULL);
 	json_object_put(o);
 	if (rc < 0) {
 		fprintf(stderr, "calling %s(%s) failed: %m\n", verb, object?:"");

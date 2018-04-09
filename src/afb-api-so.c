@@ -25,11 +25,17 @@
 #include <sys/stat.h>
 
 #include "afb-api-so.h"
-#include "afb-api-so-v1.h"
 #include "afb-api-so-v2.h"
-#include "afb-api-so-vdyn.h"
+#include "afb-api-so-v3.h"
 #include "verbose.h"
 #include "sig-monitor.h"
+
+#if defined(WITH_LEGACY_BINDING_V1)
+#   include "afb-api-so-v1.h"
+#endif
+#if defined(WITH_LEGACY_BINDING_VDYN)
+#   include "afb-api-so-vdyn.h"
+#endif
 
 struct safe_dlopen
 {
@@ -59,8 +65,9 @@ static void *safe_dlopen(const char *filename, int flags)
 	return sd.handle;
 }
 
-static int load_binding(const char *path, int force, struct afb_apiset *apiset)
+static int load_binding(const char *path, int force, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
+	int obsolete = 0;
 	int rc;
 	void *handle;
 
@@ -76,7 +83,16 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 	}
 
 	/* try the version 2 */
-	rc = afb_api_so_v2_add(path, handle, apiset);
+	rc = afb_api_so_v3_add(path, handle, declare_set, call_set);
+	if (rc < 0) {
+		/* error when loading a valid v3 binding */
+		goto error2;
+	}
+	if (rc)
+		return 0; /* yes version 2 */
+
+	/* try the version 2 */
+	rc = afb_api_so_v2_add(path, handle, declare_set, call_set);
 	if (rc < 0) {
 		/* error when loading a valid v2 binding */
 		goto error2;
@@ -84,29 +100,41 @@ static int load_binding(const char *path, int force, struct afb_apiset *apiset)
 	if (rc)
 		return 0; /* yes version 2 */
 
+#if defined(WITH_LEGACY_BINDING_VDYN)
 	/* try the version dyn */
-	rc = afb_api_so_vdyn_add(path, handle, apiset);
+	rc = afb_api_so_vdyn_add(path, handle, declare_set, call_set);
 	if (rc < 0) {
 		/* error when loading a valid dyn binding */
 		goto error2;
 	}
 	if (rc)
 		return 0; /* yes version dyn */
+#else
+	if (dlsym(handle, "afbBindingVdyn")) {
+		WARNING("binding [%s]: version DYN not supported", path);
+		obsolete = 1;
+	}
+#endif
 
+#if defined(WITH_LEGACY_BINDING_V1)
 	/* try the version 1 */
-	rc = afb_api_so_v1_add(path, handle, apiset);
+	rc = afb_api_so_v1_add(path, handle, declare_set, call_set);
 	if (rc < 0) {
 		/* error when loading a valid v1 binding */
 		goto error2;
 	}
 	if (rc)
 		return 0; /* yes version 1 */
+#else
+	if (dlsym(handle, "afbBindingV1Register")) {
+		WARNING("binding [%s]: version 1 not supported", path);
+		obsolete = 1;
+	}
+#endif
 
 	/* not a valid binding */
-	if (force)
-		ERROR("binding [%s] is not an AFB binding", path);
-	else
-		INFO("binding [%s] is not an AFB binding", path);
+	_VERBOSE_(force ? Log_Level_Error : Log_Level_Info, "binding [%s] %s",
+			path, obsolete ? "is obsolete" : "isn't an AFB binding");
 
 error2:
 	dlclose(handle);
@@ -115,12 +143,12 @@ error:
 }
 
 
-int afb_api_so_add_binding(const char *path, struct afb_apiset *apiset)
+int afb_api_so_add_binding(const char *path, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
-	return load_binding(path, 1, apiset);
+	return load_binding(path, 1, declare_set, call_set);
 }
 
-static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, int failstops)
+static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *declare_set, struct afb_apiset * call_set, int failstops)
 {
 	DIR *dir;
 	struct dirent *dent;
@@ -159,12 +187,12 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *apiset, i
 Exclude from the search of bindings any
 directory starting with a dot (.) by default.
 
-It is possible to reactivate the prvious behaviour 
+It is possible to reactivate the prvious behaviour
 by defining the following preprocessor variables
 
  - AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS
 
-   When this variable is defined, the directories 
+   When this variable is defined, the directories
    starting with a dot are searched except
    if their name is "." or ".." or ".debug"
 
@@ -181,7 +209,7 @@ This change is intended to definitely solve the issue
 SPEC-662. Yocto installed the debugging symbols in the
 subdirectory .debug. For example the binding.so also
 had a .debug/binding.so file attached. Opening that
-debug file made dlopen crashing. 
+debug file made dlopen crashing.
 See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
  */
 #if !defined(AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS) /* not defined by default */
@@ -203,13 +231,13 @@ See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
 #endif
 			}
 			memcpy(&path[end], dent->d_name, len+1);
-			rc = adddirs(path, end+len, apiset, failstops);
+			rc = adddirs(path, end+len, declare_set, call_set, failstops);
 		} else if (dent->d_type == DT_REG) {
 			/* case of files */
 			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
 			memcpy(&path[end], dent->d_name, len+1);
-			rc = load_binding(path, 0, apiset);
+			rc = load_binding(path, 0, declare_set, call_set);
 		}
 		if (rc < 0 && failstops) {
 			closedir(dir);
@@ -220,7 +248,7 @@ See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
 	return 0;
 }
 
-int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset, int failstops)
+int afb_api_so_add_directory(const char *path, struct afb_apiset *declare_set, struct afb_apiset * call_set, int failstops)
 {
 	size_t length;
 	char buffer[PATH_MAX];
@@ -232,10 +260,10 @@ int afb_api_so_add_directory(const char *path, struct afb_apiset *apiset, int fa
 	}
 
 	memcpy(buffer, path, length + 1);
-	return adddirs(buffer, length, apiset, failstops);
+	return adddirs(buffer, length, declare_set, call_set, failstops);
 }
 
-int afb_api_so_add_path(const char *path, struct afb_apiset *apiset, int failstops)
+int afb_api_so_add_path(const char *path, struct afb_apiset *declare_set, struct afb_apiset * call_set, int failstops)
 {
 	struct stat st;
 	int rc;
@@ -244,15 +272,15 @@ int afb_api_so_add_path(const char *path, struct afb_apiset *apiset, int failsto
 	if (rc < 0)
 		ERROR("Invalid binding path [%s]: %m", path);
 	else if (S_ISDIR(st.st_mode))
-		rc = afb_api_so_add_directory(path, apiset, failstops);
+		rc = afb_api_so_add_directory(path, declare_set, call_set, failstops);
 	else if (strstr(path, ".so"))
-		rc = load_binding(path, 0, apiset);
+		rc = load_binding(path, 0, declare_set, call_set);
 	else
 		INFO("not a binding [%s], skipped", path);
 	return rc;
 }
 
-int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset, int failstops)
+int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *declare_set, struct afb_apiset * call_set, int failstops)
 {
 	static char sep[] = ":";
 	char *ps, *p;
@@ -263,19 +291,19 @@ int afb_api_so_add_pathset(const char *pathset, struct afb_apiset *apiset, int f
 		p = strsep(&ps, sep);
 		if (!p)
 			return 0;
-		rc = afb_api_so_add_path(p, apiset, failstops);
+		rc = afb_api_so_add_path(p, declare_set, call_set, failstops);
 		if (rc < 0)
 			return rc;
 	}
 }
 
-int afb_api_so_add_pathset_fails(const char *pathset, struct afb_apiset *apiset)
+int afb_api_so_add_pathset_fails(const char *pathset, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
-	return afb_api_so_add_pathset(pathset, apiset, 1);
+	return afb_api_so_add_pathset(pathset, declare_set, call_set, 1);
 }
 
-int afb_api_so_add_pathset_nofails(const char *pathset, struct afb_apiset *apiset)
+int afb_api_so_add_pathset_nofails(const char *pathset, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
-	return afb_api_so_add_pathset(pathset, apiset, 0);
+	return afb_api_so_add_pathset(pathset, declare_set, call_set, 0);
 }
 

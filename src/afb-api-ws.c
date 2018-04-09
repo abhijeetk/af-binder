@@ -34,6 +34,7 @@
 #include "afb-systemd.h"
 #include "afb-api.h"
 #include "afb-apiset.h"
+#include "afb-api-ws.h"
 #include "afb-stub-ws.h"
 #include "verbose.h"
 #include "fdev.h"
@@ -72,7 +73,7 @@ static struct api_ws *api_ws_make(const char *path)
 	while (length && path[length - 1] != '/' && path[length - 1] != ':')
 		length = length - 1;
 	api->api = &api->path[length];
-	if (api->api == NULL || !afb_api_is_valid_name(api->api, 1)) {
+	if (api->api == NULL || !afb_api_is_valid_name(api->api)) {
 		errno = EINVAL;
 		goto error2;
 	}
@@ -219,7 +220,7 @@ static struct fdev *api_ws_socket_fdev(const char *path, int server)
 
 /**********************************************************************************/
 
-int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset, int strong)
+int afb_api_ws_add_client(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set, int strong)
 {
 	struct api_ws *apiws;
 	struct afb_stub_ws *stubws;
@@ -234,12 +235,12 @@ int afb_api_ws_add_client(const char *path, struct afb_apiset *apiset, int stron
 	if (!apiws->fdev)
 		goto error2;
 
-	stubws = afb_stub_ws_create_client(apiws->fdev, apiws->api, apiset);
+	stubws = afb_stub_ws_create_client(apiws->fdev, apiws->api, call_set);
 	if (!stubws) {
 		ERROR("can't setup client ws service to %s", apiws->path);
 		goto error3;
 	}
-	if (afb_stub_ws_client_add(stubws, apiset) < 0) {
+	if (afb_stub_ws_client_add(stubws, declare_set) < 0) {
 		ERROR("can't add the client to the apiset for service %s", apiws->path);
 		goto error3;
 	}
@@ -253,14 +254,14 @@ error:
 	return -!!strong;
 }
 
-int afb_api_ws_add_client_strong(const char *path, struct afb_apiset *apiset)
+int afb_api_ws_add_client_strong(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
-	return afb_api_ws_add_client(path, apiset, 1);
+	return afb_api_ws_add_client(path, declare_set, call_set, 1);
 }
 
-int afb_api_ws_add_client_weak(const char *path, struct afb_apiset *apiset)
+int afb_api_ws_add_client_weak(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
-	return afb_api_ws_add_client(path, apiset, 0);
+	return afb_api_ws_add_client(path, declare_set, call_set, 0);
 }
 
 static int api_ws_server_accept_client(struct api_ws *apiws, struct fdev *fdev)
@@ -329,7 +330,7 @@ static int api_ws_server_connect(struct api_ws *apiws)
 }
 
 /* create the service */
-int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
+int afb_api_ws_add_server(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
 	int rc;
 	struct api_ws *apiws;
@@ -340,7 +341,7 @@ int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
 		goto error;
 
 	/* check api name */
-	if (!afb_apiset_lookup(apiset, apiws->api, 1)) {
+	if (!afb_apiset_lookup(call_set, apiws->api, 1)) {
 		ERROR("Can't provide ws-server for %s: API %s doesn't exist", path, apiws->api);
 		goto error2;
 	}
@@ -350,7 +351,7 @@ int afb_api_ws_add_server(const char *path, struct afb_apiset *apiset)
 	if (rc < 0)
 		goto error2;
 
-	apiws->apiset = afb_apiset_addref(apiset);
+	apiws->apiset = afb_apiset_addref(call_set);
 	return 0;
 
 error2:

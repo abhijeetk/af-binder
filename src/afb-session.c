@@ -27,11 +27,10 @@
 #include <uuid/uuid.h>
 #include <errno.h>
 
-#include <json-c/json.h>
-
 #include "afb-session.h"
 #include "afb-hook.h"
 #include "verbose.h"
+#include "pearson.h"
 
 #define SIZEUUID	37
 #define HEADCOUNT	16
@@ -43,41 +42,45 @@
 #define MAX_EXPIRATION	(_MAXEXP_ >= 0 ? _MAXEXP_ : _MAXEXP2_)
 #define NOW		(time_now())
 
-/* structure for a cookie added to sessions */
+/**
+ * structure for a cookie added to sessions
+ */
 struct cookie
 {
-	struct cookie *next;	/* link to next cookie */
-	const void *key;	/* pointer key */
-	void *value;		/* value */
-	void (*freecb)(void*);	/* function to call when session is closed */
+	struct cookie *next;	/**< link to next cookie */
+	const void *key;	/**< pointer key */
+	void *value;		/**< value */
+	void (*freecb)(void*);	/**< function to call when session is closed */
 };
 
-/*
+/**
  * structure for session
  */
 struct afb_session
 {
-	struct afb_session *next; /* link to the next */
-	unsigned refcount;      /* external reference count of the session */
-	int timeout;            /* timeout of the session */
-	time_t expiration;	/* expiration time of the token */
-	pthread_mutex_t mutex;  /* mutex of the session */
-	struct cookie *cookies[COOKIECOUNT]; /* cookies of the session */
-	uint8_t closed: 1;      /* is the session closed ? */
-	uint8_t autoclose: 1;   /* close the session when unreferenced */
-	uint8_t notinset: 1;	/* session removed from the set of sessions */
-	char uuid[SIZEUUID];    /* long term authentication of remote client */
-	char token[SIZEUUID];   /* short term authentication of remote client */
+	struct afb_session *next; /**< link to the next */
+	unsigned refcount;      /**< external reference count of the session */
+	int timeout;            /**< timeout of the session */
+	time_t expiration;	/**< expiration time of the token */
+	pthread_mutex_t mutex;  /**< mutex of the session */
+	struct cookie *cookies[COOKIECOUNT]; /**< cookies of the session */
+	uint8_t closed: 1;      /**< is the session closed ? */
+	uint8_t autoclose: 1;   /**< close the session when unreferenced */
+	uint8_t notinset: 1;	/**< session removed from the set of sessions */
+	char uuid[SIZEUUID];    /**< long term authentication of remote client */
+	char token[SIZEUUID];   /**< short term authentication of remote client */
 };
 
-/* Session UUID are store in a simple array [for 10 sessions this should be enough] */
+/**
+ * structure for managing sessions
+ */
 static struct {
-	int count;              /* current number of sessions */
-	int max;                /* maximum count of sessions */
-	int timeout;            /* common initial timeout */
-	struct afb_session *heads[HEADCOUNT]; /* sessions */
-	char initok[SIZEUUID];  /* common initial token */
-	pthread_mutex_t mutex;  /* declare a mutex to protect hash table */
+	int count;              /**< current number of sessions */
+	int max;                /**< maximum count of sessions */
+	int timeout;            /**< common initial timeout */
+	struct afb_session *heads[HEADCOUNT]; /**< sessions */
+	char initok[SIZEUUID];  /**< common initial token */
+	pthread_mutex_t mutex;  /**< declare a mutex to protect hash table */
 } sessions = {
 	.count = 0,
 	.max = 10,
@@ -87,7 +90,9 @@ static struct {
 	.mutex = PTHREAD_MUTEX_INITIALIZER
 };
 
-/* Get the actual raw time */
+/**
+ * Get the actual raw time
+ */
 static inline time_t time_now()
 {
 	struct timespec ts;
@@ -95,32 +100,14 @@ static inline time_t time_now()
 	return ts.tv_sec;
 }
 
-/* generate a new fresh 'uuid' */
+/**
+ * generate a new fresh 'uuid'
+ */
 static void new_uuid(char uuid[SIZEUUID])
 {
 	uuid_t newuuid;
 	uuid_generate(newuuid);
 	uuid_unparse_lower(newuuid, uuid);
-}
-
-/*
- * Returns a tiny hash value for the 'text'.
- *
- * Tiny hash function inspired from pearson
- */
-static uint8_t pearson4(const char *text)
-{
-	static uint8_t T[16] = {
-		 4,  1,  6,  0,  9, 14, 11,  5,
-		 2,  3, 12, 15, 10,  7,  8, 13
-	};
-	uint8_t r, c;
-
-	for (r = 0; (c = (uint8_t)*text) ; text++) {
-		r = T[r ^ (15 & c)];
-		r = T[r ^ (c >> 4)];
-	}
-	return r; // % HEADCOUNT;
 }
 
 /* lock the set of sessions for exclusive access */
@@ -155,7 +142,7 @@ static struct afb_session *sessionset_search(const char *uuid, uint8_t hashidx)
 static int sessionset_add(struct afb_session *session, uint8_t hashidx)
 {
 	/* check availability */
-	if (sessions.count >= sessions.max) {
+	if (sessions.max && sessions.count >= sessions.max) {
 		errno = EBUSY;
 		return -1;
 	}
@@ -321,7 +308,7 @@ static time_t sessionset_cleanup (int force)
  * @param max_session_count  maximum allowed session count in the same time
  * @param timeout            the initial default timeout of sessions
  * @param initok             the initial default token of sessions
- * 
+ *
  */
 int afb_session_init (int max_session_count, int timeout, const char *initok)
 {
@@ -513,7 +500,7 @@ void afb_session_close (struct afb_session *session)
  * Set the 'autoclose' flag of the 'session'
  *
  * A session whose autoclose flag is true will close as
- * soon as it is no more referenced. 
+ * soon as it is no more referenced.
  *
  * @param session    the session to set
  * @param autoclose  the value to set
@@ -694,8 +681,7 @@ void *afb_session_get_cookie(struct afb_session *session, const void *key)
  * @param value    the value to store at key
  * @param freecb   a function to use when the cookie value is to remove (or null)
  *
- * @return the data staored for the key or NULL if the key isn't found
- * 
+ * @return 0 in case of success or -1 in case of error
  */
 int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*))
 {

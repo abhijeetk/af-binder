@@ -1,4 +1,4 @@
-site_name: AGL Application Framework Binder
+site_name: AGL Framework Binder
 theme: readthedocs
 docs_dir: docs
 pages:

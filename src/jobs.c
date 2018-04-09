@@ -716,7 +716,7 @@ static int on_evloop_efd(sd_event_source *s, int fd, uint32_t revents, void *use
 	struct evloop *evloop = userdata;
 	read(evloop->efd, &x, sizeof x);
 	pthread_mutex_lock(&mutex);
-	pthread_cond_broadcast(&evloop->cond);	
+	pthread_cond_broadcast(&evloop->cond);
 	pthread_mutex_unlock(&mutex);
 	return 1;
 }

@@ -39,6 +39,7 @@
 #include "afb-config.h"
 #include "afb-hswitch.h"
 #include "afb-apiset.h"
+#include "afb-autoset.h"
 #include "afb-api-so.h"
 #if defined(WITH_DBUS_TRANSPARENCY)
 #   include "afb-api-dbus.h"
@@ -90,12 +91,13 @@ static struct afb_config_list *run_for_list(struct afb_config_list *list,
 
 static int run_start(void *closure, char *value)
 {
-	int (*starter) (const char *value, struct afb_apiset *apiset) = closure;
-	return starter(value, main_apiset) >= 0;
+	int (*starter) (const char *value, struct afb_apiset *declare_set, struct afb_apiset *call_set) = closure;
+	return starter(value, main_apiset, main_apiset) >= 0;
 }
 
 static void apiset_start_list(struct afb_config_list *list,
-		       int (*starter) (const char *value, struct afb_apiset *apiset), const char *message)
+			int (*starter) (const char *value, struct afb_apiset *declare_set, struct afb_apiset *call_set),
+			const char *message)
 {
 	list = run_for_list(list, run_start, starter);
 	if (list) {
@@ -263,17 +265,17 @@ static struct afb_hsrv *start_http_server()
 		return NULL;
 	}
 
-	if (!afb_hsrv_set_cache_timeout(hsrv, main_config->cacheTimeout)
+	if (!afb_hsrv_set_cache_timeout(hsrv, main_config->cache_timeout)
 	    || !init_http_server(hsrv)) {
 		ERROR("initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
 
-	NOTICE("Waiting port=%d rootdir=%s", main_config->httpdPort, main_config->rootdir);
-	NOTICE("Browser URL= http://localhost:%d", main_config->httpdPort);
+	NOTICE("Waiting port=%d rootdir=%s", main_config->http_port, main_config->rootdir);
+	NOTICE("Browser URL= http://localhost:%d", main_config->http_port);
 
-	rc = afb_hsrv_start(hsrv, (uint16_t) main_config->httpdPort, 15);
+	rc = afb_hsrv_start(hsrv, (uint16_t) main_config->http_port, 15);
 	if (!rc) {
 		ERROR("starting of httpd failed");
 		afb_hsrv_put(hsrv);
@@ -419,8 +421,8 @@ static int execute_command()
 		return 0;
 
 	/* compute the string for port */
-	if (main_config->httpdPort)
-		rc = snprintf(port, sizeof port, "%d", main_config->httpdPort);
+	if (main_config->http_port)
+		rc = snprintf(port, sizeof port, "%d", main_config->http_port);
 	else
 		rc = snprintf(port, sizeof port, "%cp", SUBST_CHAR);
 	if (rc < 0 || rc >= (int)(sizeof port)) {
@@ -455,14 +457,16 @@ struct startup_req
 	struct afb_session *session;
 };
 
-static void startup_call_reply(struct afb_xreq *xreq, int status, struct json_object *obj)
+static void startup_call_reply(struct afb_xreq *xreq, struct json_object *object, const char *error, const char *info)
 {
 	struct startup_req *sreq = CONTAINER_OF_XREQ(struct startup_req, xreq);
 
-	if (status >= 0)
-		NOTICE("startup call %s returned %s", sreq->current->value, json_object_get_string(obj));
-	else {
-		ERROR("startup call %s ERROR! %s", sreq->current->value, json_object_get_string(obj));
+	info = info ?: "";
+	if (!error) {
+		NOTICE("startup call %s returned %s (%s)", sreq->current->value, json_object_get_string(object), info);
+		json_object_put(object);
+	} else {
+		ERROR("startup call %s ERROR! %s (%s)", sreq->current->value, error, info);
 		exit(1);
 	}
 }
@@ -506,8 +510,8 @@ static void startup_call_current(struct startup_req *sreq)
 			sreq->xreq.context.validated = 1;
 			sreq->api = strndup(api, verb - api);
 			sreq->verb = strndup(verb + 1, json - verb - 1);
-			sreq->xreq.request.api = sreq->api;
-			sreq->xreq.request.verb = sreq->verb;
+			sreq->xreq.request.called_api = sreq->api;
+			sreq->xreq.request.called_verb = sreq->verb;
 			sreq->xreq.json = json_tokener_parse(json + 1);
 			if (sreq->api && sreq->verb && sreq->xreq.json) {
 				afb_xreq_process(&sreq->xreq, main_apiset);
@@ -560,16 +564,16 @@ static void start(int signum, void *arg)
 	}
 
 	/* configure the daemon */
-	if (afb_session_init(main_config->nbSessionMax, main_config->cntxTimeout, main_config->token)) {
+	if (afb_session_init(main_config->max_session_count, main_config->session_timeout, main_config->token)) {
 		ERROR("initialisation of session manager failed");
 		goto error;
 	}
-	main_apiset = afb_apiset_create("main", main_config->apiTimeout);
+	main_apiset = afb_apiset_create("main", main_config->api_timeout);
 	if (!main_apiset) {
 		ERROR("can't create main api set");
 		goto error;
 	}
-	if (afb_monitor_init() < 0) {
+	if (afb_monitor_init(main_apiset, main_apiset) < 0) {
 		ERROR("failed to setup monitor");
 		goto error;
 	}
@@ -581,10 +585,8 @@ static void start(int signum, void *arg)
 	/* install hooks */
 	if (main_config->tracereq)
 		afb_hook_create_xreq(NULL, NULL, NULL, main_config->tracereq, NULL, NULL);
-	if (main_config->traceditf)
-		afb_hook_create_ditf(NULL, main_config->traceditf, NULL, NULL);
-	if (main_config->tracesvc)
-		afb_hook_create_svc(NULL, main_config->tracesvc, NULL, NULL);
+	if (main_config->traceapi)
+		afb_hook_create_api(NULL, main_config->traceapi, NULL, NULL);
 	if (main_config->traceevt)
 		afb_hook_create_evt(NULL, main_config->traceevt, NULL, NULL);
 	if (main_config->traceses)
@@ -599,6 +601,8 @@ static void start(int signum, void *arg)
 	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
 	apiset_start_list(main_config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
 	apiset_start_list(main_config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
+	apiset_start_list(main_config->auto_ws, afb_autoset_add_ws, "the automatic afb-websocket path set");
+	apiset_start_list(main_config->auto_link, afb_autoset_add_so, "the automatic link binding path set");
 
 #if defined(WITH_DBUS_TRANSPARENCY)
 	apiset_start_list(main_config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
@@ -617,13 +621,13 @@ static void start(int signum, void *arg)
 
 	/* start the HTTP server */
 	afb_debug("start-http");
-	if (!main_config->noHttpd) {
-		if (main_config->httpdPort <= 0) {
+	if (!main_config->no_httpd) {
+		if (main_config->http_port <= 0) {
 			ERROR("no port is defined");
 			goto error;
 		}
 
-		if (!afb_hreq_init_cookie(main_config->httpdPort, main_config->rootapi, main_config->cntxTimeout)) {
+		if (!afb_hreq_init_cookie(main_config->http_port, main_config->rootapi, main_config->session_timeout)) {
 			ERROR("initialisation of HTTP cookies failed");
 			goto error;
 		}

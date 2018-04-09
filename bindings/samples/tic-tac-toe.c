@@ -20,17 +20,14 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 2
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
-/*
- * definition of waiters
- */
-struct waiter
-{
-	struct waiter *next;
-	struct afb_req req;
-};
+static const char SPACE = ' ';
+static const char CROSS = 'X';
+static const char ROUND = 'O';
+static const char NHERE = '+';
+static const int DEFLVL = 8;
 
 /*
  * definition of a board
@@ -44,7 +41,7 @@ struct board
 	int id;
 	int level;
 	char board[9];
-	struct waiter *waiters;
+	afb_event_t event;
 };
 
 /*
@@ -67,24 +64,32 @@ static struct board *search_board(int id)
 /*
  * Creates a new board and returns it.
  */
-static struct board *get_new_board()
+static struct board *get_new_board(afb_req_t req)
 {
 	/* allocation */
 	struct board *board = calloc(1, sizeof *board);
 
 	/* initialisation */
-	memset(board->board, ' ', sizeof board->board);
+	memset(board->board, SPACE, sizeof board->board);
 	board->use_count = 1;
-	board->level = 1;
+	board->level = DEFLVL;
 	board->moves = 0;
 	do {
 		board->id = (rand() >> 2) % 1000;
 	} while(board->id == 0 || search_board(board->id) != NULL);
+	board->event = afb_daemon_make_event("board");
+	afb_req_subscribe(req, board->event);
 
 	/* link */
 	board->next = all_boards;
 	all_boards = board;
 	return board;
+}
+
+static void *get_new_board_cb(void *closure)
+{
+	afb_req_t req = closure;
+	return get_new_board(req);
 }
 
 /*
@@ -95,6 +100,7 @@ static void release_board(struct board *board)
 	/* decrease the reference count ... */
 	if (--board->use_count == 0) {
 		/* ... no more use */
+		afb_event_unref(board->event);
 		/* unlink from the list of boards */
 		struct board **prv = &all_boards;
 		while (*prv != NULL && *prv != board)
@@ -106,6 +112,24 @@ static void release_board(struct board *board)
 	}
 }
 
+static void release_board_cb(void *closure)
+{
+	struct board *board = closure;
+	return release_board(board);
+}
+
+/*
+ * Checks who wins
+ * Returns zero if there is no winner
+ * Returns the char of the winner if a player won
+ */
+static char wins(const char b[9], int first, int incr)
+{
+	char c = b[first];
+
+	return c != SPACE && b[first + incr] == c && b[first + incr + incr] == c ? c : 0;
+}
+
 /*
  * Checks who wins
  * Returns zero if there is no winner
@@ -113,31 +137,39 @@ static void release_board(struct board *board)
  */
 static char winner(const char b[9])
 {
-	int i;
 	char c;
 
-	/* check diagonals */
-	c = b[4];
-	if (c != ' ') {
-		if (b[0] == c && b[8] == c)
-			return c;
-		if (b[2] == c && b[6] == c)
-			return c;
-	}
+	c = wins(b, 0, 1);
+	if (c)
+		return c;
 
-	/* check lines */
-	for (i = 0 ; i <= 6 ; i += 3) {
-		c = b[i];
-		if (c != ' ' && b[i+1] == c && b[i+2] == c)
-			return c;
-	}
+	c = wins(b, 3, 1);
+	if (c)
+		return c;
 
-	/* check columns */
-	for (i = 0 ; i <= 2 ; i++) {
-		c = b[i];
-		if (c != ' ' && b[i+3] == c && b[i+6] == c)
-			return c;
-	}
+	c = wins(b, 6, 1);
+	if (c)
+		return c;
+
+	c = wins(b, 0, 3);
+	if (c)
+		return c;
+
+	c = wins(b, 1, 3);
+	if (c)
+		return c;
+
+	c = wins(b, 2, 3);
+	if (c)
+		return c;
+
+	c = wins(b, 0, 4);
+	if (c)
+		return c;
+
+	c = wins(b, 2, 2);
+	if (c)
+		return c;
 
 	return 0;
 }
@@ -145,7 +177,7 @@ static char winner(const char b[9])
 /* get the color (X or 0) of the move of index 'move' */
 static char color(int move)
 {
-	return (move & 1) == 0 ? 'X' : '0';
+	return (move & 1) == 0 ? CROSS : ROUND;
 }
 
 /* adds the move to the board */
@@ -160,7 +192,7 @@ static void add_move(struct board *board, int index)
 static int get_random_move(char b[9])
 {
 	int index = rand() % 9;
-	while (b[index] != ' ')
+	while (b[index] != SPACE)
 		index = (index + 1) % 9;
 	return index;
 }
@@ -174,40 +206,41 @@ static int get_random_move(char b[9])
  */
 static int score_position(char b[9], char c, int depth)
 {
-	int i, t, r;
+	int i, s, nc, wc, lc;
 
 	/* check if winner */
 	if (winner(b) == c)
 		return 1;
 
 	/* when depth of analysis is reached return unknown case */
-	if (--depth == 0)
+	if (--depth <= 0)
 		return 0;
 
 	/* switch to the opponent */
-	c = (char)('O' + 'X' - c);
+	c = (char)(ROUND + CROSS - c);
 
 	/* inspect opponent moves */
-	r = 1;
+	nc = wc = lc = 0;
 	for (i = 0 ; i < 9 ; i++) {
-		if (b[i] == ' ') {
+		if (b[i] == SPACE) {
 			b[i] = c;
-			t = score_position(b, c, depth);
-			b[i] = ' ';
-			if (t > 0)
-				return -1; /* opponent will win */
-
-			if (t == 0)
-				r = 0; /* something not clear */
+			s = score_position(b, c, depth);
+			b[i] = SPACE;
+			if (s > 0)
+				lc++; /* opponent's victory, inc loose count */
+			else if (s < 0)
+				wc++; /* current's victory, inc win count */
+			else
+				nc++; /* none wins, increment null count */
 		}
 	}
-	return r;
+	return lc ? -lc : wc;
 }
 
 /* get one move: return the computed index of the move */
 static int get_move(struct board *board)
 {
-	int index, depth, t, f;
+	int index, depth, f, s, smax, imax;
 	char c;
 	char b[9];
 
@@ -222,22 +255,24 @@ static int get_move(struct board *board)
 
 	/* depth and more */
 	memcpy(b, board->board, 9);
+	f = smax = 0;
 	c = color(board->moves);
-	f = 0;
 	for (index = 0 ; index < 9 ; index++) {
-		if (board->board[index] == ' ') {
+		if (board->board[index] == SPACE) {
 			board->board[index] = c;
-			t = score_position(board->board, c, depth);
-			board->board[index] = ' ';
-			if (t > 0)
-				return index;
-			if (t < 0)
-				b[index] = '+';
-			else
+			s = score_position(board->board, c, depth);
+			board->board[index] = SPACE;
+			if (s < 0)
+				b[index] = NHERE;
+			else if (s <= smax)
 				f = 1;
+			else {
+				smax = s;
+				imax = index;
+			}
 		}
 	}
-	return get_random_move(f ? b : board->board);
+	return smax ? imax : get_random_move(f ? b : board->board);
 }
 
 /*
@@ -279,37 +314,21 @@ static struct json_object *describe(struct board *board)
  */
 static void changed(struct board *board, const char *reason)
 {
-	struct waiter *waiter, *next;
-	struct json_object *description;
-
-	/* get the description */
-	description = describe(board);
-
-	waiter = board->waiters;
-	board->waiters = NULL;
-	while (waiter != NULL) {
-		next = waiter->next;
-		afb_req_success(waiter->req, json_object_get(description), reason);
-		afb_req_unref(waiter->req);
-		free(waiter);
-		waiter = next;
-	}
-
-	afb_daemon_broadcast_event(reason, description);
+	afb_event_push(board->event, json_object_new_string(reason));
 }
 
 /*
  * retrieves the board of the request
  */
-static inline struct board *board_of_req(struct afb_req req)
+static inline struct board *board_of_req(afb_req_t req)
 {
-	return afb_req_context(req, (void*)get_new_board, (void*)release_board);
+	return afb_req_context(req, 0, get_new_board_cb, release_board_cb, req);
 }
 
 /*
  * start a new game
  */
-static void new(struct afb_req req)
+static void new(afb_req_t req)
 {
 	struct board *board;
 
@@ -318,7 +337,7 @@ static void new(struct afb_req req)
 	AFB_INFO("method 'new' called for boardid %d", board->id);
 
 	/* reset the game */
-	memset(board->board, ' ', sizeof board->board);
+	memset(board->board, SPACE, sizeof board->board);
 	board->moves = 0;
 
 	/* replies */
@@ -331,7 +350,7 @@ static void new(struct afb_req req)
 /*
  * get the board
  */
-static void board(struct afb_req req)
+static void board(afb_req_t req)
 {
 	struct board *board;
 	struct json_object *description;
@@ -350,7 +369,7 @@ static void board(struct afb_req req)
 /*
  * move a piece
  */
-static void move(struct afb_req req)
+static void move(afb_req_t req)
 {
 	struct board *board;
 	int i;
@@ -379,7 +398,7 @@ static void move(struct afb_req req)
 	}
 
 	/* checks validity of the move */
-	if (board->board[i] != ' ') {
+	if (board->board[i] != SPACE) {
 		AFB_WARNING("can't move to %s: room occupied", index);
 		afb_req_fail(req, "error", "occupied");
 		return;
@@ -399,7 +418,7 @@ static void move(struct afb_req req)
 /*
  * set the level
  */
-static void level(struct afb_req req)
+static void level(afb_req_t req)
 {
 	struct board *board;
 	int l;
@@ -434,7 +453,7 @@ static void level(struct afb_req req)
 /*
  * Join a board
  */
-static void join(struct afb_req req)
+static void join(afb_req_t req)
 {
 	struct board *board, *new_board;
 	const char *id;
@@ -450,8 +469,8 @@ static void join(struct afb_req req)
 
 	/* none is a special id for joining a new session */
 	if (strcmp(id, "none") == 0) {
-		new_board = get_new_board();
-		goto success;
+		new_board = get_new_board(req);
+		goto setctx;
 	}
 
 	/* searchs the board to join */
@@ -466,13 +485,16 @@ static void join(struct afb_req req)
 	 * function 'release_board'. So the use_count MUST not
 	 * be incremented.
 	 */
-	if (new_board != board)
-		new_board->use_count++;
+	if (new_board == board)
+		goto success;
+
+	new_board->use_count++;
+setctx:
+	/* set the new board (and leaves the previous one) */
+	afb_req_context(req, 1, NULL, release_board_cb, new_board);
+	afb_req_unsubscribe(req, board->event);
 
 success:
-	/* set the new board (and leaves the previous one) */
-	afb_req_context_set(req, new_board, (void*)release_board);
-
 	/* replies */
 	afb_req_success(req, NULL, NULL);
 	return;
@@ -486,7 +508,7 @@ bad_request:
 /*
  * Undo the last move
  */
-static void undo(struct afb_req req)
+static void undo(afb_req_t req)
 {
 	struct board *board;
 	int i;
@@ -504,7 +526,7 @@ static void undo(struct afb_req req)
 
 	/* undo the last move */
 	i = board->history[--board->moves];
-	board->board[i] = ' ';
+	board->board[i] = SPACE;
 
 	/* replies */
 	afb_req_success(req, NULL, NULL);
@@ -516,7 +538,7 @@ static void undo(struct afb_req req)
 /*
  * computer plays
  */
-static void play(struct afb_req req)
+static void play(afb_req_t req)
 {
 	struct board *board;
 	int index;
@@ -543,27 +565,10 @@ static void play(struct afb_req req)
 	changed(board, "play");
 }
 
-static void wait(struct afb_req req)
-{
-	struct board *board;
-	struct waiter *waiter;
-
-	/* retrieves the context for the session */
-	board = board_of_req(req);
-	AFB_INFO("method 'wait' called for boardid %d", board->id);
-
-	/* creates the waiter and enqueues it */
-	waiter = calloc(1, sizeof *waiter);
-	waiter->req = req;
-	waiter->next = board->waiters;
-	afb_req_addref(req);
-	board->waiters = waiter;
-}
-
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct afb_verb_v2 verbs[] = {
+static const afb_verb_t verbs[] = {
    { .verb="new",   .callback=new },
    { .verb="play",  .callback=play },
    { .verb="move",  .callback=move },
@@ -571,17 +576,17 @@ static const struct afb_verb_v2 verbs[] = {
    { .verb="level", .callback=level },
    { .verb="join",  .callback=join },
    { .verb="undo",  .callback=undo },
-   { .verb="wait",  .callback=wait },
    { .verb=NULL }
 };
 
 /*
  * description of the binding for afb-daemon
  */
-const afb_binding_v2 afbBindingV2 = {
+const afb_binding_t afbBindingV3 = {
 	.api = "tictactoe",
 	.specification = NULL,
-	.verbs = verbs
+	.verbs = verbs,
+	.noconcurrency = 1
 };
 
 

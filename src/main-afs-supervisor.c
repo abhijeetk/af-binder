@@ -144,7 +144,7 @@ static void start(int signum, void *arg)
 	}
 
 	/* init the main apiset */
-	rc = afs_supervisor_add(main_apiset);
+	rc = afs_supervisor_add(main_apiset, main_apiset);
 	if (rc < 0) {
 		ERROR("Can't create supervision's apiset: %m");
 		goto error;
@@ -152,7 +152,7 @@ static void start(int signum, void *arg)
 
 	/* export the service if required */
 	if (main_config->ws_server) {
-		rc = afb_api_ws_add_server(main_config->ws_server, main_apiset);
+		rc = afb_api_ws_add_server(main_config->ws_server, main_apiset, main_apiset);
 		if (rc < 0) {
 			ERROR("Can't export (ws-server) api %s: %m", main_config->ws_server);
 			goto error;

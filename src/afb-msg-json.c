@@ -22,7 +22,9 @@
 #include "afb-msg-json.h"
 #include "afb-context.h"
 
-struct json_object *afb_msg_json_reply(const char *status, const char *info, struct json_object *resp, struct afb_context *context, const char *reqid)
+static const char _success_[] = "success";
+
+struct json_object *afb_msg_json_reply(struct json_object *resp, const char *error, const char *info, struct afb_context *context)
 {
 	json_object *msg, *request;
 	const char *token, *uuid;
@@ -37,13 +39,10 @@ struct json_object *afb_msg_json_reply(const char *status, const char *info, str
 
 	request = json_object_new_object();
 	json_object_object_add(msg, "request", request);
-	json_object_object_add(request, "status", json_object_new_string(status));
+	json_object_object_add(request, "status", json_object_new_string(error ?: _success_));
 
 	if (info != NULL)
 		json_object_object_add(request, "info", json_object_new_string(info));
-
-	if (reqid != NULL)
-		json_object_object_add(request, "reqid", json_object_new_string(reqid));
 
 	if (context != NULL) {
 		token = afb_context_sent_token(context);
@@ -56,16 +55,6 @@ struct json_object *afb_msg_json_reply(const char *status, const char *info, str
 	}
 
 	return msg;
-}
-
-struct json_object *afb_msg_json_reply_ok(const char *info, struct json_object *resp, struct afb_context *context, const char *reqid)
-{
-	return afb_msg_json_reply("success", info, resp, context, reqid);
-}
-
-struct json_object *afb_msg_json_reply_error(const char *status, const char *info, struct afb_context *context, const char *reqid)
-{
-	return afb_msg_json_reply(status, info, NULL, context, reqid);
 }
 
 struct json_object *afb_msg_json_event(const char *event, struct json_object *object)
@@ -88,7 +77,7 @@ struct json_object *afb_msg_json_event(const char *event, struct json_object *ob
 
 struct json_object *afb_msg_json_internal_error()
 {
-	return afb_msg_json_reply_error("failed", "internal error", NULL, NULL);
+	return afb_msg_json_reply(NULL, "failed", "internal error", NULL);
 }
 
 

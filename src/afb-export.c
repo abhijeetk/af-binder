@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <fnmatch.h>
+#include <ctype.h>
 
 #include <json-c/json.h>
 
@@ -28,7 +30,11 @@
 
 #include "afb-api.h"
 #include "afb-apiset.h"
-#include "afb-api-dyn.h"
+#if defined(WITH_LEGACY_BINDING_V1)
+#include "afb-api-so-v1.h"
+#endif
+#include "afb-api-so-v2.h"
+#include "afb-api-v3.h"
 #include "afb-common.h"
 #include "afb-systemd.h"
 #include "afb-cred.h"
@@ -38,20 +44,48 @@
 #include "afb-msg-json.h"
 #include "afb-session.h"
 #include "afb-xreq.h"
+#include "afb-calls.h"
 #include "jobs.h"
 #include "verbose.h"
 
 /*************************************************************************
- * internal types and structures
+ * internal types
  ************************************************************************/
 
-enum afb_api_version
+/*
+ * structure for handling events
+ */
+struct event_handler
 {
-	Api_Version_Dyn = 0,
-	Api_Version_1 = 1,
-	Api_Version_2 = 2,
+	/* link to the next event handler of the list */
+	struct event_handler *next;
+
+	/* function to call on the case of the event */
+	void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*);
+
+	/* closure for the callback */
+	void *closure;
+
+	/* the handled pattern */
+	char pattern[1];
 };
 
+/*
+ * Actually supported versions
+ */
+enum afb_api_version
+{
+	Api_Version_None = 0,
+#if defined(WITH_LEGACY_BINDING_V1)
+	Api_Version_1 = 1,
+#endif
+	Api_Version_2 = 2,
+	Api_Version_3 = 3
+};
+
+/*
+ * The states of exported APIs
+ */
 enum afb_api_state
 {
 	Api_State_Pre_Init,
@@ -59,13 +93,16 @@ enum afb_api_state
 	Api_State_Run
 };
 
+/*
+ * structure of the exported API
+ */
 struct afb_export
 {
 	/* keep it first */
-	struct afb_dynapi dynapi;
+	struct afb_api_x3 api;
 
-	/* name of the api */
-	char *apiname;
+	/* reference count */
+	int refcount;
 
 	/* version of the api */
 	unsigned version: 4;
@@ -73,124 +110,157 @@ struct afb_export
 	/* current state */
 	unsigned state: 4;
 
+	/* declared */
+	unsigned declared: 1;
+
+	/* unsealed */
+	unsigned unsealed: 1;
+
 	/* hooking flags */
 	int hookditf;
 	int hooksvc;
 
-	/* dynamic api */
-	struct afb_api_dyn *apidyn;
-
 	/* session for service */
 	struct afb_session *session;
 
-	/* apiset for service */
-	struct afb_apiset *apiset;
+	/* apiset the API is declared in */
+	struct afb_apiset *declare_set;
+
+	/* apiset for calls */
+	struct afb_apiset *call_set;
 
 	/* event listener for service or NULL */
 	struct afb_evt_listener *listener;
 
+	/* event handler list */
+	struct event_handler *event_handlers;
+
+	/* internal descriptors */
+	union {
+#if defined(WITH_LEGACY_BINDING_V1)
+		struct afb_binding_v1 *v1;
+#endif
+		const struct afb_binding_v2 *v2;
+		struct afb_api_v3 *v3;
+	} desc;
+
 	/* start function */
 	union {
-		int (*v1)(struct afb_service);
+#if defined(WITH_LEGACY_BINDING_V1)
+		int (*v1)(struct afb_service_x1);
+#endif
 		int (*v2)();
-		int (*vdyn)(struct afb_dynapi *dynapi);
+		int (*v3)(struct afb_api_x3 *api);
 	} init;
 
 	/* event handling */
-	union {
-		void (*v12)(const char *event, struct json_object *object);
-		void (*vdyn)(struct afb_dynapi *dynapi, const char *event, struct json_object *object);
-	} on_event;
+	void (*on_any_event_v12)(const char *event, struct json_object *object);
+	void (*on_any_event_v3)(struct afb_api_x3 *api, const char *event, struct json_object *object);
 
 	/* exported data */
 	union {
+#if defined(WITH_LEGACY_BINDING_V1)
 		struct afb_binding_interface_v1 v1;
+#endif
 		struct afb_binding_data_v2 *v2;
 	} export;
+
+	/* initial name */
+	char name[1];
 };
 
-/************************************************************************************************************/
+/*****************************************************************************/
 
-static inline struct afb_dynapi *to_dynapi(struct afb_export *export)
+static inline struct afb_api_x3 *to_api_x3(struct afb_export *export)
 {
-	return (struct afb_dynapi*)export;
+	return (struct afb_api_x3*)export;
 }
 
-static inline struct afb_export *from_dynapi(struct afb_dynapi *dynapi)
+static inline struct afb_export *from_api_x3(struct afb_api_x3 *api)
 {
-	return (struct afb_export*)dynapi;
+	return (struct afb_export*)api;
 }
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
+struct afb_export *afb_export_from_api_x3(struct afb_api_x3 *api)
+{
+	return from_api_x3(api);
+}
+
+struct afb_api_x3 *afb_export_to_api_x3(struct afb_export *export)
+{
+	return to_api_x3(export);
+}
+
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
                                            F R O M     D I T F
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
 /**********************************************
 * normal flow
 **********************************************/
-static void vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+static void vverbose_cb(struct afb_api_x3 *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
 	char *p;
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 
 	if (!fmt || vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, function, fmt, args);
 	else {
-		verbose(level, file, line, function, "[API %s] %s", export->apiname, p);
+		verbose(level, file, line, function, "[API %s] %s", export->api.apiname, p);
 		free(p);
 	}
 }
 
-static void old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
+static void legacy_vverbose_v1_cb(struct afb_api_x3 *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
 	vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
-static struct afb_eventid *eventid_make_cb(void *closure, const char *name)
+static struct afb_event_x2 *event_x2_make_cb(struct afb_api_x3 *closure, const char *name)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 
 	/* check daemon state */
 	if (export->state == Api_State_Pre_Init) {
-		ERROR("[API %s] Bad call to 'afb_daemon_event_make(%s)', must not be in PreInit", export->apiname, name);
+		ERROR("[API %s] Bad call to 'afb_daemon_event_make(%s)', must not be in PreInit", export->api.apiname, name);
 		errno = EINVAL;
 		return NULL;
 	}
 
 	/* create the event */
-	return afb_evt_eventid_create2(export->apiname, name);
+	return afb_evt_event_x2_create2(export->api.apiname, name);
 }
 
-static struct afb_event event_make_cb(void *closure, const char *name)
+static struct afb_event_x1 legacy_event_x1_make_cb(struct afb_api_x3 *closure, const char *name)
 {
-	struct afb_eventid *eventid = eventid_make_cb(closure, name);
-	return afb_evt_event_from_evtid(afb_evt_eventid_to_evtid(eventid));
+	struct afb_event_x2 *event = event_x2_make_cb(closure, name);
+	return afb_evt_event_from_evtid(afb_evt_event_x2_to_evtid(event));
 }
 
-static int event_broadcast_cb(void *closure, const char *name, struct json_object *object)
+static int event_broadcast_cb(struct afb_api_x3 *closure, const char *name, struct json_object *object)
 {
 	size_t plen, nlen;
 	char *event;
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 
 	/* check daemon state */
 	if (export->state == Api_State_Pre_Init) {
-		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit", export->apiname, name, json_object_to_json_string(object));
+		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit", export->api.apiname, name, json_object_to_json_string(object));
 		errno = EINVAL;
 		return 0;
 	}
 
 	/* makes the event name */
-	plen = strlen(export->apiname);
+	plen = strlen(export->api.apiname);
 	nlen = strlen(name);
 	event = alloca(nlen + plen + 2);
-	memcpy(event, export->apiname, plen);
+	memcpy(event, export->api.apiname, plen);
 	event[plen] = '/';
 	memcpy(event + plen + 1, name, nlen + 1);
 
@@ -198,190 +268,218 @@ static int event_broadcast_cb(void *closure, const char *name, struct json_objec
 	return afb_evt_broadcast(event, object);
 }
 
-static int rootdir_open_locale_cb(void *closure, const char *filename, int flags, const char *locale)
+static int rootdir_open_locale_cb(struct afb_api_x3 *closure, const char *filename, int flags, const char *locale)
 {
 	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
 
-static int queue_job_cb(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+static int queue_job_cb(struct afb_api_x3 *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
 {
 	return jobs_queue(group, timeout, callback, argument);
 }
 
-static struct afb_req unstore_req_cb(void *closure, struct afb_stored_req *sreq)
+static struct afb_req_x1 legacy_unstore_req_cb(struct afb_api_x3 *closure, struct afb_stored_req *sreq)
 {
 	return afb_xreq_unstore(sreq);
 }
 
-static int require_api_cb(void *closure, const char *name, int initialized)
+static int require_api_cb(struct afb_api_x3 *closure, const char *name, int initialized)
 {
-	struct afb_export *export = closure;
-	if (export->state != Api_State_Init) {
-		ERROR("[API %s] Bad call to 'afb_daemon_require(%s, %d)', must be in Init", export->apiname, name, initialized);
-		errno = EINVAL;
-		return -1;
+	struct afb_export *export = from_api_x3(closure);
+	int rc, rc2;
+	char *iter, *end, save;
+
+	/* scan the names in a local copy */
+	rc = 0;
+	iter = strdupa(name);
+	for(;;) {
+		/* skip any space */
+		save = *iter;
+		while(isspace(save))
+			save = *++iter;
+		if (!save) /* at end? */
+			return rc;
+
+		/* search for the end */
+		end = iter;
+		while (save && !isspace(save))
+			save = *++end;
+		*end = 0;
+
+		/* check the required api */
+		if (export->state == Api_State_Pre_Init)
+			rc2 = afb_apiset_require(export->declare_set, export->api.apiname, name);
+		else
+			rc2 = -!((initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(export->call_set, iter, 1));
+		if (rc2 < 0)
+			rc = rc2;
+
+		*end = save;
+		iter = end;
 	}
-	return -!(initialized ? afb_apiset_lookup_started : afb_apiset_lookup)(export->apiset, name, 1);
 }
 
-static int rename_api_cb(void *closure, const char *name)
+static int add_alias_cb(struct afb_api_x3 *closure, const char *apiname, const char *aliasname)
 {
-	struct afb_export *export = closure;
-	if (export->state != Api_State_Pre_Init) {
-		ERROR("[API %s] Bad call to 'afb_daemon_rename(%s)', must be in PreInit", export->apiname, name);
+	struct afb_export *export = from_api_x3(closure);
+	if (!afb_api_is_valid_name(aliasname)) {
+		ERROR("[API %s] Can't add alias to %s: bad API name", export->api.apiname, aliasname);
 		errno = EINVAL;
 		return -1;
 	}
-	if (!afb_api_is_valid_name(name, 1)) {
-		ERROR("[API %s] Can't rename to %s: bad API name", export->apiname, name);
-		errno = EINVAL;
-		return -1;
-	}
-	NOTICE("[API %s] renamed to [API %s]", export->apiname, name);
-	afb_export_rename(export, name);
+	NOTICE("[API %s] aliasing [API %s] to [API %s]", export->api.apiname, apiname?:"<null>", aliasname);
+	afb_export_add_alias(export, apiname, aliasname);
 	return 0;
 }
 
-static int api_new_api_cb(
-		void *closure,
+static struct afb_api_x3 *api_new_api_cb(
+		struct afb_api_x3 *closure,
 		const char *api,
 		const char *info,
 		int noconcurrency,
-		int (*preinit)(void*, struct afb_dynapi *),
+		int (*preinit)(void*, struct afb_api_x3 *),
 		void *preinit_closure)
 {
-	struct afb_export *export = closure;
-	return afb_api_dyn_add(export->apiset, api, info, noconcurrency, preinit, preinit_closure);
+	struct afb_export *export = from_api_x3(closure);
+	struct afb_api_v3 *apiv3 = afb_api_v3_create(export->declare_set, export->call_set, api, info, noconcurrency, preinit, preinit_closure, 1);
+	return apiv3 ? to_api_x3(afb_api_v3_export(apiv3)) : NULL;
 }
 
 /**********************************************
 * hooked flow
 **********************************************/
-static void hooked_vverbose_cb(void *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
+static void hooked_vverbose_cb(struct afb_api_x3 *closure, int level, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	va_list ap;
 	va_copy(ap, args);
 	vverbose_cb(closure, level, file, line, function, fmt, args);
-	afb_hook_ditf_vverbose(export, level, file, line, function, fmt, ap);
+	afb_hook_api_vverbose(export, level, file, line, function, fmt, ap);
 	va_end(ap);
 }
 
-static void hooked_old_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
+static void legacy_hooked_vverbose_v1_cb(struct afb_api_x3 *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
 	hooked_vverbose_cb(closure, level, file, line, NULL, fmt, args);
 }
 
-static struct afb_eventid *hooked_eventid_make_cb(void *closure, const char *name)
+static struct afb_event_x2 *hooked_event_x2_make_cb(struct afb_api_x3 *closure, const char *name)
 {
-	struct afb_export *export = closure;
-	struct afb_eventid *r = eventid_make_cb(closure, name);
-	afb_hook_ditf_event_make(export, name, r);
+	struct afb_export *export = from_api_x3(closure);
+	struct afb_event_x2 *r = event_x2_make_cb(closure, name);
+	afb_hook_api_event_make(export, name, r);
 	return r;
 }
 
-static struct afb_event hooked_event_make_cb(void *closure, const char *name)
+static struct afb_event_x1 legacy_hooked_event_x1_make_cb(struct afb_api_x3 *closure, const char *name)
 {
-	struct afb_eventid *eventid = hooked_eventid_make_cb(closure, name);
-	return (struct afb_event){ .itf = eventid ? eventid->itf : NULL, .closure = eventid };
+	struct afb_event_x2 *event = hooked_event_x2_make_cb(closure, name);
+	struct afb_event_x1 e;
+	e.closure = event;
+	e.itf = event ? event->itf : NULL;
+	return e;
 }
 
-static int hooked_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
+static int hooked_event_broadcast_cb(struct afb_api_x3 *closure, const char *name, struct json_object *object)
 {
 	int r;
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	json_object_get(object);
-	afb_hook_ditf_event_broadcast_before(export, name, json_object_get(object));
+	afb_hook_api_event_broadcast_before(export, name, json_object_get(object));
 	r = event_broadcast_cb(closure, name, object);
-	afb_hook_ditf_event_broadcast_after(export, name, object, r);
+	afb_hook_api_event_broadcast_after(export, name, object, r);
 	json_object_put(object);
 	return r;
 }
 
-static struct sd_event *hooked_get_event_loop(void *closure)
+static struct sd_event *hooked_get_event_loop(struct afb_api_x3 *closure)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	struct sd_event *r = afb_systemd_get_event_loop();
-	return afb_hook_ditf_get_event_loop(export, r);
+	return afb_hook_api_get_event_loop(export, r);
 }
 
-static struct sd_bus *hooked_get_user_bus(void *closure)
+static struct sd_bus *hooked_get_user_bus(struct afb_api_x3 *closure)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	struct sd_bus *r = afb_systemd_get_user_bus();
-	return afb_hook_ditf_get_user_bus(export, r);
+	return afb_hook_api_get_user_bus(export, r);
 }
 
-static struct sd_bus *hooked_get_system_bus(void *closure)
+static struct sd_bus *hooked_get_system_bus(struct afb_api_x3 *closure)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	struct sd_bus *r = afb_systemd_get_system_bus();
-	return afb_hook_ditf_get_system_bus(export, r);
+	return afb_hook_api_get_system_bus(export, r);
 }
 
-static int hooked_rootdir_get_fd(void *closure)
+static int hooked_rootdir_get_fd(struct afb_api_x3 *closure)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	int r = afb_common_rootdir_get_fd();
-	return afb_hook_ditf_rootdir_get_fd(export, r);
+	return afb_hook_api_rootdir_get_fd(export, r);
 }
 
-static int hooked_rootdir_open_locale_cb(void *closure, const char *filename, int flags, const char *locale)
+static int hooked_rootdir_open_locale_cb(struct afb_api_x3 *closure, const char *filename, int flags, const char *locale)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	int r = rootdir_open_locale_cb(closure, filename, flags, locale);
-	return afb_hook_ditf_rootdir_open_locale(export, filename, flags, locale, r);
+	return afb_hook_api_rootdir_open_locale(export, filename, flags, locale, r);
 }
 
-static int hooked_queue_job_cb(void *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+static int hooked_queue_job_cb(struct afb_api_x3 *closure, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
 {
-	struct afb_export *export = closure;
+	struct afb_export *export = from_api_x3(closure);
 	int r = queue_job_cb(closure, callback, argument, group, timeout);
-	return afb_hook_ditf_queue_job(export, callback, argument, group, timeout, r);
+	return afb_hook_api_queue_job(export, callback, argument, group, timeout, r);
 }
 
-static struct afb_req hooked_unstore_req_cb(void *closure, struct afb_stored_req *sreq)
+static struct afb_req_x1 legacy_hooked_unstore_req_cb(struct afb_api_x3 *closure, struct afb_stored_req *sreq)
 {
-	struct afb_export *export = closure;
-	afb_hook_ditf_unstore_req(export, sreq);
-	return unstore_req_cb(closure, sreq);
+	struct afb_export *export = from_api_x3(closure);
+	afb_hook_api_legacy_unstore_req(export, sreq);
+	return legacy_unstore_req_cb(closure, sreq);
 }
 
-static int hooked_require_api_cb(void *closure, const char *name, int initialized)
+static int hooked_require_api_cb(struct afb_api_x3 *closure, const char *name, int initialized)
 {
 	int result;
-	struct afb_export *export = closure;
-	afb_hook_ditf_require_api(export, name, initialized);
+	struct afb_export *export = from_api_x3(closure);
+	afb_hook_api_require_api(export, name, initialized);
 	result = require_api_cb(closure, name, initialized);
-	return afb_hook_ditf_require_api_result(export, name, initialized, result);
+	return afb_hook_api_require_api_result(export, name, initialized, result);
 }
 
-static int hooked_rename_api_cb(void *closure, const char *name)
+static int hooked_add_alias_cb(struct afb_api_x3 *closure, const char *apiname, const char *aliasname)
 {
-	struct afb_export *export = closure;
-	const char *oldname = export->apiname;
-	int result = rename_api_cb(closure, name);
-	return afb_hook_ditf_rename_api(export, oldname, name, result);
+	struct afb_export *export = from_api_x3(closure);
+	int result = add_alias_cb(closure, apiname, aliasname);
+	return afb_hook_api_add_alias(export, apiname, aliasname, result);
 }
 
-static int hooked_api_new_api_cb(
-		void *closure,
+static struct afb_api_x3 *hooked_api_new_api_cb(
+		struct afb_api_x3 *closure,
 		const char *api,
 		const char *info,
 		int noconcurrency,
-		int (*preinit)(void*, struct afb_dynapi *),
+		int (*preinit)(void*, struct afb_api_x3 *),
 		void *preinit_closure)
 {
-	/* TODO */
-	return api_new_api_cb(closure, api, info, noconcurrency, preinit, preinit_closure);
+	struct afb_api_x3 *result;
+	struct afb_export *export = from_api_x3(closure);
+	afb_hook_api_new_api_before(export, api, info, noconcurrency);
+	result = api_new_api_cb(closure, api, info, noconcurrency, preinit, preinit_closure);
+	afb_hook_api_new_api_after(export, -!result, api);
+	return result;
 }
+
 /**********************************************
 * vectors
 **********************************************/
-static const struct afb_daemon_itf daemon_itf = {
-	.vverbose_v1 = old_vverbose_cb,
+static const struct afb_daemon_itf_x1 daemon_itf = {
+	.vverbose_v1 = legacy_vverbose_v1_cb,
 	.vverbose_v2 = vverbose_cb,
-	.event_make = event_make_cb,
+	.event_make = legacy_event_x1_make_cb,
 	.event_broadcast = event_broadcast_cb,
 	.get_event_loop = afb_systemd_get_event_loop,
 	.get_user_bus = afb_systemd_get_user_bus,
@@ -389,16 +487,16 @@ static const struct afb_daemon_itf daemon_itf = {
 	.rootdir_get_fd = afb_common_rootdir_get_fd,
 	.rootdir_open_locale = rootdir_open_locale_cb,
 	.queue_job = queue_job_cb,
-	.unstore_req = unstore_req_cb,
+	.unstore_req = legacy_unstore_req_cb,
 	.require_api = require_api_cb,
-	.rename_api = rename_api_cb,
+	.add_alias = add_alias_cb,
 	.new_api = api_new_api_cb,
 };
 
-static const struct afb_daemon_itf hooked_daemon_itf = {
-	.vverbose_v1 = hooked_old_vverbose_cb,
+static const struct afb_daemon_itf_x1 hooked_daemon_itf = {
+	.vverbose_v1 = legacy_hooked_vverbose_v1_cb,
 	.vverbose_v2 = hooked_vverbose_cb,
-	.event_make = hooked_event_make_cb,
+	.event_make = legacy_hooked_event_x1_make_cb,
 	.event_broadcast = hooked_event_broadcast_cb,
 	.get_event_loop = hooked_get_event_loop,
 	.get_user_bus = hooked_get_user_bus,
@@ -406,422 +504,185 @@ static const struct afb_daemon_itf hooked_daemon_itf = {
 	.rootdir_get_fd = hooked_rootdir_get_fd,
 	.rootdir_open_locale = hooked_rootdir_open_locale_cb,
 	.queue_job = hooked_queue_job_cb,
-	.unstore_req = hooked_unstore_req_cb,
+	.unstore_req = legacy_hooked_unstore_req_cb,
 	.require_api = hooked_require_api_cb,
-	.rename_api = hooked_rename_api_cb,
+	.add_alias = hooked_add_alias_cb,
 	.new_api = hooked_api_new_api_cb,
 };
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
                                            F R O M     S V C
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
 /* the common session for services sharing their session */
 static struct afb_session *common_session;
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
                                            F R O M     S V C
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
-/*
- * Structure for requests initiated by the service
- */
-struct call_req
-{
-	struct afb_xreq xreq;
-
-	struct afb_export *export;
-
-	/* the args */
-	union {
-		void (*callback)(void*, int, struct json_object*);
-		void (*callback_dynapi)(void*, int, struct json_object*, struct afb_dynapi*);
-	};
-	void *closure;
-
-	/* sync */
-	struct jobloop *jobloop;
-	struct json_object *result;
-	int status;
-};
-
-/*
- * destroys the call_req
- */
-static void callreq_destroy(struct afb_xreq *xreq)
-{
-	struct call_req *callreq = CONTAINER_OF_XREQ(struct call_req, xreq);
-
-	afb_context_disconnect(&callreq->xreq.context);
-	json_object_put(callreq->xreq.json);
-	afb_cred_unref(callreq->xreq.cred);
-	free(callreq);
-}
-
-static void callreq_reply_async(struct afb_xreq *xreq, int status, json_object *obj)
-{
-	struct call_req *callreq = CONTAINER_OF_XREQ(struct call_req, xreq);
-	if (callreq->callback)
-		callreq->callback(callreq->closure, status, obj);
-	json_object_put(obj);
-}
-
-static void callreq_reply_async_dynapi(struct afb_xreq *xreq, int status, json_object *obj)
-{
-	struct call_req *callreq = CONTAINER_OF_XREQ(struct call_req, xreq);
-	if (callreq->callback_dynapi)
-		callreq->callback_dynapi(callreq->closure, status, obj, to_dynapi(callreq->export));
-	json_object_put(obj);
-}
-
-static void callreq_sync_leave(struct call_req *callreq)
-{
-	struct jobloop *jobloop = callreq->jobloop;
-
-	if (jobloop) {
-		callreq->jobloop = NULL;
-		jobs_leave(jobloop);
-	}
-}
-
-static void callreq_reply_sync(struct afb_xreq *xreq, int status, json_object *obj)
-{
-	struct call_req *callreq = CONTAINER_OF_XREQ(struct call_req, xreq);
-	callreq->status = status;
-	callreq->result = obj;
-	callreq_sync_leave(callreq);
-}
-
-static void callreq_sync_enter(int signum, void *closure, struct jobloop *jobloop)
-{
-	struct call_req *callreq = closure;
-
-	if (!signum) {
-		callreq->jobloop = jobloop;
-		afb_xreq_process(&callreq->xreq, callreq->export->apiset);
-	} else {
-		callreq->result = afb_msg_json_internal_error();
-		callreq->status = -1;
-		callreq_sync_leave(callreq);
-	}
-}
-
-/* interface for requests of services */
-const struct afb_xreq_query_itf afb_export_xreq_async_itf = {
-	.unref = callreq_destroy,
-	.reply = callreq_reply_async
-};
-
-/* interface for requests of services */
-const struct afb_xreq_query_itf afb_export_xreq_async_dynapi_itf = {
-	.unref = callreq_destroy,
-	.reply = callreq_reply_async_dynapi
-};
-
-/* interface for requests of services */
-const struct afb_xreq_query_itf afb_export_xreq_sync_itf = {
-	.unref = callreq_destroy,
-	.reply = callreq_reply_sync
-};
-
-/*
- * create an call_req
- */
-static struct call_req *callreq_create(
-		struct afb_export *export,
+static void call_x3(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
-		const struct afb_xreq_query_itf *itf)
+		void (*callback)(void*, struct json_object*, const char *error, const char *info, struct afb_api_x3*),
+		void *closure)
 {
-	struct call_req *callreq;
-	size_t lenapi, lenverb;
-	char *copy;
-
-	/* allocates the request */
-	lenapi = 1 + strlen(api);
-	lenverb = 1 + strlen(verb);
-	callreq = malloc(lenapi + lenverb + sizeof *callreq);
-	if (callreq != NULL) {
-		/* initialises the request */
-		afb_xreq_init(&callreq->xreq, itf);
-		afb_context_init(&callreq->xreq.context, export->session, NULL);
-		callreq->xreq.context.validated = 1;
-		copy = (char*)&callreq[1];
-		memcpy(copy, api, lenapi);
-		callreq->xreq.request.api = copy;
-		copy = &copy[lenapi];
-		memcpy(copy, verb, lenverb);
-		callreq->xreq.request.verb = copy;
-		callreq->xreq.listener = export->listener;
-		callreq->xreq.json = args;
-		callreq->export = export;
-	}
-	return callreq;
+	struct afb_export *export = from_api_x3(apix3);
+	return afb_calls_call(export, api, verb, args, callback, closure);
 }
 
-/*
- * Initiates a call for the service
- */
-static void svc_call(
-		void *closure,
+static int call_sync_x3(
+		struct afb_api_x3 *apix3,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		struct json_object **object,
+		char **error,
+		char **info)
+{
+	struct afb_export *export = from_api_x3(apix3);
+	return afb_calls_call_sync(export, api, verb, args, object, error, info);
+}
+
+static void legacy_call_v12(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
 		void (*callback)(void*, int, struct json_object*),
-		void *cbclosure)
+		void *closure)
 {
-	struct afb_export *export = closure;
-	struct call_req *callreq;
-	struct json_object *ierr;
-
-	/* allocates the request */
-	callreq = callreq_create(export, api, verb, args, &afb_export_xreq_async_itf);
-	if (callreq == NULL) {
-		ERROR("out of memory");
-		json_object_put(args);
-		ierr = afb_msg_json_internal_error();
-		if (callback)
-			callback(cbclosure, -1, ierr);
-		json_object_put(ierr);
-		return;
-	}
-
-	/* initialises the request */
-	callreq->jobloop = NULL;
-	callreq->callback = callback;
-	callreq->closure = cbclosure;
-
-	/* terminates and frees ressources if needed */
-	afb_xreq_process(&callreq->xreq, export->apiset);
+	struct afb_export *export = from_api_x3(apix3);
+	afb_calls_legacy_call_v12(export, api, verb, args, callback, closure);
 }
 
-static void svc_call_dynapi(
-		struct afb_dynapi *dynapi,
+static void legacy_call_x3(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
-		void (*callback)(void*, int, struct json_object*, struct afb_dynapi*),
-		void *cbclosure)
+		void (*callback)(void*, int, struct json_object*, struct afb_api_x3*),
+		void *closure)
 {
-	struct afb_export *export = from_dynapi(dynapi);
-	struct call_req *callreq;
-	struct json_object *ierr;
-
-	/* allocates the request */
-	callreq = callreq_create(export, api, verb, args, &afb_export_xreq_async_dynapi_itf);
-	if (callreq == NULL) {
-		ERROR("out of memory");
-		json_object_put(args);
-		ierr = afb_msg_json_internal_error();
-		if (callback)
-			callback(cbclosure, -1, ierr, to_dynapi(export));
-		json_object_put(ierr);
-		return;
-	}
-
-	/* initialises the request */
-	callreq->jobloop = NULL;
-	callreq->callback_dynapi = callback;
-	callreq->closure = cbclosure;
-
-	/* terminates and frees ressources if needed */
-	afb_xreq_process(&callreq->xreq, export->apiset);
+	struct afb_export *export = from_api_x3(apix3);
+	afb_calls_legacy_call_v3(export, api, verb, args, callback, closure);
 }
 
-static int svc_call_sync(
-		void *closure,
+static int legacy_call_sync(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
 		struct json_object **result)
 {
-	struct afb_export *export = closure;
-	struct call_req *callreq;
-	struct json_object *resu;
-	int rc;
-
-	/* allocates the request */
-	callreq = callreq_create(export, api, verb, args, &afb_export_xreq_sync_itf);
-	if (callreq == NULL) {
-		ERROR("out of memory");
-		errno = ENOMEM;
-		json_object_put(args);
-		resu = afb_msg_json_internal_error();
-		rc = -1;
-	} else {
-		/* initialises the request */
-		callreq->jobloop = NULL;
-		callreq->callback = NULL;
-		callreq->result = NULL;
-		callreq->status = 0;
-		afb_xreq_unhooked_addref(&callreq->xreq); /* avoid early callreq destruction */
-		rc = jobs_enter(NULL, 0, callreq_sync_enter, callreq);
-		if (rc >= 0)
-			rc = callreq->status;
-		resu = (rc >= 0 || callreq->result) ? callreq->result : afb_msg_json_internal_error();
-		afb_xreq_unhooked_unref(&callreq->xreq);
-	}
-	if (result)
-		*result = resu;
-	else
-		json_object_put(resu);
-	return rc;
+	struct afb_export *export = from_api_x3(apix3);
+	return afb_calls_legacy_call_sync(export, api, verb, args, result);
 }
 
-struct hooked_call
+static void hooked_call_x3(
+		struct afb_api_x3 *apix3,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		void (*callback)(void*, struct json_object*, const char*, const char*, struct afb_api_x3*),
+		void *closure)
 {
-	struct afb_export *export;
-	union {
-		void (*callback)(void*, int, struct json_object*);
-		void (*callback_dynapi)(void*, int, struct json_object*, struct afb_dynapi*);
-	};
-	void *cbclosure;
-};
-
-static void svc_hooked_call_result(void *closure, int status, struct json_object *result)
-{
-	struct hooked_call *hc = closure;
-	afb_hook_svc_call_result(hc->export, status, result);
-	hc->callback(hc->cbclosure, status, result);
-	free(hc);
+	struct afb_export *export = from_api_x3(apix3);
+	afb_calls_hooked_call(export, api, verb, args, callback, closure);
 }
 
-static void svc_hooked_call_dynapi_result(void *closure, int status, struct json_object *result, struct afb_dynapi *dynapi)
+static int hooked_call_sync_x3(
+		struct afb_api_x3 *apix3,
+		const char *api,
+		const char *verb,
+		struct json_object *args,
+		struct json_object **object,
+		char **error,
+		char **info)
 {
-	struct hooked_call *hc = closure;
-	afb_hook_svc_call_result(hc->export, status, result);
-	hc->callback_dynapi(hc->cbclosure, status, result, dynapi);
-	free(hc);
+	struct afb_export *export = from_api_x3(apix3);
+	return afb_calls_hooked_call_sync(export, api, verb, args, object, error, info);
 }
 
-static void svc_hooked_call(
-		void *closure,
+static void legacy_hooked_call_v12(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
 		void (*callback)(void*, int, struct json_object*),
-		void *cbclosure)
+		void *closure)
 {
-	struct afb_export *export = closure;
-	struct hooked_call *hc;
-
-	if (export->hooksvc & afb_hook_flag_svc_call)
-		afb_hook_svc_call(export, api, verb, args);
-
-	if (export->hooksvc & afb_hook_flag_svc_call_result) {
-		hc = malloc(sizeof *hc);
-		if (!hc)
-			WARNING("allocation failed");
-		else {
-			hc->export = export;
-			hc->callback = callback;
-			hc->cbclosure = cbclosure;
-			callback = svc_hooked_call_result;
-			cbclosure = hc;
-		}
-	}
-	svc_call(closure, api, verb, args, callback, cbclosure);
+	struct afb_export *export = from_api_x3(apix3);
+	afb_calls_legacy_hooked_call_v12(export, api, verb, args, callback, closure);
 }
 
-static void svc_hooked_call_dynapi(
-		struct afb_dynapi *dynapi,
+static void legacy_hooked_call_x3(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
-		void (*callback)(void*, int, struct json_object*, struct afb_dynapi*),
-		void *cbclosure)
+		void (*callback)(void*, int, struct json_object*, struct afb_api_x3*),
+		void *closure)
 {
-	struct afb_export *export = from_dynapi(dynapi);
-	struct hooked_call *hc;
-
-	if (export->hooksvc & afb_hook_flag_svc_call)
-		afb_hook_svc_call(export, api, verb, args);
-
-	if (export->hooksvc & afb_hook_flag_svc_call_result) {
-		hc = malloc(sizeof *hc);
-		if (!hc)
-			WARNING("allocation failed");
-		else {
-			hc->export = export;
-			hc->callback_dynapi = callback;
-			hc->cbclosure = cbclosure;
-			callback = svc_hooked_call_dynapi_result;
-			cbclosure = hc;
-		}
-	}
-	svc_call_dynapi(dynapi, api, verb, args, callback, cbclosure);
+	struct afb_export *export = from_api_x3(apix3);
+	afb_calls_legacy_hooked_call_v3(export, api, verb, args, callback, closure);
 }
 
-static int svc_hooked_call_sync(
-		void *closure,
+static int legacy_hooked_call_sync(
+		struct afb_api_x3 *apix3,
 		const char *api,
 		const char *verb,
 		struct json_object *args,
 		struct json_object **result)
 {
-	struct afb_export *export = closure;
-	struct json_object *resu;
-	int rc;
-
-	if (export->hooksvc & afb_hook_flag_svc_callsync)
-		afb_hook_svc_callsync(export, api, verb, args);
-
-	rc = svc_call_sync(closure, api, verb, args, &resu);
-
-	if (export->hooksvc & afb_hook_flag_svc_callsync_result)
-		afb_hook_svc_callsync_result(export, rc, resu);
-
-	if (result)
-		*result = resu;
-	else
-		json_object_put(resu);
-
-	return rc;
+	struct afb_export *export = from_api_x3(apix3);
+	return afb_calls_legacy_hooked_call_sync(export, api, verb, args, result);
 }
 
 /* the interface for services */
-static const struct afb_service_itf service_itf = {
-	.call = svc_call,
-	.call_sync = svc_call_sync
+static const struct afb_service_itf_x1 service_itf = {
+	.call = legacy_call_v12,
+	.call_sync = legacy_call_sync
 };
 
 /* the interface for services */
-static const struct afb_service_itf hooked_service_itf = {
-	.call = svc_hooked_call,
-	.call_sync = svc_hooked_call_sync
+static const struct afb_service_itf_x1 hooked_service_itf = {
+	.call = legacy_hooked_call_v12,
+	.call_sync = legacy_hooked_call_sync
 };
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
                                            F R O M     D Y N A P I
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
 static int api_set_verbs_v2_cb(
-		struct afb_dynapi *dynapi,
+		struct afb_api_x3 *api,
 		const struct afb_verb_v2 *verbs)
 {
-	struct afb_export *export = from_dynapi(dynapi);
+	struct afb_export *export = from_api_x3(api);
 
-	if (export->apidyn) {
-		afb_api_dyn_set_verbs_v2(export->apidyn, verbs);
+	if (export->unsealed) {
+		afb_api_v3_set_verbs_v2(export->desc.v3, verbs);
 		return 0;
 	}
 
@@ -829,115 +690,292 @@ static int api_set_verbs_v2_cb(
 	return -1;
 }
 
-static int api_add_verb_cb(
-		struct afb_dynapi *dynapi,
-		const char *verb,
-		const char *info,
-		void (*callback)(struct afb_request *request),
-		void *vcbdata,
-		const struct afb_auth *auth,
-		uint32_t session)
+static int api_set_verbs_v3_cb(
+		struct afb_api_x3 *api,
+		const struct afb_verb_v3 *verbs)
 {
-	struct afb_export *export = from_dynapi(dynapi);
+	struct afb_export *export = from_api_x3(api);
 
-	if (export->apidyn)
-		return afb_api_dyn_add_verb(export->apidyn, verb, info, callback, vcbdata, auth, session);
+	if (!export->unsealed) {
+		errno = EPERM;
+		return -1;
+	}
 
-	errno = EPERM;
-	return -1;
+	afb_api_v3_set_verbs_v3(export->desc.v3, verbs);
+	return 0;
 }
 
-static int api_sub_verb_cb(
-		struct afb_dynapi *dynapi,
-		const char *verb)
+static int api_add_verb_cb(
+		struct afb_api_x3 *api,
+		const char *verb,
+		const char *info,
+		void (*callback)(struct afb_req_x2 *req),
+		void *vcbdata,
+		const struct afb_auth *auth,
+		uint32_t session,
+		int glob)
 {
-	struct afb_export *export = from_dynapi(dynapi);
+	struct afb_export *export = from_api_x3(api);
 
-	if (export->apidyn)
-		return afb_api_dyn_sub_verb(export->apidyn, verb);
+	if (!export->unsealed) {
+		errno = EPERM;
+		return -1;
+	}
 
-	errno = EPERM;
-	return -1;
+	return afb_api_v3_add_verb(export->desc.v3, verb, info, callback, vcbdata, auth, (uint16_t)session, glob);
+}
+
+static int api_del_verb_cb(
+		struct afb_api_x3 *api,
+		const char *verb,
+		void **vcbdata)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	if (!export->unsealed) {
+		errno = EPERM;
+		return -1;
+	}
+
+	return afb_api_v3_del_verb(export->desc.v3, verb, vcbdata);
 }
 
 static int api_set_on_event_cb(
-		struct afb_dynapi *dynapi,
-		void (*onevent)(struct afb_dynapi *dynapi, const char *event, struct json_object *object))
+		struct afb_api_x3 *api,
+		void (*onevent)(struct afb_api_x3 *api, const char *event, struct json_object *object))
 {
-	struct afb_export *export = from_dynapi(dynapi);
-	return afb_export_handle_events_vdyn(export, onevent);
+	struct afb_export *export = from_api_x3(api);
+	return afb_export_handle_events_v3(export, onevent);
 }
 
 static int api_set_on_init_cb(
-		struct afb_dynapi *dynapi,
-		int (*oninit)(struct afb_dynapi *dynapi))
+		struct afb_api_x3 *api,
+		int (*oninit)(struct afb_api_x3 *api))
 {
-	struct afb_export *export = from_dynapi(dynapi);
+	struct afb_export *export = from_api_x3(api);
 
-	return afb_export_handle_init_vdyn(export, oninit);
+	return afb_export_handle_init_v3(export, oninit);
 }
 
 static void api_seal_cb(
-		struct afb_dynapi *dynapi)
+		struct afb_api_x3 *api)
 {
-	struct afb_export *export = from_dynapi(dynapi);
+	struct afb_export *export = from_api_x3(api);
 
-	export->apidyn = NULL;
+	export->unsealed = 0;
+}
+
+static int event_handler_add_cb(
+		struct afb_api_x3 *api,
+		const char *pattern,
+		void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*),
+		void *closure)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	return afb_export_event_handler_add(export, pattern, callback, closure);
+}
+
+static int event_handler_del_cb(
+		struct afb_api_x3 *api,
+		const char *pattern,
+		void **closure)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	return afb_export_event_handler_del(export, pattern, closure);
+}
+
+static int class_provide_cb(struct afb_api_x3 *api, const char *name)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	int rc = 0, rc2;
+	char *iter, *end, save;
+
+	iter = strdupa(name);
+	for(;;) {
+		/* skip any space */
+		save = *iter;
+		while(isspace(save))
+			save = *++iter;
+		if (!save) /* at end? */
+			return rc;
+
+		/* search for the end */
+		end = iter;
+		while (save && !isspace(save))
+			save = *++end;
+		*end = 0;
+
+		rc2 = afb_apiset_provide_class(export->declare_set, api->apiname, iter);
+		if (rc2 < 0)
+			rc = rc2;
+
+		*end = save;
+		iter = end;
+	}
+}
+
+static int class_require_cb(struct afb_api_x3 *api, const char *name)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	int rc = 0, rc2;
+	char *iter, *end, save;
+
+	iter = strdupa(name);
+	for(;;) {
+		/* skip any space */
+		save = *iter;
+		while(isspace(save))
+			save = *++iter;
+		if (!save) /* at end? */
+			return rc;
+
+		/* search for the end */
+		end = iter;
+		while (save && !isspace(save))
+			save = *++end;
+		*end = 0;
+
+		rc2 = afb_apiset_require_class(export->declare_set, api->apiname, iter);
+		if (rc2 < 0)
+			rc = rc2;
+
+		*end = save;
+		iter = end;
+	}
+}
+
+static int delete_api_cb(struct afb_api_x3 *api)
+{
+	struct afb_export *export = from_api_x3(api);
+
+	if (!export->unsealed) {
+		errno = EPERM;
+		return -1;
+	}
+
+	afb_export_undeclare(export);
+	afb_export_unref(export);
+	return 0;
 }
 
 static int hooked_api_set_verbs_v2_cb(
-		struct afb_dynapi *dynapi,
+		struct afb_api_x3 *api,
 		const struct afb_verb_v2 *verbs)
 {
-	/* TODO */
-	return api_set_verbs_v2_cb(dynapi, verbs);
+	struct afb_export *export = from_api_x3(api);
+	int result = api_set_verbs_v2_cb(api, verbs);
+	return afb_hook_api_api_set_verbs_v2(export, result, verbs);
+}
+
+static int hooked_api_set_verbs_v3_cb(
+		struct afb_api_x3 *api,
+		const struct afb_verb_v3 *verbs)
+{
+	struct afb_export *export = from_api_x3(api);
+	int result = api_set_verbs_v3_cb(api, verbs);
+	return afb_hook_api_api_set_verbs_v3(export, result, verbs);
 }
 
 static int hooked_api_add_verb_cb(
-		struct afb_dynapi *dynapi,
+		struct afb_api_x3 *api,
 		const char *verb,
 		const char *info,
-		void (*callback)(struct afb_request *request),
+		void (*callback)(struct afb_req_x2 *req),
 		void *vcbdata,
 		const struct afb_auth *auth,
-		uint32_t session)
+		uint32_t session,
+		int glob)
 {
-	/* TODO */
-	return api_add_verb_cb(dynapi, verb, info, callback, vcbdata, auth, session);
+	struct afb_export *export = from_api_x3(api);
+	int result = api_add_verb_cb(api, verb, info, callback, vcbdata, auth, session, glob);
+	return afb_hook_api_api_add_verb(export, result, verb, info, glob);
 }
 
-static int hooked_api_sub_verb_cb(
-		struct afb_dynapi *dynapi,
-		const char *verb)
+static int hooked_api_del_verb_cb(
+		struct afb_api_x3 *api,
+		const char *verb,
+		void **vcbdata)
 {
-	/* TODO */
-	return api_sub_verb_cb(dynapi, verb);
+	struct afb_export *export = from_api_x3(api);
+	int result = api_del_verb_cb(api, verb, vcbdata);
+	return afb_hook_api_api_del_verb(export, result, verb);
 }
 
 static int hooked_api_set_on_event_cb(
-		struct afb_dynapi *dynapi,
-		void (*onevent)(struct afb_dynapi *dynapi, const char *event, struct json_object *object))
+		struct afb_api_x3 *api,
+		void (*onevent)(struct afb_api_x3 *api, const char *event, struct json_object *object))
 {
-	/* TODO */
-	return api_set_on_event_cb(dynapi, onevent);
+	struct afb_export *export = from_api_x3(api);
+	int result = api_set_on_event_cb(api, onevent);
+	return afb_hook_api_api_set_on_event(export, result);
 }
 
 static int hooked_api_set_on_init_cb(
-		struct afb_dynapi *dynapi,
-		int (*oninit)(struct afb_dynapi *dynapi))
+		struct afb_api_x3 *api,
+		int (*oninit)(struct afb_api_x3 *api))
 {
-	/* TODO */
-	return api_set_on_init_cb(dynapi, oninit);
+	struct afb_export *export = from_api_x3(api);
+	int result = api_set_on_init_cb(api, oninit);
+	return afb_hook_api_api_set_on_init(export, result);
 }
 
 static void hooked_api_seal_cb(
-		struct afb_dynapi *dynapi)
+		struct afb_api_x3 *api)
 {
-	/* TODO */
-	api_seal_cb(dynapi);
+	struct afb_export *export = from_api_x3(api);
+	afb_hook_api_api_seal(export);
+	api_seal_cb(api);
 }
 
-static const struct afb_dynapi_itf dynapi_itf = {
+static int hooked_event_handler_add_cb(
+		struct afb_api_x3 *api,
+		const char *pattern,
+		void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*),
+		void *closure)
+{
+	struct afb_export *export = from_api_x3(api);
+	int result = event_handler_add_cb(api, pattern, callback, closure);
+	return afb_hook_api_event_handler_add(export, result, pattern);
+}
+
+static int hooked_event_handler_del_cb(
+		struct afb_api_x3 *api,
+		const char *pattern,
+		void **closure)
+{
+	struct afb_export *export = from_api_x3(api);
+	int result = event_handler_del_cb(api, pattern, closure);
+	return afb_hook_api_event_handler_del(export, result, pattern);
+}
+
+static int hooked_class_provide_cb(struct afb_api_x3 *api, const char *name)
+{
+	struct afb_export *export = from_api_x3(api);
+	int result = class_provide_cb(api, name);
+	return afb_hook_api_class_provide(export, result, name);
+}
+
+static int hooked_class_require_cb(struct afb_api_x3 *api, const char *name)
+{
+	struct afb_export *export = from_api_x3(api);
+	int result = class_require_cb(api, name);
+	return afb_hook_api_class_require(export, result, name);
+}
+
+static int hooked_delete_api_cb(struct afb_api_x3 *api)
+{
+	struct afb_export *export = afb_export_addref(from_api_x3(api));
+	int result = delete_api_cb(api);
+	result = afb_hook_api_delete_api(export, result);
+	afb_export_unref(export);
+	return result;
+}
+
+static const struct afb_api_x3_itf api_x3_itf = {
 
 	.vverbose = (void*)vverbose_cb,
 
@@ -949,24 +987,35 @@ static const struct afb_dynapi_itf dynapi_itf = {
 	.queue_job = queue_job_cb,
 
 	.require_api = require_api_cb,
-	.rename_api = rename_api_cb,
+	.add_alias = add_alias_cb,
 
 	.event_broadcast = event_broadcast_cb,
-	.eventid_make = eventid_make_cb,
+	.event_make = event_x2_make_cb,
 
-	.call = svc_call_dynapi,
-	.call_sync = svc_call_sync,
+	.legacy_call = legacy_call_x3,
+	.legacy_call_sync = legacy_call_sync,
 
 	.api_new_api = api_new_api_cb,
 	.api_set_verbs_v2 = api_set_verbs_v2_cb,
 	.api_add_verb = api_add_verb_cb,
-	.api_sub_verb = api_sub_verb_cb,
+	.api_del_verb = api_del_verb_cb,
 	.api_set_on_event = api_set_on_event_cb,
 	.api_set_on_init = api_set_on_init_cb,
 	.api_seal = api_seal_cb,
+	.api_set_verbs_v3 = api_set_verbs_v3_cb,
+	.event_handler_add = event_handler_add_cb,
+	.event_handler_del = event_handler_del_cb,
+
+	.call = call_x3,
+	.call_sync = call_sync_x3,
+
+	.class_provide = class_provide_cb,
+	.class_require = class_require_cb,
+
+	.delete_api = delete_api_cb,
 };
 
-static const struct afb_dynapi_itf hooked_dynapi_itf = {
+static const struct afb_api_x3_itf hooked_api_x3_itf = {
 
 	.vverbose = hooked_vverbose_cb,
 
@@ -978,86 +1027,187 @@ static const struct afb_dynapi_itf hooked_dynapi_itf = {
 	.queue_job = hooked_queue_job_cb,
 
 	.require_api = hooked_require_api_cb,
-	.rename_api = hooked_rename_api_cb,
+	.add_alias = hooked_add_alias_cb,
 
 	.event_broadcast = hooked_event_broadcast_cb,
-	.eventid_make = hooked_eventid_make_cb,
+	.event_make = hooked_event_x2_make_cb,
 
-	.call = svc_hooked_call_dynapi,
-	.call_sync = svc_hooked_call_sync,
+	.legacy_call = legacy_hooked_call_x3,
+	.legacy_call_sync = legacy_hooked_call_sync,
 
 	.api_new_api = hooked_api_new_api_cb,
 	.api_set_verbs_v2 = hooked_api_set_verbs_v2_cb,
 	.api_add_verb = hooked_api_add_verb_cb,
-	.api_sub_verb = hooked_api_sub_verb_cb,
+	.api_del_verb = hooked_api_del_verb_cb,
 	.api_set_on_event = hooked_api_set_on_event_cb,
 	.api_set_on_init = hooked_api_set_on_init_cb,
 	.api_seal = hooked_api_seal_cb,
+	.api_set_verbs_v3 = hooked_api_set_verbs_v3_cb,
+	.event_handler_add = hooked_event_handler_add_cb,
+	.event_handler_del = hooked_event_handler_del_cb,
+
+	.call = hooked_call_x3,
+	.call_sync = hooked_call_sync_x3,
+
+	.class_provide = hooked_class_provide_cb,
+	.class_require = hooked_class_require_cb,
+
+	.delete_api = hooked_delete_api_cb,
 };
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
-                                           F R O M     S V C
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+                      L I S T E N E R S
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
 /*
  * Propagates the event to the service
  */
-static void export_on_event_v12(void *closure, const char *event, int eventid, struct json_object *object)
+static void listener_of_events(void *closure, const char *event, int eventid, struct json_object *object)
 {
-	struct afb_export *export = closure;
+	struct event_handler *handler;
+	struct afb_export *export = from_api_x3(closure);
 
-	if (export->hooksvc & afb_hook_flag_svc_on_event_before)
-		afb_hook_svc_on_event_before(export, event, eventid, object);
-	export->on_event.v12(event, object);
-	if (export->hooksvc & afb_hook_flag_svc_on_event_after)
-		afb_hook_svc_on_event_after(export, event, eventid, object);
+	/* hook the event before */
+	if (export->hooksvc & afb_hook_flag_api_on_event)
+		afb_hook_api_on_event_before(export, event, eventid, object);
+
+	/* transmit to specific handlers */
+	/* search the handler */
+	handler = export->event_handlers;
+	while (handler) {
+		if (fnmatch(handler->pattern, event, 0)) {
+			if (!(export->hooksvc & afb_hook_flag_api_on_event_handler))
+				handler->callback(handler->closure, event, object, to_api_x3(export));
+			else {
+				afb_hook_api_on_event_handler_before(export, event, eventid, object, handler->pattern);
+				handler->callback(handler->closure, event, object, to_api_x3(export));
+				afb_hook_api_on_event_handler_after(export, event, eventid, object, handler->pattern);
+			}
+		}
+		handler = handler->next;
+	}
+
+	/* transmit to default handler */
+	if (export->on_any_event_v3)
+		export->on_any_event_v3(to_api_x3(export), event, object);
+	else if (export->on_any_event_v12)
+		export->on_any_event_v12(event, object);
+
+	/* hook the event after */
+	if (export->hooksvc & afb_hook_flag_api_on_event)
+		afb_hook_api_on_event_after(export, event, eventid, object);
 	json_object_put(object);
 }
 
 /* the interface for events */
-static const struct afb_evt_itf evt_v12_itf = {
-	.broadcast = export_on_event_v12,
-	.push = export_on_event_v12
+static const struct afb_evt_itf evt_itf = {
+	.broadcast = listener_of_events,
+	.push = listener_of_events
 };
 
-/*
- * Propagates the event to the service
- */
-static void export_on_event_vdyn(void *closure, const char *event, int eventid, struct json_object *object)
+/* ensure an existing listener */
+static int ensure_listener(struct afb_export *export)
 {
-	struct afb_export *export = closure;
-
-	if (export->hooksvc & afb_hook_flag_svc_on_event_before)
-		afb_hook_svc_on_event_before(export, event, eventid, object);
-	export->on_event.vdyn(to_dynapi(export), event, object);
-	if (export->hooksvc & afb_hook_flag_svc_on_event_after)
-		afb_hook_svc_on_event_after(export, event, eventid, object);
-	json_object_put(object);
+	if (!export->listener) {
+		export->listener = afb_evt_listener_create(&evt_itf, export);
+		if (export->listener == NULL)
+			return -1;
+	}
+	return 0;
 }
 
-/* the interface for events */
-static const struct afb_evt_itf evt_vdyn_itf = {
-	.broadcast = export_on_event_vdyn,
-	.push = export_on_event_vdyn
-};
+int afb_export_event_handler_add(
+			struct afb_export *export,
+			const char *pattern,
+			void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*),
+			void *closure)
+{
+	int rc;
+	struct event_handler *handler, **previous;
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
+	rc = ensure_listener(export);
+	if (rc < 0)
+		return rc;
+
+	/* search the handler */
+	previous = &export->event_handlers;
+	while ((handler = *previous) && strcasecmp(handler->pattern, pattern))
+		previous = &handler->next;
+
+	/* error if found */
+	if (handler) {
+		ERROR("[API %s] event handler %s already exists", export->api.apiname, pattern);
+		errno = EEXIST;
+		return -1;
+	}
+
+	/* create the event */
+	handler = malloc(strlen(pattern) + strlen(pattern));
+	if (!handler) {
+		ERROR("[API %s] can't allocate event handler %s", export->api.apiname, pattern);
+		errno = ENOMEM;
+		return -1;
+	}
+
+	/* init and record */
+	handler->next = NULL;
+	handler->callback = callback;
+	handler->closure = closure;
+	strcpy(handler->pattern, pattern);
+	export->event_handlers = handler;
+
+	return 0;
+}
+
+int afb_export_event_handler_del(
+			struct afb_export *export,
+			const char *pattern,
+			void **closure)
+{
+	struct event_handler *handler, **previous;
+
+	/* search the handler */
+	previous = &export->event_handlers;
+	while ((handler = *previous) && strcasecmp(handler->pattern, pattern))
+		previous = &handler->next;
+
+	/* error if found */
+	if (!handler) {
+		ERROR("[API %s] event handler %s already exists", export->api.apiname, pattern);
+		errno = ENOENT;
+		return -1;
+	}
+
+	/* remove the found event */
+	if (closure)
+		*closure = handler->closure;
+
+	*previous = handler->next;
+	free(handler);
+	return 0;
+}
+
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
                                            M E R G E D
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
 
-static struct afb_export *create(struct afb_apiset *apiset, const char *apiname, enum afb_api_version version)
+static struct afb_export *create(
+				struct afb_apiset *declare_set,
+				struct afb_apiset *call_set,
+				const char *apiname,
+				enum afb_api_version version)
 {
 	struct afb_export *export;
 
@@ -1067,106 +1217,184 @@ static struct afb_export *create(struct afb_apiset *apiset, const char *apiname,
 		if (common_session == NULL)
 			return NULL;
 	}
-	export = calloc(1, sizeof *export);
+	export = calloc(1, sizeof *export + strlen(apiname));
 	if (!export)
 		errno = ENOMEM;
 	else {
-		memset(export, 0, sizeof *export);
-		export->apiname = strdup(apiname);
-		export->dynapi.apiname = export->apiname;
+		export->refcount = 1;
+		strcpy(export->name, apiname);
+		export->api.apiname = export->name;
 		export->version = version;
 		export->state = Api_State_Pre_Init;
 		export->session = afb_session_addref(common_session);
-		export->apiset = afb_apiset_addref(apiset);
+		export->declare_set = afb_apiset_addref(declare_set);
+		export->call_set = afb_apiset_addref(call_set);
 	}
 	return export;
+}
+
+struct afb_export *afb_export_addref(struct afb_export *export)
+{
+	if (export)
+		__atomic_add_fetch(&export->refcount, 1, __ATOMIC_RELAXED);
+	return export;
+}
+
+void afb_export_unref(struct afb_export *export)
+{
+	if (export && !__atomic_sub_fetch(&export->refcount, 1, __ATOMIC_RELAXED))
+		afb_export_destroy(export);
 }
 
 void afb_export_destroy(struct afb_export *export)
 {
+	struct event_handler *handler;
+
 	if (export) {
+		while ((handler = export->event_handlers)) {
+			export->event_handlers = handler->next;
+			free(handler);
+		}
 		if (export->listener != NULL)
 			afb_evt_listener_unref(export->listener);
 		afb_session_unref(export->session);
-		afb_apiset_unref(export->apiset);
-		free(export->apiname);
+		afb_apiset_unref(export->declare_set);
+		afb_apiset_unref(export->call_set);
+		if (export->api.apiname != export->name)
+			free((void*)export->api.apiname);
 		free(export);
 	}
 }
 
-struct afb_export *afb_export_create_v1(struct afb_apiset *apiset, const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*))
+struct afb_export *afb_export_create_none_for_path(
+			struct afb_apiset *declare_set,
+			struct afb_apiset *call_set,
+			const char *path,
+			int (*creator)(void*, struct afb_api_x3*),
+			void *closure)
 {
-	struct afb_export *export = create(apiset, apiname, Api_Version_1);
+	struct afb_export *export = create(declare_set, call_set, path, Api_Version_None);
+	if (export) {
+		afb_export_logmask_set(export, logmask);
+		afb_export_update_hooks(export);
+		if (creator && creator(closure, to_api_x3(export)) < 0) {
+			afb_export_unref(export);
+			export = NULL;
+		}
+	}
+	return export;
+}
+
+#if defined(WITH_LEGACY_BINDING_V1)
+struct afb_export *afb_export_create_v1(
+			struct afb_apiset *declare_set,
+			struct afb_apiset *call_set,
+			const char *apiname,
+			int (*init)(struct afb_service_x1),
+			void (*onevent)(const char*, struct json_object*))
+{
+	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_1);
 	if (export) {
 		export->init.v1 = init;
-		export->on_event.v12 = onevent;
+		export->on_any_event_v12 = onevent;
 		export->export.v1.mode = AFB_MODE_LOCAL;
-		export->export.v1.daemon.closure = export;
-		afb_export_verbosity_set(export, verbosity);
-		afb_export_update_hook(export);
+		export->export.v1.daemon.closure = to_api_x3(export);
+		afb_export_logmask_set(export, logmask);
+		afb_export_update_hooks(export);
 	}
 	return export;
 }
+#endif
 
-struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*))
+struct afb_export *afb_export_create_v2(
+			struct afb_apiset *declare_set,
+			struct afb_apiset *call_set,
+			const char *apiname,
+			const struct afb_binding_v2 *binding,
+			struct afb_binding_data_v2 *data,
+			int (*init)(),
+			void (*onevent)(const char*, struct json_object*))
 {
-	struct afb_export *export = create(apiset, apiname, Api_Version_2);
+	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_2);
 	if (export) {
 		export->init.v2 = init;
-		export->on_event.v12 = onevent;
+		export->on_any_event_v12 = onevent;
+		export->desc.v2 = binding;
 		export->export.v2 = data;
-		data->daemon.closure = export;
-		data->service.closure = export;
-		afb_export_verbosity_set(export, verbosity);
-		afb_export_update_hook(export);
+		data->daemon.closure = to_api_x3(export);
+		data->service.closure = to_api_x3(export);
+		afb_export_logmask_set(export, logmask);
+		afb_export_update_hooks(export);
 	}
 	return export;
 }
 
-struct afb_export *afb_export_create_vdyn(struct afb_apiset *apiset, const char *apiname, struct afb_api_dyn *apidyn)
+struct afb_export *afb_export_create_v3(struct afb_apiset *declare_set,
+			struct afb_apiset *call_set,
+			const char *apiname,
+			struct afb_api_v3 *apiv3)
 {
-	struct afb_export *export = create(apiset, apiname, Api_Version_Dyn);
+	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_3);
 	if (export) {
-		export->apidyn = apidyn;
-		afb_export_verbosity_set(export, verbosity);
-		afb_export_update_hook(export);
+		export->unsealed = 1;
+		export->desc.v3 = apiv3;
+		afb_export_logmask_set(export, logmask);
+		afb_export_update_hooks(export);
 	}
 	return export;
 }
 
-void afb_export_rename(struct afb_export *export, const char *apiname)
+int afb_export_add_alias(struct afb_export *export, const char *apiname, const char *aliasname)
 {
-	free(export->apiname);
-	export->apiname = strdup(apiname);
-	export->dynapi.apiname = export->apiname;
-	afb_export_update_hook(export);
+	return afb_apiset_add_alias(export->declare_set, apiname ?: export->api.apiname, aliasname);
+}
+
+int afb_export_rename(struct afb_export *export, const char *apiname)
+{
+	char *name;
+
+	if (export->declared) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	/* copy the name locally */
+	name = strdup(apiname);
+	if (!name) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	if (export->api.apiname != export->name)
+		free((void*)export->api.apiname);
+	export->api.apiname = name;
+
+	afb_export_update_hooks(export);
+	return 0;
 }
 
 const char *afb_export_apiname(const struct afb_export *export)
 {
-	return export->apiname;
+	return export->api.apiname;
 }
 
-void afb_export_update_hook(struct afb_export *export)
+void afb_export_update_hooks(struct afb_export *export)
 {
-	export->hookditf = afb_hook_flags_ditf(export->apiname);
-	export->hooksvc = afb_hook_flags_svc(export->apiname);
-	export->dynapi.itf = export->hookditf|export->hooksvc ? &hooked_dynapi_itf : &dynapi_itf;
+	export->hookditf = afb_hook_flags_api(export->api.apiname);
+	export->hooksvc = afb_hook_flags_api(export->api.apiname);
+	export->api.itf = export->hookditf|export->hooksvc ? &hooked_api_x3_itf : &api_x3_itf;
 
 	switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
 	case Api_Version_1:
 		export->export.v1.daemon.itf = export->hookditf ? &hooked_daemon_itf : &daemon_itf;
 		break;
+#endif
 	case Api_Version_2:
 		export->export.v2->daemon.itf = export->hookditf ? &hooked_daemon_itf : &daemon_itf;
 		export->export.v2->service.itf = export->hooksvc ? &hooked_service_itf : &service_itf;
 		break;
 	}
-}
-
-struct afb_binding_interface_v1 *afb_export_get_interface_v1(struct afb_export *export)
-{
-	return export->version == Api_Version_1 ? &export->export.v1 : NULL;
 }
 
 int afb_export_unshare_session(struct afb_export *export)
@@ -1183,126 +1411,107 @@ int afb_export_unshare_session(struct afb_export *export)
 	return 0;
 }
 
-void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *apiset)
-{
-	struct afb_apiset *prvset = export->apiset;
-	export->apiset = afb_apiset_addref(apiset);
-	afb_apiset_unref(prvset);
-}
-
-struct afb_apiset *afb_export_get_apiset(struct afb_export *export)
-{
-	return export->apiset;
-}
-
 int afb_export_handle_events_v12(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object))
 {
 	/* check version */
 	switch (export->version) {
-	case Api_Version_1: case Api_Version_2: break;
+#if defined(WITH_LEGACY_BINDING_V1)
+	case Api_Version_1:
+#endif
+	case Api_Version_2:
+		break;
 	default:
-		ERROR("invalid version 12 for API %s", export->apiname);
+		ERROR("invalid version 12 for API %s", export->api.apiname);
 		errno = EINVAL;
 		return -1;
 	}
 
-	/* set the event handler */
-	if (!on_event) {
-		if (export->listener) {
-			afb_evt_listener_unref(export->listener);
-			export->listener = NULL;
-		}
-		export->on_event.v12 = on_event;
-	} else {
-		export->on_event.v12 = on_event;
-		if (!export->listener) {
-			export->listener = afb_evt_listener_create(&evt_v12_itf, export);
-			if (export->listener == NULL)
-				return -1;
-		}
-	}
-	return 0;
+	export->on_any_event_v12 = on_event;
+	return ensure_listener(export);
 }
 
-int afb_export_handle_events_vdyn(struct afb_export *export, void (*on_event)(struct afb_dynapi *dynapi, const char *event, struct json_object *object))
+int afb_export_handle_events_v3(struct afb_export *export, void (*on_event)(struct afb_api_x3 *api, const char *event, struct json_object *object))
 {
 	/* check version */
 	switch (export->version) {
-	case Api_Version_Dyn: break;
+	case Api_Version_3: break;
 	default:
-		ERROR("invalid version Dyn for API %s", export->apiname);
+		ERROR("invalid version Dyn for API %s", export->api.apiname);
 		errno = EINVAL;
 		return -1;
 	}
 
-	/* set the event handler */
-	if (!on_event) {
-		if (export->listener) {
-			afb_evt_listener_unref(export->listener);
-			export->listener = NULL;
-		}
-		export->on_event.vdyn = on_event;
-	} else {
-		export->on_event.vdyn = on_event;
-		if (!export->listener) {
-			export->listener = afb_evt_listener_create(&evt_vdyn_itf, export);
-			if (export->listener == NULL)
-				return -1;
-		}
-	}
-	return 0;
+	export->on_any_event_v3 = on_event;
+	return ensure_listener(export);
 }
 
-int afb_export_handle_init_vdyn(struct afb_export *export, int (*oninit)(struct afb_dynapi *dynapi))
+int afb_export_handle_init_v3(struct afb_export *export, int (*oninit)(struct afb_api_x3 *api))
 {
 	if (export->state != Api_State_Pre_Init) {
-		ERROR("[API %s] Bad call to 'afb_dynapi_on_init', must be in PreInit", export->apiname);
+		ERROR("[API %s] Bad call to 'afb_api_x3_on_init', must be in PreInit", export->api.apiname);
 		errno = EINVAL;
 		return -1;
 	}
 
-	export->init.vdyn  = oninit;
+	export->init.v3  = oninit;
 	return 0;
 }
 
+#if defined(WITH_LEGACY_BINDING_V1)
 /*
  * Starts a new service (v1)
  */
 struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*))
 {
-	return regfun(&export->export.v1);
+	return export->desc.v1 = regfun(&export->export.v1);
+}
+#endif
+
+int afb_export_preinit_x3(
+		struct afb_export *export,
+		int (*preinit)(void*, struct afb_api_x3*),
+		void *closure)
+{
+	return preinit(closure, to_api_x3(export));
 }
 
-int afb_export_preinit_vdyn(struct afb_export *export, int (*preinit)(void*, struct afb_dynapi*), void *closure)
+int afb_export_logmask_get(const struct afb_export *export)
 {
-	return preinit(closure, to_dynapi(export));
+	return export->api.logmask;
 }
 
-int afb_export_verbosity_get(const struct afb_export *export)
+void afb_export_logmask_set(struct afb_export *export, int mask)
 {
-	return export->dynapi.verbosity;
-}
-
-void afb_export_verbosity_set(struct afb_export *export, int level)
-{
-	export->dynapi.verbosity = level;
+	export->api.logmask = mask;
 	switch (export->version) {
-	case Api_Version_1: export->export.v1.verbosity = level; break;
-	case Api_Version_2: export->export.v2->verbosity = level; break;
+#if defined(WITH_LEGACY_BINDING_V1)
+	case Api_Version_1: export->export.v1.verbosity = verbosity_from_mask(mask); break;
+#endif
+	case Api_Version_2: export->export.v2->verbosity = verbosity_from_mask(mask); break;
 	}
 }
 
-/*************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
-                                           N E W
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************
- *************************************************************************************************************/
+void *afb_export_userdata_get(const struct afb_export *export)
+{
+	return export->api.userdata;
+}
 
-int afb_export_start(struct afb_export *export, int share_session, int onneed, struct afb_apiset *apiset)
+void afb_export_userdata_set(struct afb_export *export, void *data)
+{
+	export->api.userdata = data;
+}
+
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+                                           N E W
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
+
+int afb_export_start(struct afb_export *export, int share_session, int onneed)
 {
 	int rc;
 
@@ -1313,7 +1522,7 @@ int afb_export_start(struct afb_export *export, int share_session, int onneed, s
 			goto done;
 
 		/* already started: it is an error */
-		ERROR("Service of API %s already started", export->apiname);
+		ERROR("Service of API %s already started", export->api.apiname);
 		return -1;
 	}
 
@@ -1321,53 +1530,214 @@ int afb_export_start(struct afb_export *export, int share_session, int onneed, s
 	if (!share_session) {
 		rc = afb_export_unshare_session(export);
 		if (rc < 0) {
-			ERROR("Can't unshare the session for %s", export->apiname);
+			ERROR("Can't unshare the session for %s", export->api.apiname);
 			return -1;
 		}
 	}
 
 	/* set event handling */
 	switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
 	case Api_Version_1:
+#endif
 	case Api_Version_2:
-		rc = afb_export_handle_events_v12(export, export->on_event.v12);
+		if (export->on_any_event_v12)
+			rc = afb_export_handle_events_v12(export, export->on_any_event_v12);
 		break;
 	default:
 		rc = 0;
 		break;
 	}
 	if (rc < 0) {
-		ERROR("Can't set event handler for %s", export->apiname);
+		ERROR("Can't set event handler for %s", export->api.apiname);
 		return -1;
 	}
 
 	/* Starts the service */
-	if (export->hooksvc & afb_hook_flag_svc_start_before)
-		afb_hook_svc_start_before(export);
+	if (export->hooksvc & afb_hook_flag_api_start)
+		afb_hook_api_start_before(export);
+
 	export->state = Api_State_Init;
 	switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
 	case Api_Version_1:
-		rc = export->init.v1 ? export->init.v1((struct afb_service){ .itf = &hooked_service_itf, .closure = export }) : 0;
+		rc = export->init.v1 ? export->init.v1((struct afb_service_x1){ .itf = &hooked_service_itf, .closure = to_api_x3(export) }) : 0;
 		break;
+#endif
 	case Api_Version_2:
 		rc = export->init.v2 ? export->init.v2() : 0;
 		break;
-	case Api_Version_Dyn:
-		rc = export->init.vdyn ? export->init.vdyn(to_dynapi(export)) : 0;
+	case Api_Version_3:
+		rc = export->init.v3 ? export->init.v3(to_api_x3(export)) : 0;
 		break;
 	default:
+		errno = EINVAL;
+		rc = -1;
 		break;
 	}
 	export->state = Api_State_Run;
-	if (export->hooksvc & afb_hook_flag_svc_start_after)
-		afb_hook_svc_start_after(export, rc);
+
+	if (export->hooksvc & afb_hook_flag_api_start)
+		afb_hook_api_start_after(export, rc);
+
 	if (rc < 0) {
 		/* initialisation error */
-		ERROR("Initialisation of service API %s failed (%d): %m", export->apiname, rc);
+		ERROR("Initialisation of service API %s failed (%d): %m", export->api.apiname, rc);
 		return rc;
 	}
 
 done:
 	return 0;
+}
+
+static void api_call_cb(void *closure, struct afb_xreq *xreq)
+{
+	struct afb_export *export = closure;
+
+	xreq->request.api = to_api_x3(export);
+
+	switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
+	case Api_Version_1:
+		afb_api_so_v1_process_call(export->desc.v1, xreq);
+		break;
+#endif
+	case Api_Version_2:
+		afb_api_so_v2_process_call(export->desc.v2, xreq);
+		break;
+	case Api_Version_3:
+		afb_api_v3_process_call(export->desc.v3, xreq);
+		break;
+	default:
+		afb_xreq_reply(xreq, NULL, "bad-api-type", NULL);
+		break;
+	}
+}
+
+static struct json_object *api_describe_cb(void *closure)
+{
+	struct afb_export *export = closure;
+	struct json_object *result;
+
+	switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
+	case Api_Version_1:
+		result = afb_api_so_v1_make_description_openAPIv3(export->desc.v1, export->api.apiname);
+		break;
+#endif
+	case Api_Version_2:
+		result = afb_api_so_v2_make_description_openAPIv3(export->desc.v2, export->api.apiname);
+		break;
+	case Api_Version_3:
+		result = afb_api_v3_make_description_openAPIv3(export->desc.v3, export->api.apiname);
+		break;
+	default:
+		result = NULL;
+		break;
+	}
+	return result;
+}
+
+static int api_service_start_cb(void *closure, int share_session, int onneed)
+{
+	struct afb_export *export = closure;
+
+	return afb_export_start(export, share_session, onneed);
+}
+
+static void api_update_hooks_cb(void *closure)
+{
+	struct afb_export *export = closure;
+
+	afb_export_update_hooks(export);
+}
+
+static int api_get_logmask_cb(void *closure)
+{
+	struct afb_export *export = closure;
+
+	return afb_export_logmask_get(export);
+}
+
+static void api_set_logmask_cb(void *closure, int level)
+{
+	struct afb_export *export = closure;
+
+	afb_export_logmask_set(export, level);
+}
+
+static void api_unref_cb(void *closure)
+{
+	struct afb_export *export = closure;
+
+	afb_export_unref(export);
+}
+
+static struct afb_api_itf export_api_itf =
+{
+	.call = api_call_cb,
+	.service_start = api_service_start_cb,
+	.update_hooks = api_update_hooks_cb,
+	.get_logmask = api_get_logmask_cb,
+	.set_logmask = api_set_logmask_cb,
+	.describe = api_describe_cb,
+	.unref = api_unref_cb
+};
+
+int afb_export_declare(struct afb_export *export,
+			int noconcurrency)
+{
+	int rc;
+	struct afb_api_item afb_api;
+
+	if (export->declared)
+		rc = 0;
+	else {
+		/* init the record structure */
+		afb_api.closure = afb_export_addref(export);
+		afb_api.itf = &export_api_itf;
+		afb_api.group = noconcurrency ? export : NULL;
+
+		/* records the binding */
+		rc = afb_apiset_add(export->declare_set, export->api.apiname, afb_api);
+		if (rc >= 0)
+			export->declared = 1;
+		else {
+			ERROR("can't declare export %s to set %s, ABORTING it!",
+				export->api.apiname,
+				afb_apiset_name(export->declare_set));
+			afb_export_addref(export);
+		}
+	}
+
+	return rc;
+}
+
+void afb_export_undeclare(struct afb_export *export)
+{
+	if (export->declared) {
+		export->declared = 0;
+		afb_apiset_del(export->declare_set, export->api.apiname);
+	}
+}
+
+int afb_export_subscribe(struct afb_export *export, struct afb_event_x2 *event)
+{
+	return afb_evt_event_x2_add_watch(export->listener, event);
+}
+
+int afb_export_unsubscribe(struct afb_export *export, struct afb_event_x2 *event)
+{
+	return afb_evt_event_x2_remove_watch(export->listener, event);
+}
+
+void afb_export_process_xreq(struct afb_export *export, struct afb_xreq *xreq)
+{
+	afb_xreq_process(xreq, export->call_set);
+}
+
+void afb_export_context_init(struct afb_export *export, struct afb_context *context)
+{
+	afb_context_init(context, export->session, NULL);
 }
 

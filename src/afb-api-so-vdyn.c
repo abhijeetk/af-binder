@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
+#define AFB_BINDING_VERSION 0
+#include <afb/afb-binding.h>
+
+#include "afb-api-so-v3.h"
 #include "afb-api-so-vdyn.h"
 #include "afb-export.h"
 #include "verbose.h"
@@ -29,19 +33,15 @@
  */
 static const char afb_api_so_vdyn_entry[] = "afbBindingVdyn";
 
-/*
- * Description of a binding
- */
-static int vdyn_preinit(void *closure, struct afb_dynapi *dynapi)
+static int preinit(void *closure, struct afb_api_x3 *api)
 {
-	int (*entry)(struct afb_dynapi*) = closure;
-	return entry(dynapi);
+	int (*entry)(struct afb_api_x3*) = closure;
+	return entry(api);
 }
 
-int afb_api_so_vdyn_add(const char *path, void *handle, struct afb_apiset *apiset)
+int afb_api_so_vdyn_add(const char *path, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
-	int rc;
-	int (*entry)(void*, struct afb_dynapi*);
+	int (*entry)(struct afb_api_x3*);
 	struct afb_export *export;
 
 	entry = dlsym(handle, afb_api_so_vdyn_entry);
@@ -50,15 +50,12 @@ int afb_api_so_vdyn_add(const char *path, void *handle, struct afb_apiset *apise
 
 	INFO("binding [%s] looks like an AFB binding Vdyn", path);
 
-	export = afb_export_create_vdyn(apiset, path, NULL);
+	export = afb_export_create_none_for_path(declare_set, call_set, path, preinit, entry);
 	if (!export) {
-		ERROR("can't create export for %s", path);
+		INFO("binding [%s] creation failed", path);
 		return -1;
 	}
 
-	INFO("binding [%s] calling dynamic initialisation %s", path, afb_api_so_vdyn_entry);
-	rc = afb_export_preinit_vdyn(export, vdyn_preinit, entry);
-	afb_export_destroy(export);
-	return rc < 0 ? rc : 1;
+	return 1;
 }
 

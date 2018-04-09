@@ -22,7 +22,7 @@
 
 #include <json-c/json.h>
 #include <afb/afb-auth.h>
-#include <afb/afb-session-v2.h>
+#include <afb/afb-session-x2.h>
 
 #include "afb-auth.h"
 #include "afb-context.h"
@@ -60,56 +60,10 @@ int afb_auth_check(struct afb_xreq *xreq, const struct afb_auth *auth)
 	}
 }
 
-/*********************************************************************************/
-#ifdef BACKEND_PERMISSION_IS_CYNARA
-
-#include <pthread.h>
-#include <cynara-client.h>
-
-static cynara *handle;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
 int afb_auth_has_permission(struct afb_xreq *xreq, const char *permission)
 {
-	int rc;
-
-	if (!xreq->cred) {
-		/* case of permission for self */
-		return 1;
-	}
-	if (!permission) {
-		ERROR("Got a null permission!");
-		return 0;
-	}
-
-	/* cynara isn't reentrant */
-	pthread_mutex_lock(&mutex);
-
-	/* lazy initialisation */
-	if (!handle) {
-		rc = cynara_initialize(&handle, NULL);
-		if (rc != CYNARA_API_SUCCESS) {
-			handle = NULL;
-			ERROR("cynara initialisation failed with code %d", rc);
-			return 0;
-		}
-	}
-
-	/* query cynara permission */
-	rc = cynara_check(handle, xreq->cred->label, afb_context_uuid(&xreq->context), xreq->cred->user, permission);
-
-	pthread_mutex_unlock(&mutex);
-	return rc == CYNARA_API_ACCESS_ALLOWED;
+	return afb_cred_has_permission(xreq->cred, permission, afb_context_uuid(&xreq->context));
 }
-
-/*********************************************************************************/
-#else
-int afb_auth_has_permission(struct afb_xreq *xreq, const char *permission)
-{
-	WARNING("Granting permission %s by default of backend", permission ?: "(null)");
-	return !!permission;
-}
-#endif
 
 /*********************************************************************************/
 
@@ -180,17 +134,17 @@ struct json_object *afb_auth_json_v2(const struct afb_auth *auth, int session)
 {
 	struct json_object *result = NULL;
 
-	if (session & AFB_SESSION_CLOSE_V2)
+	if (session & AFB_SESSION_CLOSE_X2)
 		result = addperm_key_valstr(result, "session", "close");
 
-	if (session & AFB_SESSION_CHECK_V2)
+	if (session & AFB_SESSION_CHECK_X2)
 		result = addperm_key_valstr(result, "session", "check");
 
-	if (session & AFB_SESSION_REFRESH_V2)
+	if (session & AFB_SESSION_REFRESH_X2)
 		result = addperm_key_valstr(result, "token", "refresh");
 
-	if (session & AFB_SESSION_LOA_MASK_V2)
-		result = addperm_key_valint(result, "LOA", session & AFB_SESSION_LOA_MASK_V2);
+	if (session & AFB_SESSION_LOA_MASK_X2)
+		result = addperm_key_valint(result, "LOA", session & AFB_SESSION_LOA_MASK_X2);
 
 	if (auth)
 		result = addauth(result, auth);

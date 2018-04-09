@@ -20,12 +20,12 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 1
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
 
 // Sample Generic Ping Debug API
-static void getPingTest(struct afb_req request)
+static void getPingTest(afb_req_t request)
 {
     static int pingcount = 0;
     json_object *query = afb_req_json(request);
@@ -34,7 +34,7 @@ static void getPingTest(struct afb_req request)
 }
 
 // With content-type=json data are directly avaliable in request->post->data
-static void GetJsonByPost (struct afb_req request)
+static void GetJsonByPost (afb_req_t request)
 {
     struct afb_arg arg;
     json_object* jresp;
@@ -46,7 +46,7 @@ static void GetJsonByPost (struct afb_req request)
 }
 
 // Upload a file and execute a function when upload is done
-static void Uploads (struct afb_req request, const char *destination)
+static void Uploads (afb_req_t request, const char *destination)
 {
    struct afb_arg a = afb_req_get(request, "file");
    if (a.value == NULL || *a.value == 0)
@@ -56,20 +56,20 @@ static void Uploads (struct afb_req request, const char *destination)
 }
 
 // Upload a file and execute a function when upload is done
-static void UploadAppli (struct afb_req request)
+static void UploadAppli (afb_req_t request)
 {
     Uploads(request, "applications");
 }
 
 // Simples Upload case just upload a file
-static void UploadMusic (struct afb_req request)
+static void UploadMusic (afb_req_t request)
 {
     Uploads(request, "musics");
 }
 
 // PostForm callback is called multiple times (one or each key within form, or once per file buffer)
 // When file has been fully uploaded call is call with item==NULL
-static void UploadImage (struct afb_req request)
+static void UploadImage (afb_req_t request)
 {
     Uploads(request, "images");
 }
@@ -77,25 +77,18 @@ static void UploadImage (struct afb_req request)
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application upload-xxx should be protected with AFB_SESSION_CHECK
-static const struct afb_verb_desc_v1 verbs[]= {
-  {"ping"         , AFB_SESSION_NONE  , getPingTest    ,"Ping Rest Test Service"},
-  {"upload-json"  , AFB_SESSION_NONE  , GetJsonByPost  ,"Demo for Json Buffer on Post"},
-  {"upload-image" , AFB_SESSION_NONE  , UploadImage    ,"Demo for file upload"},
-  {"upload-music" , AFB_SESSION_NONE  , UploadMusic    ,"Demo for file upload"},
-  {"upload-appli" , AFB_SESSION_NONE  , UploadAppli    ,"Demo for file upload"},
-  {NULL}
+static const struct afb_verb_v3 verbs[]= {
+  {.verb="ping"         , .session=AFB_SESSION_NONE  , .callback=getPingTest    ,.info="Ping Rest Test Service"},
+  {.verb="upload-json"  , .session=AFB_SESSION_NONE  , .callback=GetJsonByPost  ,.info="Demo for Json Buffer on Post"},
+  {.verb="upload-image" , .session=AFB_SESSION_NONE  , .callback=UploadImage    ,.info="Demo for file upload"},
+  {.verb="upload-music" , .session=AFB_SESSION_NONE  , .callback=UploadMusic    ,.info="Demo for file upload"},
+  {.verb="upload-appli" , .session=AFB_SESSION_NONE  , .callback=UploadAppli    ,.info="Demo for file upload"},
+  {.verb=NULL}
 };
 
-static const struct afb_binding plugin_desc = {
-	.type = AFB_BINDING_VERSION_1,
-	.v1 = {
-		.info = "Sample with Post Upload Files",
-		.prefix = "post",
-		.verbs = verbs
-	}
+const struct afb_binding_v3 afbBindingV3 = {
+	.info = "Sample with Post Upload Files",
+	.api = "post",
+	.verbs = verbs
 };
 
-const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
-{
-    return &plugin_desc;
-};

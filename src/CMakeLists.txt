@@ -24,16 +24,18 @@ ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 # Always add INFER_EXTENSION (more details in afb-hreq.c)
 ADD_DEFINITIONS(-DINFER_EXTENSION)
 
-ADD_LIBRARY(afb-lib STATIC
+SET(AFB_LIB_SOURCES
 	afb-api.c
-	afb-api-dyn.c
 	afb-api-so.c
-	afb-api-so-v1.c
 	afb-api-so-v2.c
+	afb-api-so-v3.c
 	afb-api-so-vdyn.c
+	afb-api-v3.c
 	afb-api-ws.c
 	afb-apiset.c
 	afb-auth.c
+	afb-autoset.c
+	afb-calls.c
 	afb-common.c
 	afb-config.c
 	afb-context.c
@@ -66,6 +68,7 @@ ADD_LIBRARY(afb-lib STATIC
 	fdev-systemd.c
 	jobs.c
 	locale-root.c
+	pearson.c
 	process-name.c
 	sig-monitor.c
 	subpath.c
@@ -74,15 +77,26 @@ ADD_LIBRARY(afb-lib STATIC
 	wrap-json.c
 )
 
+IF(INCLUDE_LEGACY_BINDING_V1)
+	ADD_DEFINITIONS(-DWITH_LEGACY_BINDING_V1)
+	SET(AFB_LIB_SOURCES ${AFB_LIB_SOURCES} afb-api-so-v1.c)
+ENDIF(INCLUDE_LEGACY_BINDING_V1)
+IF(INCLUDE_LEGACY_BINDING_VDYN)
+	ADD_DEFINITIONS(-DWITH_LEGACY_BINDING_VDYN)
+	SET(AFB_LIB_SOURCES ${AFB_LIB_SOURCES} afb-api-so-vdyn.c)
+ENDIF(INCLUDE_LEGACY_BINDING_VDYN)
+
 IF(INCLUDE_DBUS_TRANSPARENCY)
 	ADD_DEFINITIONS(-DWITH_DBUS_TRANSPARENCY)
-	TARGET_SOURCES(afb-lib PUBLIC afb-api-dbus.c)
+	SET(AFB_LIB_SOURCES ${AFB_LIB_SOURCES} afb-api-dbus.c)
 ENDIF()
+
+ADD_LIBRARY(afb-lib STATIC ${AFB_LIB_SOURCES})
 
 ###########################################
 # build and install afb-daemon
 ###########################################
-ADD_EXECUTABLE(afb-daemon main.c)
+ADD_EXECUTABLE(afb-daemon main-afb-daemon.c)
 TARGET_LINK_LIBRARIES(afb-daemon
 	afb-lib
 	${link_libraries}
@@ -94,7 +108,7 @@ INSTALL(TARGETS afb-daemon
 # build and install afb-daemon
 ###########################################
 IF(INCLUDE_SUPERVISOR)
-	ADD_EXECUTABLE(afs-supervisor afs-main.c afs-supervisor.c afs-discover.c afs-config.c)
+	ADD_EXECUTABLE(afs-supervisor main-afs-supervisor.c afs-supervisor.c afs-discover.c afs-config.c)
 	TARGET_LINK_LIBRARIES(afs-supervisor
 		afb-lib
 		${link_libraries}
@@ -124,7 +138,7 @@ INSTALL(FILES afb-wsj1.h afb-ws-client.h afb-proto-ws.h DESTINATION ${CMAKE_INST
 ###########################################
 # build and install afb-client-demo
 ###########################################
-ADD_EXECUTABLE(afb-client-demo afb-client-demo.c)
+ADD_EXECUTABLE(afb-client-demo main-afb-client-demo.c)
 TARGET_LINK_LIBRARIES(afb-client-demo
 	afbwsc
 	${link_libraries}

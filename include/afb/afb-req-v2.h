@@ -17,16 +17,18 @@
 
 #pragma once
 
-#include "afb-req.h"
+#include "afb-req-x1.h"
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Stores 'req' on heap for asynchrnous use.
  * Returns a handler to the stored 'req' or NULL on memory depletion.
  * The count of reference to 'req' is incremented on success
  * (see afb_req_addref).
  */
-static inline struct afb_stored_req *afb_req_store_v2(struct afb_req req)
+static inline struct afb_stored_req *afb_req_x1_store_v2(struct afb_req_x1 req)
 {
-	return req.itf->store(req.closure);
+	return req.itf->legacy_store_req(req.closure);
 }
 

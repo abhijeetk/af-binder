@@ -17,18 +17,19 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdlib>
 #include <cstdarg>
 #include <functional>
 
 /* ensure version */
 #ifndef AFB_BINDING_VERSION
-# define AFB_BINDING_VERSION   2
+# define AFB_BINDING_VERSION   3
 #endif
 
 /* check the version */
 #if AFB_BINDING_VERSION < 2
-# error "AFB_BINDING_VERSION must be at least 2"
+# error "AFB_BINDING_VERSION must be at least 2 but 3 is prefered"
 #endif
 
 /* get C definitions of bindings */
@@ -44,15 +45,10 @@ namespace afb {
 class arg;
 class event;
 class req;
-class stored_req;
 
 /*************************************************************************/
 /* declaration of functions                                              */
 /*************************************************************************/
-
-struct sd_event *get_event_loop();
-struct sd_bus *get_system_bus();
-struct sd_bus *get_user_bus();
 
 int broadcast_event(const char *name, json_object *object = nullptr);
 
@@ -70,7 +66,7 @@ int queue_job(void (*callback)(int signum, void *arg), void *argument, void *gro
 
 int require_api(const char *apiname, bool initialized = true);
 
-int rename_api(const char *apiname);
+int add_alias(const char *apiname, const char *aliasname);
 
 int verbosity();
 
@@ -80,9 +76,17 @@ bool wants_notices();
 bool wants_infos();
 bool wants_debugs();
 
+#if AFB_BINDING_VERSION >= 3
+void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result, afb_api_t api), void *closure);
+
+template <class T> void call(const char *api, const char *verb, struct json_object *args, void (*callback)(T*closure, int iserror, struct json_object *result, afb_api_t api), T *closure);
+
+bool callsync(const char *api, const char *verb, struct json_object *args, struct json_object *&result);
+#else
 void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result), void *closure);
 
 template <class T> void call(const char *api, const char *verb, struct json_object *args, void (*callback)(T*closure, int iserror, struct json_object *result), T *closure);
+#endif
 
 bool callsync(const char *api, const char *verb, struct json_object *args, struct json_object *&result);
 
@@ -93,14 +97,15 @@ bool callsync(const char *api, const char *verb, struct json_object *args, struc
 /* events */
 class event
 {
-	struct afb_event event_;
+	afb_event_t event_;
 public:
-	event() { event_.itf = nullptr; event_.closure = nullptr; }
-	event(const struct afb_event &e);
+	event() { invalidate(); }
+	event(afb_event_t e);
 	event(const event &other);
 	event &operator=(const event &other);
 
-	operator const struct afb_event&() const;
+	operator afb_event_t() const;
+	afb_event_t operator->() const;
 
 	operator bool() const;
 	bool is_valid() const;
@@ -139,30 +144,16 @@ public:
 /* req(uest) */
 class req
 {
-	struct afb_req req_;
-public:
-	class stored
-	{
-		struct afb_stored_req *sreq_;
-
-		friend class req;
-		stored() = delete;
-		stored(struct afb_stored_req *sr);
-	public:
-		stored(const stored &other);
-		stored &operator =(const stored &other);
-		req unstore() const;
-	};
-
-	class stored;
+	afb_req_t req_;
 
 public:
 	req() = delete;
-	req(const struct afb_req &r);
+	req(afb_req_t r);
 	req(const req &other);
 	req &operator=(const req &other);
 
-	operator const struct afb_req&() const;
+	operator afb_req_t() const;
+	afb_req_t operator->() const;
 
 	operator bool() const;
 	bool is_valid() const;
@@ -175,21 +166,19 @@ public:
 
 	json_object *json() const;
 
+	void reply(json_object *obj = nullptr, const char *error = nullptr, const char *info = nullptr) const;
+	void replyf(json_object *obj, const char *error, const char *info, ...) const;
+	void replyv(json_object *obj, const char *error, const char *info, va_list args) const;
+
 	void success(json_object *obj = nullptr, const char *info = nullptr) const;
 	void successf(json_object *obj, const char *info, ...) const;
+	void successv(json_object *obj, const char *info, va_list args) const;
 
-	void fail(const char *status = "failed", const char *info = nullptr) const;
-	void failf(const char *status, const char *info, ...) const;
-
-	void *context_get() const;
-
-	void context_set(void *context, void (*free_context)(void*)) const;
-
-	void *context(void *(*create_context)(), void (*free_context)(void*)) const;
+	void fail(const char *error = "failed", const char *info = nullptr) const;
+	void failf(const char *error, const char *info, ...) const;
+	void failv(const char *error, const char *info, va_list args) const;
 
 	template < class T > T *context() const;
-
-	void context_clear() const;
 
 	void addref() const;
 
@@ -199,19 +188,22 @@ public:
 
 	bool session_set_LOA(unsigned level) const;
 
-	stored store() const;
-
 	bool subscribe(const event &event) const;
 
 	bool unsubscribe(const event &event) const;
 
-	void subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result), void *closure) const;
-
-	void subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result, afb_req req), void *closure) const;
-
-	template <class T> void subcall(const char *api, const char *verb, json_object *args, void (*callback)(T *closure, int iserror, json_object *result), T *closure) const;
+	void subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result, afb_req_t req), void *closure) const;
+	template <class T> void subcall(const char *api, const char *verb, json_object *args, void (*callback)(T *closure, int iserror, json_object *result, afb_req_t req), T *closure) const;
 
 	bool subcallsync(const char *api, const char *verb, json_object *args, struct json_object *&result) const;
+
+#if AFB_BINDING_VERSION >= 3
+	void subcall(const char *api, const char *verb, json_object *args, int flags, void (*callback)(void *closure, json_object *object, const char *error, const char *info, afb_req_t req), void *closure) const;
+
+	template <class T> void subcall(const char *api, const char *verb, json_object *args, int flags, void (*callback)(T *closure, json_object *object, const char *error, const char *info, afb_req_t req), T *closure) const;
+
+	bool subcallsync(const char *api, const char *verb, json_object *args, int flags, struct json_object *&object, char *&error, char *&info) const;
+#endif
 
 	void verbose(int level, const char *file, int line, const char * func, const char *fmt, va_list args) const;
 
@@ -222,6 +214,8 @@ public:
 	char *get_application_id() const;
 
 	int get_uid() const;
+
+	json_object *get_client_info() const;
 };
 
 /*************************************************************************/
@@ -250,18 +244,23 @@ public:
 /*************************************************************************/
 
 /* events */
-inline event::event(const struct afb_event &e) : event_(e) { }
+inline event::event(afb_event_t e) : event_(e) { }
 inline event::event(const event &other) : event_(other.event_) { }
 inline event &event::operator=(const event &other) { event_ = other.event_; return *this; }
 
-inline event::operator const struct afb_event&() const { return event_; }
+inline event::operator afb_event_t() const { return event_; }
+inline afb_event_t event::operator->() const { return event_; }
 
 inline event::operator bool() const { return is_valid(); }
-inline bool event::is_valid() const { return afb_event_is_valid(event_); } 
+inline bool event::is_valid() const { return afb_event_is_valid(event_); }
 
-inline void event::invalidate() { event_.itf = NULL; event_.closure = NULL; }
+#if AFB_BINDING_VERSION >= 3
+inline void event::invalidate() { event_ = nullptr; }
+#else
+inline void event::invalidate() { event_ = { nullptr, nullptr }; }
+#endif
 
-inline int event::broadcast(json_object *object) const { return afb_event_broadcast(event_, object); } 
+inline int event::broadcast(json_object *object) const { return afb_event_broadcast(event_, object); }
 inline int event::push(json_object *object) const { return afb_event_push(event_, object); }
 
 inline void event::unref() { afb_event_unref(event_); invalidate(); }
@@ -285,23 +284,16 @@ inline const char *arg::path() const { return arg_.path; }
 
 /* req(uests)s */
 
-inline req::stored::stored(struct afb_stored_req *sr) : sreq_(sr) {}
 
-inline req::stored::stored(const req::stored &other) : sreq_(other.sreq_) {}
-
-inline req::stored &req::stored::operator =(const req::stored &other) { sreq_ = other.sreq_; return *this; }
-
-inline req req::stored::unstore() const { return req(afb_daemon_unstore_req_v2(sreq_)); }
-
-
-inline req::req(const struct afb_req &r) : req_(r) {}
+inline req::req(afb_req_t r) : req_(r) {}
 inline req::req(const req &other) : req_(other.req_) {}
 inline req &req::operator=(const req &other) { req_ = other.req_; return *this; }
 
-inline req::operator const struct afb_req&() const { return req_; }
+inline req::operator afb_req_t() const { return req_; }
+inline afb_req_t req::operator->() const { return req_; }
 
-inline req::operator bool() const { return !!afb_req_is_valid(req_); }
-inline bool req::is_valid() const { return !!afb_req_is_valid(req_); }
+inline req::operator bool() const { return is_valid(); }
+inline bool req::is_valid() const { return afb_req_is_valid(req_); }
 
 inline arg req::get(const char *name) const { return arg(afb_req_get(req_, name)); }
 
@@ -311,41 +303,53 @@ inline const char *req::path(const char *name) const { return afb_req_path(req_,
 
 inline json_object *req::json() const { return afb_req_json(req_); }
 
-inline void req::success(json_object *obj, const char *info) const { afb_req_success(req_, obj, info); }
+inline void req::reply(json_object *obj, const char *error, const char *info) const { afb_req_reply(req_, obj, error, info); }
+inline void req::replyv(json_object *obj, const char *error, const char *info, va_list args) const { afb_req_reply_v(req_, obj, error, info, args); }
+inline void req::replyf(json_object *obj, const char *error, const char *info, ...) const
+{
+	va_list args;
+	va_start(args, info);
+	replyv(obj, error, info, args);
+	va_end(args);
+}
+
+inline void req::success(json_object *obj, const char *info) const { reply(obj, nullptr, info); }
+inline void req::successv(json_object *obj, const char *info, va_list args) const { replyv(obj, nullptr, info, args); }
 inline void req::successf(json_object *obj, const char *info, ...) const
 {
 	va_list args;
 	va_start(args, info);
-	afb_req_success_v(req_, obj, info, args);
+	successv(obj, info, args);
 	va_end(args);
 }
 
-inline void req::fail(const char *status, const char *info) const { afb_req_fail(req_, status, info); }
-inline void req::failf(const char *status, const char *info, ...) const
+inline void req::fail(const char *error, const char *info) const { reply(nullptr, error, info); }
+inline void req::failv(const char *error, const char *info, va_list args) const { replyv(nullptr, error, info, args); }
+inline void req::failf(const char *error, const char *info, ...) const
 {
 	va_list args;
 	va_start(args, info);
-	afb_req_fail_v(req_, status, info, args);
+	failv(error, info, args);
 	va_end(args);
 }
-
-inline void *req::context_get() const { return afb_req_context_get(req_); }
-
-inline void req::context_set(void *context, void (*free_context)(void*)) const { afb_req_context_set(req_, context, free_context); }
-
-inline void *req::context(void *(*create_context)(), void (*free_context)(void*)) const { return afb_req_context(req_, create_context, free_context); }
 
 template < class T >
 inline T *req::context() const
 {
+#if AFB_BINDING_VERSION >= 3
+	T* (*creater)(void*) = [](){return new T();};
+	void (*freer)(T*) = [](T*t){delete t;};
+	return reinterpret_cast<T*>(afb_req_context(req_, 0,
+			reinterpret_cast<void *(*)(void*)>(creater),
+			reinterpret_cast<void (*)(void*)>(freer), nullptr));
+#else
 	T* (*creater)() = [](){return new T();};
 	void (*freer)(T*) = [](T*t){delete t;};
 	return reinterpret_cast<T*>(afb_req_context(req_,
 			reinterpret_cast<void *(*)()>(creater),
 			reinterpret_cast<void (*)(void*)>(freer)));
+#endif
 }
-
-inline void req::context_clear() const { afb_req_context_clear(req_); }
 
 inline void req::addref() const { afb_req_addref(req_); }
 
@@ -353,118 +357,156 @@ inline void req::unref() const { afb_req_unref(req_); }
 
 inline void req::session_close() const { afb_req_session_close(req_); }
 
-inline bool req::session_set_LOA(unsigned level) const { return !!afb_req_session_set_LOA(req_, level); }
-
-inline req::stored req::store() const { return stored(afb_req_store_v2(req_)); }
+inline bool req::session_set_LOA(unsigned level) const { return !afb_req_session_set_LOA(req_, level); }
 
 inline bool req::subscribe(const event &event) const { return !afb_req_subscribe(req_, event); }
 
 inline bool req::unsubscribe(const event &event) const { return !afb_req_unsubscribe(req_, event); }
 
-inline void req::subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result), void *closure) const
-{
-	afb_req_subcall(req_, api, verb, args, callback, closure);
-}
 
-inline void req::subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result, struct afb_req req), void *closure) const
+
+
+
+#if AFB_BINDING_VERSION >= 3
+
+inline void req::subcall(const char *api, const char *verb, json_object *args, int flags, void (*callback)(void *closure, json_object *result, const char *error, const char *info, afb_req_t req), void *closure) const
 {
-	afb_req_subcall_req(req_, api, verb, args, callback, closure);
+	afb_req_subcall(req_, api, verb, args, flags, callback, closure);
 }
 
 template <class T>
-inline void req::subcall(const char *api, const char *verb, json_object *args, void (*callback)(T *closure, int iserror, json_object *result), T *closure) const
+inline void req::subcall(const char *api, const char *verb, json_object *args, int flags, void (*callback)(T *closure, json_object *result, const char *error, const char *info, afb_req_t req), T *closure) const
 {
-	afb_req_subcall(req_, api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*)>(callback), reinterpret_cast<void*>(closure));
+	subcall(api, verb, args, flags, reinterpret_cast<void(*)(void*,json_object*,const char*,const char*,afb_req_t)>(callback), reinterpret_cast<void*>(closure));
+}
+
+inline bool req::subcallsync(const char *api, const char *verb, json_object *args, int flags, struct json_object *&object, char *&error, char *&info) const
+{
+	return !afb_req_subcall_sync(req_, api, verb, args, flags, &object, &error, &info);
+}
+
+#endif
+
+inline void req::subcall(const char *api, const char *verb, json_object *args, void (*callback)(void *closure, int iserror, json_object *result, afb_req_t req), void *closure) const
+{
+#if AFB_BINDING_VERSION >= 3
+	afb_req_subcall_legacy(req_, api, verb, args, callback, closure);
+#else
+	afb_req_subcall_req(req_, api, verb, args, callback, closure);
+#endif
+}
+
+template <class T>
+inline void req::subcall(const char *api, const char *verb, json_object *args, void (*callback)(T *closure, int iserror, json_object *result, afb_req_t req), T *closure) const
+{
+	subcall(api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*,afb_req_t)>(callback), reinterpret_cast<void*>(closure));
 }
 
 inline bool req::subcallsync(const char *api, const char *verb, json_object *args, struct json_object *&result) const
 {
-	return !!afb_req_subcall_sync(req_, api, verb, args, &result);
+#if AFB_BINDING_VERSION >= 3
+	return !afb_req_subcall_sync_legacy(req_, api, verb, args, &result);
+#else
+	return !afb_req_subcall_sync(req_, api, verb, args, &result);
+#endif
 }
 
 inline void req::verbose(int level, const char *file, int line, const char * func, const char *fmt, va_list args) const
 {
-	req_.itf->vverbose(req_.closure, level, file, line, func, fmt, args);
+	afb_req_verbose(req_, level, file, line, func, fmt, args);
 }
 
 inline void req::verbose(int level, const char *file, int line, const char * func, const char *fmt, ...) const
 {
 	va_list args;
 	va_start(args, fmt);
-	req_.itf->vverbose(req_.closure, level, file, line, func, fmt, args);
+	afb_req_verbose(req_, level, file, line, func, fmt, args);
 	va_end(args);
 }
 
 inline bool req::has_permission(const char *permission) const
 {
-	return bool(req_.itf->has_permission(req_.closure, permission));
+	return bool(afb_req_has_permission(req_, permission));
 }
 
 inline char *req::get_application_id() const
 {
-	return req_.itf->get_application_id(req_.closure);
+	return afb_req_get_application_id(req_);
 }
 
 inline int req::get_uid() const
 {
-	return req_.itf->get_uid(req_.closure);
+	return afb_req_get_uid(req_);
+}
+
+inline json_object *req::get_client_info() const
+{
+	return afb_req_get_client_info(req_);
 }
 
 /* commons */
-inline struct sd_event *get_event_loop()
-	{ return afb_daemon_get_event_loop_v2(); }
-
-inline struct sd_bus *get_system_bus()
-	{ return afb_daemon_get_system_bus_v2(); }
-
-inline struct sd_bus *get_user_bus()
-	{ return afb_daemon_get_user_bus_v2(); }
-
 inline int broadcast_event(const char *name, json_object *object)
-	{ return afb_daemon_broadcast_event_v2(name, object); }
+	{ return afb_daemon_broadcast_event(name, object); }
 
 inline event make_event(const char *name)
-	{ return afb_daemon_make_event_v2(name); }
+	{ return afb_daemon_make_event(name); }
 
 inline void verbose(int level, const char *file, int line, const char * func, const char *fmt, va_list args)
-	{ afb_daemon_verbose_v2(level, file, line, func, fmt, args); }
+	{ afb_daemon_verbose(level, file, line, func, fmt, args); }
 
 inline void verbose(int level, const char *file, int line, const char * func, const char *fmt, ...)
 	{ va_list args; va_start(args, fmt); verbose(level, file, line, func, fmt, args); va_end(args); }
 
 inline int rootdir_get_fd()
-	{ return afb_daemon_rootdir_get_fd_v2(); }
+	{ return afb_daemon_rootdir_get_fd(); }
 
 inline int rootdir_open_locale_fd(const char *filename, int flags, const char *locale)
-	{ return afb_daemon_rootdir_open_locale_v2(filename, flags, locale); }
+	{ return afb_daemon_rootdir_open_locale(filename, flags, locale); }
 
 inline int queue_job(void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
-	{ return afb_daemon_queue_job_v2(callback, argument, group, timeout); }
+	{ return afb_daemon_queue_job(callback, argument, group, timeout); }
 
 inline int require_api(const char *apiname, bool initialized)
-	{ return afb_daemon_require_api_v2(apiname, int(initialized)); }
+	{ return afb_daemon_require_api(apiname, int(initialized)); }
 
-inline int rename_api(const char *apiname)
-	{ return afb_daemon_rename_api_v2(apiname); }
+inline int add_alias(const char *apiname, const char *aliasname)
+	{ return afb_daemon_add_alias(apiname, aliasname); }
 
-inline int verbosity()
-	{ return afb_get_verbosity(); }
+#if AFB_BINDING_VERSION >= 3
+inline int logmask()
+	{ return afb_get_logmask(); }
+#else
+inline int logmask()
+	{ return (1 << (1 + afb_get_verbosity() + AFB_SYSLOG_LEVEL_ERROR)) - 1; }
+#endif
 
 inline bool wants_errors()
-	{ return afb_verbose_error(); }
+	{ return AFB_SYSLOG_MASK_WANT_ERROR(logmask()); }
 
 inline bool wants_warnings()
-	{ return afb_verbose_warning(); }
+	{ return AFB_SYSLOG_MASK_WANT_WARNING(logmask()); }
 
 inline bool wants_notices()
-	{ return afb_verbose_notice(); }
+	{ return AFB_SYSLOG_MASK_WANT_NOTICE(logmask()); }
 
 inline bool wants_infos()
-	{ return afb_verbose_info(); }
+	{ return AFB_SYSLOG_MASK_WANT_INFO(logmask()); }
 
 inline bool wants_debugs()
-	{ return afb_verbose_debug(); }
+	{ return AFB_SYSLOG_MASK_WANT_DEBUG(logmask()); }
 
+#if AFB_BINDING_VERSION >= 3
+inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result, afb_api_t api), void *closure)
+{
+	afb_service_call(api, verb, args, callback, closure);
+}
+
+template <class T>
+inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(T*closure, int iserror, struct json_object *result, afb_api_t api), T *closure)
+{
+	afb_service_call(api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*,afb_api_t)>(callback), reinterpret_cast<void*>(closure));
+}
+#else
 inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result), void *closure)
 {
 	afb_service_call(api, verb, args, callback, closure);
@@ -475,6 +517,7 @@ inline void call(const char *api, const char *verb, struct json_object *args, vo
 {
 	afb_service_call(api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*)>(callback), reinterpret_cast<void*>(closure));
 }
+#endif
 
 inline bool callsync(const char *api, const char *verb, struct json_object *args, struct json_object *&result)
 {
@@ -563,31 +606,67 @@ constexpr afb_auth auth_and(const afb_auth &first, const afb_auth &next)
 	return auth_and(&first, &next);
 }
 
-constexpr afb_verb_v2 verb(const char *name, void (*callback)(afb_req), const char *info = nullptr, unsigned session = 0, const afb_auth *auth = nullptr)
+constexpr afb_verb_t verb(
+	const char *name,
+	void (*callback)(afb_req_t),
+	const char *info = nullptr,
+	uint16_t session = 0,
+	const afb_auth *auth = nullptr
+#if AFB_BINDING_VERSION >= 3
+	,
+	bool glob = false,
+	void *vcbdata = nullptr
+#endif
+)
 {
-	afb_verb_v2 r = { 0, 0, 0, 0, 0 };
+#if AFB_BINDING_VERSION >= 3
+	afb_verb_t r = { 0, 0, 0, 0, 0, 0, 0 };
+#else
+	afb_verb_t r = { 0, 0, 0, 0, 0 };
+#endif
 	r.verb = name;
 	r.callback = callback;
 	r.info = info;
 	r.session = session;
 	r.auth = auth;
+#if AFB_BINDING_VERSION >= 3
+	r.glob = (unsigned)glob;
+	r.vcbdata = vcbdata;
+#endif
 	return r;
 }
 
-constexpr afb_verb_v2 verbend()
+constexpr afb_verb_t verbend()
 {
-	afb_verb_v2 r = { 0, 0, 0, 0, 0 };
-	r.verb = nullptr;
-	r.callback = nullptr;
-	r.info = nullptr;
-	r.session = 0;
-	r.auth = nullptr;
+	afb_verb_t r = verb(nullptr, nullptr);
 	return r;
 }
 
-constexpr afb_binding_v2 binding(const char *name, const struct afb_verb_v2 *verbs, const char *info = nullptr, int (*init)() = nullptr, const char *specification = nullptr, void (*onevent)(const char*, struct json_object*) = nullptr, bool noconcurrency = false, int (*preinit)() = nullptr)
+constexpr afb_binding_t binding(
+	const char *name,
+	const afb_verb_t *verbs,
+	const char *info = nullptr,
+#if AFB_BINDING_VERSION >= 3
+	int (*init)(afb_api_t) = nullptr,
+	const char *specification = nullptr,
+	void (*onevent)(afb_api_t, const char*, struct json_object*) = nullptr,
+	bool noconcurrency = false,
+	int (*preinit)(afb_api_t) = nullptr,
+	void *userdata = nullptr
+#else
+	int (*init)() = nullptr,
+	const char *specification = nullptr,
+	void (*onevent)(const char*, struct json_object*) = nullptr,
+	bool noconcurrency = false,
+	int (*preinit)() = nullptr
+#endif
+)
 {
-	afb_binding_v2 r = { 0, 0, 0, 0, 0, 0, 0, 0 };
+#if AFB_BINDING_VERSION >= 3
+	afb_binding_t r = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+#else
+	afb_binding_t r = { 0, 0, 0, 0, 0, 0, 0, 0 };
+#endif
 	r.api = name;
 	r.specification = specification;
 	r.info = info;
@@ -596,6 +675,9 @@ constexpr afb_binding_v2 binding(const char *name, const struct afb_verb_v2 *ver
 	r.init = init;
 	r.onevent = onevent;
 	r.noconcurrency = noconcurrency ? 1 : 0;
+#if AFB_BINDING_VERSION >= 3
+	r.userdata = userdata;
+#endif
 	return r;
 };
 

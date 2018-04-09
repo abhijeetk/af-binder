@@ -19,5 +19,6 @@
 
 
 extern int afs_supervisor_discover();
-extern int afs_supervisor_add(struct afb_apiset *apiset);
-
+extern int afs_supervisor_add(
+		struct afb_apiset *declare_set,
+		struct afb_apiset * call_set);

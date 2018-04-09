@@ -1,5 +1,10 @@
-Migration from binding V1 to binding V2
+[LEGACY] Migration from binding V1 to binding V2
 =======================================
+
+> LEGACY!!! IT IS NOT EXPECTED THAT YOU STILL NEED THIS GUIDE.
+>
+> THIS GUIDE WILL BE REMOVED IN A NEAR FUTURE
+
 
 The ***binding*** interface evolved from version 1 to version 2
 for the following reasons:

@@ -23,13 +23,8 @@
 #include <systemd/sd-bus.h>
 #include <systemd/sd-bus-protocol.h>
 
-#define AFB_BINDING_VERSION 1
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
-
-/*
- * the interface to afb-daemon
- */
-const struct afb_binding_interface *afbitf;
 
 /*
  * union of possible dbus values
@@ -497,7 +492,7 @@ error:
 /*
  * handle the reply
  */
-static int on_rawcall_reply(sd_bus_message *msg, struct afb_req *req, sd_bus_error *ret_error)
+static int on_rawcall_reply(sd_bus_message *msg, afb_req_t *req, sd_bus_error *ret_error)
 {
 	struct json_object *obj = NULL;
 	int rc;
@@ -532,7 +527,7 @@ static int on_rawcall_reply(sd_bus_message *msg, struct afb_req *req, sd_bus_err
  *     "arguments": "ARRAY of arguments"
  *   }
  */
-static void rawcall(struct afb_req req)
+static void rawcall(afb_req_t req)
 {
 	struct json_object *obj;
 	struct json_object *args;
@@ -569,9 +564,9 @@ static void rawcall(struct afb_req req)
 	/* get bus */
 	busname = strval(obj, "bus");
 	if (busname != NULL && !strcmp(busname, "system"))
-		bus = afb_daemon_get_system_bus(afbitf->daemon);
+		bus = afb_api_get_system_bus(req->api);
 	else
-		bus = afb_daemon_get_user_bus(afbitf->daemon);
+		bus = afb_api_get_user_bus(req->api);
 
 	/* creates the message */
 	rc = sd_bus_message_new_method_call(bus, &msg, destination, path, interface, member);
@@ -601,32 +596,19 @@ cleanup:
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct afb_verb_desc_v1 binding_verbs[] = {
+static const struct afb_verb_v3 binding_verbs[] = {
   /* VERB'S NAME       SESSION MANAGEMENT          FUNCTION TO CALL     SHORT DESCRIPTION */
-  { .name= "rawcall",  .session= AFB_SESSION_NONE, .callback= rawcall,  .info= "raw call to dbus method" },
-  { .name= NULL } /* marker for end of the array */
+  { .verb= "rawcall",  .session= AFB_SESSION_NONE, .callback= rawcall,  .info= "raw call to dbus method" },
+  { .verb= NULL } /* marker for end of the array */
 };
 
 /*
  * description of the binding for afb-daemon
  */
-static const struct afb_binding binding_description =
+const struct afb_binding_v3 afbBindingV3 =
 {
-  /* description conforms to VERSION 1 */
-  .type= AFB_BINDING_VERSION_1,
-  .v1= {			/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
-    .prefix= "dbus",		/* the API name (or binding name or prefix) */
-    .info= "raw dbus binding",	/* short description of of the binding */
+    .api   = "dbus",		/* the API name (or binding name or prefix) */
+    .info  = "raw dbus binding",	/* short description of of the binding */
     .verbs = binding_verbs	/* the array describing the verbs of the API */
-  }
 };
-
-/*
- * activation function for registering the binding called by afb-daemon
- */
-const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
-{
-	afbitf = itf;			/* records the interface for accessing afb-daemon */
-	return &binding_description;	/* returns the description of the binding */
-}
 

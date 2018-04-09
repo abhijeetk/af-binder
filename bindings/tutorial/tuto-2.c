@@ -1,12 +1,12 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 2
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
-afb_event event_login, event_logout;
+afb_event_t event_login, event_logout;
 
-void login(afb_req req)
+void login(afb_req_t req)
 {
         json_object *args, *user, *passwd;
         char *usr;
@@ -15,24 +15,24 @@ void login(afb_req req)
         if (!json_object_object_get_ex(args, "user", &user)
          || !json_object_object_get_ex(args, "password", &passwd)) {
                 AFB_REQ_ERROR(req, "login, bad request: %s", json_object_get_string(args));
-                afb_req_fail(req, "bad-request", NULL);
+                afb_req_reply(req, NULL, "bad-request", NULL);
         } else if (afb_req_context_get(req)) {
                 AFB_REQ_ERROR(req, "login, bad state, logout first");
-                afb_req_fail(req, "bad-state", NULL);
+                afb_req_reply(req, NULL, "bad-state", NULL);
         } else if (strcmp(json_object_get_string(passwd), "please")) {
                 AFB_REQ_ERROR(req, "login, unauthorized: %s", json_object_get_string(args));
-                afb_req_fail(req, "unauthorized", NULL);
+                afb_req_reply(req, NULL, "unauthorized", NULL);
         } else {
                 usr = strdup(json_object_get_string(user));
                 AFB_REQ_NOTICE(req, "login user: %s", usr);
                 afb_req_session_set_LOA(req, 1);
                 afb_req_context_set(req, usr, free);
-                afb_req_success(req, NULL, NULL);
+                afb_req_reply(req, NULL, NULL, NULL);
                 afb_event_push(event_login, json_object_new_string(usr));
         }
 }
 
-void action(afb_req req)
+void action(afb_req_t req)
 {
         json_object *args, *val;
         char *usr;
@@ -51,10 +51,10 @@ void action(afb_req req)
                         afb_req_unsubscribe(req, event_logout);
                 }
         }
-        afb_req_success(req, json_object_get(args), NULL);
+        afb_req_reply(req, json_object_get(args), NULL, NULL);
 }
 
-void logout(afb_req req)
+void logout(afb_req_t req)
 {
         char *usr;
 
@@ -63,34 +63,34 @@ void logout(afb_req req)
         afb_event_push(event_logout, json_object_new_string(usr));
         afb_req_session_set_LOA(req, 0);
         afb_req_context_clear(req);
-        afb_req_success(req, NULL, NULL);
+        afb_req_reply(req, NULL, NULL, NULL);
 }
 
-int preinit()
+int preinit(afb_api_t api)
 {
-        AFB_NOTICE("preinit");
+        AFB_API_NOTICE(api, "preinit");
         return 0;
 }
 
-int init()
+int init(afb_api_t api)
 {
-        AFB_NOTICE("init");
-        event_login = afb_daemon_make_event("login");
-        event_logout = afb_daemon_make_event("logout");
+        AFB_API_NOTICE(api, "init");
+        event_login = afb_api_make_event(api, "login");
+        event_logout = afb_api_make_event(api, "logout");
         if (afb_event_is_valid(event_login) && afb_event_is_valid(event_logout))
                 return 0;
-        AFB_ERROR("Can't create events");
+        AFB_API_ERROR(api, "Can't create events");
         return -1;
 }
 
-const afb_verb_v2 verbs[] = {
+const afb_verb_t verbs[] = {
         { .verb="login", .callback=login },
         { .verb="action", .callback=action, .session=AFB_SESSION_LOA_1 },
         { .verb="logout", .callback=logout, .session=AFB_SESSION_LOA_1 },
         { .verb=NULL }
 };
 
-const afb_binding_v2 afbBindingV2 = {
+const afb_binding_t afbBindingExport = {
         .api = "tuto-2",
         .specification = NULL,
         .verbs = verbs,

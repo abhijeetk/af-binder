@@ -17,29 +17,58 @@
 
 #pragma once
 
-/*
- * Enum for Session/Token/Assurance middleware.
+/**
+ * Enumeration  for authority (Session/Token/Assurance) definitions.
+ *
+ * @see afb_auth
  */
 enum afb_auth_type
 {
-	afb_auth_No = 0,	/** never authorized, no data */
-	afb_auth_Token,		/** authorized if token valid, no data */
-	afb_auth_LOA,		/** authorized if LOA greater than data 'loa' */
-	afb_auth_Permission,	/** authorized if permission 'text' is granted */
-	afb_auth_Or,		/** authorized if 'first' or 'next' is authorized */
-	afb_auth_And,		/** authorized if 'first' and 'next' are authorized */
-	afb_auth_Not,		/** authorized if 'first' is not authorized */
-	afb_auth_Yes		/** always authorized, no data */
+	/** never authorized, no data */
+	afb_auth_No = 0,
+
+	/** authorized if token valid, no data */
+	afb_auth_Token,
+
+	/** authorized if LOA greater than data 'loa' */
+	afb_auth_LOA,
+
+	/** authorized if permission 'text' is granted */
+	afb_auth_Permission,
+
+	/** authorized if 'first' or 'next' is authorized */
+	afb_auth_Or,
+
+	/** authorized if 'first' and 'next' are authorized */
+	afb_auth_And,
+
+	/** authorized if 'first' is not authorized */
+	afb_auth_Not,
+
+	/** always authorized, no data */
+	afb_auth_Yes
 };
 
+/**
+ * Definition of an authorization entry
+ */
 struct afb_auth
 {
+	/** type of entry @see afb_auth_type */
 	enum afb_auth_type type;
+	
 	union {
+		/** text when @ref type == @ref afb_auth_Permission */
 		const char *text;
+		
+		/** level of assurancy when @ref type ==  @ref afb_auth_LOA */
 		unsigned loa;
+		
+		/** first child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And, @ref afb_auth_Not } */
 		const struct afb_auth *first;
 	};
+	
+	/** second child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And } */
 	const struct afb_auth *next;
 };
 

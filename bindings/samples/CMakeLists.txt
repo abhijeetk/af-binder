@@ -91,3 +91,27 @@ TARGET_LINK_LIBRARIES(tic-tac-toe ${link_libraries})
 INSTALL(TARGETS tic-tac-toe
         LIBRARY DESTINATION ${binding_install_dir})
 
+##################################################
+# hi3
+##################################################
+ADD_LIBRARY(hi3 MODULE hi3.c)
+SET_TARGET_PROPERTIES(hi3 PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
+)
+TARGET_LINK_LIBRARIES(hi3 ${link_libraries})
+INSTALL(TARGETS hi3
+        LIBRARY DESTINATION ${binding_install_dir})
+
+##################################################
+# hello3
+##################################################
+ADD_LIBRARY(hello3 MODULE hello3.c)
+SET_TARGET_PROPERTIES(hello3 PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
+)
+TARGET_LINK_LIBRARIES(hello3 ${link_libraries})
+INSTALL(TARGETS hello3
+        LIBRARY DESTINATION ${binding_install_dir})
+

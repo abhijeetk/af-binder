@@ -23,14 +23,13 @@
 #include <getopt.h>
 #include <limits.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include <json-c/json.h>
 
 #include "verbose.h"
 #include "afb-config.h"
 #include "afb-hook.h"
-
-#include <afb/afb-binding-v1.h>
 
 #if !defined(BINDING_INSTALL_DIR)
 #error "you should define BINDING_INSTALL_DIR"
@@ -51,17 +50,25 @@
 #   define HAS_DBUS 0
 #endif
 
-// default
-#define DEFLT_CNTX_TIMEOUT  32000000	// default Client Connection
-					// Timeout: few more than one year
-#define DEFLT_API_TIMEOUT   20		// default Plugin API Timeout [0=NoLimit
-					// for Debug Only]
-#define DEFLT_CACHE_TIMEOUT 100000	// default Static File Chache
-					// [Client Side Cache
-					// 100000~=1day]
-#define CTX_NBCLIENTS       10		// allow a default of 10 authenticated
-					// clients
+/**
+ * The default timeout of sessions in seconds
+ */
+#define DEFAULT_SESSION_TIMEOUT		32000000
 
+/**
+ * The default timeout of api calls in seconds
+ */
+#define DEFAULT_API_TIMEOUT		20
+
+/**
+ * The default timeout of cache in seconds
+ */
+#define DEFAULT_CACHE_TIMEOUT		100000
+
+/**
+ * The default maximum count of sessions
+ */
+#define DEFAULT_MAX_SESSION_COUNT       200
 
 // Define command line option
 #define SET_BACKGROUND     2
@@ -81,14 +88,15 @@
 #define SET_WEAK_LDPATH    16
 #define NO_LDPATH          17
 
+#if defined(KEEP_LEGACY_MODE)
 #define SET_MODE           18
+#endif
 
 #if HAS_DBUS
 #   define DBUS_CLIENT        20
 #   define DBUS_SERVICE       21
 #endif
 
-#define SO_BINDING         22
 
 #define SET_SESSIONMAX     23
 
@@ -99,11 +107,18 @@
 
 #define SET_NO_HTTPD       28
 
+#define AUTO_WS            'a'
+#define AUTO_LINK          'A'
+#define SO_BINDING         'b'
 #define ADD_CALL           'c'
+#if !defined(REMOVE_LEGACY_TRACE)
 #define SET_TRACEDITF      'D'
+#endif
 #define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
+#define SET_LOG            'l'
+#define SET_TRACEAPI       'I'
 #if HAS_MONITORING
 #   define SET_MONITORING     'M'
 #endif
@@ -111,7 +126,9 @@
 #define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
+#if !defined(REMOVE_LEGACY_TRACE)
 #define SET_TRACESVC       'S'
+#endif
 #define SET_TRACESES       's'
 #define SET_TRACEREQ       'T'
 #define SET_AUTH_TOKEN     't'
@@ -121,7 +138,15 @@
 #define SET_WORK_DIR       'w'
 
 const char shortopts[] =
-	"c:D:E:ehn:p:qrS:s:T:t:u:Vvw:"
+	"a:A:b:c:"
+#if !defined(REMOVE_LEGACY_TRACE)
+	"D:"
+#endif
+	"E:ehl:n:p:qr"
+#if !defined(REMOVE_LEGACY_TRACE)
+	"S:"
+#endif
+	"s:T:t:u:Vvw:"
 #if HAS_MONITORING
 	"M"
 #endif
@@ -140,6 +165,7 @@ static AFB_options cliOptions[] = {
 /* *INDENT-OFF* */
 	{SET_VERBOSE,       0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
 	{SET_QUIET,         0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
+	{SET_LOG,           1, "log",         "tune log level"},
 
 	{SET_FORGROUND,     0, "foreground",  "Get all in foreground mode"},
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
@@ -172,7 +198,9 @@ static AFB_options cliOptions[] = {
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
+#if defined(KEEP_LEGACY_MODE)
 	{SET_MODE,          1, "mode",        "Set the mode: either local, remote or global"},
+#endif
 
 #if HAS_DBUS
 	{DBUS_CLIENT,       1, "dbus-client", "Bind to an afb service through dbus"},
@@ -181,13 +209,19 @@ static AFB_options cliOptions[] = {
 	{WS_CLIENT,         1, "ws-client",   "Bind to an afb service through websocket"},
 	{WS_SERVICE,        1, "ws-server",   "Provides an afb service through websockets"},
 
+	{AUTO_WS,           1, "auto-ws",     "Automatic bind on need to remote service through websocket"},
+	{AUTO_LINK,         1, "auto-link",   "Automatic load on need to binding shared objects"},
+
 	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default 10]"},
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
-	{SET_TRACEDITF,     1, "traceditf",   "Log the requests: no, common, extra, all"},
-	{SET_TRACESVC,      1, "tracesvc",    "Log the requests: no, all"},
-	{SET_TRACEEVT,      1, "traceevt",    "Log the requests: no, common, extra, all"},
+#if !defined(REMOVE_LEGACY_TRACE)
+	{SET_TRACEDITF,     1, "traceditf",   "Log the daemons: no, common, all"},
+	{SET_TRACESVC,      1, "tracesvc",    "Log the services: no, all"},
+#endif
+	{SET_TRACEEVT,      1, "traceevt",    "Log the events: no, common, extra, all"},
 	{SET_TRACESES,      1, "traceses",    "Log the sessions: no, all"},
+	{SET_TRACEAPI,      1, "traceapi",    "Log the apis: no, common, api, event, all"},
 
 	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
@@ -216,19 +250,20 @@ static struct enumdesc tracereq_desc[] = {
 	{ NULL, 0 }
 };
 
+#if !defined(REMOVE_LEGACY_TRACE)
 static struct enumdesc traceditf_desc[] = {
 	{ "no",     0 },
-	{ "common", afb_hook_flags_ditf_common },
-	{ "extra",  afb_hook_flags_ditf_extra },
-	{ "all",    afb_hook_flags_ditf_all },
+	{ "common", afb_hook_flags_api_ditf_common },
+	{ "all",    afb_hook_flags_api_ditf_all },
 	{ NULL, 0 }
 };
 
 static struct enumdesc tracesvc_desc[] = {
 	{ "no",     0 },
-	{ "all",    afb_hook_flags_svc_all },
+	{ "all",    afb_hook_flags_api_svc_all },
 	{ NULL, 0 }
 };
+#endif
 
 static struct enumdesc traceevt_desc[] = {
 	{ "no",     0 },
@@ -245,12 +280,25 @@ static struct enumdesc traceses_desc[] = {
 	{ NULL, 0 }
 };
 
+static struct enumdesc traceapi_desc[] = {
+	{ "no",		0 },
+	{ "common",	afb_hook_flags_api_common },
+	{ "api",	afb_hook_flags_api_api|afb_hook_flag_api_start },
+	{ "event",	afb_hook_flags_api_event|afb_hook_flag_api_start },
+	{ "all",	afb_hook_flags_api_all },
+	{ NULL, 0 }
+};
+
+#if defined(KEEP_LEGACY_MODE)
+#include <afb/afb-binding-v1.h>
+
 static struct enumdesc mode_desc[] = {
 	{ "local",  AFB_MODE_LOCAL },
 	{ "remote", AFB_MODE_REMOTE },
 	{ "global", AFB_MODE_GLOBAL },
 	{ NULL, 0 }
 };
+#endif
 
 /*----------------------------------------------------------
  | printversion
@@ -453,6 +501,53 @@ static char **make_exec(char **argv)
 }
 
 /*---------------------------------------------------------
+ |   set the log levels
+ +--------------------------------------------------------- */
+
+static void set_log(char *args)
+{
+	char o = 0, s, *p, *i = args;
+	int lvl;
+
+	for(;;) switch (*i) {
+	case 0:
+		return;
+	case '+':
+	case '-':
+		o = *i;
+		/*@fallthrough@*/
+	case ' ':
+	case ',':
+		i++;
+		break;
+	default:
+		p = i;
+		while (isalpha(*p)) p++;
+		s = *p;
+		*p = 0;
+		lvl = verbose_level_of_name(i);
+		if (lvl < 0) {
+			i = strdupa(p);
+			*p = s;
+			ERROR("Bad log name '%s' in %s", i, args);
+			exit(1);
+		}
+		*p = s;
+		i = p;
+		if (o == '-')
+			verbose_sub(lvl);
+		else {
+			if (!o) {
+				verbose_clear();
+				o = '+';
+			}
+			verbose_add(lvl);
+		}
+		break;
+	}
+}
+
+/*---------------------------------------------------------
  |   Parse option and launch action
  +--------------------------------------------------------- */
 
@@ -479,23 +574,27 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 	while ((optc = getopt_long(argc, argv, shortopts, gnuOptions, NULL)) != EOF) {
 		switch (optc) {
 		case SET_VERBOSE:
-			verbosity++;
+			verbose_inc();
 			break;
 
 		case SET_QUIET:
-			verbosity--;
+			verbose_dec();
+			break;
+
+		case SET_LOG:
+			set_log(argvalstr(optc));
 			break;
 
 		case SET_TCP_PORT:
-			config->httpdPort = argvalintdec(optc, 1024, 32767);
+			config->http_port = argvalintdec(optc, 1024, 32767);
 			break;
 
 		case SET_APITIMEOUT:
-			config->apiTimeout = argvalintdec(optc, 0, INT_MAX);
+			config->api_timeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_CNTXTIMEOUT:
-			config->cntxTimeout = argvalintdec(optc, 0, INT_MAX);
+			config->session_timeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_ROOT_DIR:
@@ -557,11 +656,11 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_CACHE_TIMEOUT:
-			config->cacheTimeout = argvalintdec(optc, 0, INT_MAX);
+			config->cache_timeout = argvalintdec(optc, 0, INT_MAX);
 			break;
 
 		case SET_SESSIONMAX:
-			config->nbSessionMax = argvalintdec(optc, 1, INT_MAX);
+			config->max_session_count = argvalintdec(optc, 1, INT_MAX);
 			break;
 
 		case SET_FORGROUND:
@@ -578,9 +677,11 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->name = argvalstr(optc);
 			break;
 
+#if defined(KEEP_LEGACY_MODE)
 		case SET_MODE:
 			config->mode = argvalenum(optc, mode_desc);
 			break;
+#endif
 
 #if HAS_DBUS
 		case DBUS_CLIENT:
@@ -604,10 +705,19 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			list_add(&config->so_bindings, argvalstr(optc));
 			break;
 
+		case AUTO_WS:
+			list_add(&config->auto_ws, argvalstr(optc));
+			break;
+
+		case AUTO_LINK:
+			list_add(&config->auto_link, argvalstr(optc));
+			break;
+
 		case SET_TRACEREQ:
 			config->tracereq = argvalenum(optc, tracereq_desc);
 			break;
 
+#if !defined(REMOVE_LEGACY_TRACE)
 		case SET_TRACEDITF:
 			config->traceditf = argvalenum(optc, traceditf_desc);
 			break;
@@ -615,6 +725,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 		case SET_TRACESVC:
 			config->tracesvc = argvalenum(optc, tracesvc_desc);
 			break;
+#endif
 
 		case SET_TRACEEVT:
 			config->traceevt = argvalenum(optc, traceevt_desc);
@@ -624,9 +735,13 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->traceses = argvalenum(optc, traceses_desc);
 			break;
 
+		case SET_TRACEAPI:
+			config->traceapi = argvalenum(optc, traceapi_desc);
+			break;
+
 		case SET_NO_HTTPD:
 			noarg(optc);
-			config->noHttpd = 1;
+			config->no_httpd = 1;
 			break;
 
 		case SET_EXEC:
@@ -663,28 +778,28 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 static void fulfill_config(struct afb_config *config)
 {
 	// default HTTP port
-	if (config->httpdPort == 0)
-		config->httpdPort = 1234;
+	if (config->http_port == 0)
+		config->http_port = 1234;
 
 	// default binding API timeout
-	if (config->apiTimeout == 0)
-		config->apiTimeout = DEFLT_API_TIMEOUT;
+	if (config->api_timeout == 0)
+		config->api_timeout = DEFAULT_API_TIMEOUT;
 
 	// default AUTH_TOKEN
 	if (config->random_token)
 		config->token = NULL;
 
 	// cache timeout default one hour
-	if (config->cacheTimeout == 0)
-		config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
+	if (config->cache_timeout == 0)
+		config->cache_timeout = DEFAULT_CACHE_TIMEOUT;
 
 	// cache timeout default one hour
-	if (config->cntxTimeout == 0)
-		config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
+	if (config->session_timeout == 0)
+		config->session_timeout = DEFAULT_SESSION_TIMEOUT;
 
 	// max count of sessions
-	if (config->nbSessionMax == 0)
-		config->nbSessionMax = CTX_NBCLIENTS;
+	if (config->max_session_count == 0)
+		config->max_session_count = DEFAULT_MAX_SESSION_COUNT;
 
 	/* set directories */
 	if (config->workdir == NULL)
@@ -717,6 +832,10 @@ static void fulfill_config(struct afb_config *config)
 		strncpy(config->console, config->uploaddir, 512);
 		strncat(config->console, "/AFB-console.out", 512);
 	}
+
+#if !defined(REMOVE_LEGACY_TRACE)
+	config->traceapi |= config->traceditf | config->tracesvc;
+#endif
 }
 
 void afb_config_dump(struct afb_config *config)
@@ -761,21 +880,26 @@ void afb_config_dump(struct afb_config *config)
 
 	V(exec)
 
-	D(httpdPort)
-	D(cacheTimeout)
-	D(apiTimeout)
-	D(cntxTimeout)
-	D(nbSessionMax)
+	D(http_port)
+	D(cache_timeout)
+	D(api_timeout)
+	D(session_timeout)
+	D(max_session_count)
 
+#if defined(KEEP_LEGACY_MODE)
 	E(mode,mode_desc)
+#endif
 	E(tracereq,tracereq_desc)
+#if !defined(REMOVE_LEGACY_TRACE)
 	E(traceditf,traceditf_desc)
 	E(tracesvc,tracesvc_desc)
+#endif
 	E(traceevt,traceevt_desc)
 	E(traceses,traceses_desc)
+	E(traceapi,traceapi_desc)
 
 	B(no_ldpaths)
-	B(noHttpd)
+	B(no_httpd)
 	B(background)
 #if HAS_MONITORING
 	B(monitoring)
@@ -823,10 +947,13 @@ static void on_environment_enum(int *to, const char *name, struct enumdesc *desc
 static void parse_environment(struct afb_config *config)
 {
 	on_environment_enum(&config->tracereq, "AFB_TRACEREQ", tracereq_desc);
+#if !defined(REMOVE_LEGACY_TRACE)
 	on_environment_enum(&config->traceditf, "AFB_TRACEDITF", traceditf_desc);
 	on_environment_enum(&config->tracesvc, "AFB_TRACESVC", tracesvc_desc);
+#endif
 	on_environment_enum(&config->traceevt, "AFB_TRACEEVT", traceevt_desc);
 	on_environment_enum(&config->traceses, "AFB_TRACESES", traceses_desc);
+	on_environment_enum(&config->traceapi, "AFB_TRACEAPI", traceapi_desc);
 	on_environment_list(&config->ldpaths, "AFB_LDPATHS");
 }
 
@@ -839,7 +966,7 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 	parse_environment(result);
 	parse_arguments(argc, argv, result);
 	fulfill_config(result);
-	if (verbosity >= 3)
+	if (verbose_wants(Log_Level_Info))
 		afb_config_dump(result);
 	return result;
 }
@@ -895,21 +1022,26 @@ struct json_object *afb_config_json(struct afb_config *config)
 
 	V(exec)
 
-	D(httpdPort)
-	D(cacheTimeout)
-	D(apiTimeout)
-	D(cntxTimeout)
-	D(nbSessionMax)
+	D(http_port)
+	D(cache_timeout)
+	D(api_timeout)
+	D(session_timeout)
+	D(max_session_count)
 
+#if defined(KEEP_LEGACY_MODE)
 	E(mode,mode_desc)
+#endif
 	E(tracereq,tracereq_desc)
+#if !defined(REMOVE_LEGACY_TRACE)
 	E(traceditf,traceditf_desc)
 	E(tracesvc,tracesvc_desc)
+#endif
 	E(traceevt,traceevt_desc)
 	E(traceses,traceses_desc)
+	E(traceapi,traceapi_desc)
 
 	B(no_ldpaths)
-	B(noHttpd)
+	B(no_httpd)
 	B(background)
 #if HAS_MONITORING
 	B(monitoring)

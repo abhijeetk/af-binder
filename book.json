@@ -6,7 +6,7 @@
     "author": "IoT.Bzh Team",
     "website": "http://iot.bzh",
     "published": "February 2018",
-    "version": "5.99-FFRC0",
+    "version": "5.99-FFRC1",
 
     "gitbook": "3.2.2",
     "root": "docs",
@@ -89,6 +89,6 @@
                     "decode": true
                 }
             ]
-        }
+	}
     }
 }

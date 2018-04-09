@@ -21,14 +21,44 @@
 
 #include "verbose.h"
 
-#if !defined(DEFAULT_VERBOSITY)
-# define DEFAULT_VERBOSITY Verbosity_Level_Warning
+#define MASKOF(x)		(1 << (x))
+
+#if !defined(DEFAULT_LOGLEVEL)
+# define DEFAULT_LOGLEVEL	Log_Level_Warning
 #endif
 
-int verbosity = 1;
+#if !defined(DEFAULT_LOGMASK)
+# define DEFAULT_LOGMASK	(MASKOF((DEFAULT_LOGLEVEL) + 1) - 1)
+#endif
+
+#if !defined(MINIMAL_LOGLEVEL)
+# define MINIMAL_LOGLEVEL	Log_Level_Error
+#endif
+
+#if !defined(MINIMAL_LOGMASK)
+# define MINIMAL_LOGMASK	(MASKOF((MINIMAL_LOGLEVEL) + 1) - 1)
+#endif
+
+static const char *names[] = {
+	"emergency",
+	"alert",
+	"critical",
+	"error",
+	"warning",
+	"notice",
+	"info",
+	"debug"
+};
+
+static const char asort[] = { 1, 2, 7, 0, 3, 6, 5, 4 };
+
+int logmask = DEFAULT_LOGMASK | MINIMAL_LOGMASK;
+
 void (*verbose_observer)(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args);
 
-#define CROP_LOGLEVEL(x) ((x) < Log_Level_Emergency ? Log_Level_Emergency : (x) > Log_Level_Debug ? Log_Level_Debug : (x))
+#define CROP_LOGLEVEL(x) \
+	((x) < Log_Level_Emergency ? Log_Level_Emergency \
+	                           : (x) > Log_Level_Debug ? Log_Level_Debug : (x))
 
 #if defined(VERBOSE_WITH_SYSLOG)
 
@@ -41,7 +71,7 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 	if (file == NULL || vasprintf(&p, fmt, args) < 0)
 		vsyslog(loglevel, fmt, args);
 	else {
-		syslog(CROP_LOGLEVEL(loglevel), "%s [%s:%d, function]", p, file, line, function);
+		syslog(CROP_LOGLEVEL(loglevel), "%s [%s:%d, %s]", p, file, line, function?:"?");
 		free(p);
 	}
 }
@@ -115,14 +145,18 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 	int saverr, n, rc;
 	struct iovec iov[20];
 
+	/* save errno */
 	saverr = errno;
 
+	/* check if tty (2) or not (1) */
 	if (!tty)
 		tty = 1 + isatty(STDERR_FILENO);
 
+	/* prefix */
 	iov[0].iov_base = (void*)prefixes[CROP_LOGLEVEL(loglevel)] + (tty - 1 ? 4 : 0);
 	iov[0].iov_len = strlen(iov[0].iov_base);
 
+	/* " " */
 	iov[1].iov_base = (void*)&chars[2];
 	iov[1].iov_len = 2;
 
@@ -134,31 +168,40 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 		if (rc < 0)
 			rc = 0;
 		else if ((size_t)rc > sizeof buffer) {
+			/* if too long, ellipsis the end with ... */
 			rc = (int)sizeof buffer;
 			buffer[rc - 1] = buffer[rc - 2]  = buffer[rc - 3] = '.';
 		}
 		iov[n++].iov_len = (size_t)rc;
 	}
 	if (file && (!fmt || tty == 1 || loglevel <= Log_Level_Warning)) {
+		/* "[" (!fmt) or " [" (fmt) */
 		iov[n].iov_base = (void*)&chars[3 + !fmt];
 		iov[n++].iov_len = 2 - !fmt;
+		/* file */
 		iov[n].iov_base = (void*)file;
 		iov[n++].iov_len = strlen(file);
+		/* ":" */
 		iov[n].iov_base = (void*)&chars[2];
 		iov[n++].iov_len = 1;
 		if (line) {
+			/* line number */
 			iov[n].iov_base = lino;
 			iov[n++].iov_len = snprintf(lino, sizeof lino, "%d", line);
 		} else {
+			/* "?" */
 			iov[n].iov_base = (void*)&chars[1];
 			iov[n++].iov_len = 1;
 		}
+		/* "," */
 		iov[n].iov_base = (void*)&chars[5];
 		iov[n++].iov_len = 1;
 		if (function) {
+			/* function name */
 			iov[n].iov_base = (void*)function;
 			iov[n++].iov_len = strlen(function);
 		} else {
+			/* "?" */
 			iov[n].iov_base = (void*)&chars[1];
 			iov[n++].iov_len = 1;
 		}
@@ -166,16 +209,20 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 		iov[n++].iov_len = 1;
 	}
 	if (n == 2) {
+		/* "?" */
 		iov[n].iov_base = (void*)&chars[1];
 		iov[n++].iov_len = 1;
 	}
+	/* "\n" */
 	iov[n].iov_base = (void*)&chars[0];
 	iov[n++].iov_len = 1;
 
+	/* emit the message */
 	pthread_mutex_lock(&mutex);
 	writev(STDERR_FILENO, iov, n);
 	pthread_mutex_unlock(&mutex);
 
+	/* restore errno */
 	errno = saverr;
 }
 
@@ -186,15 +233,6 @@ void verbose_set_name(const char *name, int authority)
 }
 
 #endif
-
-void verbose(int loglevel, const char *file, int line, const char *function, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vverbose(loglevel, file, line, function, fmt, ap);
-	va_end(ap);
-}
 
 void vverbose(int loglevel, const char *file, int line, const char *function, const char *fmt, va_list args)
 {
@@ -209,5 +247,91 @@ void vverbose(int loglevel, const char *file, int line, const char *function, co
 		observer(loglevel, file, line, function, fmt, ap);
 		va_end(ap);
 	}
+}
+
+void verbose(int loglevel, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vverbose(loglevel, file, line, function, fmt, ap);
+	va_end(ap);
+}
+
+void set_logmask(int lvl)
+{
+	logmask = lvl | MINIMAL_LOGMASK;
+}
+
+void verbose_add(int level)
+{
+	set_logmask(logmask | MASKOF(level));
+}
+
+void verbose_sub(int level)
+{
+	set_logmask(logmask & ~MASKOF(level));
+}
+
+void verbose_clear()
+{
+	set_logmask(0);
+}
+
+void verbose_dec()
+{
+	verbosity_set(verbosity_get() - 1);
+}
+
+void verbose_inc()
+{
+	verbosity_set(verbosity_get() + 1);
+}
+
+int verbosity_to_mask(int verbo)
+{
+	int x = verbo + Log_Level_Error;
+	int l = CROP_LOGLEVEL(x);
+	return (1 << (l + 1)) - 1;
+}
+
+int verbosity_from_mask(int mask)
+{
+	int v = 0;
+	while (mask > verbosity_to_mask(v))
+		v++;
+	return v;
+}
+
+void verbosity_set(int verbo)
+{
+	set_logmask(verbosity_to_mask(verbo));
+}
+
+int verbosity_get()
+{
+	return verbosity_from_mask(logmask);
+}
+
+int verbose_level_of_name(const char *name)
+{
+	int c, i, r, l = 0, u = sizeof names / sizeof * names;
+	while (l < u) {
+		i = (l + u) >> 1;
+		r = (int)asort[i];
+		c = strcasecmp(names[r], name);
+		if (!c)
+			return r;
+		if (c < 0)
+			l = i + 1;
+		else
+			u = i;
+	}
+	return -1;
+}
+
+const char *verbose_name_of_level(int level)
+{
+	return level == CROP_LOGLEVEL(level) ? names[level] : NULL;
 }
 

@@ -17,9 +17,11 @@
 
 #pragma once
 
-#include "afb-service-itf.h"
+#include "afb-service-itf-x1.h"
 
 /**
+ * @deprecated use bindings version 3
+ *
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * The result of the call is delivered to the 'callback' function with the 'callback_closure'.
  *
@@ -51,6 +53,8 @@ static inline void afb_service_call_v2(
 }
 
 /**
+ * @deprecated use bindings version 3
+ *
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * 'result' will receive the response.
  *

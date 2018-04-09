@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <errno.h>
 
 #include "afb-session.h"
 #include "afb-context.h"
@@ -184,10 +185,12 @@ static inline unsigned ptr2loa(void *ptr)
 
 int afb_context_change_loa(struct afb_context *context, unsigned loa)
 {
-	if (!context->validated || loa > 7)
-		return 0;
+	if (!context->validated || loa > 7) {
+		errno = EINVAL;
+		return -1;
+	}
 
-	return 0 <= afb_session_set_cookie(context->session, loa_key(context), loa2ptr(loa), NULL);
+	return afb_session_set_cookie(context->session, loa_key(context), loa2ptr(loa), NULL);
 }
 
 unsigned afb_context_get_loa(struct afb_context *context)
@@ -195,5 +198,3 @@ unsigned afb_context_get_loa(struct afb_context *context)
 	assert(context->session != NULL);
 	return ptr2loa(afb_session_get_cookie(context->session, loa_key(context)));
 }
-
-

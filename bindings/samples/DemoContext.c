@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
-#define AFB_BINDING_VERSION 1
+#define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
 typedef struct {
@@ -48,7 +48,7 @@ typedef struct {
 // This function is call at session open time. Any client trying to
 // call it with an already open session will be denied.
 // Ex: http://localhost:1234/api/context/create?token=123456789
-static void myCreate (struct afb_req request)
+static void myCreate (afb_req_t request)
 {
     MyClientContextT *ctx = malloc (sizeof (MyClientContextT));
 
@@ -64,7 +64,7 @@ static void myCreate (struct afb_req request)
 // session timeout a standard renew api is avaliable at /api/token/renew this API
 // can be called automatically with <token-renew> HTML5 widget.
 // ex: http://localhost:1234/api/context/action?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
-static void myAction (struct afb_req request)
+static void myAction (afb_req_t request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
 
@@ -81,7 +81,7 @@ static void myAction (struct afb_req request)
 // created a context [request->context != NULL] every plugins will be notified
 // that they should free context resources.
 // ex: http://localhost:1234/api/context/close?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
-static void myClose (struct afb_req request)
+static void myClose (afb_req_t request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
 
@@ -95,75 +95,44 @@ static void myClose (struct afb_req request)
 }
 
 // Set the LOA
-static void setLOA(struct afb_req request, unsigned loa)
+static void setLOA(afb_req_t request, unsigned loa)
 {
-    if (afb_req_session_set_LOA(request, loa))
+    if (afb_req_session_set_LOA(request, loa) >= 0)
 	afb_req_success_f(request, NULL, "loa set to %u", loa);
     else
 	afb_req_fail_f(request, "failed", "can't set loa to %u", loa);
 }
 
-static void clientSetLOA0(struct afb_req request)
+static void clientSetLOA(afb_req_t request)
 {
-    setLOA(request, 0);
+    setLOA(request, (unsigned)(intptr_t)request->vcbdata);
 }
 
-static void clientSetLOA1(struct afb_req request)
-{
-    setLOA(request, 1);
-}
-
-static void clientSetLOA2(struct afb_req request)
-{
-    setLOA(request, 2);
-}
-
-static void clientSetLOA3(struct afb_req request)
-{
-    setLOA(request, 3);
-}
-
-static void clientCheckLOA(struct afb_req request)
+static void clientCheckLOA(afb_req_t request)
 {
     afb_req_success(request, NULL, "LOA checked and okay");
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const struct afb_verb_desc_v1 verbs[]= {
-  {"create", AFB_SESSION_CREATE, myCreate  , "Create a new session"},
-  {"action", AFB_SESSION_CHECK , myAction  , "Use Session Context"},
-  {"close" , AFB_SESSION_CLOSE , myClose   , "Free Context"},
-  {"set_loa_0", AFB_SESSION_RENEW, clientSetLOA0       ,"Set level of assurance to 0"},
-  {"set_loa_1", AFB_SESSION_RENEW, clientSetLOA1       ,"Set level of assurance to 1"},
-  {"set_loa_2", AFB_SESSION_RENEW, clientSetLOA2       ,"Set level of assurance to 2"},
-  {"set_loa_3", AFB_SESSION_RENEW, clientSetLOA3       ,"Set level of assurance to 3"},
-  {"check_loa_ge_0", AFB_SESSION_LOA_GE_0, clientCheckLOA ,"Check whether level of assurance is greater or equal to 0"},
-  {"check_loa_ge_1", AFB_SESSION_LOA_GE_1, clientCheckLOA ,"Check whether level of assurance is greater or equal to 1"},
-  {"check_loa_ge_2", AFB_SESSION_LOA_GE_2, clientCheckLOA ,"Check whether level of assurance is greater or equal to 2"},
-  {"check_loa_ge_3", AFB_SESSION_LOA_GE_3, clientCheckLOA ,"Check whether level of assurance is greater or equal to 3"},
-  {"check_loa_le_0", AFB_SESSION_LOA_LE_0, clientCheckLOA ,"Check whether level of assurance is lesser or equal to 0"},
-  {"check_loa_le_1", AFB_SESSION_LOA_LE_1, clientCheckLOA ,"Check whether level of assurance is lesser or equal to 1"},
-  {"check_loa_le_2", AFB_SESSION_LOA_LE_2, clientCheckLOA ,"Check whether level of assurance is lesser or equal to 2"},
-  {"check_loa_le_3", AFB_SESSION_LOA_LE_3, clientCheckLOA ,"Check whether level of assurance is lesser or equal to 3"},
-  {"check_loa_eq_0", AFB_SESSION_LOA_EQ_0, clientCheckLOA ,"Check whether level of assurance is equal to 0"},
-  {"check_loa_eq_1", AFB_SESSION_LOA_EQ_1, clientCheckLOA ,"Check whether level of assurance is equal to 1"},
-  {"check_loa_eq_2", AFB_SESSION_LOA_EQ_2, clientCheckLOA ,"Check whether level of assurance is equal to 2"},
-  {"check_loa_eq_3", AFB_SESSION_LOA_EQ_3, clientCheckLOA ,"Check whether level of assurance is equal to 3"},
+static const struct afb_verb_v3 verbs[]= {
+  {.verb="create", .session=AFB_SESSION_NONE, .callback=myCreate  , .info="Create a new session"},
+  {.verb="action", .session=AFB_SESSION_CHECK , .callback=myAction  , .info="Use Session Context"},
+  {.verb="close" , .session=AFB_SESSION_CLOSE , .callback=myClose   , .info="Free Context"},
+  {.verb="set_loa_0", .session=AFB_SESSION_RENEW, .callback=clientSetLOA       ,.vcbdata=(void*)(intptr_t)0 ,.info="Set level of assurance to 0"},
+  {.verb="set_loa_1", .session=AFB_SESSION_RENEW, .callback=clientSetLOA       ,.vcbdata=(void*)(intptr_t)1 ,.info="Set level of assurance to 1"},
+  {.verb="set_loa_2", .session=AFB_SESSION_RENEW, .callback=clientSetLOA       ,.vcbdata=(void*)(intptr_t)2 ,.info="Set level of assurance to 2"},
+  {.verb="set_loa_3", .session=AFB_SESSION_RENEW, .callback=clientSetLOA       ,.vcbdata=(void*)(intptr_t)3 ,.info="Set level of assurance to 3"},
+  {.verb="check_loa_ge_0", .session=AFB_SESSION_LOA_0, .callback=clientCheckLOA ,.vcbdata=(void*)(intptr_t)0 ,.info="Check whether level of assurance is greater or equal to 0"},
+  {.verb="check_loa_ge_1", .session=AFB_SESSION_LOA_1, .callback=clientCheckLOA ,.vcbdata=(void*)(intptr_t)1 ,.info="Check whether level of assurance is greater or equal to 1"},
+  {.verb="check_loa_ge_2", .session=AFB_SESSION_LOA_2, .callback=clientCheckLOA ,.vcbdata=(void*)(intptr_t)2 ,.info="Check whether level of assurance is greater or equal to 2"},
+  {.verb="check_loa_ge_3", .session=AFB_SESSION_LOA_3, .callback=clientCheckLOA ,.vcbdata=(void*)(intptr_t)3 ,.info="Check whether level of assurance is greater or equal to 3"},
   {NULL}
 };
 
-static const struct afb_binding plugin_desc = {
-	.type = AFB_BINDING_VERSION_1,
-	.v1 = {
-		.info = "Sample of Client Context Usage",
-		.prefix = "context",
-		.verbs = verbs,
-	}
-};
-
-const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
+const struct afb_binding_v3 afbBindingV3 =
 {
-	return &plugin_desc;
-}
-
+    .api   = "context",		/* the API name (or binding name or prefix) */
+    .info  = "Sample of Client Context Usage",	/* short description of of the binding */
+    .verbs = verbs	/* the array describing the verbs of the API */
+};

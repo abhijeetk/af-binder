@@ -17,36 +17,44 @@
 
 #pragma once
 
-#include "afb-daemon-itf.h"
+#include "afb-daemon-itf-x1.h"
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Retrieves the common systemd's event loop of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_event *afb_daemon_get_event_loop_v1(struct afb_daemon daemon)
+static inline struct sd_event *afb_daemon_get_event_loop_v1(struct afb_daemon_x1 daemon)
 {
 	return daemon.itf->get_event_loop(daemon.closure);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Retrieves the common systemd's user/session d-bus of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_bus *afb_daemon_get_user_bus_v1(struct afb_daemon daemon)
+static inline struct sd_bus *afb_daemon_get_user_bus_v1(struct afb_daemon_x1 daemon)
 {
 	return daemon.itf->get_user_bus(daemon.closure);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Retrieves the common systemd's system d-bus of AFB
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  */
-static inline struct sd_bus *afb_daemon_get_system_bus_v1(struct afb_daemon daemon)
+static inline struct sd_bus *afb_daemon_get_system_bus_v1(struct afb_daemon_x1 daemon)
 {
 	return daemon.itf->get_system_bus(daemon.closure);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Broadcasts widely the event of 'name' with the data 'object'.
  * 'object' can be NULL.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
@@ -59,12 +67,14 @@ static inline struct sd_bus *afb_daemon_get_system_bus_v1(struct afb_daemon daem
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_daemon_broadcast_event_v1(struct afb_daemon daemon, const char *name, struct json_object *object)
+static inline int afb_daemon_broadcast_event_v1(struct afb_daemon_x1 daemon, const char *name, struct json_object *object)
 {
 	return daemon.itf->event_broadcast(daemon.closure, name, object);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Creates an event of 'name' and returns it.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  *
@@ -72,12 +82,14 @@ static inline int afb_daemon_broadcast_event_v1(struct afb_daemon daemon, const 
  *
  * See afb_event_is_valid to check if there is an error.
  */
-static inline struct afb_event afb_daemon_make_event_v1(struct afb_daemon daemon, const char *name)
+static inline struct afb_event_x1 afb_daemon_make_event_v1(struct afb_daemon_x1 daemon, const char *name)
 {
 	return daemon.itf->event_make(daemon.closure, name);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
  *
@@ -96,8 +108,8 @@ static inline struct afb_event afb_daemon_make_event_v1(struct afb_daemon daemon
  *      INFO              6        Informational
  *      DEBUG             7        Debug-level messages
  */
-static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
-static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
+static inline void afb_daemon_verbose_v1(struct afb_daemon_x1 daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
+static inline void afb_daemon_verbose_v1(struct afb_daemon_x1 daemon, int level, const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -105,7 +117,9 @@ static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, co
 	va_end(args);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
  *
@@ -124,8 +138,8 @@ static inline void afb_daemon_verbose_v1(struct afb_daemon daemon, int level, co
  *      INFO              6        Informational
  *      DEBUG             7        Debug-level messages
  */
-static inline void afb_daemon_verbose2_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *func, const char *fmt, ...) __attribute__((format(printf, 6, 7)));
-static inline void afb_daemon_verbose2_v1(struct afb_daemon daemon, int level, const char *file, int line, const char *func, const char *fmt, ...)
+static inline void afb_daemon_verbose2_v1(struct afb_daemon_x1 daemon, int level, const char *file, int line, const char *func, const char *fmt, ...) __attribute__((format(printf, 6, 7)));
+static inline void afb_daemon_verbose2_v1(struct afb_daemon_x1 daemon, int level, const char *file, int line, const char *func, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -133,26 +147,34 @@ static inline void afb_daemon_verbose2_v1(struct afb_daemon daemon, int level, c
 	va_end(args);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Get the root directory file descriptor. This file descriptor can
  * be used with functions 'openat', 'fstatat', ...
+ *
+ * Returns the file descriptor or -1 in case of error.
  */
-static inline int afb_daemon_rootdir_get_fd_v1(struct afb_daemon daemon)
+static inline int afb_daemon_rootdir_get_fd_v1(struct afb_daemon_x1 daemon)
 {
 	return daemon.itf->rootdir_get_fd(daemon.closure);
 }
 
-/*
- * Opens 'filename' within the root directory with 'flags' (see function openat)
+/**
+ * @deprecated use bindings version 3
+ *
  * using the 'locale' definition (example: "jp,en-US") that can be NULL.
+ *
  * Returns the file descriptor or -1 in case of error.
  */
-static inline int afb_daemon_rootdir_open_locale_v1(struct afb_daemon daemon, const char *filename, int flags, const char *locale)
+static inline int afb_daemon_rootdir_open_locale_v1(struct afb_daemon_x1 daemon, const char *filename, int flags, const char *locale)
 {
 	return daemon.itf->rootdir_open_locale(daemon.closure, filename, flags, locale);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Queue the job defined by 'callback' and 'argument' for being executed asynchronously
  * in this thread (later) or in an other thread.
  * If 'group' is not NUL, the jobs queued with a same value (as the pointer value 'group')
@@ -165,39 +187,52 @@ static inline int afb_daemon_rootdir_open_locale_v1(struct afb_daemon daemon, co
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-static inline int afb_daemon_queue_job_v1(struct afb_daemon daemon, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+static inline int afb_daemon_queue_job_v1(struct afb_daemon_x1 daemon, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
 {
 	return daemon.itf->queue_job(daemon.closure, callback, argument, group, timeout);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Tells that it requires the API of "name" to exist
  * and if 'initialized' is not null to be initialized.
  * Calling this function is only allowed within init.
+ *
  * Returns 0 in case of success or -1 in case of error.
  */
-static inline int afb_daemon_require_api_v1(struct afb_daemon daemon, const char *name, int initialized)
+static inline int afb_daemon_require_api_v1(struct afb_daemon_x1 daemon, const char *name, int initialized)
 {
 	return daemon.itf->require_api(daemon.closure, name, initialized);
 }
 
-/*
- * Set the name of the API to 'name'.
+/**
+ * @deprecated use bindings version 3
+ *
+ * Create an aliased name 'as_name' for the api 'name'.
  * Calling this function is only allowed within preinit.
+ *
  * Returns 0 in case of success or -1 in case of error.
  */
-static inline int afb_daemon_rename_api_v1(struct afb_daemon daemon, const char *name)
+static inline int afb_daemon_add_alias_v1(struct afb_daemon_x1 daemon, const char *name, const char *as_name)
 {
-	return daemon.itf->rename_api(daemon.closure, name);
+	return daemon.itf->add_alias(daemon.closure, name, as_name);
 }
 
+/**
+ * @deprecated use bindings version 3
+ *
+ * Creates a new api of name 'api' with brief 'info'.
+ *
+ * Returns 0 in case of success or -1 in case of error.
+ */
 static inline int afb_daemon_new_api_v1(
-	struct afb_daemon daemon,
+	struct afb_daemon_x1 daemon,
 	const char *api,
 	const char *info,
 	int noconcurrency,
-	int (*preinit)(void*, struct afb_dynapi *),
+	int (*preinit)(void*, struct afb_api_x3 *),
 	void *closure)
 {
-	return daemon.itf->new_api(daemon.closure, api, info, noconcurrency, preinit, closure);
+	return -!daemon.itf->new_api(daemon.closure, api, info, noconcurrency, preinit, closure);
 }

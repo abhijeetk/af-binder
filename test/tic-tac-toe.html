@@ -1,0 +1,87 @@
+<html>
+<head>
+    <title>tic tac toe</title>
+    <style>
+	td {
+		border: 1px solid black;
+		width: 3em;
+		height: 3em;
+		font-weight: bolder;
+		text-align: center;
+		align-content: center;
+	}
+	.button {
+		border: 1px solid black;
+		border-radius: 5px;
+	}
+	.button:hover {
+		border-width: 2px;
+		font-weight: bolder;
+	}
+    </style>
+    <script type="text/javascript" src="AFB.js"></script>
+    <script type="text/javascript">
+	var afb = new AFB("api", "HELLO");
+	var ws;
+
+	function $(x) { return document.getElementById(x); }
+
+
+	function replyok(obj) {
+		$("id").innerHTML = obj.response.boardid;
+		var i;
+		for (var i = 0 ; i < 9 ; i++)
+			$("cell-" + i).innerHTML = obj.response.board[i];
+	}
+	function replyerr(obj) {
+	}
+	function gotevent(obj) {
+		ws.call("tictactoe/board").then(replyok, replyerr);
+	}
+
+	function onopen() {
+		$("main").style.visibility = "visible";
+		$("connected").innerHTML = "Connected to WebSocket server";
+		ws.onevent("tictactoe/board", gotevent);
+		ws.call("tictactoe/new").then(gotevent, replyerr);
+	}
+	function onabort() {
+		$("main").style.visibility = "hidden";
+		$("connected").innerHTML = "Connected Closed";
+	}
+
+	function init() {
+		ws = new afb.ws(onopen, onabort);
+	}
+
+    </script>
+
+<body onload="init();">
+    <h1>Tic Tac Toe</h1>
+    <div id="connected">Not Connected</div>
+    <div id="main" style="visibility:hidden">
+	    <div>board id <span id="id"></span></div>
+	    <div>
+		    <table>
+			    <tr>
+				    <td id="cell-0" onclick="javascript: ws.call('tictactoe/move',{'index':0})"> </td>
+				    <td id="cell-1" onclick="javascript: ws.call('tictactoe/move',{'index':1})"> </td>
+				    <td id="cell-2" onclick="javascript: ws.call('tictactoe/move',{'index':2})"> </td>
+			    </tr>
+			    <tr>
+				    <td id="cell-3" onclick="javascript: ws.call('tictactoe/move',{'index':3})"> </td>
+				    <td id="cell-4" onclick="javascript: ws.call('tictactoe/move',{'index':4})"> </td>
+				    <td id="cell-5" onclick="javascript: ws.call('tictactoe/move',{'index':5})"> </td>
+			    </tr>
+			    <tr>
+				    <td id="cell-6" onclick="javascript: ws.call('tictactoe/move',{'index':6})"> </td>
+				    <td id="cell-7" onclick="javascript: ws.call('tictactoe/move',{'index':7})"> </td>
+				    <td id="cell-8" onclick="javascript: ws.call('tictactoe/move',{'index':8})"> </td>
+			    </tr>
+		    </table>
+	    </div>
+	    <div><span class="button" id="play" onclick="javascript: ws.call('tictactoe/play')">play</span></div>
+	    <div><span class="button" id="undo" onclick="javascript: ws.call('tictactoe/undo')">undo</span></div>
+	    <div><span class="button" id="new" onclick="javascript: ws.call('tictactoe/new')">new</span></div>
+    </div>
+

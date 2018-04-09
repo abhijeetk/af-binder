@@ -24,10 +24,6 @@ assurance that the services can expect from the session.
 The exact definition of the meaning of these levels and how to use it remains to
 be achieved.
 
-## Plugin
-
-Old name for binding, see binding.
-
 ## Request
 
 A request is an invocation by a client to a binding method using a message
@@ -51,7 +47,7 @@ It can serve many client.
 Each one attached to one session.
 
 The framework establishes connection between the services and the clients.  
-Using DBus currently but other protocols are considered.
+Using sockets currently but other protocols are considered.
 
 ## Session
 

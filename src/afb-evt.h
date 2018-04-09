@@ -17,8 +17,8 @@
 
 #pragma once
 
-struct afb_event;
-struct afb_eventid;
+struct afb_event_x1;
+struct afb_event_x2;
 struct afb_evtid;
 struct afb_session;
 struct json_object;
@@ -66,20 +66,20 @@ extern int afb_evt_watch_sub_evtid(struct afb_evt_listener *listener, struct afb
 extern void afb_evt_update_hooks();
 
 
-extern struct afb_eventid *afb_evt_eventid_create(const char *fullname);
-extern struct afb_eventid *afb_evt_eventid_create2(const char *prefix, const char *name);
-extern const char *afb_evt_eventid_fullname(struct afb_eventid *eventid);
-extern int afb_evt_eventid_id(struct afb_eventid *eventid);
-extern struct afb_eventid *afb_evt_eventid_addref(struct afb_eventid *eventid);
-extern void afb_evt_eventid_unref(struct afb_eventid *eventid);
+extern struct afb_event_x2 *afb_evt_event_x2_create(const char *fullname);
+extern struct afb_event_x2 *afb_evt_event_x2_create2(const char *prefix, const char *name);
+extern const char *afb_evt_event_x2_fullname(struct afb_event_x2 *event);
+extern int afb_evt_event_x2_id(struct afb_event_x2 *eventid);
+extern struct afb_event_x2 *afb_evt_event_x2_addref(struct afb_event_x2 *eventid);
+extern void afb_evt_event_x2_unref(struct afb_event_x2 *eventid);
 
-extern int afb_evt_eventid_push(struct afb_eventid *eventid, struct json_object *object);
-extern int afb_evt_eventid_unhooked_push(struct afb_eventid *eventid, struct json_object *object);
+extern int afb_evt_event_x2_push(struct afb_event_x2 *eventid, struct json_object *object);
+extern int afb_evt_event_x2_unhooked_push(struct afb_event_x2 *eventid, struct json_object *object);
 
-extern int afb_evt_eventid_add_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid);
-extern int afb_evt_eventid_remove_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid);
+extern int afb_evt_event_x2_add_watch(struct afb_evt_listener *listener, struct afb_event_x2 *eventid);
+extern int afb_evt_event_x2_remove_watch(struct afb_evt_listener *listener, struct afb_event_x2 *eventid);
 
-extern struct afb_evtid *afb_evt_eventid_to_evtid(struct afb_eventid *eventid);
-extern struct afb_eventid *afb_evt_eventid_from_evtid(struct afb_evtid *evtid);
-extern struct afb_event afb_evt_event_from_evtid(struct afb_evtid *evtid);
+extern struct afb_evtid *afb_evt_event_x2_to_evtid(struct afb_event_x2 *eventid);
+extern struct afb_event_x2 *afb_evt_event_x2_from_evtid(struct afb_evtid *evtid);
+extern struct afb_event_x1 afb_evt_event_from_evtid(struct afb_evtid *evtid);
 

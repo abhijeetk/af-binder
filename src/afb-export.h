@@ -21,36 +21,111 @@ struct json_object;
 
 struct afb_export;
 struct afb_apiset;
-struct afb_api_dyn;
+struct afb_context;
+struct afb_xreq;
 
-struct afb_service;
+struct afb_binding_v2;
 struct afb_binding_data_v2;
-struct afb_binding_interface_v1;
-struct afb_dynapi;
+struct afb_api_v3;
+struct afb_api_x3;
+struct afb_event_x2;
 
-extern struct afb_export *afb_export_create_v1(struct afb_apiset *apiset, const char *apiname, int (*init)(struct afb_service), void (*onevent)(const char*, struct json_object*));
-extern struct afb_export *afb_export_create_v2(struct afb_apiset *apiset, const char *apiname, struct afb_binding_data_v2 *data, int (*init)(), void (*onevent)(const char*, struct json_object*));
-extern struct afb_export *afb_export_create_vdyn(struct afb_apiset *apiset, const char *apiname, struct afb_api_dyn *dynapi);
+extern struct afb_export *afb_export_create_none_for_path(
+				struct afb_apiset *declare_set,
+				struct afb_apiset *call_set,
+				const char *path,
+				int (*creator)(void*, struct afb_api_x3*),
+				void *closure);
+
+extern struct afb_export *afb_export_create_v2(
+				struct afb_apiset *declare_set,
+				struct afb_apiset *call_set,
+				const char *apiname,
+				const struct afb_binding_v2 *binding,
+				struct afb_binding_data_v2 *data,
+				int (*init)(),
+				void (*onevent)(const char*, struct json_object*));
+
+extern struct afb_export *afb_export_create_v3(struct afb_apiset *declare_set,
+				struct afb_apiset *call_set,
+				const char *apiname,
+				struct afb_api_v3 *api);
+
+extern struct afb_export *afb_export_addref(struct afb_export *export);
+extern void afb_export_unref(struct afb_export *export);
 
 extern void afb_export_destroy(struct afb_export *export);
 
+extern int afb_export_declare(struct afb_export *export, int noconcurrency);
+extern void afb_export_undeclare(struct afb_export *export);
+
 extern const char *afb_export_apiname(const struct afb_export *export);
-extern void afb_export_rename(struct afb_export *export, const char *apiname);
-extern void afb_export_update_hook(struct afb_export *export);
+extern int afb_export_add_alias(struct afb_export *export, const char *apiname, const char *aliasname);
+extern int afb_export_rename(struct afb_export *export, const char *apiname);
+extern void afb_export_update_hooks(struct afb_export *export);
 
 extern int afb_export_unshare_session(struct afb_export *export);
-extern void afb_export_set_apiset(struct afb_export *export, struct afb_apiset *apiset);
-extern struct afb_apiset *afb_export_get_apiset(struct afb_export *export);
-	
-extern struct afb_binding_v1 *afb_export_register_v1(struct afb_export *export, struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*));
-extern int afb_export_preinit_vdyn(struct afb_export *export, int (*preinit)(void*, struct afb_dynapi*), void *closure);
 
-extern int afb_export_handle_events_v12(struct afb_export *export, void (*on_event)(const char *event, struct json_object *object));
-extern int afb_export_handle_events_vdyn(struct afb_export *export, void (*on_event)(struct afb_dynapi *dynapi, const char *event, struct json_object *object));
-extern int afb_export_handle_init_vdyn(struct afb_export *export, int (*oninit)(struct afb_dynapi *dynapi));
+extern int afb_export_preinit_x3(
+				struct afb_export *export,
+				int (*preinit)(void *,struct afb_api_x3*),
+				void *closure);
 
-extern int afb_export_start(struct afb_export *export, int share_session, int onneed, struct afb_apiset *apiset);
+extern int afb_export_handle_events_v12(
+				struct afb_export *export,
+				void (*on_event)(const char *event, struct json_object *object));
 
-extern int afb_export_verbosity_get(const struct afb_export *export);
-extern void afb_export_verbosity_set(struct afb_export *export, int level);
+
+extern int afb_export_handle_events_v3(
+				struct afb_export *export,
+				void (*on_event)(struct afb_api_x3 *api, const char *event, struct json_object *object));
+
+
+extern int afb_export_handle_init_v3(
+				struct afb_export *export,
+				int (*oninit)(struct afb_api_x3 *api));
+
+extern int afb_export_start(struct afb_export *export, int share_session, int onneed);
+
+extern int afb_export_logmask_get(const struct afb_export *export);
+extern void afb_export_logmask_set(struct afb_export *export, int mask);
+
+extern void *afb_export_userdata_get(const struct afb_export *export);
+extern void afb_export_userdata_set(struct afb_export *export, void *data);
+
+extern int afb_export_event_handler_add(
+			struct afb_export *export,
+			const char *pattern,
+			void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*),
+			void *closure);
+
+extern int afb_export_event_handler_del(
+			struct afb_export *export,
+			const char *pattern,
+			void **closure);
+
+extern int afb_export_subscribe(struct afb_export *export, struct afb_event_x2 *event);
+extern int afb_export_unsubscribe(struct afb_export *export, struct afb_event_x2 *event);
+extern void afb_export_process_xreq(struct afb_export *export, struct afb_xreq *xreq);
+extern void afb_export_context_init(struct afb_export *export, struct afb_context *context);
+extern struct afb_export *afb_export_from_api_x3(struct afb_api_x3 *api);
+extern struct afb_api_x3 *afb_export_to_api_x3(struct afb_export *export);
+
+#if defined(WITH_LEGACY_BINDING_V1)
+
+struct afb_service_x1;
+struct afb_binding_interface_v1;
+
+extern struct afb_export *afb_export_create_v1(
+				struct afb_apiset *declare_set,
+				struct afb_apiset *call_set,
+				const char *apiname,
+				int (*init)(struct afb_service_x1),
+				void (*onevent)(const char*, struct json_object*));
+
+extern struct afb_binding_v1 *afb_export_register_v1(
+				struct afb_export *export,
+				struct afb_binding_v1 *(*regfun)(const struct afb_binding_interface_v1*));
+
+#endif
 

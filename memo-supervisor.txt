@@ -282,3 +282,14 @@ ON-EVENT supervisor/trace:
 }
 
 
+Usefull commands:
+-----------------
+
+  TARGET=...
+
+  afb-client-demo -H ws://$TARGET:1619/api?token=HELLO\&uuid=HELLO supervisor list
+
+  afb-client-demo -H ws://$TARGET:1619/api?token=HELLO\&uuid=HELLO config '{"pid":XXXX}'
+
+  
+

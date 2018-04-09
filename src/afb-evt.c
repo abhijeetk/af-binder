@@ -24,8 +24,8 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
-#include <afb/afb-eventid-itf.h>
-#include <afb/afb-event.h>
+#include <afb/afb-event-x2-itf.h>
+#include <afb/afb-event-x1.h>
 
 #include "afb-evt.h"
 #include "afb-hook.h"
@@ -50,8 +50,8 @@ struct afb_evt_listener {
 	/* head of the list of events listened */
 	struct afb_evt_watch *watchs;
 
-	/* mutex of the listener */
-	pthread_mutex_t mutex;
+	/* rwlock of the listener */
+	pthread_rwlock_t rwlock;
 
 	/* count of reference to the listener */
 	int refcount;
@@ -63,7 +63,7 @@ struct afb_evt_listener {
 struct afb_evtid {
 
 	/* interface */
-	struct afb_eventid eventid;
+	struct afb_event_x2 eventid;
 
 	/* next event */
 	struct afb_evtid *next;
@@ -71,8 +71,8 @@ struct afb_evtid {
 	/* head of the list of listeners watching the event */
 	struct afb_evt_watch *watchs;
 
-	/* mutex of the event */
-	pthread_mutex_t mutex;
+	/* rwlock of the event */
+	pthread_rwlock_t rwlock;
 
 	/* hooking */
 	int hookflags;
@@ -109,7 +109,7 @@ struct afb_evt_watch {
 };
 
 /* the interface for events */
-static struct afb_eventid_itf afb_evt_eventid_itf = {
+static struct afb_event_x2_itf afb_evt_event_x2_itf = {
 	.broadcast = (void*)afb_evt_evtid_broadcast,
 	.push = (void*)afb_evt_evtid_push,
 	.unref = (void*)afb_evt_evtid_unref,
@@ -118,7 +118,7 @@ static struct afb_eventid_itf afb_evt_eventid_itf = {
 };
 
 /* the interface for events */
-static struct afb_eventid_itf afb_evt_hooked_eventid_itf = {
+static struct afb_event_x2_itf afb_evt_hooked_eventid_itf = {
 	.broadcast = (void*)afb_evt_evtid_hooked_broadcast,
 	.push = (void*)afb_evt_evtid_hooked_push,
 	.unref = (void*)afb_evt_evtid_hooked_unref,
@@ -127,11 +127,11 @@ static struct afb_eventid_itf afb_evt_hooked_eventid_itf = {
 };
 
 /* head of the list of listeners */
-static pthread_mutex_t listeners_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t listeners_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static struct afb_evt_listener *listeners = NULL;
 
 /* handling id of events */
-static pthread_mutex_t events_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t events_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static struct afb_evtid *evtids = NULL;
 static int event_id_counter = 0;
 static int event_id_wrapped = 0;
@@ -147,7 +147,8 @@ static int broadcast(const char *event, struct json_object *obj, int id)
 	struct afb_evt_listener *listener;
 
 	result = 0;
-	pthread_mutex_lock(&listeners_mutex);
+
+	pthread_rwlock_rdlock(&listeners_rwlock);
 	listener = listeners;
 	while(listener) {
 		if (listener->itf->broadcast != NULL) {
@@ -156,7 +157,7 @@ static int broadcast(const char *event, struct json_object *obj, int id)
 		}
 		listener = listener->next;
 	}
-	pthread_mutex_unlock(&listeners_mutex);
+	pthread_rwlock_unlock(&listeners_rwlock);
 	json_object_put(obj);
 	return result;
 }
@@ -228,7 +229,7 @@ int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
 	struct afb_evt_listener *listener;
 
 	result = 0;
-	pthread_mutex_lock(&evtid->mutex);
+	pthread_rwlock_rdlock(&evtid->rwlock);
 	watch = evtid->watchs;
 	while(watch) {
 		listener = watch->listener;
@@ -239,7 +240,7 @@ int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
 		}
 		watch = watch->next_by_evtid;
 	}
-	pthread_mutex_unlock(&evtid->mutex);
+	pthread_rwlock_unlock(&evtid->rwlock);
 	json_object_put(obj);
 	return result;
 }
@@ -252,6 +253,7 @@ int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
  */
 int afb_evt_evtid_hooked_push(struct afb_evtid *evtid, struct json_object *obj)
 {
+
 	int result;
 
 	/* lease the object */
@@ -319,7 +321,7 @@ struct afb_evtid *afb_evt_evtid_create(const char *fullname)
 		goto error;
 
 	/* allocates the id */
-	pthread_mutex_lock(&events_mutex);
+	pthread_rwlock_wrlock(&events_rwlock);
 	do {
 		if (++event_id_counter < 0) {
 			event_id_wrapped = 1;
@@ -335,15 +337,16 @@ struct afb_evtid *afb_evt_evtid_create(const char *fullname)
 	/* initialize the event */
 	memcpy(evtid->fullname, fullname, len + 1);
 	evtid->next = evtids;
+	evtid->refcount = 1;
 	evtid->watchs = NULL;
 	evtid->id = event_id_counter;
-	pthread_mutex_init(&evtid->mutex, NULL);
+	pthread_rwlock_init(&evtid->rwlock, NULL);
 	evtids = evtid;
 	evtid->hookflags = afb_hook_flags_evt(evtid->fullname);
-	evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_eventid_itf;
+	evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_event_x2_itf;
 	if (evtid->hookflags & afb_hook_flag_evt_create)
 		afb_hook_evt_create(evtid->fullname, evtid->id);
-	pthread_mutex_unlock(&events_mutex);
+	pthread_rwlock_unlock(&events_rwlock);
 
 	/* returns the event */
 	return evtid;
@@ -402,14 +405,14 @@ void afb_evt_evtid_unref(struct afb_evtid *evtid)
 
 	if (!__atomic_sub_fetch(&evtid->refcount, 1, __ATOMIC_RELAXED)) {
 		/* unlinks the event if valid! */
-		pthread_mutex_lock(&events_mutex);
+		pthread_rwlock_wrlock(&events_rwlock);
 		found = 0;
 		prv = &evtids;
 		while (*prv && !(found = (*prv == evtid)))
 			prv = &(*prv)->next;
 		if (found)
 			*prv = evtid->next;
-		pthread_mutex_unlock(&events_mutex);
+		pthread_rwlock_unlock(&events_rwlock);
 
 		/* destroys the event */
 		if (!found)
@@ -418,15 +421,15 @@ void afb_evt_evtid_unref(struct afb_evtid *evtid)
 			/* removes all watchers */
 			while(evtid->watchs != NULL) {
 				listener = evtid->watchs->listener;
-				pthread_mutex_lock(&listener->mutex);
-				pthread_mutex_lock(&evtid->mutex);
+				pthread_rwlock_wrlock(&listener->rwlock);
+				pthread_rwlock_wrlock(&evtid->rwlock);
 				remove_watch(evtid->watchs);
-				pthread_mutex_unlock(&evtid->mutex);
-				pthread_mutex_unlock(&listener->mutex);
+				pthread_rwlock_unlock(&evtid->rwlock);
+				pthread_rwlock_unlock(&listener->rwlock);
 			}
 
 			/* free */
-			pthread_mutex_destroy(&evtid->mutex);
+			pthread_rwlock_destroy(&evtid->rwlock);
 			free(evtid);
 		}
 	}
@@ -489,7 +492,7 @@ struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, 
 	struct afb_evt_listener *listener;
 
 	/* search if an instance already exists */
-	pthread_mutex_lock(&listeners_mutex);
+	pthread_rwlock_wrlock(&listeners_rwlock);
 	listener = listeners;
 	while (listener != NULL) {
 		if (listener->itf == itf && listener->closure == closure) {
@@ -507,12 +510,12 @@ struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, 
 		listener->closure = closure;
 		listener->watchs = NULL;
 		listener->refcount = 1;
-		pthread_mutex_init(&listener->mutex, NULL);
+		pthread_rwlock_init(&listener->rwlock, NULL);
 		listener->next = listeners;
 		listeners = listener;
 	}
  found:
-	pthread_mutex_unlock(&listeners_mutex);
+	pthread_rwlock_unlock(&listeners_rwlock);
 	return listener;
 }
 
@@ -537,25 +540,25 @@ void afb_evt_listener_unref(struct afb_evt_listener *listener)
 	if (!__atomic_sub_fetch(&listener->refcount, 1, __ATOMIC_RELAXED)) {
 
 		/* unlink the listener */
-		pthread_mutex_lock(&listeners_mutex);
+		pthread_rwlock_wrlock(&listeners_rwlock);
 		prv = &listeners;
 		while (*prv != listener)
 			prv = &(*prv)->next;
 		*prv = listener->next;
-		pthread_mutex_unlock(&listeners_mutex);
+		pthread_rwlock_unlock(&listeners_rwlock);
 
 		/* remove the watchers */
-		pthread_mutex_lock(&listener->mutex);
+		pthread_rwlock_wrlock(&listener->rwlock);
 		while (listener->watchs != NULL) {
 			evtid = listener->watchs->evtid;
-			pthread_mutex_lock(&evtid->mutex);
+			pthread_rwlock_wrlock(&evtid->rwlock);
 			remove_watch(listener->watchs);
-			pthread_mutex_unlock(&evtid->mutex);
+			pthread_rwlock_unlock(&evtid->rwlock);
 		}
-		pthread_mutex_unlock(&listener->mutex);
+		pthread_rwlock_unlock(&listener->rwlock);
 
 		/* free the listener */
-		pthread_mutex_destroy(&listener->mutex);
+		pthread_rwlock_destroy(&listener->rwlock);
 		free(listener);
 	}
 }
@@ -575,7 +578,7 @@ int afb_evt_watch_add_evtid(struct afb_evt_listener *listener, struct afb_evtid 
 	}
 
 	/* search the existing watch for the listener */
-	pthread_mutex_lock(&listener->mutex);
+	pthread_rwlock_wrlock(&listener->rwlock);
 	watch = listener->watchs;
 	while(watch != NULL) {
 		if (watch->evtid == evtid)
@@ -586,7 +589,7 @@ int afb_evt_watch_add_evtid(struct afb_evt_listener *listener, struct afb_evtid 
 	/* not found, allocate a new */
 	watch = malloc(sizeof *watch);
 	if (watch == NULL) {
-		pthread_mutex_unlock(&listener->mutex);
+		pthread_rwlock_unlock(&listener->rwlock);
 		errno = ENOMEM;
 		return -1;
 	}
@@ -597,16 +600,16 @@ int afb_evt_watch_add_evtid(struct afb_evt_listener *listener, struct afb_evtid 
 	watch->listener = listener;
 	watch->next_by_listener = listener->watchs;
 	listener->watchs = watch;
-	pthread_mutex_lock(&evtid->mutex);
+	pthread_rwlock_wrlock(&evtid->rwlock);
 	watch->next_by_evtid = evtid->watchs;
 	evtid->watchs = watch;
-	pthread_mutex_unlock(&evtid->mutex);
+	pthread_rwlock_unlock(&evtid->rwlock);
 
 found:
 	if (watch->activity == 0 && listener->itf->add != NULL)
 		listener->itf->add(listener->closure, evtid->fullname, evtid->id);
 	watch->activity++;
-	pthread_mutex_unlock(&listener->mutex);
+	pthread_rwlock_unlock(&listener->rwlock);
 
 	return 0;
 }
@@ -620,7 +623,7 @@ int afb_evt_watch_sub_evtid(struct afb_evt_listener *listener, struct afb_evtid 
 	struct afb_evt_watch *watch;
 
 	/* search the existing watch */
-	pthread_mutex_lock(&listener->mutex);
+	pthread_rwlock_wrlock(&listener->rwlock);
 	watch = listener->watchs;
 	while(watch != NULL) {
 		if (watch->evtid == evtid) {
@@ -629,12 +632,12 @@ int afb_evt_watch_sub_evtid(struct afb_evt_listener *listener, struct afb_evtid 
 				if (watch->activity == 0 && listener->itf->remove != NULL)
 					listener->itf->remove(listener->closure, evtid->fullname, evtid->id);
 			}
-			pthread_mutex_unlock(&listener->mutex);
+			pthread_rwlock_unlock(&listener->rwlock);
 			return 0;
 		}
 		watch = watch->next_by_listener;
 	}
-	pthread_mutex_unlock(&listener->mutex);
+	pthread_rwlock_unlock(&listener->rwlock);
 	errno = ENOENT;
 	return -1;
 }
@@ -646,20 +649,20 @@ void afb_evt_update_hooks()
 {
 	struct afb_evtid *evtid;
 
-	pthread_mutex_lock(&events_mutex);
+	pthread_rwlock_rdlock(&events_rwlock);
 	for (evtid = evtids ; evtid ; evtid = evtid->next) {
 		evtid->hookflags = afb_hook_flags_evt(evtid->fullname);
-		evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_eventid_itf;
+		evtid->eventid.itf = evtid->hookflags ? &afb_evt_hooked_eventid_itf : &afb_evt_event_x2_itf;
 	}
-	pthread_mutex_unlock(&events_mutex);
+	pthread_rwlock_unlock(&events_rwlock);
 }
 
-inline struct afb_evtid *afb_evt_eventid_to_evtid(struct afb_eventid *eventid)
+inline struct afb_evtid *afb_evt_event_x2_to_evtid(struct afb_event_x2 *eventid)
 {
 	return (struct afb_evtid*)eventid;
 }
 
-inline struct afb_eventid *afb_evt_eventid_from_evtid(struct afb_evtid *evtid)
+inline struct afb_event_x2 *afb_evt_event_x2_from_evtid(struct afb_evtid *evtid)
 {
 	return &evtid->eventid;
 }
@@ -668,35 +671,35 @@ inline struct afb_eventid *afb_evt_eventid_from_evtid(struct afb_evtid *evtid)
  * Creates an event of 'fullname' and returns it.
  * Returns an event with closure==NULL in case of error.
  */
-struct afb_eventid *afb_evt_eventid_create(const char *fullname)
+struct afb_event_x2 *afb_evt_event_x2_create(const char *fullname)
 {
-	return afb_evt_eventid_from_evtid(afb_evt_evtid_create(fullname));
+	return afb_evt_event_x2_from_evtid(afb_evt_evtid_create(fullname));
 }
 
 /*
  * Creates an event of name 'prefix'/'name' and returns it.
  * Returns an event with closure==NULL in case of error.
  */
-struct afb_eventid *afb_evt_eventid_create2(const char *prefix, const char *name)
+struct afb_event_x2 *afb_evt_event_x2_create2(const char *prefix, const char *name)
 {
-	return afb_evt_eventid_from_evtid(afb_evt_evtid_create2(prefix, name));
+	return afb_evt_event_x2_from_evtid(afb_evt_evtid_create2(prefix, name));
 }
 
 /*
  * Returns the fullname of the 'eventid'
  */
-const char *afb_evt_eventid_fullname(struct afb_eventid *eventid)
+const char *afb_evt_event_x2_fullname(struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	return evtid ? evtid->fullname : NULL;
 }
 
 /*
  * Returns the id of the 'eventid'
  */
-int afb_evt_eventid_id(struct afb_eventid *eventid)
+int afb_evt_event_x2_id(struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	return evtid ? evtid->id : 0;
 }
 
@@ -704,9 +707,9 @@ int afb_evt_eventid_id(struct afb_eventid *eventid)
  * Makes the 'listener' watching 'eventid'
  * Returns 0 in case of success or else -1.
  */
-int afb_evt_eventid_add_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid)
+int afb_evt_event_x2_add_watch(struct afb_evt_listener *listener, struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 
 	/* check parameter */
 	if (!evtid) {
@@ -722,9 +725,9 @@ int afb_evt_eventid_add_watch(struct afb_evt_listener *listener, struct afb_even
  * Avoids the 'listener' to watch 'eventid'
  * Returns 0 in case of success or else -1.
  */
-int afb_evt_eventid_remove_watch(struct afb_evt_listener *listener, struct afb_eventid *eventid)
+int afb_evt_event_x2_remove_watch(struct afb_evt_listener *listener, struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 
 	/* check parameter */
 	if (!evtid) {
@@ -736,41 +739,41 @@ int afb_evt_eventid_remove_watch(struct afb_evt_listener *listener, struct afb_e
 	return afb_evt_watch_sub_evtid(listener, evtid);
 }
 
-int afb_evt_eventid_push(struct afb_eventid *eventid, struct json_object *object)
+int afb_evt_event_x2_push(struct afb_event_x2 *eventid, struct json_object *object)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	if (evtid)
 		return afb_evt_evtid_hooked_push(evtid, object);
 	json_object_put(object);
 	return 0;
 }
 
-int afb_evt_eventid_unhooked_push(struct afb_eventid *eventid, struct json_object *object)
+int afb_evt_event_x2_unhooked_push(struct afb_event_x2 *eventid, struct json_object *object)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	if (evtid)
 		return afb_evt_evtid_push(evtid, object);
 	json_object_put(object);
 	return 0;
 }
 
-struct afb_event afb_evt_event_from_evtid(struct afb_evtid *evtid)
+struct afb_event_x1 afb_evt_event_from_evtid(struct afb_evtid *evtid)
 {
 	return evtid
-		? (struct afb_event){ .itf = &afb_evt_hooked_eventid_itf, .closure = &evtid->eventid }
-		: (struct afb_event){ .itf = NULL, .closure = NULL };
+		? (struct afb_event_x1){ .itf = &afb_evt_hooked_eventid_itf, .closure = &evtid->eventid }
+		: (struct afb_event_x1){ .itf = NULL, .closure = NULL };
 }
 
-void afb_evt_eventid_unref(struct afb_eventid *eventid)
+void afb_evt_event_x2_unref(struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	if (evtid)
 		afb_evt_evtid_unref(evtid);
 }
 
-struct afb_eventid *afb_evt_eventid_addref(struct afb_eventid *eventid)
+struct afb_event_x2 *afb_evt_event_x2_addref(struct afb_event_x2 *eventid)
 {
-	struct afb_evtid *evtid = afb_evt_eventid_to_evtid(eventid);
+	struct afb_evtid *evtid = afb_evt_event_x2_to_evtid(eventid);
 	if (evtid)
 		afb_evt_evtid_addref(evtid);
 	return eventid;

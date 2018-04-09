@@ -17,31 +17,41 @@
 
 #pragma once
 
-struct json_object;
-struct afb_eventid;
-struct afb_eventid_itf;
+struct afb_event_x2;
+struct afb_event_x2_itf;
 
-/*
- * Interface for handling eventid.
- * It records the functions to be called for the eventid.
+/**
+ * Interface for handling event_x2.
+ *
+ * It records the functions to be called for the event_x2.
+ *
  * Don't use this structure directly.
  */
-struct afb_eventid_itf
+struct afb_event_x2_itf
 {
 	/* CAUTION: respect the order, add at the end */
 
-	int (*broadcast)(struct afb_eventid *eventid, struct json_object *obj);
-	int (*push)(struct afb_eventid *eventid, struct json_object *obj);
-	void (*unref)(struct afb_eventid *eventid); /* aka drop */
-	const char *(*name)(struct afb_eventid *eventid);
-	struct afb_eventid *(*addref)(struct afb_eventid *eventid);
+	/** broadcast the event */
+	int (*broadcast)(struct afb_event_x2 *event, struct json_object *obj);
+
+	/** push the event to its subscribers */
+	int (*push)(struct afb_event_x2 *event, struct json_object *obj);
+
+	/** unreference the event */
+	void (*unref)(struct afb_event_x2 *event); /* aka drop */
+
+	/** get the event name */
+	const char *(*name)(struct afb_event_x2 *event);
+
+	/** rereference the event */
+	struct afb_event_x2 *(*addref)(struct afb_event_x2 *event);
 };
 
-/*
- * Describes the eventid
+/**
+ * Describes the event_x2
  */
-struct afb_eventid
+struct afb_event_x2
 {
-	const struct afb_eventid_itf *itf;	/* the interface to use */
+	const struct afb_event_x2_itf *itf;	/**< the interface functions to use */
 };
 

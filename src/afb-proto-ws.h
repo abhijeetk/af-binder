@@ -18,17 +18,21 @@
 
 #pragma once
 
+/*
+ * Defined since version 3, the value AFB_PROTO_WS_VERSION can be used to
+ * track versions of afb-proto-ws.
+ */
+#define AFB_PROTO_WS_VERSION	3
+
 struct fdev;
 struct afb_proto_ws;
 struct afb_proto_ws_call;
-struct afb_proto_ws_subcall;
 struct afb_proto_ws_describe;
 
 struct afb_proto_ws_client_itf
 {
 	/* can't be NULL */
-	void (*on_reply_success)(void *closure, void *request, struct json_object *result, const char *info);
-	void (*on_reply_fail)(void *closure, void *request, const char *status, const char *info);
+	void (*on_reply)(void *closure, void *request, struct json_object *obj, const char *error, const char *info);
 
 	/* can be NULL */
 	void (*on_event_create)(void *closure, const char *event_name, int event_id);
@@ -37,13 +41,11 @@ struct afb_proto_ws_client_itf
 	void (*on_event_unsubscribe)(void *closure, void *request, const char *event_name, int event_id);
 	void (*on_event_push)(void *closure, const char *event_name, int event_id, struct json_object *data);
 	void (*on_event_broadcast)(void *closure, const char *event_name, struct json_object *data);
-
-	void (*on_subcall)(void *closure, struct afb_proto_ws_subcall *subcall, void *request, const char *api, const char *verb, struct json_object *args);
 };
 
 struct afb_proto_ws_server_itf
 {
-	void (*on_call)(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid);
+	void (*on_call)(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid, const char *user_creds);
 	void (*on_describe)(void *closure, struct afb_proto_ws_describe *describe);
 };
 
@@ -61,7 +63,7 @@ extern void afb_proto_ws_on_hangup(struct afb_proto_ws *protows, void (*on_hangu
 
 
 
-extern int afb_proto_ws_client_call(struct afb_proto_ws *protows, const char *verb, struct json_object *args, const char *sessionid, void *request);
+extern int afb_proto_ws_client_call(struct afb_proto_ws *protows, const char *verb, struct json_object *args, const char *sessionid, void *request, const char *user_creds);
 extern int afb_proto_ws_client_describe(struct afb_proto_ws *protows, void (*callback)(void*, struct json_object*), void *closure);
 
 extern int afb_proto_ws_server_event_create(struct afb_proto_ws *protows, const char *event_name, int event_id);
@@ -72,14 +74,9 @@ extern int afb_proto_ws_server_event_broadcast(struct afb_proto_ws *protows, con
 extern void afb_proto_ws_call_addref(struct afb_proto_ws_call *call);
 extern void afb_proto_ws_call_unref(struct afb_proto_ws_call *call);
 
-extern int afb_proto_ws_call_success(struct afb_proto_ws_call *call, struct json_object *obj, const char *info);
-extern int afb_proto_ws_call_fail(struct afb_proto_ws_call *call, const char *status, const char *info);
+extern int afb_proto_ws_call_reply(struct afb_proto_ws_call *call, struct json_object *obj, const char *error, const char *info);
 
-extern int afb_proto_ws_call_subcall(struct afb_proto_ws_call *call, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 extern int afb_proto_ws_call_subscribe(struct afb_proto_ws_call *call, const char *event_name, int event_id);
 extern int afb_proto_ws_call_unsubscribe(struct afb_proto_ws_call *call, const char *event_name, int event_id);
 
-extern int afb_proto_ws_subcall_reply(struct afb_proto_ws_subcall *subcall, int status, struct json_object *result);
-
 extern int afb_proto_ws_describe_put(struct afb_proto_ws_describe *describe, struct json_object *description);
-

@@ -29,7 +29,7 @@
  * Checks wether 'name' is a valid API name.
  * @return 1 if valid, 0 otherwise
  */
-int afb_api_is_valid_name(const char *name, int hookable)
+int afb_api_is_valid_name(const char *name)
 {
 	unsigned char c;
 
@@ -60,6 +60,6 @@ int afb_api_is_valid_name(const char *name, int hookable)
 		}
 		c = (unsigned char)*++name;
 	} while(c != 0);
-	return !hookable || afb_api_is_hookable(name);
+	return 1;
 }
 

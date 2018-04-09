@@ -17,3 +17,5 @@ node_modules/
 _book/
 *.kdev4
 nbproject/*
+docs/binding
+docs/binder

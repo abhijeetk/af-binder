@@ -21,6 +21,7 @@
 
 #include <json-c/json.h>
 
+#define AFB_BINDING_WANT_DYNAPI
 #define AFB_BINDING_VERSION 0
 #include <afb/afb-binding.h>
 
@@ -147,7 +148,7 @@ static void pingBug (afb_request *request)
 static void pingEvent(afb_request *request)
 {
 	json_object *query = afb_request_json(request);
-	afb_dynapi_broadcast_event(request->dynapi, "event", json_object_get(query));
+	afb_dynapi_broadcast_event(request->api, "event", json_object_get(query));
 	ping(request, json_object_get(query), "event");
 }
 
@@ -219,7 +220,7 @@ static void eventadd (afb_request *request)
 	pthread_mutex_lock(&mutex);
 	if (tag == NULL || name == NULL)
 		afb_request_fail(request, "failed", "bad arguments");
-	else if (0 != event_add(request->dynapi, tag, name))
+	else if (0 != event_add(request->api, tag, name))
 		afb_request_fail(request, "failed", "creation error");
 	else
 		afb_request_success(request, NULL, NULL);
@@ -305,7 +306,7 @@ static void call (afb_request *request)
 	if (object == NULL)
 		afb_request_fail(request, "failed", "bad arguments");
 	else
-		afb_dynapi_call(request->dynapi, api, verb, object, callcb, afb_request_addref(request));
+		afb_dynapi_call(request->api, api, verb, object, callcb, afb_request_addref(request));
 }
 
 static void callsync (afb_request *request)
@@ -319,7 +320,7 @@ static void callsync (afb_request *request)
 	if (object == NULL)
 		afb_request_fail(request, "failed", "bad arguments");
 	else {
-		rc = afb_dynapi_call_sync(request->dynapi, api, verb, object, &result);
+		rc = afb_dynapi_call_sync(request->api, api, verb, object, &result);
 		if (rc >= 0)
 			afb_request_success(request, result, NULL);
 		else {
@@ -379,7 +380,7 @@ static void broadcast(afb_request *request)
 			afb_request_success(request, NULL, NULL);
 		pthread_mutex_unlock(&mutex);
 	} else if (name != NULL) {
-		if (0 > afb_dynapi_broadcast_event(request->dynapi, name, object))
+		if (0 > afb_dynapi_broadcast_event(request->api, name, object))
 			afb_request_fail(request, "failed", "broadcast error");
 		else
 			afb_request_success(request, NULL, NULL);
@@ -447,13 +448,13 @@ static const struct {
   { .verb=NULL}
 };
 
-static void pingoo(afb_req req)
+static void pingoo(struct afb_req_x1 req)
 {
-	json_object *args = afb_req_json(req);
-	afb_req_success_f(req, json_object_get(args), "You reached pingoo \\o/ nice args: %s", json_object_to_json_string(args));
+	json_object *args = afb_req_x1_json(req);
+	afb_req_x1_reply_f(req, json_object_get(args), NULL, "You reached pingoo \\o/ nice args: %s", json_object_to_json_string(args));
 }
 
-static const afb_verb_v2 verbsv2[]= {
+static const struct afb_verb_v2 verbsv2[]= {
   { .verb="pingoo",      .callback=pingoo },
   { .verb="ping",      .callback=pingoo },
   { .verb=NULL}

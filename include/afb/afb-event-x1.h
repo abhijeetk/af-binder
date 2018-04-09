@@ -17,36 +17,33 @@
 
 #pragma once
 
-#include "afb-eventid-itf.h"
+#include "afb-event-x1-itf.h"
 
-/*
- * Describes the request of afb-daemon for bindings
- */
-struct afb_event
-{
-	const struct afb_eventid_itf *itf;	/* the interface to use */
-	struct afb_eventid *closure;		/* the closure argument for functions of 'itf' */
-};
-
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Converts the 'event' to an afb_eventid.
  */
-static inline struct afb_eventid *afb_event_to_eventid(struct afb_event event)
+static inline struct afb_event_x2 *afb_event_x1_to_event_x2(struct afb_event_x1 event)
 {
 	return event.closure;
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Checks wether the 'event' is valid or not.
  *
  * Returns 0 if not valid or 1 if valid.
  */
-static inline int afb_event_is_valid(struct afb_event event)
+static inline int afb_event_x1_is_valid(struct afb_event_x1 event)
 {
 	return !!event.itf;
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Broadcasts widely the 'event' with the data 'object'.
  * 'object' can be NULL.
  *
@@ -56,12 +53,14 @@ static inline int afb_event_is_valid(struct afb_event event)
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_event_broadcast(struct afb_event event, struct json_object *object)
+static inline int afb_event_x1_broadcast(struct afb_event_x1 event, struct json_object *object)
 {
 	return event.itf->broadcast(event.closure, object);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Pushes the 'event' with the data 'object' to its observers.
  * 'object' can be NULL.
  *
@@ -71,35 +70,41 @@ static inline int afb_event_broadcast(struct afb_event event, struct json_object
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_event_push(struct afb_event event, struct json_object *object)
+static inline int afb_event_x1_push(struct afb_event_x1 event, struct json_object *object)
 {
 	return event.itf->push(event.closure, object);
 }
 
 /* OBSOLETE */
-#define afb_event_drop afb_event_unref
+#define afb_event_x1_drop afb_event_x1_unref
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Gets the name associated to the 'event'.
  */
-static inline const char *afb_event_name(struct afb_event event)
+static inline const char *afb_event_x1_name(struct afb_event_x1 event)
 {
 	return event.itf->name(event.closure);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Decreases the count of reference to 'event' and
  * destroys the event when the reference count falls to zero.
  */
-static inline void afb_event_unref(struct afb_event event)
+static inline void afb_event_x1_unref(struct afb_event_x1 event)
 {
 	event.itf->unref(event.closure);
 }
 
-/*
+/**
+ * @deprecated use bindings version 3
+ *
  * Increases the count of reference to 'event'
  */
-static inline void afb_event_addref(struct afb_event event)
+static inline void afb_event_x1_addref(struct afb_event_x1 event)
 {
 	event.itf->addref(event.closure);
 }

@@ -61,8 +61,6 @@ The server must reply to the previous actions by
 
 The server can also within the context of a call
 
-  - make a subcall
-
   - subscribe or unsubscribe an event
 
 For the purpose of handling events the server can:
@@ -75,42 +73,17 @@ For the purpose of handling events the server can:
 /************** constants for protocol definition *************************/
 
 #define CHAR_FOR_CALL             'C'
-#define CHAR_FOR_ANSWER_SUCCESS   'T'
-#define CHAR_FOR_ANSWER_FAIL      'F'
+#define CHAR_FOR_REPLY            'Y'
 #define CHAR_FOR_EVT_BROADCAST    '*'
 #define CHAR_FOR_EVT_ADD          '+'
 #define CHAR_FOR_EVT_DEL          '-'
 #define CHAR_FOR_EVT_PUSH         '!'
 #define CHAR_FOR_EVT_SUBSCRIBE    'S'
 #define CHAR_FOR_EVT_UNSUBSCRIBE  'U'
-#define CHAR_FOR_SUBCALL_CALL     'B'
-#define CHAR_FOR_SUBCALL_REPLY    'R'
 #define CHAR_FOR_DESCRIBE         'D'
 #define CHAR_FOR_DESCRIPTION      'd'
 
-/******************* handling subcalls *****************************/
-
-/**
- * Structure on server side for recording pending
- * subcalls.
- */
-struct server_subcall
-{
-	struct server_subcall *next;	/**< next subcall for the client */
-	uint32_t subcallid;		/**< the subcallid */
-	void (*callback)(void*, int, struct json_object*); /**< callback on completion */
-	void *closure;			/**< closure of the callback */
-};
-
-/**
- * Structure for sending back replies on client side
- */
-struct afb_proto_ws_subcall
-{
-	struct afb_proto_ws *protows;	/**< proto descriptor */
-	void *buffer;
-	uint32_t subcallid;		/**< subcallid for the reply */
-};
+/******************* handling calls *****************************/
 
 /*
  * structure for recording calls on client side
@@ -182,9 +155,6 @@ struct afb_proto_ws
 	/* emitted calls (client side) */
 	struct client_call *calls;
 
-	/* pending subcalls (server side) */
-	struct server_subcall *subcalls;
-
 	/* pending description (client side) */
 	struct client_describe *describes;
 
@@ -237,6 +207,7 @@ static char *readbuf_get(struct readbuf *rb, uint32_t length)
 	return before;
 }
 
+__attribute__((unused))
 static int readbuf_char(struct readbuf *rb, char *value)
 {
 	if (rb->head >= rb->end)
@@ -256,14 +227,33 @@ static int readbuf_uint32(struct readbuf *rb, uint32_t *value)
 	return 1;
 }
 
-static int readbuf_string(struct readbuf *rb, const char **value, size_t *length)
+static int _readbuf_string_(struct readbuf *rb, const char **value, size_t *length, int nulok)
 {
 	uint32_t len;
-	if (!readbuf_uint32(rb, &len) || !len)
+	if (!readbuf_uint32(rb, &len))
 		return 0;
+	if (!len) {
+		if (!nulok)
+			return 0;
+		*value = NULL;
+		if (length)
+			*length = 0;
+		return 1;
+	}
 	if (length)
 		*length = (size_t)(len - 1);
 	return (*value = readbuf_get(rb, len)) != NULL &&  rb->head[-1] == 0;
+}
+
+
+static int readbuf_string(struct readbuf *rb, const char **value, size_t *length)
+{
+	return _readbuf_string_(rb, value, length, 0);
+}
+
+static int readbuf_nullstring(struct readbuf *rb, const char **value, size_t *length)
+{
+	return _readbuf_string_(rb, value, length, 1);
 }
 
 static int readbuf_object(struct readbuf *rb, struct json_object **object)
@@ -326,6 +316,11 @@ static int writebuf_string(struct writebuf *wb, const char *value)
 	return writebuf_string_length(wb, value, strlen(value));
 }
 
+static int writebuf_nullstring(struct writebuf *wb, const char *value)
+{
+	return value ? writebuf_string_length(wb, value, strlen(value)) : writebuf_uint32(wb, 0);
+}
+
 static int writebuf_object(struct writebuf *wb, struct json_object *object)
 {
 	const char *string = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
@@ -349,15 +344,16 @@ void afb_proto_ws_call_unref(struct afb_proto_ws_call *call)
 	free(call);
 }
 
-int afb_proto_ws_call_success(struct afb_proto_ws_call *call, struct json_object *obj, const char *info)
+int afb_proto_ws_call_reply(struct afb_proto_ws_call *call, struct json_object *obj, const char *error, const char *info)
 {
 	int rc = -1;
 	struct writebuf wb = { .count = 0 };
 	struct afb_proto_ws *protows = call->protows;
 
-	if (writebuf_char(&wb, CHAR_FOR_ANSWER_SUCCESS)
+	if (writebuf_char(&wb, CHAR_FOR_REPLY)
 	 && writebuf_uint32(&wb, call->callid)
-	 && writebuf_string(&wb, info ?: "")
+	 && writebuf_nullstring(&wb, error)
+	 && writebuf_nullstring(&wb, info)
 	 && writebuf_object(&wb, obj)) {
 		pthread_mutex_lock(&protows->mutex);
 		rc = afb_ws_binary_v(protows->ws, wb.iovec, wb.count);
@@ -365,73 +361,6 @@ int afb_proto_ws_call_success(struct afb_proto_ws_call *call, struct json_object
 		if (rc >= 0) {
 			rc = 0;
 			goto success;
-		}
-	}
-success:
-	return rc;
-}
-
-int afb_proto_ws_call_fail(struct afb_proto_ws_call *call, const char *status, const char *info)
-{
-	int rc = -1;
-	struct writebuf wb = { .count = 0 };
-	struct afb_proto_ws *protows = call->protows;
-
-	if (writebuf_char(&wb, CHAR_FOR_ANSWER_FAIL)
-	 && writebuf_uint32(&wb, call->callid)
-	 && writebuf_string(&wb, status)
-	 && writebuf_string(&wb, info ? : "")) {
-		pthread_mutex_lock(&protows->mutex);
-		rc = afb_ws_binary_v(protows->ws, wb.iovec, wb.count);
-		pthread_mutex_unlock(&protows->mutex);
-		if (rc >= 0) {
-			rc = 0;
-			goto success;
-		}
-	}
-success:
-	return rc;
-}
-
-int afb_proto_ws_call_subcall(struct afb_proto_ws_call *call, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
-{
-	int rc = -1;
-	struct writebuf wb = { .count = 0 };
-	struct server_subcall *sc, *osc;
-	struct afb_proto_ws *protows = call->protows;
-
-	sc = malloc(sizeof *sc);
-	if (!sc)
-		errno = ENOMEM;
-	else {
-		sc->callback = callback;
-		sc->closure = cb_closure;
-
-		pthread_mutex_lock(&protows->mutex);
-		sc->subcallid = ptr2id(sc);
-		do {
-			sc->subcallid++;
-			osc = protows->subcalls;
-			while(osc && osc->subcallid != sc->subcallid)
-				osc = osc->next;
-		} while (osc);
-		sc->next = protows->subcalls;
-		protows->subcalls = sc;
-		pthread_mutex_unlock(&protows->mutex);
-
-		if (writebuf_char(&wb, CHAR_FOR_SUBCALL_CALL)
-		 && writebuf_uint32(&wb, sc->subcallid)
-		 && writebuf_uint32(&wb, call->callid)
-		 && writebuf_string(&wb, api)
-		 && writebuf_string(&wb, verb)
-		 && writebuf_object(&wb, args)) {
-			pthread_mutex_lock(&protows->mutex);
-			rc = afb_ws_binary_v(protows->ws, wb.iovec, wb.count);
-			pthread_mutex_unlock(&protows->mutex);
-			if (rc >= 0) {
-				rc = 0;
-				goto success;
-			}
 		}
 	}
 success:
@@ -613,111 +542,21 @@ static void client_on_event_push(struct afb_proto_ws *protows, struct readbuf *r
 		protows->client_itf->on_event_push(protows->closure, event_name, (int)event_id, object);
 }
 
-static void client_on_reply_success(struct afb_proto_ws *protows, struct readbuf *rb)
+static void client_on_reply(struct afb_proto_ws *protows, struct readbuf *rb)
 {
 	struct client_call *call;
 	struct json_object *object;
-	const char *info;
+	const char *error, *info;
 
 	if (!client_msg_call_get(protows, rb, &call))
 		return;
 
-	if (readbuf_string(rb, &info, NULL) && readbuf_object(rb, &object)) {
-		protows->client_itf->on_reply_success(protows->closure, call->request, object, info);
+	if (readbuf_nullstring(rb, &error, NULL) && readbuf_nullstring(rb, &info, NULL) && readbuf_object(rb, &object)) {
+		protows->client_itf->on_reply(protows->closure, call->request, object, error, info);
 	} else {
-		protows->client_itf->on_reply_fail(protows->closure, call->request, "proto-error", "can't process success");
+		protows->client_itf->on_reply(protows->closure, call->request, NULL, "proto-error", "can't process success");
 	}
 	client_call_destroy(call);
-}
-
-static void client_on_reply_fail(struct afb_proto_ws *protows, struct readbuf *rb)
-{
-	struct client_call *call;
-	const char *info, *status;
-
-	if (!client_msg_call_get(protows, rb, &call))
-		return;
-	
-
-	if (readbuf_string(rb, &status, NULL) && readbuf_string(rb, &info, NULL)) {
-		protows->client_itf->on_reply_fail(protows->closure, call->request, status, info);
-	} else {
-		protows->client_itf->on_reply_fail(protows->closure, call->request, "proto-error", "can't process fail");
-	}
-	client_call_destroy(call);
-}
-
-/* send a subcall reply */
-static int client_send_subcall_reply(struct afb_proto_ws *protows, uint32_t subcallid, int status, json_object *object)
-{
-	struct writebuf wb = { .count = 0 };
-	char ie = status < 0;
-	int rc;
-
-	if (writebuf_char(&wb, CHAR_FOR_SUBCALL_REPLY)
-	 && writebuf_uint32(&wb, subcallid)
-	 && writebuf_char(&wb, ie)
-	 && writebuf_object(&wb, object)) {
-		pthread_mutex_lock(&protows->mutex);
-		rc = afb_ws_binary_v(protows->ws, wb.iovec, wb.count);
-		pthread_mutex_unlock(&protows->mutex);
-		if (rc >= 0)
-			return 0;
-	}
-	return -1;
-}
-
-/* callback for subcall reply */
-int afb_proto_ws_subcall_reply(struct afb_proto_ws_subcall *subcall, int status, struct json_object *result)
-{
-	int rc = client_send_subcall_reply(subcall->protows, subcall->subcallid, status, result);
-	afb_proto_ws_unref(subcall->protows);
-	free(subcall->buffer);
-	free(subcall);
-	return rc;
-}
-
-/* received a subcall request */
-static void client_on_subcall(struct afb_proto_ws *protows, struct readbuf *rb)
-{
-	struct afb_proto_ws_subcall *subcall;
-	struct client_call *call;
-	const char *api, *verb;
-	uint32_t subcallid;
-	struct json_object *object;
-
-	/* get the subcallid */
-	if (!readbuf_uint32(rb, &subcallid))
-		return;
-
-	/* if not expected drop it */
-	if (!protows->client_itf->on_subcall)
-		goto error;
-
-	/* retrieve the message data */
-	if (!client_msg_call_get(protows, rb, &call))
-		goto error;
-
-	/* allocation of the subcall */
-	subcall = malloc(sizeof *subcall);
-	if (!subcall)
-		goto error;
-
-	/* make the call */
-	if (readbuf_string(rb, &api, NULL)
-	 && readbuf_string(rb, &verb, NULL)
-	 && readbuf_object(rb, &object)) {
-		afb_proto_ws_addref(protows);
-		subcall->protows = protows;
-		subcall->subcallid = subcallid;
-		subcall->buffer = rb->base;
-		rb->base = NULL;
-		protows->client_itf->on_subcall(protows->closure, subcall, call->request, api, verb, object);
-		return;
-	}
-	free(subcall);
-error:
-	client_send_subcall_reply(protows, subcallid, 1, NULL);
 }
 
 static void client_on_description(struct afb_proto_ws *protows, struct readbuf *rb)
@@ -751,11 +590,8 @@ static void client_on_binary_job(int sig, void *closure)
 
 	if (!sig) {
 		switch (*binary->rb.head++) {
-		case CHAR_FOR_ANSWER_SUCCESS: /* success */
-			client_on_reply_success(binary->protows, &binary->rb);
-			break;
-		case CHAR_FOR_ANSWER_FAIL: /* fail */
-			client_on_reply_fail(binary->protows, &binary->rb);
+		case CHAR_FOR_REPLY: /* reply */
+			client_on_reply(binary->protows, &binary->rb);
 			break;
 		case CHAR_FOR_EVT_BROADCAST: /* broadcast */
 			client_on_event_broadcast(binary->protows, &binary->rb);
@@ -774,9 +610,6 @@ static void client_on_binary_job(int sig, void *closure)
 			break;
 		case CHAR_FOR_EVT_UNSUBSCRIBE: /* unsubscribe event for a request */
 			client_on_event_unsubscribe(binary->protows, &binary->rb);
-			break;
-		case CHAR_FOR_SUBCALL_CALL: /* subcall */
-			client_on_subcall(binary->protows, &binary->rb);
 			break;
 		case CHAR_FOR_DESCRIPTION: /* description */
 			client_on_description(binary->protows, &binary->rb);
@@ -819,7 +652,8 @@ int afb_proto_ws_client_call(
 		const char *verb,
 		struct json_object *args,
 		const char *sessionid,
-		void *request
+		void *request,
+		const char *user_creds
 )
 {
 	int rc = -1;
@@ -849,7 +683,8 @@ int afb_proto_ws_client_call(
 	 || !writebuf_uint32(&wb, call->callid)
 	 || !writebuf_string(&wb, verb)
 	 || !writebuf_string(&wb, sessionid)
-	 || !writebuf_object(&wb, args)) {
+	 || !writebuf_object(&wb, args)
+	 || !writebuf_nullstring(&wb, user_creds)) {
 		errno = EINVAL;
 		goto clean;
 	}
@@ -929,7 +764,7 @@ error:
 static void server_on_call(struct afb_proto_ws *protows, struct readbuf *rb)
 {
 	struct afb_proto_ws_call *call;
-	const char *uuid, *verb;
+	const char *uuid, *verb, *user_creds;
 	uint32_t callid;
 	size_t lenverb;
 	struct json_object *object;
@@ -940,7 +775,8 @@ static void server_on_call(struct afb_proto_ws *protows, struct readbuf *rb)
 	if (!readbuf_uint32(rb, &callid)
 	 || !readbuf_string(rb, &verb, &lenverb)
 	 || !readbuf_string(rb, &uuid, NULL)
-	 || !readbuf_object(rb, &object))
+	 || !readbuf_object(rb, &object)
+	 || !readbuf_nullstring(rb, &user_creds, NULL))
 		goto overflow;
 
 	/* create the request */
@@ -954,7 +790,7 @@ static void server_on_call(struct afb_proto_ws *protows, struct readbuf *rb)
 	call->buffer = rb->base;
 	rb->base = NULL; /* don't free the buffer */
 
-	protows->server_itf->on_call(protows->closure, call, verb, object, uuid);
+	protows->server_itf->on_call(protows->closure, call, verb, object, uuid, user_creds);
 	return;
 
 out_of_memory:
@@ -962,39 +798,6 @@ out_of_memory:
 
 overflow:
 	afb_proto_ws_unref(protows);
-}
-
-/* on subcall reply */
-static void server_on_subcall_reply(struct afb_proto_ws *protows, struct readbuf *rb)
-{
-	char ie;
-	uint32_t subcallid;
-	struct json_object *object;
-	struct server_subcall *sc, **psc;
-
-	/* reads the call message data */
-	if (!readbuf_uint32(rb, &subcallid)
-	 || !readbuf_char(rb, &ie)
-	 || !readbuf_object(rb, &object)) {
-		/* TODO bad protocol */
-		return;
-	}
-
-	/* search the subcall and unlink it */
-	pthread_mutex_lock(&protows->mutex);
-	psc = &protows->subcalls;
-	while ((sc = *psc) && sc->subcallid != subcallid)
-		psc = &sc->next;
-	if (!sc) {
-		pthread_mutex_unlock(&protows->mutex);
-		json_object_put(object);
-		/* TODO subcall not found */
-	} else {
-		*psc = sc->next;
-		pthread_mutex_unlock(&protows->mutex);
-		sc->callback(sc->closure, -(int)ie, object);
-		free(sc);
-	}
 }
 
 static int server_send_description(struct afb_proto_ws *protows, uint32_t descid, struct json_object *descobj)
@@ -1054,9 +857,6 @@ static void server_on_binary_job(int sig, void *closure)
 		switch (*binary->rb.head++) {
 		case CHAR_FOR_CALL:
 			server_on_call(binary->protows, &binary->rb);
-			break;
-		case CHAR_FOR_SUBCALL_REPLY:
-			server_on_subcall_reply(binary->protows, &binary->rb);
 			break;
 		case CHAR_FOR_DESCRIBE:
 			server_on_describe(binary->protows, &binary->rb);
@@ -1139,16 +939,7 @@ int afb_proto_ws_server_event_broadcast(struct afb_proto_ws *protows, const char
 static void on_hangup(void *closure)
 {
 	struct afb_proto_ws *protows = closure;
-	struct server_subcall *sc, *nsc;
 	struct client_describe *cd, *ncd;
-
-	nsc = protows->subcalls;
-	while (nsc) {
-		sc= nsc;
-		nsc = sc->next;
-		sc->callback(sc->closure, 1, NULL);
-		free(sc);
-	}
 
 	ncd = protows->describes;
 	while (ncd) {
@@ -1202,7 +993,6 @@ static struct afb_proto_ws *afb_proto_ws_create(struct fdev *fdev, const struct 
 		if (protows->ws != NULL) {
 			protows->fdev = fdev;
 			protows->refcount = 1;
-			protows->subcalls = NULL;
 			protows->closure = closure;
 			protows->server_itf = itfs;
 			protows->client_itf = itfc;

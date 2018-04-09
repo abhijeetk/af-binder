@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #define _GNU_SOURCE
 #define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
@@ -29,7 +28,9 @@
 #include <sys/un.h>
 
 #include <json-c/json.h>
-#include <afb/afb-binding-v2.h>
+
+#define AFB_BINDING_VERSION 3
+#include <afb/afb-binding.h>
 
 #include "afb-cred.h"
 #include "afb-api.h"
@@ -252,7 +253,7 @@ int afb_supervision_init()
 
 	/* init the apiset */
 	rc = afb_apiset_add(supervision_apiset, supervision_apiname,
-			(struct afb_api){ .itf = &supervision_api_itf, .closure = NULL});
+			(struct afb_api_item){ .itf = &supervision_api_itf, .closure = NULL});
 	if (rc < 0) {
 		ERROR("Can't create supervision's apiset: %m");
 		afb_apiset_unref(supervision_apiset);
@@ -298,14 +299,14 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 	struct json_object *args, *drop, *add, *sub, *list;
 	const char *api, *verb, *uuid;
 	struct afb_session *session;
-	const struct afb_api *xapi;
-	struct afb_req req;
+	const struct afb_api_item *xapi;
+	afb_req_t req;
 
 	/* search the verb */
 	i = (int)(sizeof verbs / sizeof *verbs);
-	while(--i >= 0 && strcasecmp(verbs[i], xreq->request.verb));
+	while(--i >= 0 && strcasecmp(verbs[i], xreq->request.called_verb));
 	if (i < 0) {
-		afb_xreq_fail_unknown_verb(xreq);
+		afb_xreq_reply_unknown_verb(xreq);
 		return;
 	}
 
@@ -324,32 +325,32 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		if (wrap_json_unpack(args, "s", &uuid))
 			wrap_json_unpack(args, "{ss}", "uuid", &uuid);
 		if (!uuid)
-			afb_xreq_fail(xreq, "invalid", NULL);
+			afb_xreq_reply(xreq, NULL, "invalid", NULL);
 		else {
 			session = afb_session_search(uuid);
 			if (!session)
-				afb_xreq_fail(xreq, "not-found", NULL);
+				afb_xreq_reply(xreq, NULL, "not-found", NULL);
 			else {
 				afb_session_close(session);
 				afb_session_unref(session);
 				afb_session_purge();
-				afb_xreq_success(xreq, NULL, NULL);
+				afb_xreq_reply(xreq, NULL, NULL, NULL);
 			}
 		}
 		break;
 	case Slist:
 		list = json_object_new_object();
 		afb_session_foreach(slist, list);
-		afb_xreq_success(xreq, list, NULL);
+		afb_xreq_reply(xreq, list, NULL, NULL);
 		break;
 	case Config:
-		afb_xreq_success(xreq, afb_config_json(main_config), NULL);
+		afb_xreq_reply(xreq, afb_config_json(main_config), NULL, NULL);
 		break;
 	case Trace:
 		if (!trace)
 			trace = afb_trace_create(supervisor_apiname, NULL /* not bound to any session */);
 
-		req = xreq_to_req(xreq);
+		req = xreq_to_req_x2(xreq);
 		add = drop = NULL;
 		wrap_json_unpack(args, "{s?o s?o}", "add", &add, "drop", &drop);
 		if (add) {
@@ -367,16 +368,16 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 	case Do:
 		sub = NULL;
 		if (wrap_json_unpack(args, "{ss ss s?o*}", "api", &api, "verb", &verb, "args", &sub))
-			afb_xreq_fail(xreq, "error", "bad request");
+			afb_xreq_reply(xreq, NULL, "error", "bad request");
 		else {
 			xapi = afb_apiset_lookup_started(main_apiset, api, 1);
 			if (!xapi)
-				afb_xreq_fail_unknown_api(xreq);
+				afb_xreq_reply_unknown_api(xreq);
 			else {
 				afb_cred_unref(xreq->cred);
 				xreq->cred = NULL;
-				xreq->request.api = api;
-				xreq->request.verb = verb;
+				xreq->request.called_api = api;
+				xreq->request.called_verb = verb;
 				xreq->json = json_object_get(sub);
 				xapi->itf->call(xapi->closure, xreq);
 				json_object_put(args);
@@ -384,11 +385,11 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		}
 		break;
 	case Wait:
-		afb_req_success(req, NULL, NULL);
+		afb_xreq_reply(xreq, NULL, NULL, NULL);
 		afb_debug_wait("supervisor");
 		break;
 	case Break:
-		afb_req_success(req, NULL, NULL);
+		afb_xreq_reply(xreq, NULL, NULL, NULL);
 		afb_debug_break("supervisor");
 		break;
 	}

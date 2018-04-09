@@ -73,15 +73,13 @@ struct hreq_data {
 
 static struct json_object *req_json(struct afb_xreq *xreq);
 static struct afb_arg req_get(struct afb_xreq *xreq, const char *name);
-static void req_fail(struct afb_xreq *xreq, const char *status, const char *info);
-static void req_success(struct afb_xreq *xreq, json_object *obj, const char *info);
+static void req_reply(struct afb_xreq *xreq, struct json_object *object, const char *error, const char *info);
 static void req_destroy(struct afb_xreq *xreq);
 
 const struct afb_xreq_query_itf afb_hreq_xreq_query_itf = {
 	.json = req_json,
 	.get = req_get,
-	.success = req_success,
-	.fail = req_fail,
+	.reply = req_reply,
 	.unref = req_destroy
 };
 
@@ -332,8 +330,8 @@ static void req_destroy(struct afb_xreq *xreq)
 	}
 	afb_context_disconnect(&hreq->xreq.context);
 	json_object_put(hreq->json);
-	free((char*)hreq->xreq.request.api);
-	free((char*)hreq->xreq.request.verb);
+	free((char*)hreq->xreq.request.called_api);
+	free((char*)hreq->xreq.request.called_verb);
 	afb_cred_unref(hreq->xreq.cred);
 	free(hreq);
 }
@@ -900,39 +898,32 @@ static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t ma
 	return len ? : (ssize_t)MHD_CONTENT_READER_END_OF_STREAM;
 }
 
-static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
+static void req_reply(struct afb_xreq *xreq, struct json_object *object, const char *error, const char *info)
 {
-	struct json_object *reply;
+	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
+	struct json_object *sub, *reply;
 	const char *reqid;
 	struct MHD_Response *response;
 
+	/* create the reply */
+	reply = afb_msg_json_reply(object, error, info, &xreq->context);
+
+	/* append the req id on need */
 	reqid = afb_hreq_get_argument(hreq, long_key_for_reqid);
 	if (reqid == NULL)
 		reqid = afb_hreq_get_argument(hreq, short_key_for_reqid);
-
-	reply = afb_msg_json_reply(status, info, resp, &hreq->xreq.context, reqid);
+	if (reqid != NULL && json_object_object_get_ex(reply, "request", &sub))
+		json_object_object_add(sub, "reqid", json_object_new_string(reqid));
 
 	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string_ext(reply, JSON_C_TO_STRING_PLAIN)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
-	afb_hreq_reply(hreq, retcode, response, NULL);
-}
-
-static void req_fail(struct afb_xreq *xreq, const char *status, const char *info)
-{
-	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
-	req_reply(hreq, MHD_HTTP_OK, status, info, NULL);
-}
-
-static void req_success(struct afb_xreq *xreq, json_object *obj, const char *info)
-{
-	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
-	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
+	afb_hreq_reply(hreq, MHD_HTTP_OK, response, NULL);
 }
 
 void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
-	hreq->xreq.request.api = strndup(api, lenapi);
-	hreq->xreq.request.verb = strndup(verb, lenverb);
-	if (hreq->xreq.request.api == NULL || hreq->xreq.request.verb == NULL) {
+	hreq->xreq.request.called_api = strndup(api, lenapi);
+	hreq->xreq.request.called_verb = strndup(verb, lenverb);
+	if (hreq->xreq.request.called_api == NULL || hreq->xreq.request.called_verb == NULL) {
 		ERROR("Out of memory");
 		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	} else if (afb_hreq_init_context(hreq) < 0) {
