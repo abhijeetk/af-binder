@@ -22,10 +22,9 @@ struct afb_eventid;
 struct afb_eventid_itf;
 
 /*
- * Interface for handling requests.
- * It records the functions to be called for the request.
+ * Interface for handling eventid.
+ * It records the functions to be called for the eventid.
  * Don't use this structure directly.
- * Use the helper functions documented below.
  */
 struct afb_eventid_itf
 {
@@ -39,7 +38,7 @@ struct afb_eventid_itf
 };
 
 /*
- * Describes the request of afb-daemon for bindings
+ * Describes the eventid
  */
 struct afb_eventid
 {

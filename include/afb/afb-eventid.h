@@ -29,7 +29,9 @@
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_eventid_broadcast(struct afb_eventid *eventid, struct json_object *object)
+static inline int afb_eventid_broadcast(
+			struct afb_eventid *eventid,
+			struct json_object *object)
 {
 	return eventid->itf->broadcast(eventid, object);
 }
@@ -44,13 +46,16 @@ static inline int afb_eventid_broadcast(struct afb_eventid *eventid, struct json
  *
  * Returns the count of clients that received the event.
  */
-static inline int afb_eventid_push(struct afb_eventid *eventid, struct json_object *object)
+static inline int afb_eventid_push(
+			struct afb_eventid *eventid,
+			struct json_object *object)
 {
 	return eventid->itf->push(eventid, object);
 }
 
 /*
  * Gets the name associated to 'eventid'.
+ * The returned name can be used until call to 'afb_eventid_unref'.
  */
 static inline const char *afb_eventid_name(struct afb_eventid *eventid)
 {
@@ -58,8 +63,9 @@ static inline const char *afb_eventid_name(struct afb_eventid *eventid)
 }
 
 /*
- * Decrease the count of reference to 'eventid' and
- * destroys the eventid when the reference count falls to zero.
+ * Decrease the count of references to 'eventid'.
+ * Call this function when the evenid is no more used.
+ * It destroys the eventid when the reference count falls to zero.
  */
 static inline void afb_eventid_unref(struct afb_eventid *eventid)
 {
@@ -67,9 +73,10 @@ static inline void afb_eventid_unref(struct afb_eventid *eventid)
 }
 
 /*
- * Increases the count of reference to 'eventid'
+ * Increases the count of references to 'eventid'
  */
-static inline struct afb_eventid *afb_eventid_addref(struct afb_eventid *eventid)
+static inline struct afb_eventid *afb_eventid_addref(
+					struct afb_eventid *eventid)
 {
 	return eventid->itf->addref(eventid);
 }
