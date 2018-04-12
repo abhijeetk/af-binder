@@ -66,6 +66,15 @@ arguments.
 
 :   Like `+#` but the length argument is of type size\_t.
 
+`y` (byte array) \[const uint8_t \*, size\_t\]
+
+:   Convert the byte array whose length is given to
+    its base64url string representation.
+
+`Y` (byte array) \[const uint8_t \*, size\_t\]
+
+:   Like 'y' but output is base64.
+
 `n` (null)
 
 :   Output a JSON null value. No argument is consumed.
@@ -182,6 +191,16 @@ type whose address should be passed.
 
 :   Convert a JSON string to a pointer to a null terminated UTF-8 string
     and its length.
+
+`y` (byte array) \[uint8_t \*\*, size\_t \*\]
+
+:   Convert an input string base64url encoded to its
+    byte array representation. The result and its length
+    are stored. The returned buffer must be freed by the caller.
+
+`Y` (byte array) \[uint8_t \*\*, size\_t \*\]
+
+:   Like 'y' but input is base64.
 
 `n` (null)
 
