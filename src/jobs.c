@@ -92,8 +92,8 @@ struct thread
 	struct thread *upper;  /**< upper same thread */
 	struct job *job;       /**< currently processed job */
 	pthread_t tid;         /**< the thread id */
-	unsigned stop: 1;      /**< stop requested */
-	unsigned waits: 1;     /**< is waiting? */
+	volatile unsigned stop: 1;      /**< stop requested */
+	volatile unsigned waits: 1;     /**< is waiting? */
 };
 
 /**
@@ -378,7 +378,7 @@ static void thread_run(volatile struct thread *me)
 		}
 
 		/* get a job */
-		job = job_get(first_job);
+		job = job_get();
 		if (job) {
 			/* prepare running the job */
 			remains++; /* increases count of job that can wait */
@@ -604,7 +604,7 @@ static int do_sync(
  *                 of interrupted flow, the context 'closure' as given and
  *                 a 'jobloop' reference that must be used when the job is
  *                 terminated to unlock the current execution flow.
- * @param arg the argument to the callback
+ * @param closure the argument to the callback
  * @return 0 on success or -1 in case of error
  */
 int jobs_enter(
