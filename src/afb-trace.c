@@ -168,7 +168,7 @@ static struct json_object *timestamp(const struct afb_hookid *hookid)
 {
 	char ts[50];
 
-	snprintf(ts, sizeof ts, "%llu.%06lu", (long long unsigned)hookid->time.tv_sec, (long unsigned)(hookid->time.tv_nsec / 1000));
+	snprintf(ts, sizeof ts, "%llu.%09llu", (long long unsigned)hookid->time.tv_sec, (long long unsigned)hookid->time.tv_nsec);
 	return json_object_new_string(ts);
 }
 

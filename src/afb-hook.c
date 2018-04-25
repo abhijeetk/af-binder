@@ -144,7 +144,7 @@ static unsigned next_hookid = 0;
 static void init_hookid(struct afb_hookid *hookid)
 {
 	hookid->id = __atomic_add_fetch(&next_hookid, 1, __ATOMIC_RELAXED);
-	clock_gettime(CLOCK_MONOTONIC, &hookid->time);
+	clock_gettime(CLOCK_REALTIME, &hookid->time);
 }
 
 /******************************************************************************
