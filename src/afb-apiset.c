@@ -264,21 +264,28 @@ error:
  */
 int afb_apiset_del(struct afb_apiset *set, const char *name)
 {
-	int i, c;
+	struct api_desc *i, *e;
+	int c;
 
 	/* search the api */
-	for (i = 0 ; i < set->count ; i++) {
-		c = strcasecmp(set->apis[i].name, name);
+	i = set->apis;
+	e = i + set->count;
+	while (i != e) {
+		c = strcasecmp(i->name, name);
 		if (c == 0) {
+			if (i->api.itf->unref)
+				i->api.itf->unref(i->api.closure);
 			set->count--;
-			while(i < set->count) {
-				set->apis[i] = set->apis[i + 1];
+			e--;
+			while (i != e) {
+				i[0] = i[1];
 				i++;
 			}
 			return 0;
 		}
 		if (c > 0)
 			break;
+		i++;
 	}
 	errno = ENOENT;
 	return -1;

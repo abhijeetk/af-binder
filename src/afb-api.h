@@ -29,6 +29,7 @@ struct afb_api_itf
 	int (*get_verbosity)(void *closure);
 	void (*set_verbosity)(void *closure, int level);
 	struct json_object *(*describe)(void *closure);
+	void (*unref)(void *closure);
 };
 
 struct afb_api
