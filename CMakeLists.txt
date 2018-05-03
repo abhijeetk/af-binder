@@ -52,6 +52,7 @@ add_compile_options(-Werror=implicit-function-declaration)
 add_compile_options(-ffunction-sections -fdata-sections)
 add_compile_options(-fPIC)
 add_compile_options(-g)
+set (CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_C_FLAGS_PROFILING    "-g -O2 -pg -Wp,-U_FORTIFY_SOURCE")
 set(CMAKE_C_FLAGS_DEBUG        "-g -ggdb -Wp,-U_FORTIFY_SOURCE")
