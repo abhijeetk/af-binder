@@ -23,7 +23,6 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <fnmatch.h>
 #include <sys/uio.h>
 
 #include <json-c/json.h>
@@ -40,6 +39,9 @@
 #include "afb-evt.h"
 #include "afb-api.h"
 #include "verbose.h"
+
+#include <fnmatch.h>
+#define MATCH(pattern,string)   (!fnmatch((pattern),(string),FNM_CASEFOLD|FNM_EXTMATCH))
 
 /**
  * Definition of a hook for xreq
@@ -1307,7 +1309,7 @@ static struct afb_hook_evt_itf hook_evt_default_itf = {
 	while (hook) { \
 		if (hook->itf->hook_evt_##what \
 		 && (hook->flags & afb_hook_flag_evt_##what) != 0 \
-		 && (!hook->pattern || !fnmatch(hook->pattern, evt, FNM_CASEFOLD))) { \
+		 && (!hook->pattern || MATCH(hook->pattern, evt))) { \
 			hook->itf->hook_evt_##what(hook->closure, &hookid, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
@@ -1370,7 +1372,7 @@ int afb_hook_flags_evt(const char *name)
 		pthread_rwlock_rdlock(&rwlock);
 		hook = list_of_evt_hooks;
 		while (hook) {
-			if (!name || !hook->pattern || !fnmatch(hook->pattern, name, FNM_CASEFOLD))
+			if (!name || !hook->pattern || MATCH(hook->pattern, name))
 				flags |= hook->flags;
 			hook = hook->next;
 		}
@@ -1509,7 +1511,7 @@ static struct afb_hook_session_itf hook_session_default_itf = {
 	while (hook) { \
 		if (hook->itf->hook_session_##what \
 		 && (hook->flags & afb_hook_flag_session_##what) != 0 \
-		 && (!hook->pattern || !fnmatch(hook->pattern, (sessid?:(sessid=afb_session_uuid(session))), FNM_CASEFOLD))) { \
+		 && (!hook->pattern || MATCH(hook->pattern, (sessid?:(sessid=afb_session_uuid(session)))))) { \
 			hook->itf->hook_session_##what(hook->closure, &hookid, __VA_ARGS__); \
 		} \
 		hook = hook->next; \
