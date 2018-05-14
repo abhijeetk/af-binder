@@ -5,8 +5,8 @@ Architecture: any
 Version: 2.0-0
 Maintainer: unknown <unknown@debian.org>
 Standards-Version: 3.8.2
-Homepage: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/app-framework-binder
-Build-Depends: debhelper (>= 5),	
+Homepage: https://gerrit.automotivelinux.org/gerrit/src/app-framework-binder
+Build-Depends: debhelper (>= 5), pkg-config,	
  dpkg-dev,
  libmicrohttpd-dev (>= 0.9.54),
  cmake,
@@ -16,4 +16,6 @@ Build-Depends: debhelper (>= 5),
  libgcrypt20-dev,
  libjson-c-dev,
  libmagic-dev
-Debtransform-Tar: agl-app-framework-binder_2.0.orig.tar.gz
+DEBTRANSFORM-RELEASE: 1
+Files:
+ app-framework-binder_2.0.tar.gz
