@@ -75,6 +75,19 @@ arguments.
 
 :   Like 'y' but output is base64.
 
+`y?`, `Y?` (byte array or null) \[const uint8_t \*, size\_t\]
+
+:   Like 'y' or 'Y' but allows to output a JSON null value
+    either when the buffer is *NULL* or when the size is *0*.
+
+`y*`, `y*` (optional byte array) \[const uint8_t \*, size\_t\]
+
+:   Like 'y' or 'Y' but do not put JSON value
+    either when the buffer is *NULL* or when the size is *0*.
+    This format can only be used inside an object or an array. If used
+    inside an object, the corresponding key is additionally suppressed
+    when the value is omitted. See below for an example.
+
 `n` (null)
 
 :   Output a JSON null value. No argument is consumed.

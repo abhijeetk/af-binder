@@ -89,7 +89,7 @@ int wrap_json_get_error_code(int rc)
 const char *wrap_json_get_error_string(int rc)
 {
 	rc = wrap_json_get_error_code(rc);
-	if (rc >= sizeof pack_errors / sizeof *pack_errors)
+	if (rc >= (int)(sizeof pack_errors / sizeof *pack_errors))
 		rc = 0;
 	return pack_errors[rc];
 }
@@ -241,7 +241,7 @@ static int decode_base64(
 
 	/* terminate */
 	*decoded = realloc(result, out);
-	if (*decoded == NULL) {
+	if (out && *decoded == NULL) {
 		free(result);
 		return wrap_json_error_out_of_memory;
 	}
@@ -378,14 +378,25 @@ int wrap_json_vpack(struct json_object **result, const char *desc, va_list args)
 		case 'Y':
 			bytes.in = va_arg(args, const uint8_t*);
 			bytes.insz = va_arg(args, size_t);
-			rc = encode_base64(bytes.in, bytes.insz,
-				&bytes.out, &bytes.outsz, 0, 0, c == 'y');
-			if (rc)
-				goto error;
-			obj = json_object_new_string_len(bytes.out, (int)bytes.outsz);
-			free(bytes.out);
-			if (!obj)
-				goto out_of_memory;
+			if (bytes.in == NULL || bytes.insz == 0)
+				obj = NULL;
+			else {
+				rc = encode_base64(bytes.in, bytes.insz,
+					&bytes.out, &bytes.outsz, 0, 0, c == 'y');
+				if (rc)
+					goto error;
+				obj = json_object_new_string_len(bytes.out, (int)bytes.outsz);
+				free(bytes.out);
+				if (!obj)
+					goto out_of_memory;
+			}
+			if (*d == '?')
+				d = skip(++d);
+			else if (*d != '*' && !obj) {
+				obj = json_object_new_string_len(d, 0);
+				if (!obj)
+					goto out_of_memory;
+			}
 			break;
 		case '[':
 		case '{':
@@ -517,7 +528,7 @@ static int vunpack(struct json_object *object, const char *desc, va_list args, i
 	int64_t *pI = NULL;
 	size_t *pz = NULL;
 	uint8_t **py = NULL;
-	struct { struct json_object *parent; const char *acc; int index; size_t count; char type; } stack[STACKCOUNT], *top;
+	struct { struct json_object *parent; const char *acc; size_t index; size_t count; char type; } stack[STACKCOUNT], *top;
 	struct json_object *obj;
 	struct json_object **po;
 
@@ -654,15 +665,22 @@ static int vunpack(struct json_object *object, const char *desc, va_list args, i
 				pz = va_arg(args, size_t *);
 			}
 			if (!ignore) {
-				if (!json_object_is_type(obj, json_type_string))
-					goto missfit;
-				if (store && py && pz) {
-					rc = decode_base64(
-						json_object_get_string(obj),
-						(size_t)json_object_get_string_len(obj),
-						py, pz, c == 'y');
-					if (rc)
-						goto error;
+				if (obj == NULL) {
+					if (store && py && pz) {
+						*py = NULL;
+						*pz = 0;
+					}
+				} else {
+					if (!json_object_is_type(obj, json_type_string))
+						goto missfit;
+					if (store && py && pz) {
+						rc = decode_base64(
+							json_object_get_string(obj),
+							(size_t)json_object_get_string_len(obj),
+							py, pz, c == 'y');
+						if (rc)
+							goto error;
+					}
 				}
 			}
 			break;
@@ -734,7 +752,7 @@ static int vunpack(struct json_object *object, const char *desc, va_list args, i
 				if (key && key >= unpack_accept_any) {
 					if (top->index >= top->count)
 						goto out_of_range;
-					obj = json_object_array_get_idx(top->parent, top->index++);
+					obj = json_object_array_get_idx(top->parent, (int)top->index++);
 				}
 			}
 			break;
@@ -846,9 +864,9 @@ static void object_for_all(struct json_object *object, void (*callback)(void*,st
 static void array_for_all(struct json_object *object, void (*callback)(void*,struct json_object*), void *closure)
 {
 	size_t n = json_object_array_length(object);
-	int i = 0;
+	size_t i = 0;
 	while(i < n)
-		callback(closure, json_object_array_get_idx(object, i++));
+		callback(closure, json_object_array_get_idx(object, (int)i++));
 }
 
 void wrap_json_optarray_for_all(struct json_object *object, void (*callback)(void*,struct json_object*), void *closure)
@@ -889,9 +907,9 @@ void wrap_json_for_all(struct json_object *object, void (*callback)(void*,struct
 		callback(closure, object, NULL);
 	else {
 		size_t n = json_object_array_length(object);
-		int i = 0;
+		size_t i = 0;
 		while(i < n)
-			callback(closure, json_object_array_get_idx(object, i++), NULL);
+			callback(closure, json_object_array_get_idx(object, (int)i++), NULL);
 	}
 }
 
@@ -934,6 +952,7 @@ void u(const char *value, const char *desc, ...)
 	memset(xI, 0, sizeof xI);
 	memset(xf, 0, sizeof xf);
 	memset(xo, 0, sizeof xo);
+	memset(xy, 0, sizeof xy);
 	memset(xz, 0, sizeof xz);
 	obj = json_tokener_parse(value);
 	va_start(args, desc);
@@ -1039,6 +1058,10 @@ int main()
 	P("[[[[[   [[[[[  [[[[ }]]]] ]]]] ]]]]]");
 	P("y", "???????hello>>>>>>>", (size_t)19);
 	P("Y", "???????hello>>>>>>>", (size_t)19);
+	P("{sy?}", "foo", "hi", (size_t)2);
+	P("{sy?}", "foo", NULL, 0);
+	P("{sy*}", "foo", "hi", (size_t)2);
+	P("{sy*}", "foo", NULL, 0);
 
 	U("true", "b", &xi[0]);
 	U("false", "b", &xi[0]);
@@ -1117,6 +1140,11 @@ int main()
 	U("{\"foo\":42}", "{s?isi!}", "baz", &xi[0], "foo", &xi[1]);
 
 	U("\"Pz8_Pz8_P2hlbGxvPj4-Pj4-Pg\"", "y", &xy[0], &xz[0]);
+	U("\"\"", "y", &xy[0], &xz[0]);
+	U("null", "y", &xy[0], &xz[0]);
+	U("{\"foo\":\"Pz8_Pz8_P2hlbGxvPj4-Pj4-Pg\"}", "{s?y}", "foo", &xy[0], &xz[0]);
+	U("{\"foo\":\"\"}", "{s?y}", "foo", &xy[0], &xz[0]);
+	U("{}", "{s?y}", "foo", &xy[0], &xz[0]);
 	return 0;
 }
 
