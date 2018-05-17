@@ -3,14 +3,13 @@
     <type>org.netbeans.modules.cnd.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>afb-daemon</name>
+            <name>app-framework-binder</name>
             <c-extensions>c</c-extensions>
-            <cpp-extensions/>
-            <header-extensions>h</header-extensions>
+            <cpp-extensions>cpp,cxx</cpp-extensions>
+            <header-extensions>h,hpp,inc</header-extensions>
             <sourceEncoding>UTF-8</sourceEncoding>
             <make-dep-projects/>
             <sourceRootList>
-                <sourceRootElem>.</sourceRootElem>
                 <sourceRootElem>.</sourceRootElem>
             </sourceRootList>
             <confList>
@@ -23,10 +22,5 @@
                 <project-formatting-style>false</project-formatting-style>
             </formatting>
         </data>
-        <spellchecker-wordlist xmlns="http://www.netbeans.org/ns/spellchecker-wordlist/1">
-            <word>independant</word>
-            <word>plugin</word>
-            <word>plugins</word>
-        </spellchecker-wordlist>
     </configuration>
 </project>
