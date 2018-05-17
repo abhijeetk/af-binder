@@ -4,7 +4,7 @@ ROOT=$(dirname $0)
 echo ROOT=$ROOT
 
 AFB=$ROOT/build/src/afb-daemon
-CLI=$ROOT/build/src/afb-client-demo
+CLI="$ROOT/build/src/afb-client-demo -e"
 HELLO=build/bindings/samples/helloWorld.so
 PORT=12345
 TEST=test

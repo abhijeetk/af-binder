@@ -85,6 +85,7 @@ static int callcount;
 static int human;
 static int raw;
 static int direct;
+static int echo;
 static sd_event_source *evsrc;
 static char *sessionid = "afb-client-demo";
 
@@ -93,8 +94,8 @@ static void usage(int status, char *arg0)
 {
 	char *name = strrchr(arg0, '/');
 	name = name ? name + 1 : arg0;
-	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] [-b] uri [api verb [data]]\n", name);
-	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] [-b] uri [verb [data]]\n", name);
+	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] [-b] [-e] uri [api verb [data]]\n", name);
+	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] [-b] [-e] uri [verb [data]]\n", name);
 	exit(status);
 }
 
@@ -125,6 +126,9 @@ int main(int ac, char **av, char **env)
 			else if (!strcmp(av[1], "--break")) /* request to break connection */
 				breakcon = 1;
 
+			else if (!strcmp(av[1], "--echo")) /* request to echo inputs */
+				echo = 1;
+
 			/* emit usage and exit */
 			else
 				usage(!!strcmp(av[1], "--help"), a0);
@@ -136,6 +140,7 @@ int main(int ac, char **av, char **env)
 				case 'r': raw = 1; break;
 				case 'd': direct = 1; break;
 				case 'b': breakcon = 1; break;
+				case 'e': echo = 1; break;
 				default: usage(av[1][rc] != 'h', a0);
 				}
 		}
@@ -263,6 +268,10 @@ static void wsj1_call(const char *api, const char *verb, const char *object)
 	/* allocates an id for the request */
 	rc = asprintf(&key, "%d:%s/%s", ++num, api, verb);
 
+	/* echo the command if asked */
+	if (echo)
+		printf("SEND-CALL %s/%s %s\n", api, verb, object?:"null");
+
 	/* send the request */
 	callcount++;
 	rc = afb_wsj1_call_s(wsj1, api, verb, object, on_wsj1_reply, key);
@@ -277,6 +286,10 @@ static void wsj1_event(const char *event, const char *object)
 {
 	int rc;
 
+	/* echo the command if asked */
+	if (echo)
+		printf("SEND-EVENT: %s %s\n", event, object?:"null");
+
 	rc = afb_wsj1_send_event_s(wsj1, event, object);
 	if (rc < 0)
 		fprintf(stderr, "sending !%s(%s) failed: %m\n", event, object);
@@ -287,6 +300,7 @@ static void wsj1_emit(const char *api, const char *verb, const char *object)
 {
 	if (object == NULL || object[0] == 0)
 		object = "null";
+
 	if (api[0] == '!' && api[1] == 0)
 		wsj1_event(verb, object);
 	else
@@ -447,6 +461,10 @@ static void pws_call(const char *verb, const char *object)
 
 	/* allocates an id for the request */
 	rc = asprintf(&key, "%d:%s", ++num, verb);
+
+	/* echo the command if asked */
+	if (echo)
+		printf("SEND-CALL: %s %s\n", verb, object?:"null");
 
 	/* send the request */
 	callcount++;
