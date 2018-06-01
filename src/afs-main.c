@@ -187,7 +187,7 @@ error:
 }
 
 /**
- * initalize the supervision
+ * initialize the supervision
  */
 int main(int ac, char **av)
 {

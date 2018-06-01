@@ -1,5 +1,5 @@
 ### Application Framework Binder
-This is an undergoing work, publication is only intended for developers to review and provide feedback. 
+This is an undergoing work, publication is only intended for developers to review and provide feedback.
 
 ### License
 Apache 2
@@ -35,8 +35,8 @@ $ apt-get install libmagic-dev libjson-c-dev uuid-dev libsystemd-dev libssl-dev 
 or under Fedora (excepting libmicrohttpd and rtl-sdr):
 ```
 $ dnf install git passwd iproute openssh-server openssh-client openssh-server # Tools needed on top of Docker Minimal Fedora
-$ dnf install file-devel gcc gdb make pkgconfig cmake  # install gcc developement tool chain + cmake
-$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel 
+$ dnf install file-devel gcc gdb make pkgconfig cmake  # install gcc development tool chain + cmake
+$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel
 $ dnf install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # optional but require to build audio plugin
 ```
 
@@ -55,9 +55,9 @@ $ AFB_DAEMON_DIR=$HOME/app-framework-binder
 $ git clone https://gerrit.automotivelinux.org/gerrit/src/app-framework-binder ${AFB_DAEMON_DIR}
 $ cd ${AFB_DAEMON_DIR}
 $ mkdir -p build; cd build<br />
-$ export PKG_CONFIG_PATH=${LIBMICRODEST}/lib/pkgconfig 
+$ export PKG_CONFIG_PATH=${LIBMICRODEST}/lib/pkgconfig
 $ cmake ..<br />
-$ make; 
+$ make;
 $ sudo make install<br />
 ```
 
@@ -73,12 +73,12 @@ git archive --format=tar.gz --prefix=agl-${PKG_NAME}-${VERSION}/ ${GIT_TAG} -o a
 ### Testing/Debug
 ```
 $ ${AFB_DAEMON_DIR}/build/src/afb-daemon --help
-$ ${AFB_DAEMON_DIR}/build/src/afb-daemon --port=1234 --token='' --ldpaths=${AFB_DAEMON_DIR}/build --sessiondir=/tmp --rootdir=${AFB_DAEMON_DIR}/test 
+$ ${AFB_DAEMON_DIR}/build/src/afb-daemon --port=1234 --token='' --ldpaths=${AFB_DAEMON_DIR}/build --sessiondir=/tmp --rootdir=${AFB_DAEMON_DIR}/test
 ```
 
 ### Starting
 ```
-$ afb-daemon --help 
+$ afb-daemon --help
 $ afb-daemon --verbose --port=<port> --token='' --sessiondir=<working directory> --rootdir=<web directory (index.html)>
 ```
 
@@ -93,12 +93,12 @@ Default behaviour is to locate ROOTDIR in $HOME/.AFB
 ### REST API
 
 Developers are intended to provide a structure containing : API name, corresponding methods/callbacks, and optionally a context and a handle.
-A handle is a void* structure automatically passed to API callbacks. 
-Callbacks also receive HTTP GET data as well as HTTP POST data, in case a POST method was used. 
+A handle is a void* structure automatically passed to API callbacks.
+Callbacks also receive HTTP GET data as well as HTTP POST data, in case a POST method was used.
 Every method should return a JSON object or NULL in case of error.
 
 API plugins can be protected from timeout and other errors. By default this behaviour is deactivated, use --apitimeout to activate it.
-        
+
         STATIC AFB_restapi myApis[]= {
           {"ping"    , AFB_SESSION_NONE,  (AFB_apiCB)ping,     "Ping Function"},
           {"action1" , AFB_SESSION_CHECK, (AFB_apiCB)action1 , "Action-1"},
@@ -110,26 +110,26 @@ API plugins can be protected from timeout and other errors. By default this beha
             AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
             plugin->type  = AFB_PLUGIN_JSON;
             plugin->info  = "Plugin Sample";
-            plugin->prefix= "myPlugin";        
+            plugin->prefix= "myPlugin";
             plugin->apis  = myApis;
             return (plugin);
         }
 
 ### HTML5 and AngularJS Redirects
 
-Binder supports HTML5 redirect mode even with an application baseurl. 
-Default value for application base URL is /opa. 
+Binder supports HTML5 redirect mode even with an application baseurl.
+Default value for application base URL is /opa.
 See Application Framework HTML5 Client template at https://github.com/iotbzh/afb-client-sample
 
-If the Binder receives something like _http://myopa/sample_ when sample is not the homepage of the AngularJS OPA, 
-it will redirect to _http://myopa/#!sample_. 
+If the Binder receives something like _http://myopa/sample_ when sample is not the homepage of the AngularJS OPA,
+it will redirect to _http://myopa/#!sample_.
 This redirect will return the _index.html_ OPA file and will notify AngularJS not to display the homepage, but the sample page.
 
-Warning: in order for AngularJS applications to be able to work with both BASEURL="/" and BASEURL="/MyApp/", all page references have to be relative. 
+Warning: in order for AngularJS applications to be able to work with both BASEURL="/" and BASEURL="/MyApp/", all page references have to be relative.
 
 Recommended model is to develop with a BASEURL="/opa" as any application working with a BASEURL will work without, while the opposite is not true.
 
-Note: If a resource is not accessible from ROOTDIR then the "--alias" switch should be used, as in: --alias=/icons:/usr/share/icons. 
+Note: If a resource is not accessible from ROOTDIR then the "--alias" switch should be used, as in: --alias=/icons:/usr/share/icons.
 Only use alias for external support static files. This should not be used for API and OPA.
 
 

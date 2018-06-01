@@ -2,7 +2,7 @@
 Run the supervisor on the target for the public IP:
 ---------------------------------------------------
 
-	# afs-supervisor --port 1619 --token HELLO 
+	# afs-supervisor --port 1619 --token HELLO
 
 Run the client
 --------------
@@ -49,20 +49,20 @@ verbs that can be run, all are of the API 'supervisor':
 
 		execute the API/VERB(ARGS) for the daemon of pid X
 
-		usefull for (s/g)etting monitor info. ex: monitor/get({"apis":true})
+		useful for (s/g)etting monitor info. ex: monitor/get({"apis":true})
 
 		bound to the current client session (to be checked: usurpation of session?)
 
 	- trace         {"pid":X, ...}
 
-		like monitor/trace but not bound to session (in the future monitor/trace 
+		like monitor/trace but not bound to session (in the future monitor/trace
 		will be bound to sessions)
 
 		allows to trace specific session or any session
 
 		the pid isn't returned in the event (not sure to want it but open...)
 
-		use "name" and "tag" feature of "trace" to discrimate events on the client side.
+		use "name" and "tag" feature of "trace" to discriminate events on the client side.
 
 Examples of dialog:
 -------------------

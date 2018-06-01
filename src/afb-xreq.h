@@ -60,7 +60,7 @@ struct afb_xreq
 	struct afb_context context;	/**< context of the request */
 	struct afb_apiset *apiset;	/**< apiset of the xreq */
 	struct json_object *json;	/**< the json object (or NULL) */
-	const struct afb_xreq_query_itf *queryitf; /**< interface of xreq implmentation functions */
+	const struct afb_xreq_query_itf *queryitf; /**< interface of xreq implementation functions */
 	int refcount;			/**< current ref count */
 	int replied;			/**< is replied? */
 	int hookflags;			/**< flags for hooking */
@@ -72,7 +72,7 @@ struct afb_xreq
 
 /**
  * Macro for retrieve the pointer of a structure of 'type' having a field named 'field'
- * of adress 'ptr'.
+ * of address 'ptr'.
  * @param type the type that has the 'field' (ex: "struct mystruct")
  * @param field the name of the field within the structure 'type'
  * @param ptr the pointer to an element 'field'
@@ -82,7 +82,7 @@ struct afb_xreq
 
 /**
  * Macro for retrieve the pointer of a structure of 'type' having a field named "xreq"
- * of adress 'x'.
+ * of address 'x'.
  * @param type the type that has the field "xreq" (ex: "struct mystruct")
  * @param x the pointer to the field "xreq"
  * @return the pointer to the structure that contains the field "xreq" of address 'x'

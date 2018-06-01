@@ -501,10 +501,10 @@ static int get_socket(const char *uri)
 }
 /*
  * Establish a websocket-like client connection to the API of 'uri' and if successful
- * instanciate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
+ * instantiate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
  * (see afb_proto_ws_create_client).
  * The systemd event loop 'eloop' is used to handle the websocket.
- * Returns NULL in case of failure with errno set appriately.
+ * Returns NULL in case of failure with errno set appropriately.
  */
 struct afb_proto_ws *afb_ws_client_connect_api(struct sd_event *eloop, const char *uri, struct afb_proto_ws_client_itf *itf, void *closure)
 {

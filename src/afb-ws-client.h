@@ -25,19 +25,19 @@ struct sd_event;
 
 /*
  * Makes the WebSocket handshake at the 'uri' and if successful
- * instanciate a wsj1 websocket for this connection using 'itf' and 'closure'.
+ * instantiate a wsj1 websocket for this connection using 'itf' and 'closure'.
  * (see afb_wsj1_create).
  * The systemd event loop 'eloop' is used to handle the websocket.
- * Returns NULL in case of failure with errno set appriately.
+ * Returns NULL in case of failure with errno set appropriately.
  */
 extern struct afb_wsj1 *afb_ws_client_connect_wsj1(struct sd_event *eloop, const char *uri, struct afb_wsj1_itf *itf, void *closure);
 
 /*
  * Establish a websocket-like client connection to the API of 'uri' and if successful
- * instanciate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
+ * instantiate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
  * (see afb_proto_ws_create_client).
  * The systemd event loop 'eloop' is used to handle the websocket.
- * Returns NULL in case of failure with errno set appriately.
+ * Returns NULL in case of failure with errno set appropriately.
  */
 extern struct afb_proto_ws *afb_ws_client_connect_api(struct sd_event *eloop, const char *uri, struct afb_proto_ws_client_itf *itf, void *closure);
 

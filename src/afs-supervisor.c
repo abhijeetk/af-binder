@@ -401,7 +401,7 @@ static void f_debug_break(struct afb_req req)
 /*************************************************************************************/
 
 /**
- * initalize the supervisor
+ * initialize the supervisor
  */
 static int init_supervisor()
 {

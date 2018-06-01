@@ -37,7 +37,7 @@
 
 
 /**
- * packet initialy sent by monitor at start
+ * packet initially sent by monitor at start
  */
 struct afs_supervision_initiator
 {

@@ -162,7 +162,7 @@ static void try_connect_supervisor()
 		goto end;
 	}
 
-	/* negociation */
+	/* negotiation */
 	do { srd = read(fd, &initiator, sizeof initiator); } while(srd < 0 && errno == EINTR);
 	if (srd < 0) {
 		NOTICE("Can't read supervisor %s: %m", supervisor_socket_path);
@@ -232,7 +232,7 @@ static void on_sighup(int signum)
 }
 
 /**
- * initalize the supervision
+ * initialize the supervision
  */
 int afb_supervision_init()
 {

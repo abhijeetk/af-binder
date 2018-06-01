@@ -114,7 +114,7 @@ static AFB_options cliOptions[] = {
 
 	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=" AFS_SUPERVISOR_TOKEN ", use --token="" to allow any token]"},
 
-	{WS_SERVICE,        1, "ws-server",   "Povide supervisor as websocket"},
+	{WS_SERVICE,        1, "ws-server",   "Provide supervisor as websocket"},
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
