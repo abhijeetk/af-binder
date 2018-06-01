@@ -96,6 +96,19 @@ static void usage(int status, char *arg0)
 	name = name ? name + 1 : arg0;
 	fprintf(status ? stderr : stdout, "usage: %s [-H [-r]] [-b] [-e] uri [api verb [data]]\n", name);
 	fprintf(status ? stderr : stdout, "       %s -d [-H [-r]] [-b] [-e] uri [verb [data]]\n", name);
+    fprintf(status ? stderr : stdout, "\n" \
+        "allowed options\n" \
+        "  --break, -b         Break connection just after event/call has been emitted.\n" \
+        "  --direct, -d        Direct api\n" \
+        "  --echo, -e          Echo inputs\n" \
+        "  --help, -h          Display this help\n" \
+        "  --human, -H         Display human readable JSON\n" \
+        "  --raw, -r           Raw output (default)\n" \
+        "Example:\n" \
+        " %s --human 'localhost:1234/api?token=HELLO&uuid=magic' hello ping\n"
+        "\n", name
+    );
+
 	exit(status);
 }
 
