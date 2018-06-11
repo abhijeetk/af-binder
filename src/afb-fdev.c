@@ -17,7 +17,7 @@
 
 #include "fdev.h"
 
-#if defined(WITH_SYSTEMD_EVENT)
+#if !defined(REMOVE_SYSTEMD_EVENT)
 #   define USE_SYSTEMD 1
 #   define USE_EPOLL   0
 #else
