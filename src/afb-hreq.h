@@ -19,8 +19,10 @@
 
 #include "afb-xreq.h"
 
-struct afb_session;
 struct json_object;
+struct json_tokener;
+
+struct afb_session;
 struct hreq_data;
 struct afb_hsrv;
 struct locale_search;
@@ -44,6 +46,7 @@ struct afb_hreq {
 	struct MHD_PostProcessor *postform;
 	struct hreq_data *data;
 	struct json_object *json;
+	struct json_tokener *tokener;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);

@@ -318,6 +318,9 @@ static void req_destroy(struct afb_xreq *xreq)
 
 	if (hreq->postform != NULL)
 		MHD_destroy_post_processor(hreq->postform);
+	if (hreq->tokener != NULL)
+		json_tokener_free(hreq->tokener);
+
 	for (data = hreq->data; data; data = hreq->data) {
 		hreq->data = data->next;
 		if (data->path) {

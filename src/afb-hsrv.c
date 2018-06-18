@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+#include <json-c/json.h>
 #include <microhttpd.h>
 
 #include "afb-method.h"
@@ -154,6 +155,11 @@ static int access_handler(
 				}
 				return MHD_YES;
 			} else if (strcasestr(type, JSON_CONTENT) != NULL) {
+				hreq->tokener = json_tokener_new();
+				if (hreq->tokener == NULL) {
+					ERROR("Can't create tokener for POST");
+					afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+				}
 				return MHD_YES;
                         } else {
 				WARNING("Unsupported media type %s", type);
@@ -171,9 +177,15 @@ static int access_handler(
 				afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 				return MHD_YES;
 			}
-		} else {
-			if (!afb_hreq_post_add(hreq, "", upload_data, *upload_data_size)) {
-				afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		} else if (hreq->tokener) {
+			hreq->json = json_tokener_parse_ex(hreq->tokener, upload_data, (int)*upload_data_size);
+			switch (json_tokener_get_error(hreq->tokener)) {
+			case json_tokener_success:
+			case json_tokener_continue:
+				break;
+			default:
+				ERROR("error in POST json: %s", json_tokener_error_desc(json_tokener_get_error(hreq->tokener)));
+				afb_hreq_reply_error(hreq, MHD_HTTP_BAD_REQUEST);
 				return MHD_YES;
 			}
 		}
@@ -190,6 +202,10 @@ static int access_handler(
 			afb_hreq_reply_error(hreq, MHD_HTTP_BAD_REQUEST);
 			return MHD_YES;
 		}
+	}
+	if (hreq->tokener != NULL) {
+		json_tokener_free(hreq->tokener);
+		hreq->tokener = NULL;
 	}
 
 	if (hreq->scanned != 0) {
