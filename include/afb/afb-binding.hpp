@@ -496,15 +496,20 @@ inline bool wants_debugs()
 	{ return AFB_SYSLOG_MASK_WANT_DEBUG(logmask()); }
 
 #if AFB_BINDING_VERSION >= 3
-inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result, afb_api_t api), void *closure)
+inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, struct json_object *result, const char *error, const char *info, afb_api_t api), void *closure)
 {
 	afb_service_call(api, verb, args, callback, closure);
 }
 
 template <class T>
-inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(T*closure, int iserror, struct json_object *result, afb_api_t api), T *closure)
+inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(T*closure, struct json_object *result, const char *error, const char *info, afb_api_t api), T *closure)
 {
 	afb_service_call(api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*,afb_api_t)>(callback), reinterpret_cast<void*>(closure));
+}
+
+inline bool callsync(const char *api, const char *verb, struct json_object *args, struct json_object *&result, char *&error, char *&info)
+{
+	return !!afb_service_call_sync(api, verb, args, &result, &error, &info);
 }
 #else
 inline void call(const char *api, const char *verb, struct json_object *args, void (*callback)(void*closure, int iserror, struct json_object *result), void *closure)
@@ -517,12 +522,12 @@ inline void call(const char *api, const char *verb, struct json_object *args, vo
 {
 	afb_service_call(api, verb, args, reinterpret_cast<void(*)(void*,int,json_object*)>(callback), reinterpret_cast<void*>(closure));
 }
-#endif
 
 inline bool callsync(const char *api, const char *verb, struct json_object *args, struct json_object *&result)
 {
 	return !!afb_service_call_sync(api, verb, args, &result);
 }
+#endif
 
 /*************************************************************************/
 /* declaration of the binding's authorization s                          */

@@ -20,6 +20,9 @@
 #include <stdlib.h>
 #include "afb-req-x1.h"
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -54,3 +57,5 @@ static inline struct afb_req_x1 afb_req_unstore_x1_v1(struct afb_req_x1 *req)
 	return result;
 }
 
+
+/** @} */

@@ -30,6 +30,9 @@ struct afb_auth;
 struct afb_verb_v2;
 struct afb_verb_v3;
 
+/** @addtogroup AFB_API
+ *  @{ */
+
 /**
  * Structure for the APIv3
  */
@@ -260,3 +263,4 @@ struct afb_api_x3_itf
 		struct afb_api_x3 *api);
 };
 
+/** @} */

@@ -19,6 +19,9 @@
 
 #include "afb-daemon-itf-x1.h"
 
+/** @addtogroup AFB_DAEMON
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -213,4 +216,6 @@ static inline int afb_daemon_new_api_v2(
 {
 	return -!(afb_get_daemon_v2().itf->new_api(afb_get_daemon_v2().closure, api, info, noconcurrency, preinit, closure));
 }
+
+/** @} */
 

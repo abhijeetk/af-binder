@@ -20,6 +20,9 @@
 #include "afb-req-x2-itf.h"
 #include "afb-api-x3.h"
 
+/** @defgroup AFB_REQ
+ *  @{ */
+
 /**
  * Checks whether the request 'req' is valid or not.
  *
@@ -560,6 +563,46 @@ int afb_req_x2_subcall_sync_legacy(
 }
 
 /**
+ * Send associated to 'req' a message described by 'fmt' and its 'args'
+ * to the journal for the verbosity 'level'.
+ *
+ * 'file', 'line' and 'func' are indicators of position of the code in source files
+ * (see macros __FILE__, __LINE__ and __func__).
+ *
+ * 'level' is defined by syslog standard:
+ *      EMERGENCY         0        System is unusable
+ *      ALERT             1        Action must be taken immediately
+ *      CRITICAL          2        Critical conditions
+ *      ERROR             3        Error conditions
+ *      WARNING           4        Warning conditions
+ *      NOTICE            5        Normal but significant condition
+ *      INFO              6        Informational
+ *      DEBUG             7        Debug-level messages
+ *
+ * @param req the request
+ * @param level the level of the message
+ * @param file the source filename that emits the message or NULL
+ * @param line the line number in the source filename that emits the message
+ * @param func the name of the function that emits the message or NULL
+ * @param fmt the message format as for printf
+ * @param args the arguments to the format 'fmt'
+ *
+ * @see printf
+ * @see afb_req_x2_verbose
+ */
+static inline
+void afb_req_x2_vverbose(
+			struct afb_req_x2 *req,
+			int level, const char *file,
+			int line,
+			const char * func,
+			const char *fmt,
+			va_list args)
+{
+	req->itf->vverbose(req, level, file, line, func, fmt, args);
+}
+
+/**
  * Send associated to 'req' a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
  *
@@ -582,9 +625,10 @@ int afb_req_x2_subcall_sync_legacy(
  * @param line the line number in the source filename that emits the message
  * @param func the name of the function that emits the message or NULL
  * @param fmt the message format as for printf
- * @param ... the arguments of the printf
+ * @param ... the arguments of the format 'fmt'
  *
  * @see printf
+ * @see afb_req_x2_vverbose
  */
 __attribute__((format(printf, 6, 7)))
 static inline
@@ -598,7 +642,7 @@ void afb_req_x2_verbose(
 {
 	va_list args;
 	va_start(args, fmt);
-	req->itf->vverbose(req, level, file, line, func, fmt, args);
+	afb_req_x2_verbose(req, level, file, line, func, fmt, args);
 	va_end(args);
 }
 
@@ -756,3 +800,6 @@ int afb_req_x2_subcall_sync(
 {
 	return req->itf->subcallsync(req, api, verb, args, flags, object, error, info);
 }
+
+
+/** @} */

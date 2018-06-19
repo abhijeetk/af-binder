@@ -19,6 +19,9 @@
 
 #include "afb-event-x1-itf.h"
 
+/** @addtogroup AFB_EVENT
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -109,3 +112,4 @@ static inline void afb_event_x1_addref(struct afb_event_x1 event)
 	event.itf->addref(event.closure);
 }
 
+/** @} */

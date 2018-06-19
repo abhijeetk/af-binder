@@ -29,6 +29,9 @@ struct afb_event_x2;
 struct afb_api_x3;
 struct afb_stored_req;
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * structure for the request
  */
@@ -62,15 +65,16 @@ struct afb_req_x2
 };
 
 /**
- * subcall modes
+ * subcall flags
  *
  * When making subcalls, it is now possible to explicitely set the subcall
- * mode to a combination of the following mode using binary OR.
+ * mode to a combination of the following flags using binary OR.
  *
- * In particular, the following combination of modes are to be known:
+ * In particular, the following combination of flags are to be known:
  *
  *  - for **subcall** having a similar behaviour to the subcalls of bindings
  *    version 1 and 2: afb_req_x2_subcall_pass_events|afb_req_x2_subcall_on_behalf
+ * 
  *  - for **subcall** having the behaviour of the **call**:
  *    afb_req_x2_subcall_catch_events|afb_req_x2_subcall_api_session
  *
@@ -304,3 +308,5 @@ struct afb_req_x2_itf
 			char **info);
 };
 
+
+/** @} */

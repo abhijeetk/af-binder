@@ -2,197 +2,248 @@
 
 The launch options for binder **afb-daemon** are:
 
-      --help
+```
+ -v, --verbose           Verbose Mode, repeat to increase verbosity
+ -q, --quiet             Quiet Mode, repeat to decrease verbosity
+ -l, --log=xxxx          Tune log level
+     --foreground        Get all in foreground mode
+     --daemon            Get all in background mode
+ -n, --name=xxxx         Set the visible name
+ -p, --port=xxxx         HTTP listening TCP port  [default 1234]
+     --roothttp=xxxx     HTTP Root Directory [default no root http (files not served but apis still available)]
+     --rootbase=xxxx     Angular Base Root URL [default /opa]
+     --rootapi=xxxx      HTML Root API URL [default /api]
+     --alias=xxxx        Multiple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]
+     --apitimeout=xxxx   Binding API timeout in seconds [default 20]
+     --cntxtimeout=xxxx  Client Session Context Timeout [default 32000000]
+     --cache-eol=xxxx    Client cache end of live [default 100000]
+ -w, --workdir=xxxx      Set the working directory [default: $PWD or current working directory]
+ -u, --uploaddir=xxxx    Directory for uploading files [default: workdir]
+     --rootdir=xxxx      Root Directory of the application [default: workdir]
+     --ldpaths=xxxx      Load bindings from dir1:dir2:... [default = /opt/jobol/lib64/afb]
+ -b, --binding=xxxx      Load the binding of path
+     --weak-ldpaths=xxxx Same as --ldpaths but ignore errors
+     --no-ldpaths        Discard default ldpaths loading
+ -t, --token=xxxx        Initial Secret [default=random, use --token= to allow any token]
+ -r, --random-token      Enforce a random token
+ -V, --version           Display version and copyright
+ -h, --help              Display this help
+     --ws-client=xxxx    Bind to an afb service through websocket
+     --ws-server=xxxx    Provide an afb service through websockets
+ -A, --auto-api=xxxx     Automatic load of api of the given directory
+     --session-max=xxxx  Max count of session simultaneously [default 200]
+     --tracereq=xxxx     Log the requests: no, common, extra, all
+     --traceditf=xxxx    Log the daemons: no, common, all
+     --tracesvc=xxxx     Log the services: no, all
+     --traceevt=xxxx     Log the events: no, common, extra, all
+     --traceses=xxxx     Log the sessions: no, all
+     --traceapi=xxxx     Log the apis: no, common, api, event, all
+ -c, --call=xxxx         call at start format of val: API/VERB:json-args
+     --no-httpd          Forbid HTTP service
+ -e, --exec              Execute the remaining arguments
+ -M, --monitoring        Enable HTTP monitoring at <ROOT>/monitoring/
+```
 
-        Prints help with available options
+## help
 
-      --version
+Prints help with available options
 
-        Display version and copyright
+## version
 
-      --verbose
+Display version and copyright
 
-        Increases the verbosity, can be repeated
+## verbose
 
-      --quiet
+Increases the verbosity, can be repeated
 
-        Decreases the verbosity, can be repeated
+## quiet
 
-      --port=xxxx
+Decreases the verbosity, can be repeated
 
-        HTTP listening TCP port  [default 1234]
+## log=xxxx
 
-      --workdir=xxxx
+Tune the log level mask. The levels are:
 
-        Directory where the daemon must run [default: $PWD if defined
-        or the current working directory]
+ - error
+ - warning
+ - notice
+ - info
+ - debug
 
-      --uploaddir=xxxx
+The level can be set using + or -.
 
-        Directory where uploaded files are temporarily stored [default: workdir]
+| Examples | descritpion
+|-----------------|-------------------
+| error,warning   | selects only the levels error and warning
+| +debug          | adds level debug to the current verbosity
+| -warning        | remove the level warning from the current verbosity
+| +warning-debug,info | Adds error and remove errors and warnings
 
-      --rootdir=xxxx
+## port=xxxx
 
-        Root directory of the application to serve [default: workdir]
+HTTP listening TCP port  [default 1234]
 
-      --roothttp=xxxx
+## workdir=xxxx
 
-        Directory of HTTP served files. If not set, files are not served
-        but apis are still accessible.
+Directory where the daemon must run [default: $PWD if defined
+or the current working directory]
 
-      --rootbase=xxxx
+## uploaddir=xxxx
 
-        Angular Base Root URL [default /opa]
+Directory where uploaded files are temporarily stored [default: workdir]
 
-        This is used for any application of kind OPA (one page application).
-        When set, any missing document whose url has the form /opa/zzz
-        is translated to /opa/#!zzz
+## rootdir=xxxx
 
-      --rootapi=xxxx
+Root directory of the application to serve [default: workdir]
 
-        HTML Root API URL [default /api]
+## roothttp=xxxx
 
-        The bindings are available within that url.
+Directory of HTTP served files. If not set, files are not served
+but apis are still accessible.
 
-      --alias=xxxx
+## rootbase=xxxx
 
-        Maps a path located anywhere in the file system to the
-        a subdirectory. The syntax for mapping a PATH to the
-        subdirectory NAME is: --alias=/NAME:PATH.
+Angular Base Root URL [default /opa]
 
-        Example: --alias=/icons:/usr/share/icons maps the
-        content of /usr/share/icons within the subpath /icons.
+This is used for any application of kind OPA (one page application).
+When set, any missing document whose url has the form /opa/zzz
+is translated to /opa/#!zzz
 
-        This option can be repeated.
+## rootapi=xxxx
 
-      --apitimeout=xxxx
+HTML Root API URL [default /api]
 
-        binding API timeout in seconds [default 20]
+The bindings are available within that url.
 
-        Defines how many seconds maximum a method is allowed to run.
-        0 means no limit.
+## alias=xxxx
 
-      --cntxtimeout=xxxx
+Maps a path located anywhere in the file system to the
+a subdirectory. The syntax for mapping a PATH to the
+subdirectory NAME is: --alias=/NAME:PATH.
 
-        Client Session Timeout in seconds [default 3600]
+Example: --alias=/icons:/usr/share/icons maps the
+content of /usr/share/icons within the subpath /icons.
 
-      --cache-eol=xxxx
+This option can be repeated.
 
-        Client cache end of live [default 100000 that is 27,7 hours]
+## apitimeout=xxxx
 
-      --session-max=xxxx
+binding API timeout in seconds [default 20]
 
-        Maximum count of simultaneous sessions [default 10]
+Defines how many seconds maximum a method is allowed to run.
+0 means no limit.
 
-      --ldpaths=xxxx
+## cntxtimeout=xxxx
 
-        Load bindings from given paths separated by colons
-        as for dir1:dir2:binding1.so:... [default = $libdir/afb]
+Client Session Timeout in seconds [default 32000000 that is 1 year]
 
-        You can mix path to directories and to bindings.
-        The sub-directories of the given directories are searched
-        recursively.
+## cache-eol=xxxx
 
-        The bindings are the files terminated by '.so' (the extension
-        so denotes shared object) that contain the public entry symbol.
+Client cache end of live [default 100000 that is 27,7 hours]
 
-      --binding=xxxx
+## session-max=xxxx
 
-        Load the binding of given path.
+Maximum count of simultaneous sessions [default 200]
 
-      --token=xxxx
+## ldpaths=xxxx
 
-        Initial Secret token to authenticate.
+Load bindings from given paths separated by colons
+as for dir1:dir2:binding1.so:... [default = $libdir/afb]
 
-        If not set, no client can authenticate.
+You can mix path to directories and to bindings.
+The sub-directories of the given directories are searched
+recursively.
 
-        If set to the empty string, then any initial token is accepted.
+The bindings are the files terminated by '.so' (the extension
+so denotes shared object) that contain the public entry symbol.
 
-      --random-token
+## weak-ldpaths=xxxx
 
-        Generate a random starting token. See option --exec.
+Same as --ldpaths but instead of stopping on error, ignore errors and continue.
 
-      --mode=xxxx
+## binding=xxxx
 
-        Set the mode: either local, remote or global.
+Load the binding of given path.
 
-        The mode indicate if the application is run locally on the host
-        or remotely through network.
+## token=xxxx
 
-      --dbus-client=xxxx
+Initial Secret token to authenticate.
 
-        Transparent binding to a binder afb-daemon service through dbus.
+If not set, no client can authenticate.
 
-        It creates an API of name xxxx that is implemented remotely
-        and queried via DBUS.
+If set to the empty string, then any initial token is accepted.
 
-      --dbus-server=xxxx
+## random-token
 
-        Provides a binder afb-daemon service through dbus.
+Generate a random starting token. See option --exec.
 
-        The name xxxx must be the name of an API defined by a binding.
-        This API is exported through DBUS.
+## ws-client=xxxx
 
-      --ws-client=xxxx
+Transparent binding to a binder afb-daemon service through a WebSocket.
 
-        Transparent binding to a binder afb-daemon service through a WebSocket.
+The value of xxxx is either a unix naming socket, of the form "unix:path/api",
+or an internet socket, of the form "host:port/api".
 
-        The value of xxxx is either a unix naming socket, of the form "unix:path/api",
-        or an internet socket, of the form "host:port/api".
+## ws-server=xxxx
 
-      --ws-server=xxxx
+Provides a binder afb-daemon service through WebSocket.
 
-        Provides a binder afb-daemon service through WebSocket.
+The value of xxxx is either a unix naming socket, of the form "unix:path/api",
+or an internet socket, of the form "host:port/api".
 
-        The value of xxxx is either a unix naming socket, of the form "unix:path/api",
-        or an internet socket, of the form "host:port/api".
+## foreground
 
-      --foreground
+Get all in foreground mode (default)
 
-        Get all in foreground mode (default)
+## daemon
 
-      --daemon
+Get all in background mode
 
-        Get all in background mode
+## no-httpd
 
-      --no-httpd
+Forbids HTTP serve
 
-        Forbids HTTP serve
+## exec
 
-      --exec
+Must be the last option for afb-daemon. The remaining
+arguments define a command that afb-daemon will launch.
+The sequences @p, @t and @@ of the arguments are replaced
+with the port, the token and @.
 
-        Must be the last option for afb-daemon. The remaining
-        arguments define a command that afb-daemon will launch.
-        The sequences @p, @t and @@ of the arguments are replaced
-        with the port, the token and @.
+## tracereq=xxxx
 
-      --tracereq=xxxx
+Trace the processing of requests in the log file.
 
-        Trace the processing of requests in the log file.
+Valid values are 'no' (default), 'common', 'extra' or 'all'.
 
-        Valid values are 'no' (default), 'common', 'extra' or 'all'.
+## traceapi=xxxx
 
-      --traceditf=xxxx
+Trace the accesses to functions of class api.
 
-        Trace the accesses to functions of class daemon.
+Valid values are 'no' (default), 'common', 'api', 'event' or 'all'.
 
-        Valid values are 'no' (default), 'common', 'extra' or 'all'.
+## traceevt=xxxx
 
-      --tracesvc=xxxx
+Trace the accesses to functions of class event.
 
-        Trace the accesses to functions of class service.
+Valid values are 'no' (default), 'common', 'extra' or 'all'.
 
-        Valid values are 'no' (default) or 'all'.
+## call=xxx
 
-      --traceevt=xxxx
+Call a binding at start (can be be repeated).
+The values are given in the form API/VERB:json-args.
 
-        Trace the accesses to functions of class event.
+Example: --call 'monitor/set:{"verbosity":{"api":"debug"}}'
 
-        Valid values are 'no' (default), 'common', 'extra' or 'all'.
+## monitoring
 
-    --call=xxx
+Enable HTTP monitoring at <ROOT>/monitoring/
 
-        Call a binding at start (can be be repeated).
-        The values are given in the form API/VERB:json-args.
+## name=xxxx
 
-        Example: --call 'monitor/set:{"verbosity":{"api":"debug"}}'
+Set the visible name
+
+## auto-api=xxxx
+
+Automatic activation of api of the given directory when the api is missing.
+

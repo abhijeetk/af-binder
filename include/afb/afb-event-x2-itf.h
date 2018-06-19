@@ -20,6 +20,9 @@
 struct afb_event_x2;
 struct afb_event_x2_itf;
 
+/** @addtogroup AFB_EVENT
+ *  @{ */
+
 /**
  * Interface for handling event_x2.
  *
@@ -55,3 +58,4 @@ struct afb_event_x2
 	const struct afb_event_x2_itf *itf;	/**< the interface functions to use */
 };
 
+/** @} */

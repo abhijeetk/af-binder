@@ -74,8 +74,11 @@ typedef struct afb_binding_v3           afb_binding_t;
 typedef struct afb_event_x2            *afb_event_t;
 typedef struct afb_req_x2              *afb_req_t;
 typedef struct afb_api_x3              *afb_api_t;
+typedef enum afb_req_subcall_flags	afb_req_subcall_flags_t;
 
 #define afbBindingExport		afbBindingV3
+#define afbBindingRoot			afbBindingV3root
+#define afbBindingEntry			afbBindingV3entry
 
 /* compatibility with previous versions */
 

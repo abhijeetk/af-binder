@@ -19,6 +19,9 @@
 
 #include "afb-event-x2-itf.h"
 
+/** @addtogroup AFB_EVENT
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -30,3 +33,4 @@ struct afb_event_x1
 	struct afb_event_x2 *closure;		/**< the closure argument for functions of 'itf' */
 };
 
+/** @} */

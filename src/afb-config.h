@@ -55,8 +55,7 @@ struct afb_config {
 	struct afb_config_list *ldpaths;
 	struct afb_config_list *weak_ldpaths;
 	struct afb_config_list *calls;
-	struct afb_config_list *auto_ws;
-	struct afb_config_list *auto_link;
+	struct afb_config_list *auto_api;
 
 	char **exec;
 

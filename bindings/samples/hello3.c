@@ -309,7 +309,7 @@ static void eventpush (afb_req_t request)
 
 static void callcb (void *prequest, json_object *object, const char *error, const char *info, afb_api_t api)
 {
-	afb_req_t request = afb_req_unstore(prequest);
+	afb_req_t request = prequest;
 	afb_req_reply(request, json_object_get(object), error, info);
 	afb_req_unref(request);
 }
@@ -321,31 +321,22 @@ static void call (afb_req_t request)
 	const char *args = afb_req_value(request, "args");
 	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
 
-	if (object == NULL)
-		afb_req_fail(request, "failed", "bad arguments");
-	else
-		afb_api_call(request->api, api, verb, object, callcb, afb_req_store(request));
+	afb_service_call(api, verb, object, callcb, afb_req_addref(request));
 }
 
 static void callsync (afb_req_t request)
 {
-	int rc;
 	const char *api = afb_req_value(request, "api");
 	const char *verb = afb_req_value(request, "verb");
 	const char *args = afb_req_value(request, "args");
-	json_object *result, *object = api && verb && args ? json_tokener_parse(args) : NULL;
+	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
+	json_object *result;
+	char *error, *info;
 
-	if (object == NULL)
-		afb_req_fail(request, "failed", "bad arguments");
-	else {
-		rc = afb_service_call_sync(api, verb, object, &result);
-		if (rc >= 0)
-			afb_req_success(request, result, NULL);
-		else {
-			afb_req_fail(request, "failed", json_object_to_json_string(result));
-			json_object_put(result);
-		}
-	}
+	afb_service_call_sync(api, verb, object, &result, &error, &info);
+	afb_req_reply(request, result, error, info);
+	free(error);
+	free(info);
 }
 
 static void verbose (afb_req_t request)
@@ -430,13 +421,13 @@ static void uid (afb_req_t request)
 	afb_req_success_f(request, json_object_new_int(uid), "uid is %d", uid);
 }
 
-static int preinit()
+static int preinit(afb_api_t api)
 {
 	AFB_NOTICE("hello binding comes to live");
 	return 0;
 }
 
-static int init()
+static int init(afb_api_t api)
 {
 	AFB_NOTICE("hello binding starting");
 	return 0;
@@ -475,8 +466,12 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb=NULL}
 };
 
+#if !defined(APINAME)
+#define APINAME "hello3"
+#endif
+
 const struct afb_binding_v3 afbBindingV3 = {
-	.api = "hello3",
+	.api = APINAME,
 	.specification = NULL,
 	.verbs = verbs,
 	.preinit = preinit,

@@ -1,30 +1,12 @@
-/*
- * Copyright (C) 2016, 2017, 2018 "IoT.bzh"
- * Author: José Bollo <jose.bollo@iot.bzh>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+Functions of class afb_service
+==============================
 
-#pragma once
+All the functions of the class **afb_daemon** use the default api.
+This are internally aliased to the corresponding legacy function of
+class **afb_api**.
 
-#include "afb-service-itf-x1.h"
-
-/** @addtogroup AFB_SERVICE
- *  @{ */
-
+```C
 /**
- * @deprecated use bindings version 3
- *
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * The result of the call is delivered to the 'callback' function with the 'callback_closure'.
  *
@@ -45,19 +27,14 @@
  *
  * @see also 'afb_req_subcall'
  */
-static inline void afb_service_call_v2(
+void afb_service_call(
 	const char *api,
 	const char *verb,
 	struct json_object *args,
 	void (*callback)(void*closure, int status, struct json_object *result),
-	void *callback_closure)
-{
-	afb_get_service_v2().itf->call(afb_get_service_v2().closure, api, verb, args, callback, callback_closure);
-}
+	void *callback_closure);
 
 /**
- * @deprecated use bindings version 3
- *
  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
  * 'result' will receive the response.
  *
@@ -74,13 +51,9 @@ static inline void afb_service_call_v2(
  *
  * @see also 'afb_req_subcall'
  */
-static inline int afb_service_call_sync_v2(
+int afb_service_call_sync(
 	const char *api,
 	const char *verb,
 	struct json_object *args,
-	struct json_object **result)
-{
-	return afb_get_service_v2().itf->call_sync(afb_get_service_v2().closure, api, verb, args, result);
-}
-
-/** @} */
+	struct json_object **result);
+```

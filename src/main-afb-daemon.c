@@ -601,8 +601,7 @@ static void start(int signum, void *arg)
 	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
 	apiset_start_list(main_config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
 	apiset_start_list(main_config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
-	apiset_start_list(main_config->auto_ws, afb_autoset_add_ws, "the automatic afb-websocket path set");
-	apiset_start_list(main_config->auto_link, afb_autoset_add_so, "the automatic link binding path set");
+	apiset_start_list(main_config->auto_api, afb_autoset_add_any, "the automatic api path set");
 
 #if defined(WITH_DBUS_TRANSPARENCY)
 	apiset_start_list(main_config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");

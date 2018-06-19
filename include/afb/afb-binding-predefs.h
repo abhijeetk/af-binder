@@ -282,10 +282,12 @@
 #define afb_req_x2_get_uid		afb_req_get_uid
 #define afb_req_x2_get_client_info	afb_req_get_client_info
 
+#define afb_req_x2_subcall_flags	afb_req_subcall_flags
 #define afb_req_x2_subcall_catch_events	afb_req_subcall_catch_events
 #define afb_req_x2_subcall_pass_events	afb_req_subcall_pass_events
 #define afb_req_x2_subcall_on_behalf	afb_req_subcall_on_behalf
-
+#define afb_req_x2_subcall_api_session	afb_req_subcall_api_session
+	
 #define afb_event_x2			afb_event
 #define afb_event_x2_is_valid		afb_event_is_valid
 #define afb_event_x2_broadcast		afb_event_broadcast

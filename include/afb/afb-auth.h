@@ -17,6 +17,10 @@
 
 #pragma once
 
+/** @defgroup AFB_AUTH
+ *  @{ */
+
+
 /**
  * Enumeration  for authority (Session/Token/Assurance) definitions.
  *
@@ -72,3 +76,4 @@ struct afb_auth
 	const struct afb_auth *next;
 };
 
+/** @} */

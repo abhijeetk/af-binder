@@ -17,6 +17,9 @@
 
 #pragma once
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * Describes an argument (or parameter) of a request.
  *
@@ -31,3 +34,5 @@ struct afb_arg
 				/**< when the request is finalized this file is removed */
 };
 
+
+/** @} */

@@ -257,6 +257,6 @@ extern const struct afb_binding_v3 afbBindingV3;
 #define afb_daemon_require_api_v3(...)		afb_api_require_api(afbBindingV3root,__VA_ARGS__)
 #define afb_daemon_add_alias_v3(...)		afb_api_add_alias(afbBindingV3root,__VA_ARGS__)
 
-#define afb_service_call_v3(...)		afb_api_call_legacy(afbBindingV3root,__VA_ARGS__)
-#define afb_service_call_sync_v3(...)		afb_api_call_sync_legacy(afbBindingV3root,__VA_ARGS__)
+#define afb_service_call_v3(...)		afb_api_call(afbBindingV3root,__VA_ARGS__)
+#define afb_service_call_sync_v3(...)		afb_api_call_sync(afbBindingV3root,__VA_ARGS__)
 

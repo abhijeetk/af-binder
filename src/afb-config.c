@@ -31,6 +31,9 @@
 #include "afb-config.h"
 #include "afb-hook.h"
 
+#define _d2s_(x)  #x
+#define d2s(x)    _d2s_(x)
+
 #if !defined(BINDING_INSTALL_DIR)
 #error "you should define BINDING_INSTALL_DIR"
 #endif
@@ -70,67 +73,71 @@
  */
 #define DEFAULT_MAX_SESSION_COUNT       200
 
+/**
+ * The default HTTP port to serve
+ */
+#define DEFAULT_HTTP_PORT		1234
+
+
+
+
+
 // Define command line option
-#define SET_BACKGROUND     2
-#define SET_FORGROUND      3
+#define SET_BACKGROUND     1
+#define SET_FORGROUND      2
+#define SET_ROOT_DIR       3
+#define SET_ROOT_BASE      4
+#define SET_ROOT_API       5
+#define SET_ALIAS          6
 
-#define SET_ROOT_DIR       6
-#define SET_ROOT_BASE      7
-#define SET_ROOT_API       8
-#define SET_ALIAS          9
+#define SET_CACHE_TIMEOUT  7
 
-#define SET_CACHE_TIMEOUT  10
-#define SET_SESSION_DIR    11
+#define AUTO_WS            8
+#define AUTO_LINK          9
 
-#define SET_LDPATH         13
-#define SET_APITIMEOUT     14
-#define SET_CNTXTIMEOUT    15
-#define SET_WEAK_LDPATH    16
-#define NO_LDPATH          17
+#define SET_LDPATH         10
+#define SET_APITIMEOUT     11
+#define SET_CNTXTIMEOUT    12
+#define SET_WEAK_LDPATH    13
+#define NO_LDPATH          14
 
-#if defined(KEEP_LEGACY_MODE)
-#define SET_MODE           18
+#define SET_SESSIONMAX     15
+
+#define WS_CLIENT          16
+#define WS_SERVICE         17
+
+#define SET_ROOT_HTTP      18
+
+#define SET_NO_HTTPD       19
+
+#define SET_TRACEEVT       20
+#define SET_TRACESES       21
+#define SET_TRACEREQ       22
+#define SET_TRACEAPI       23
+#if !defined(REMOVE_LEGACY_TRACE)
+#define SET_TRACEDITF      24
+#define SET_TRACESVC       25
 #endif
 
 #if HAS_DBUS
-#   define DBUS_CLIENT        20
-#   define DBUS_SERVICE       21
+#   define DBUS_CLIENT        30
+#   define DBUS_SERVICE       31
 #endif
 
 
-#define SET_SESSIONMAX     23
-
-#define WS_CLIENT          24
-#define WS_SERVICE         25
-
-#define SET_ROOT_HTTP      26
-
-#define SET_NO_HTTPD       28
-
-#define AUTO_WS            'a'
-#define AUTO_LINK          'A'
+#define AUTO_API           'A'
 #define SO_BINDING         'b'
 #define ADD_CALL           'c'
-#if !defined(REMOVE_LEGACY_TRACE)
-#define SET_TRACEDITF      'D'
-#endif
-#define SET_TRACEEVT       'E'
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
 #define SET_LOG            'l'
-#define SET_TRACEAPI       'I'
 #if HAS_MONITORING
-#   define SET_MONITORING     'M'
+#define SET_MONITORING     'M'
 #endif
 #define SET_NAME           'n'
 #define SET_TCP_PORT       'p'
 #define SET_QUIET          'q'
 #define SET_RNDTOKEN       'r'
-#if !defined(REMOVE_LEGACY_TRACE)
-#define SET_TRACESVC       'S'
-#endif
-#define SET_TRACESES       's'
-#define SET_TRACEREQ       'T'
 #define SET_AUTH_TOKEN     't'
 #define SET_UPLOAD_DIR     'u'
 #define DISPLAY_VERSION    'V'
@@ -138,18 +145,24 @@
 #define SET_WORK_DIR       'w'
 
 const char shortopts[] =
-	"a:A:b:c:"
-#if !defined(REMOVE_LEGACY_TRACE)
-	"D:"
-#endif
-	"E:ehl:n:p:qr"
-#if !defined(REMOVE_LEGACY_TRACE)
-	"S:"
-#endif
-	"s:T:t:u:Vvw:"
+	"A:"
+	"b:"
+	"c:"
+	"e"
+	"h"
+	"l:"
 #if HAS_MONITORING
 	"M"
 #endif
+	"n:"
+	"p:"
+	"q"
+	"r"
+	"t:"
+	"u:"
+	"V"
+	"v"
+	"w:"
 ;
 
 // Command line structure hold cli --command + help text
@@ -165,27 +178,26 @@ static AFB_options cliOptions[] = {
 /* *INDENT-OFF* */
 	{SET_VERBOSE,       0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
 	{SET_QUIET,         0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
-	{SET_LOG,           1, "log",         "tune log level"},
+	{SET_LOG,           1, "log",         "Tune log level"},
 
 	{SET_FORGROUND,     0, "foreground",  "Get all in foreground mode"},
 	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
 
 	{SET_NAME,          1, "name",        "Set the visible name"},
 
-	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default 1234]"},
+	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default " d2s(DEFAULT_HTTP_PORT) "]"},
 	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
 	{SET_ROOT_BASE,     1, "rootbase",    "Angular Base Root URL [default /opa]"},
 	{SET_ROOT_API,      1, "rootapi",     "HTML Root API URL [default /api]"},
 	{SET_ALIAS,         1, "alias",       "Multiple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
 
-	{SET_APITIMEOUT,    1, "apitimeout",  "Binding API timeout in seconds [default 10]"},
-	{SET_CNTXTIMEOUT,   1, "cntxtimeout", "Client Session Context Timeout [default 900]"},
-	{SET_CACHE_TIMEOUT, 1, "cache-eol",   "Client cache end of live [default 3600]"},
+	{SET_APITIMEOUT,    1, "apitimeout",  "Binding API timeout in seconds [default " d2s(DEFAULT_API_TIMEOUT) "]"},
+	{SET_CNTXTIMEOUT,   1, "cntxtimeout", "Client Session Context Timeout [default " d2s(DEFAULT_SESSION_TIMEOUT) "]"},
+	{SET_CACHE_TIMEOUT, 1, "cache-eol",   "Client cache end of live [default " d2s(DEFAULT_CACHE_TIMEOUT) "]"},
 
 	{SET_WORK_DIR,      1, "workdir",     "Set the working directory [default: $PWD or current working directory]"},
 	{SET_UPLOAD_DIR,    1, "uploaddir",   "Directory for uploading files [default: workdir]"},
 	{SET_ROOT_DIR,      1, "rootdir",     "Root Directory of the application [default: workdir]"},
-	{SET_SESSION_DIR,   1, "sessiondir",  "OBSOLETE (was: Sessions file path)"},
 
 	{SET_LDPATH,        1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
 	{SO_BINDING,        1, "binding",     "Load the binding of path"},
@@ -198,21 +210,16 @@ static AFB_options cliOptions[] = {
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
-#if defined(KEEP_LEGACY_MODE)
-	{SET_MODE,          1, "mode",        "Set the mode: either local, remote or global"},
-#endif
-
 #if HAS_DBUS
 	{DBUS_CLIENT,       1, "dbus-client", "Bind to an afb service through dbus"},
-	{DBUS_SERVICE,      1, "dbus-server", "Provides an afb service through dbus"},
+	{DBUS_SERVICE,      1, "dbus-server", "Provide an afb service through dbus"},
 #endif
 	{WS_CLIENT,         1, "ws-client",   "Bind to an afb service through websocket"},
-	{WS_SERVICE,        1, "ws-server",   "Provides an afb service through websockets"},
+	{WS_SERVICE,        1, "ws-server",   "Provide an afb service through websockets"},
 
-	{AUTO_WS,           1, "auto-ws",     "Automatic bind on need to remote service through websocket"},
-	{AUTO_LINK,         1, "auto-link",   "Automatic load on need to binding shared objects"},
+	{AUTO_API,          1, "auto-api",    "Automatic load of api of the given directory"},
 
-	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default 10]"},
+	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default " d2s(DEFAULT_MAX_SESSION_COUNT) "]"},
 
 	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
 #if !defined(REMOVE_LEGACY_TRACE)
@@ -225,11 +232,11 @@ static AFB_options cliOptions[] = {
 
 	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
 
-	{SET_NO_HTTPD,      0, "no-httpd",    "Forbids HTTP service"},
+	{SET_NO_HTTPD,      0, "no-httpd",    "Forbid HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
 #if HAS_MONITORING
-	{SET_MONITORING,    0, "monitoring",  "enable HTTP monitoring at <ROOT>/monitoring/"},
+	{SET_MONITORING,    0, "monitoring",  "Enable HTTP monitoring at <ROOT>/monitoring/"},
 #endif
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
@@ -289,17 +296,6 @@ static struct enumdesc traceapi_desc[] = {
 	{ NULL, 0 }
 };
 
-#if defined(KEEP_LEGACY_MODE)
-#include <afb/afb-binding-v1.h>
-
-static struct enumdesc mode_desc[] = {
-	{ "local",  AFB_MODE_LOCAL },
-	{ "remote", AFB_MODE_REMOTE },
-	{ "global", AFB_MODE_GLOBAL },
-	{ NULL, 0 }
-};
-#endif
-
 /*----------------------------------------------------------
  | printversion
  |   print version and copyright
@@ -330,17 +326,28 @@ static void printVersion(FILE * file)
 static void printHelp(FILE * file, const char *name)
 {
 	int ind;
-	char command[50];
+	char command[50], sht[4];
 
+	sht[3] = 0;
 	fprintf(file, "%s:\nallowed options\n", name);
 	for (ind = 0; cliOptions[ind].name != NULL; ind++) {
+		if (((cliOptions[ind].val >= 'a' && cliOptions[ind].val <= 'z')
+		 || (cliOptions[ind].val >= 'A' && cliOptions[ind].val <= 'Z')
+		 || (cliOptions[ind].val >= '0' && cliOptions[ind].val <= '9'))
+		 && strchr(shortopts, (char)cliOptions[ind].val)) {
+			sht[0] = '-';
+			sht[1] = (char)cliOptions[ind].val;
+			sht[2] = ',';
+		} else {
+			sht[0] = sht[1] = sht[2] = ' ';
+		}
 		strcpy(command, cliOptions[ind].name);
 		if (cliOptions[ind].has_arg)
 			strcat(command, "=xxxx");
-		fprintf(file, "  --%-15s %s\n", command, cliOptions[ind].help);
+		fprintf(file, " %s --%-17s %s\n", sht, command, cliOptions[ind].help);
 	}
 	fprintf(file,
-		"Example:\n  %s  --verbose --port=1234 --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
+		"Example:\n  %s  --verbose --port=" d2s(DEFAULT_HTTP_PORT) " --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
 		name);
 }
 
@@ -642,11 +649,6 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			list_add(&config->calls, argvalstr(optc));
 			break;
 
-		case SET_SESSION_DIR:
-			/* config->sessiondir = argvalstr(optc); */
-			WARNING("Obsolete option %s ignored", name_of_option(optc));
-			break;
-
 		case SET_UPLOAD_DIR:
 			config->uploaddir = argvalstr(optc);
 			break;
@@ -677,12 +679,6 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->name = argvalstr(optc);
 			break;
 
-#if defined(KEEP_LEGACY_MODE)
-		case SET_MODE:
-			config->mode = argvalenum(optc, mode_desc);
-			break;
-#endif
-
 #if HAS_DBUS
 		case DBUS_CLIENT:
 			list_add(&config->dbus_clients, argvalstr(optc));
@@ -705,12 +701,8 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			list_add(&config->so_bindings, argvalstr(optc));
 			break;
 
-		case AUTO_WS:
-			list_add(&config->auto_ws, argvalstr(optc));
-			break;
-
-		case AUTO_LINK:
-			list_add(&config->auto_link, argvalstr(optc));
+		case AUTO_API:
+			list_add(&config->auto_api, argvalstr(optc));
 			break;
 
 		case SET_TRACEREQ:
@@ -779,7 +771,7 @@ static void fulfill_config(struct afb_config *config)
 {
 	// default HTTP port
 	if (config->http_port == 0)
-		config->http_port = 1234;
+		config->http_port = DEFAULT_HTTP_PORT;
 
 	// default binding API timeout
 	if (config->api_timeout == 0)
@@ -874,6 +866,7 @@ void afb_config_dump(struct afb_config *config)
 	L(ws_clients)
 	L(ws_servers)
 	L(so_bindings)
+	L(auto_api)
 	L(ldpaths)
 	L(weak_ldpaths)
 	L(calls)
@@ -886,9 +879,6 @@ void afb_config_dump(struct afb_config *config)
 	D(session_timeout)
 	D(max_session_count)
 
-#if defined(KEEP_LEGACY_MODE)
-	E(mode,mode_desc)
-#endif
 	E(tracereq,tracereq_desc)
 #if !defined(REMOVE_LEGACY_TRACE)
 	E(traceditf,traceditf_desc)
@@ -1016,6 +1006,7 @@ struct json_object *afb_config_json(struct afb_config *config)
 	L(ws_clients)
 	L(ws_servers)
 	L(so_bindings)
+	L(auto_api)
 	L(ldpaths)
 	L(weak_ldpaths)
 	L(calls)
@@ -1028,9 +1019,6 @@ struct json_object *afb_config_json(struct afb_config *config)
 	D(session_timeout)
 	D(max_session_count)
 
-#if defined(KEEP_LEGACY_MODE)
-	E(mode,mode_desc)
-#endif
 	E(tracereq,tracereq_desc)
 #if !defined(REMOVE_LEGACY_TRACE)
 	E(traceditf,traceditf_desc)

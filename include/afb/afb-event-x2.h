@@ -19,6 +19,9 @@
 
 #include "afb-event-x2-itf.h"
 
+/** @defgroup AFB_EVENT
+ *  @{ */
+
 /**
  * Checks whether the 'event' is valid or not.
  *
@@ -111,3 +114,4 @@ static inline struct afb_event_x2 *afb_event_x2_addref(
 	return event->itf->addref(event);
 }
 
+/** @} */

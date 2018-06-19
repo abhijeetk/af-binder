@@ -20,6 +20,9 @@
 #include "afb-verbosity.h"
 #include "afb-api-x3-itf.h"
 
+/** @defgroup AFB_API
+ *  @{ */
+
 /**
  * Get the name of the 'api'.
  *
@@ -30,7 +33,8 @@
  * The returned value must not be changed nor freed.
  */
 static inline
-const char *afb_api_x3_name(struct afb_api_x3 *api)
+const char *afb_api_x3_name(
+			struct afb_api_x3 *api)
 {
 	return api->apiname;
 }
@@ -45,7 +49,8 @@ const char *afb_api_x3_name(struct afb_api_x3 *api)
  * @see afb_api_x3_set_userdata
  */
 static inline
-void *afb_api_x3_get_userdata(struct afb_api_x3 *api)
+void *afb_api_x3_get_userdata(
+			struct afb_api_x3 *api)
 {
 	return api->userdata;
 }
@@ -59,7 +64,9 @@ void *afb_api_x3_get_userdata(struct afb_api_x3 *api)
  * @see afb_api_x3_get_userdata
  */
 static inline
-void afb_api_x3_set_userdata(struct afb_api_x3 *api, void *value)
+void afb_api_x3_set_userdata(
+			struct afb_api_x3 *api,
+			void *value)
 {
 	api->userdata = value;
 }
@@ -84,16 +91,18 @@ void afb_api_x3_set_userdata(struct afb_api_x3 *api, void *value)
  * @see syslog
  */
 static inline
-int afb_api_x3_wants_log_level(struct afb_api_x3 *api, int level)
+int afb_api_x3_wants_log_level(
+			struct afb_api_x3 *api,
+			int level)
 {
 	return AFB_SYSLOG_MASK_WANT(api->logmask, level);
 }
 
 /**
- * Send to the journal with the log 'level' a message described
+ * Send to the journal with the logging 'level' a message described
  * by 'fmt' applied to the va-list 'args'.
  *
- * 'file', 'line' and 'func' are indicators of position of the code in source files
+ * 'file', 'line' and 'func' are indicators of code position in source files
  * (see macros __FILE__, __LINE__ and __func__).
  *
  * 'level' is defined by syslog standard:
@@ -111,7 +120,7 @@ int afb_api_x3_wants_log_level(struct afb_api_x3 *api, int level)
  * @param level the level of the message
  * @param file the source file that logs the messages or NULL
  * @param line the line in the source file that logs the message
- * @param func the name of the function in the source file that logs
+ * @param func the name of the function in the source file that logs (or NULL)
  * @param fmt the format of the message as in printf
  * @param args the arguments to the format string of the message as a va_list
  *
@@ -119,7 +128,14 @@ int afb_api_x3_wants_log_level(struct afb_api_x3 *api, int level)
  * @see printf
  */
 static inline
-void afb_api_x3_vverbose(struct afb_api_x3 *api, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
+void afb_api_x3_vverbose(
+			struct afb_api_x3 *api,
+			int level,
+			const char *file,
+			int line,
+			const char *func,
+			const char *fmt,
+			va_list args)
 {
 	api->itf->vverbose(api, level, file, line, func, fmt, args);
 }
@@ -145,7 +161,7 @@ void afb_api_x3_vverbose(struct afb_api_x3 *api, int level, const char *file, in
  * @param level the level of the message
  * @param file the source file that logs the messages or NULL
  * @param line the line in the source file that logs the message
- * @param func the name of the function in the source file that logs
+ * @param func the name of the function in the source file that logs (or NULL)
  * @param fmt the format of the message as in printf
  * @param ... the arguments to the format string of the message
  *
@@ -180,7 +196,8 @@ void afb_api_x3_verbose(
  * @see afb_api_x3_get_system_bus
  */
 static inline
-struct sd_event *afb_api_x3_get_event_loop(struct afb_api_x3 *api)
+struct sd_event *afb_api_x3_get_event_loop(
+			struct afb_api_x3 *api)
 {
 	return api->itf->get_event_loop(api);
 }
@@ -196,7 +213,8 @@ struct sd_event *afb_api_x3_get_event_loop(struct afb_api_x3 *api)
  * @see afb_api_x3_get_system_bus
  */
 static inline
-struct sd_bus *afb_api_x3_get_user_bus(struct afb_api_x3 *api)
+struct sd_bus *afb_api_x3_get_user_bus(
+			struct afb_api_x3 *api)
 {
 	return api->itf->get_user_bus(api);
 }
@@ -213,7 +231,8 @@ struct sd_bus *afb_api_x3_get_user_bus(struct afb_api_x3 *api)
  */
 
 static inline
-struct sd_bus *afb_api_x3_get_system_bus(struct afb_api_x3 *api)
+struct sd_bus *afb_api_x3_get_system_bus(
+			struct afb_api_x3 *api)
 {
 	return api->itf->get_system_bus(api);
 }
@@ -228,10 +247,10 @@ struct sd_bus *afb_api_x3_get_system_bus(struct afb_api_x3 *api)
  * This can be used to get the path of the root directory using:
  *
  * ```C
- * char buffer[MAX_PATH];
- * int dirfd = afb_api_x3_rootdir_get_fd(api);
- * snprintf(buffer, sizeof buffer, "/proc/self/fd/%d", dirfd);
- * readlink(buffer, buffer, sizeof buffer);
+ * char buffer[MAX_PATH], proc[100];
+ * int dirfd = afb_api_rootdir_get_fd(api);
+ * snprintf(proc, sizeof proc, "/proc/self/fd/%d", dirfd);
+ * readlink(proc, buffer, sizeof buffer);
  * ```
  *
  * But note that within AGL this is the value given by the environment variable
@@ -244,7 +263,8 @@ struct sd_bus *afb_api_x3_get_system_bus(struct afb_api_x3 *api)
  * @see afb_api_x3_rootdir_open_locale
  */
 static inline
-int afb_api_x3_rootdir_get_fd(struct afb_api_x3 *api)
+int afb_api_x3_rootdir_get_fd(
+			struct afb_api_x3 *api)
 {
 	return api->itf->rootdir_get_fd(api);
 }
@@ -273,7 +293,11 @@ int afb_api_x3_rootdir_get_fd(struct afb_api_x3 *api)
  * @see afb_api_x3_rootdir_get_fd
  */
 static inline
-int afb_api_x3_rootdir_open_locale(struct afb_api_x3 *api, const char *filename, int flags, const char *locale)
+int afb_api_x3_rootdir_open_locale(
+			struct afb_api_x3 *api,
+			const char *filename,
+			int flags,
+			const char *locale)
 {
 	return api->itf->rootdir_open_locale(api, filename, flags, locale);
 }
@@ -297,14 +321,14 @@ int afb_api_x3_rootdir_open_locale(struct afb_api_x3 *api, const char *filename,
  *  - int signum: the signal catched if any or zero at the beginning
  *  - void *arg: the parameter 'argument'
  *
- * A typical implmentation of the job callback is:
+ * A typical implementation of the job callback is:
  *
  * ```C
  * void my_job_cb(int signum, void *arg)
  * {
  *	struct myarg_t *myarg = arg;
  *	if (signum)
- *		AFB_API_ERROR(myarg->api, "job interupted with signal %s", strsignal(signum));
+ *		AFB_API_ERROR(myarg->api, "job interrupted with signal %s", strsignal(signum));
  *	else
  *		really_do_my_job(myarg);
  * }
@@ -319,27 +343,38 @@ int afb_api_x3_rootdir_open_locale(struct afb_api_x3 *api, const char *filename,
  * @return 0 in case of success or -1 in case of error with errno set appropriately.
  */
 static inline
-int afb_api_x3_queue_job(struct afb_api_x3 *api, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout)
+int afb_api_x3_queue_job(
+			struct afb_api_x3 *api,
+			void (*callback)(int signum, void *arg),
+			void *argument,
+			void *group,
+			int timeout)
 {
 	return api->itf->queue_job(api, callback, argument, group, timeout);
 }
 
 /**
- * Tells that it requires the API of "name" to exist
- * and if 'initialized' is not null to be initialized.
+ * Check that it requires the API of 'name'.
+ * If 'initialized' is not zero it request the API to be
+ * initialized, implying its initialization if needed.
+ * 
  * Calling this function is only allowed within init.
  *
  * A single request allows to require multiple apis.
  *
  * @param api the api that requires the other api by its name
- * @param name a space separated list of the names of the required api
+ * @param name a space separated list of required api names
  * @param initialized if zero, the api is just required to exist. If not zero,
- * the api is required to exist and to be initialized.
+ * the api is required to exist and to be initialized at return of the call
+ * (initializing it if needed and possible as a side effect of the call).
  *
  * @return 0 in case of success or -1 in case of error with errno set appropriately.
  */
 static inline
-int afb_api_x3_require_api(struct afb_api_x3 *api, const char *name, int initialized)
+int afb_api_x3_require_api(
+			struct afb_api_x3 *api,
+			const char *name,
+			int initialized)
 {
 	return api->itf->require_api(api, name, initialized);
 }
@@ -355,7 +390,10 @@ int afb_api_x3_require_api(struct afb_api_x3 *api, const char *name, int initial
  * @return 0 in case of success or -1 in case of error with errno set appropriately.
  */
 static inline
-int afb_api_x3_add_alias(struct afb_api_x3 *api, const char *name, const char *as_name)
+int afb_api_x3_add_alias(
+			struct afb_api_x3 *api,
+			const char *name,
+			const char *as_name)
 {
 	return api->itf->add_alias(api, name, as_name);
 }
@@ -380,7 +418,10 @@ int afb_api_x3_add_alias(struct afb_api_x3 *api, const char *name, const char *a
  * @return the count of clients that received the event.
  */
 static inline
-int afb_api_x3_broadcast_event(struct afb_api_x3 *api, const char *name, struct json_object *object)
+int afb_api_x3_broadcast_event(
+			struct afb_api_x3 *api,
+			const char *name,
+			struct json_object *object)
 {
 	return api->itf->event_broadcast(api, name, object);
 }
@@ -404,7 +445,9 @@ int afb_api_x3_broadcast_event(struct afb_api_x3 *api, const char *name, struct 
  * @see afb_event_is_valid
  */
 static inline
-struct afb_event_x2 *afb_api_x3_make_event_x2(struct afb_api_x3 *api, const char *name)
+struct afb_event_x2 *afb_api_x3_make_event_x2(
+			struct afb_api_x3 *api,
+			const char *name)
 {
 	return api->itf->event_make(api, name);
 }
@@ -439,12 +482,15 @@ struct afb_event_x2 *afb_api_x3_make_event_x2(struct afb_api_x3 *api, const char
  */
 static inline
 void afb_api_x3_call_legacy(
-	struct afb_api_x3 *api,
-	const char *apiname,
-	const char *verb,
-	struct json_object *args,
-	void (*callback)(void *closure, int status, struct json_object *result, struct afb_api_x3 *api),
-	void *closure)
+			struct afb_api_x3 *api,
+			const char *apiname,
+			const char *verb,
+			struct json_object *args,
+			void (*callback)(void *closure,
+					int status,
+					struct json_object *result,
+					struct afb_api_x3 *api),
+			void *closure)
 {
 	api->itf->legacy_call(api, apiname, verb, args, callback, closure);
 }
@@ -475,11 +521,11 @@ void afb_api_x3_call_legacy(
  */
 static inline
 int afb_api_x3_call_sync_legacy(
-	struct afb_api_x3 *api,
-	const char *apiname,
-	const char *verb,
-	struct json_object *args,
-	struct json_object **result)
+			struct afb_api_x3 *api,
+			const char *apiname,
+			const char *verb,
+			struct json_object *args,
+			struct json_object **result)
 {
 	return api->itf->legacy_call_sync(api, apiname, verb, args, result);
 }
@@ -511,12 +557,12 @@ int afb_api_x3_call_sync_legacy(
  */
 static inline
 struct afb_api_x3 *afb_api_x3_new_api(
-	struct afb_api_x3 *api,
-	const char *apiname,
-	const char *info,
-	int noconcurrency,
-	int (*preinit)(void*, struct afb_api_x3 *),
-	void *closure)
+			struct afb_api_x3 *api,
+			const char *apiname,
+			const char *info,
+			int noconcurrency,
+			int (*preinit)(void*, struct afb_api_x3 *),
+			void *closure)
 {
 	return api->itf->api_new_api(api, apiname, info, noconcurrency, preinit, closure);
 }
@@ -537,8 +583,8 @@ struct afb_api_x3 *afb_api_x3_new_api(
  */
 static inline 
 int afb_api_x3_set_verbs_v2(
-	struct afb_api_x3 *api,
-	const struct afb_verb_v2 *verbs)
+			struct afb_api_x3 *api,
+			const struct afb_verb_v2 *verbs)
 {
 	return api->itf->api_set_verbs_v2(api, verbs);
 }
@@ -624,7 +670,10 @@ int afb_api_x3_del_verb(
 static inline
 int afb_api_x3_on_event(
 			struct afb_api_x3 *api,
-			void (*onevent)(struct afb_api_x3 *api, const char *event, struct json_object *object))
+			void (*onevent)(
+				struct afb_api_x3 *api,
+				const char *event,
+				struct json_object *object))
 {
 	return api->itf->api_set_on_event(api, onevent);
 }
@@ -719,7 +768,11 @@ static inline
 int afb_api_x3_event_handler_add(
 			struct afb_api_x3 *api,
 			const char *pattern,
-			void (*callback)(void *, const char*, struct json_object*, struct afb_api_x3*),
+			void (*callback)(
+				void *,
+				const char*,
+				struct json_object*,
+				struct afb_api_x3*),
 			void *closure)
 {
 	return api->itf->event_handler_add(api, pattern, callback, closure);
@@ -779,7 +832,12 @@ void afb_api_x3_call(
 			const char *apiname,
 			const char *verb,
 			struct json_object *args,
-			void (*callback)(void *closure, struct json_object *object, const char *error, const char * info, struct afb_api_x3 *api),
+			void (*callback)(
+				void *closure,
+				struct json_object *object,
+				const char *error,
+				const char * info,
+				struct afb_api_x3 *api),
 			void *closure)
 {
 	api->itf->call(api, apiname, verb, args, callback, closure);
@@ -850,7 +908,7 @@ int afb_api_x3_provide_class(
  * This function is only valid during the pre-initialization stage.
  *
  * @param api  the api that requires the classes
- * @param name a space separated list of the names of the requireded classes
+ * @param name a space separated list of the names of the required classes
  *
  * @returns 0 in case of success or a negative value in case of error.
  *
@@ -882,3 +940,5 @@ int afb_api_x3_delete_api(
 {
 	return api->itf->delete_api(api);
 }
+
+/** @} */

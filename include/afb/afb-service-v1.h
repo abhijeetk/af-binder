@@ -19,6 +19,9 @@
 
 #include "afb-service-itf-x1.h"
 
+/** @addtogroup AFB_SERVICE
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -84,3 +87,4 @@ static inline int afb_service_call_sync_v1(
 	return service.itf->call_sync(service.closure, api, verb, args, result);
 }
 
+/** @} */

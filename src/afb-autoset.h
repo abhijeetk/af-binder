@@ -21,3 +21,4 @@ struct afb_apiset;
 
 extern int afb_autoset_add_ws(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set);
 extern int afb_autoset_add_so(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set);
+extern int afb_autoset_add_any(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set);

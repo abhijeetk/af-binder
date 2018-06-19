@@ -19,6 +19,9 @@
 
 struct afb_api_x3;
 
+/** @defgroup AFB_SERVICE
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -49,3 +52,4 @@ struct afb_service_x1
 	struct afb_api_x3 *closure;
 };
 
+/** @} */

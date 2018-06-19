@@ -20,6 +20,9 @@
 #include "afb-req-x1-itf.h"
 #include "afb-event-x1.h"
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -451,3 +454,5 @@ static inline struct json_object *afb_req_x1_get_client_info(struct afb_req_x1 r
 }
 
 
+
+/** @} */

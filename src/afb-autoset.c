@@ -73,6 +73,8 @@ static int add(const char *path, struct afb_apiset *declare_set, struct afb_apis
 	return 0;
 }
 
+/*******************************************************************/
+
 static int create_ws(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
 	return afb_api_ws_add_client(path, declare_set, call_set, 0) >= 0;
@@ -88,6 +90,8 @@ int afb_autoset_add_ws(const char *path, struct afb_apiset *declare_set, struct 
 	return add(path, declare_set, call_set, onlack_ws);
 }
 
+/*******************************************************************/
+
 static int create_so(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
 	return afb_api_so_add_binding(path, declare_set, call_set) >= 0;
@@ -101,4 +105,39 @@ static int onlack_so(void *closure, struct afb_apiset *set, const char *name)
 int afb_autoset_add_so(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
 {
 	return add(path, declare_set, call_set, onlack_so);
+}
+
+/*******************************************************************/
+
+static int create_any(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
+{
+	int rc;
+	struct stat st;
+
+	rc = stat(path, &st);
+	if (!rc) {
+		switch(st.st_mode & S_IFMT) {
+		case S_IFREG:
+			rc = afb_api_so_add_binding(path, declare_set, call_set);
+			break;
+		case S_IFSOCK:
+			rc = afb_api_ws_add_client(path, declare_set, call_set, 0);
+			break;
+		default:
+			NOTICE("Unexpected autoset entry: %s", path);
+			rc = -1;
+			break;
+		}
+	}
+	return rc >= 0;
+}
+
+static int onlack_any(void *closure, struct afb_apiset *set, const char *name)
+{
+	return onlack(closure, set, name, create_any);
+}
+
+int afb_autoset_add_any(const char *path, struct afb_apiset *declare_set, struct afb_apiset *call_set)
+{
+	return add(path, declare_set, call_set, onlack_any);
 }

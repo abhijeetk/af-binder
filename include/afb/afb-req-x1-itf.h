@@ -19,6 +19,9 @@
 
 #include "afb-req-x2-itf.h"
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -30,3 +33,5 @@ struct afb_req_x1
 	struct afb_req_x2 *closure;		/**< the closure argument for functions of 'itf' */
 };
 
+
+/** @} */

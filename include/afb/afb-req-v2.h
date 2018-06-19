@@ -19,6 +19,9 @@
 
 #include "afb-req-x1.h"
 
+/** @addtogroup AFB_REQ
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -32,3 +35,5 @@ static inline struct afb_stored_req *afb_req_x1_store_v2(struct afb_req_x1 req)
 	return req.itf->legacy_store_req(req.closure);
 }
 
+
+/** @} */

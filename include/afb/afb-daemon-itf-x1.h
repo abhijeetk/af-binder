@@ -27,6 +27,9 @@ struct afb_req_x1;
 struct afb_event_x1;
 struct afb_api_x3;
 
+/** @defgroup AFB_DAEMON
+ *  @{ */
+
 /**
  * @deprecated use bindings version 3
  *
@@ -89,3 +92,4 @@ struct afb_daemon_x1
 	struct afb_api_x3 *closure;             /**< the closure when calling these functions */
 };
 
+/** @} */
