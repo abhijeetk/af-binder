@@ -685,33 +685,42 @@ static void hook_api_event_make(void *closure, const struct afb_hookid *hookid, 
 
 static void hook_api_rootdir_get_fd(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)
 {
-	char path[PATH_MAX];
+	char path[PATH_MAX], proc[100];
+	const char *key, *val;
 
 	if (result >= 0) {
-		sprintf(path, "/proc/self/fd/%d", result);
-		readlink(path, path, sizeof path);
+		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
+		readlink(proc, path, sizeof path);
+		key = "path";
+		val = path;
+	} else {
+		key = "error";
+		val = strerror(errno);
 	}
 
-	hook_api(closure, hookid, export, "rootdir_get_fd", "{ss}",
-			result < 0 ? "path" : "error",
-			result < 0 ? strerror(errno) : path);
+	hook_api(closure, hookid, export, "rootdir_get_fd", "{ss}", key, val);
 }
 
 static void hook_api_rootdir_open_locale(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *filename, int flags, const char *locale, int result)
 {
-	char path[PATH_MAX];
+	char path[PATH_MAX], proc[100];
+	const char *key, *val;
 
 	if (result >= 0) {
-		sprintf(path, "/proc/self/fd/%d", result);
-		readlink(path, path, sizeof path);
+		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
+		readlink(proc, path, sizeof path);
+		key = "path";
+		val = path;
+	} else {
+		key = "error";
+		val = strerror(errno);
 	}
 
 	hook_api(closure, hookid, export, "rootdir_open_locale", "{ss si ss* ss}",
 			"file", filename,
 			"flags", flags,
 			"locale", locale,
-			result < 0 ? "path" : "error",
-			result < 0 ? strerror(errno) : path);
+			key, val);
 }
 
 static void hook_api_queue_job(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, void (*callback)(int signum, void *arg), void *argument, void *group, int timeout, int result)
