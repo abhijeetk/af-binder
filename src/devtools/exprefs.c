@@ -136,7 +136,7 @@ struct json_object *expand(struct path path)
 	case json_type_array:
 		/* expand the values of arrays */
 		i = 0;
-		n = json_object_array_length(path.object);
+		n = (int)json_object_array_length(path.object);
 		while (i != n) {
 			o = json_object_array_get_idx(path.object, i);
 			x = expand((struct path){ .object = o, .upper = &path });

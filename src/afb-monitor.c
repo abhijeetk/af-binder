@@ -218,7 +218,7 @@ static struct json_object *get_verbosity(struct json_object *spec)
 			json_object_iter_next(&it);
 		}
 	} else if (json_object_is_type(spec, json_type_array)) {
-		n = json_object_array_length(spec);
+		n = (int)json_object_array_length(spec);
 		for (i = 0 ; i < n ; i++)
 			get_verbosity_of(resu, json_object_get_string(json_object_array_get_idx(spec, i)));
 	} else if (json_object_is_type(spec, json_type_string)) {
@@ -280,7 +280,7 @@ static struct json_object *get_apis(struct json_object *spec)
 			json_object_iter_next(&it);
 		}
 	} else if (json_object_is_type(spec, json_type_array)) {
-		n = json_object_array_length(spec);
+		n = (int)json_object_array_length(spec);
 		for (i = 0 ; i < n ; i++)
 			get_one_api(resu, json_object_get_string(json_object_array_get_idx(spec, i)), NULL);
 	} else if (json_object_is_type(spec, json_type_string)) {

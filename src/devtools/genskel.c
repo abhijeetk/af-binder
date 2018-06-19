@@ -153,7 +153,7 @@ struct json_object *expand_$ref(struct path path)
 	case json_type_array:
 		/* expand the values of arrays */
 		i = 0;
-		n = json_object_array_length(path.object);
+		n = (int)json_object_array_length(path.object);
 		while (i != n) {
 			o = json_object_array_get_idx(path.object, i);
 			x = expand_$ref((struct path){ .object = o, .upper = &path });
@@ -290,7 +290,7 @@ void print_perms()
 	int i, n;
 	const char *fmtstr = cpp ? "\t%s" : "\t{ %s }";
 
-	n = a_perms ? json_object_array_length(a_perms) : 0;
+	n = a_perms ? (int)json_object_array_length(a_perms) : 0;
 	if (n) {
 		printf("static const struct afb_auth _afb_auths_%s[] = {\n" , capi);
 		i = 0;
@@ -322,7 +322,7 @@ struct json_object *new_perm(struct json_object *obj, const char *desc)
 		}
 
 		/* creates the reference in the structure */
-		asprintf(&b, "&_afb_auths_%s[%d]", capi, json_object_array_length(a_perms));
+		asprintf(&b, "&_afb_auths_%s[%d]", capi, (int)json_object_array_length(a_perms));
 		x = json_object_new_string(desc);
 		y = json_object_new_string(b);
 		json_object_array_add(a_perms, x);
@@ -352,7 +352,7 @@ struct json_object *decl_perm_a(enum optype op, struct json_object *obj)
 		opstr = op==And ? "And" : "Or";
 	}
 	x = NULL;
-	i = n = obj ? json_object_array_length(obj) : 0;
+	i = n = obj ? (int)json_object_array_length(obj) : 0;
 	while (i) {
 		y = decl_perm(json_object_array_get_idx(obj, --i));
 		if (!y)
@@ -438,7 +438,7 @@ int get_session_a(int and, struct json_object *obj)
 {
 	int i, n, x, y;
 
-	n = obj ? json_object_array_length(obj) : 0;
+	n = obj ? (int)json_object_array_length(obj) : 0;
 	if (n == 0)
 		return 0;
 

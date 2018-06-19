@@ -366,7 +366,7 @@ static int packsingle(struct sd_bus_message *msg, const char *signature, struct 
 			goto error;
 		if (json_object_is_type(item, json_type_array)) {
 			/* Is an array! */
-			count = json_object_array_length(item);
+			count = (int)json_object_array_length(item);
 			index = 0;
 			while(index < count) {
 				rc = packsingle(msg, subsig, json_object_array_get_idx(item, index++));
@@ -461,7 +461,7 @@ static int packlist(struct sd_bus_message *msg, const char *signature, struct js
 	}
 
 	/* iterate over elements */
-	count = json_object_array_length(list);
+	count = (int)json_object_array_length(list);
 	index = 0;
 	for (;;) {
 		/* check state */

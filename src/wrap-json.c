@@ -948,7 +948,7 @@ static struct json_object *clone_object(struct json_object *object, int subdepth
  */
 static struct json_object *clone_array(struct json_object *array, int subdepth)
 {
-	int n = json_object_array_length(array);
+	int n = (int)json_object_array_length(array);
 	struct json_object *r = json_object_new_array();
 	while (n) {
 		n--;
@@ -1183,8 +1183,8 @@ static int jcmp(struct json_object *x, struct json_object *y, int inc, int sort)
 		break;
 
 	case json_type_array:
-		nx = json_object_array_length(x);
-		ny = json_object_array_length(y);
+		nx = (int)json_object_array_length(x);
+		ny = (int)json_object_array_length(y);
 		r = nx - ny;
 		if (r > 0 && inc)
 			r = 0;
