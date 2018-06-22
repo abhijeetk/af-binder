@@ -120,11 +120,34 @@ void afb_api_v3_process_call(struct afb_api_v3 *api, struct afb_xreq *xreq)
 	afb_xreq_reply_unknown_verb(xreq);
 }
 
+static struct json_object *describe_verb_v3(const struct afb_verb_v3 *verb)
+{
+	struct json_object *f, *a, *g;
+
+	f = json_object_new_object();
+
+	g = json_object_new_object();
+	json_object_object_add(f, "get", g);
+
+	a = afb_auth_json_v2(verb->auth, verb->session);
+	if (a)
+		json_object_object_add(g, "x-permissions", a);
+
+	a = json_object_new_object();
+	json_object_object_add(g, "responses", a);
+	f = json_object_new_object();
+	json_object_object_add(a, "200", f);
+	json_object_object_add(f, "description", json_object_new_string(verb->info?:verb->verb));
+
+	return f;
+}
+
 struct json_object *afb_api_v3_make_description_openAPIv3(struct afb_api_v3 *api, const char *apiname)
 {
 	char buffer[256];
-	struct afb_verb_v3 **iter, **end, *verb;
-	struct json_object *r, *f, *a, *i, *p, *g;
+	struct afb_verb_v3 **iter, **end;
+	const struct afb_verb_v3 *verb;
+	struct json_object *r, *i, *p;
 
 	r = json_object_new_object();
 	json_object_object_add(r, "openapi", json_object_new_string("3.0.0"));
@@ -143,22 +166,16 @@ struct json_object *afb_api_v3_make_description_openAPIv3(struct afb_api_v3 *api
 		verb = *iter++;
 		buffer[0] = '/';
 		strncpy(buffer + 1, verb->verb, sizeof buffer - 1);
-		buffer[sizeof buffer - 1] = 0;
-		f = json_object_new_object();
-		json_object_object_add(p, buffer, f);
-		g = json_object_new_object();
-		json_object_object_add(f, "get", g);
-
-		a = afb_auth_json_v2(verb->auth, verb->session);
-		if (a)
-			json_object_object_add(g, "x-permissions", a);
-
-		a = json_object_new_object();
-		json_object_object_add(g, "responses", a);
-		f = json_object_new_object();
-		json_object_object_add(a, "200", f);
-		json_object_object_add(f, "description", json_object_new_string(verb->info?:verb->verb));
+		json_object_object_add(p, buffer, describe_verb_v3(verb));
 	}
+	verb = api->verbsv3;
+	if (verb)
+		while(verb->verb) {
+			buffer[0] = '/';
+			strncpy(buffer + 1, verb->verb, sizeof buffer - 1);
+			json_object_object_add(p, buffer, describe_verb_v3(verb));
+			verb++;
+		}
 	return r;
 }
 
