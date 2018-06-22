@@ -46,6 +46,10 @@ extern struct afb_api_v3 *afb_api_v3_from_binding(
 		struct afb_apiset *declare_set,
 		struct afb_apiset * call_set);
 
+extern int afb_api_v3_safe_preinit(
+		struct afb_api_x3 *api,
+		int (*preinit)(struct afb_api_x3 *));
+
 extern int afb_api_v3_set_binding_fields(const struct afb_binding_v3 *desc, struct afb_api_x3 *api);
 
 extern struct afb_api_v3 *afb_api_v3_addref(struct afb_api_v3 *api);

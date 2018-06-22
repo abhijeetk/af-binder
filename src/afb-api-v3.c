@@ -35,6 +35,7 @@
 #include "afb-export.h"
 #include "afb-xreq.h"
 #include "verbose.h"
+#include "sig-monitor.h"
 
 /*
  * Description of a binding
@@ -342,12 +343,40 @@ int afb_api_v3_set_binding_fields(const struct afb_binding_v3 *desc, struct afb_
 	return rc;
 }
 
+struct safe_preinit_data
+{
+	int (*preinit)(struct afb_api_x3 *);
+	struct afb_api_x3 *api;
+	int result;
+};
+
+static void safe_preinit(int sig, void *closure)
+{
+	struct safe_preinit_data *spd = closure;
+	if (!sig)
+		spd->result = spd->preinit(spd->api);
+	else {
+		spd->result = -1;
+		errno = EFAULT;
+	}
+}
+
+int afb_api_v3_safe_preinit(struct afb_api_x3 *api, int (*preinit)(struct afb_api_x3 *))
+{
+	struct safe_preinit_data spd;
+
+	spd.preinit = preinit;
+	spd.api = api;
+	sig_monitor(60, safe_preinit, &spd);
+	return spd.result;
+}
+
 static int init_binding(void *closure, struct afb_api_x3 *api)
 {
 	const struct afb_binding_v3 *desc = closure;
 	int rc = afb_api_v3_set_binding_fields(desc, api);
 	if (!rc && desc->preinit)
-		rc =  desc->preinit(api);
+		rc = afb_api_v3_safe_preinit(api, desc->preinit);
 	return rc;
 }
 

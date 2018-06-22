@@ -59,7 +59,7 @@ static int init(void *closure, struct afb_api_x3 *api)
 	}
 
 	if (rc >= 0 && a->entry)
-		rc = a->entry(api);
+		rc = afb_api_v3_safe_preinit(api, a->entry);
 
 	if (rc >= 0)
 		afb_api_x3_seal(api);
