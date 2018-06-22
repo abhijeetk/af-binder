@@ -80,6 +80,7 @@ static int exonrep;
 static int callcount;
 static int human;
 static int raw;
+static int keeprun;
 static int direct;
 static int echo;
 static sd_event_source *evsrc;
@@ -100,6 +101,7 @@ static void usage(int status, char *arg0)
 		"  --help, -h          Display this help\n"
 		"  --human, -H         Display human readable JSON\n"
 		"  --raw, -r           Raw output (default)\n"
+		"  --keep-running, -k  Keep running until disconnect, even if input closed\n"
 		"Example:\n"
 		" %s --human 'localhost:1234/api?token=HELLO&uuid=magic' hello ping\n"
 		"\n", name
@@ -135,6 +137,9 @@ int main(int ac, char **av, char **env)
 			else if (!strcmp(av[1], "--break")) /* request to break connection */
 				breakcon = 1;
 
+			else if (!strcmp(av[1], "--keep-running")) /* request to break connection */
+				keeprun = 1;
+
 			else if (!strcmp(av[1], "--echo")) /* request to echo inputs */
 				echo = 1;
 
@@ -149,6 +154,7 @@ int main(int ac, char **av, char **env)
 				case 'r': raw = 1; break;
 				case 'd': direct = 1; break;
 				case 'b': breakcon = 1; break;
+				case 'k': keeprun = 1; break;
 				case 'e': echo = 1; break;
 				default: usage(av[1][rc] != 'h', a0);
 				}
@@ -195,7 +201,7 @@ int main(int ac, char **av, char **env)
 		sd_event_add_io(loop, &evsrc, 0, EPOLLIN, io_event_callback, NULL);
 	} else {
 		/* the request is defined by the arguments */
-		exonrep = 1;
+		exonrep = !keeprun;
 		if (direct)
 			pws_call(av[2], av[3]);
 		else
@@ -336,9 +342,11 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 		exit(1);
 	}
 	if (rc == 0) {
-		if (!callcount)
-			exit(0);
-		exonrep = 1;
+		if (!keeprun) {
+			if (!callcount)
+				exit(0);
+			exonrep = 1;
+		}
 		sd_event_source_unref(evsrc);
 	}
 	count += (size_t)rc;
