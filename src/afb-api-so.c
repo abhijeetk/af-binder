@@ -82,14 +82,14 @@ static int load_binding(const char *path, int force, struct afb_apiset *declare_
 		goto error;
 	}
 
-	/* try the version 2 */
+	/* try the version 3 */
 	rc = afb_api_so_v3_add(path, handle, declare_set, call_set);
 	if (rc < 0) {
 		/* error when loading a valid v3 binding */
 		goto error2;
 	}
 	if (rc)
-		return 0; /* yes version 2 */
+		return 0; /* yes version 3 */
 
 	/* try the version 2 */
 	rc = afb_api_so_v2_add(path, handle, declare_set, call_set);
@@ -232,7 +232,7 @@ See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
 			}
 			memcpy(&path[end], dent->d_name, len+1);
 			rc = adddirs(path, end+len, declare_set, call_set, failstops);
-		} else if (dent->d_type == DT_REG) {
+		} else if (dent->d_type == DT_REG || dent->d_type == DT_LNK) {
 			/* case of files */
 			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
