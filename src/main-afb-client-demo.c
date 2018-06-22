@@ -49,7 +49,9 @@ static void on_pws_event_unsubscribe(void *closure, void *request, const char *e
 static void on_pws_event_push(void *closure, const char *event_name, int event_id, struct json_object *data);
 static void on_pws_event_broadcast(void *closure, const char *event_name, struct json_object *data);
 
-static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *closure);
+static void idle();
+static int process_stdin();
+static int on_stdin(sd_event_source *src, int fd, uint32_t revents, void *closure);
 
 static void wsj1_emit(const char *api, const char *verb, const char *object);
 static void pws_call(const char *verb, const char *object);
@@ -83,6 +85,9 @@ static int raw;
 static int keeprun;
 static int direct;
 static int echo;
+static int synchro;
+static int usein;
+static sd_event *loop;
 static sd_event_source *evsrc;
 static char *sessionid = "afb-client-demo";
 
@@ -101,6 +106,7 @@ static void usage(int status, char *arg0)
 		"  --help, -h          Display this help\n"
 		"  --human, -H         Display human readable JSON\n"
 		"  --raw, -r           Raw output (default)\n"
+		"  --sync, -s          Synchronous: wait for answers\n"
 		"  --keep-running, -k  Keep running until disconnect, even if input closed\n"
 		"Example:\n"
 		" %s --human 'localhost:1234/api?token=HELLO&uuid=magic' hello ping\n"
@@ -115,7 +121,6 @@ int main(int ac, char **av, char **env)
 {
 	int rc;
 	char *a0;
-	sd_event *loop;
 
 	/* get the program name */
 	a0 = av[0];
@@ -140,6 +145,9 @@ int main(int ac, char **av, char **env)
 			else if (!strcmp(av[1], "--keep-running")) /* request to break connection */
 				keeprun = 1;
 
+			else if (!strcmp(av[1], "--sync")) /* request to break connection */
+				synchro = 1;
+
 			else if (!strcmp(av[1], "--echo")) /* request to echo inputs */
 				echo = 1;
 
@@ -155,6 +163,7 @@ int main(int ac, char **av, char **env)
 				case 'd': direct = 1; break;
 				case 'b': breakcon = 1; break;
 				case 'k': keeprun = 1; break;
+				case 's': synchro = 1; break;
 				case 'e': echo = 1; break;
 				default: usage(av[1][rc] != 'h', a0);
 				}
@@ -197,10 +206,13 @@ int main(int ac, char **av, char **env)
 	/* test the behaviour */
 	if (ac == 2) {
 		/* get requests from stdin */
+		usein = 1;
 		fcntl(0, F_SETFL, O_NONBLOCK);
-		sd_event_add_io(loop, &evsrc, 0, EPOLLIN, io_event_callback, NULL);
+		if (sd_event_add_io(loop, &evsrc, 0, EPOLLIN, on_stdin, NULL) < 0)
+			evsrc = NULL;
 	} else {
 		/* the request is defined by the arguments */
+		usein = 0;
 		exonrep = !keeprun;
 		if (direct)
 			pws_call(av[2], av[3]);
@@ -209,9 +221,25 @@ int main(int ac, char **av, char **env)
 	}
 
 	/* loop until end */
-	for(;;)
-		sd_event_run(loop, 30000000);
+	idle();
 	return 0;
+}
+
+static void idle()
+{
+	for(;;) {
+		if (!usein) {
+			if (!keeprun && !callcount)
+				exit(0);
+			sd_event_run(loop, 30000000);
+		}
+		else if (!synchro || !callcount) {
+			if (!process_stdin() && usein)
+				sd_event_run(loop, 100000);
+		} else {
+			sd_event_run(loop, 30000000);
+		}
+	}
 }
 
 /* decrement the count of calls */
@@ -324,36 +352,42 @@ static void wsj1_emit(const char *api, const char *verb, const char *object)
 		exit(0);
 }
 
-/* called when something happens on stdin */
-static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *closure)
+/* process stdin */
+static int process_stdin()
 {
 	static size_t count = 0;
 	static char line[16384];
 	static char sep[] = " \t";
 	static char sepnl[] = " \t\n";
 
-	ssize_t rc;
+	int result = 0;
+	ssize_t rc = 0;
 	size_t pos;
 
 	/* read the buffer */
-	do { rc = read(0, line + count, sizeof line - count); } while (rc < 0 && errno == EINTR);
+	while (sizeof line > count) {
+		rc = read(0, line + count, sizeof line - count);
+		if (rc >= 0 || errno != EINTR)
+			break;
+	}
 	if (rc < 0) {
 		fprintf(stderr, "read error: %m\n");
 		exit(1);
 	}
 	if (rc == 0) {
-		if (!keeprun) {
+		usein = count != 0;
+		if (!usein && !keeprun) {
 			if (!callcount)
 				exit(0);
 			exonrep = 1;
 		}
-		sd_event_source_unref(evsrc);
 	}
 	count += (size_t)rc;
+	if (synchro && callcount)
+		return 0;
 
 	/* normalise the buffer content */
 	/* TODO: handle backspace \x7f ? */
-
 	/* process the lines */
 	pos = 0;
 	for(;;) {
@@ -372,6 +406,7 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 		rest[0] = i; while(i < count && line[i] != '\n') i++; rest[1] = i;
 		if (i == count) break;
 		line[i++] = 0;
+		pos = i;
 		if (api[0] == api[1]) {
 			/* empty line */
 		} else if (line[api[0]] == '#') {
@@ -384,8 +419,9 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 				pws_call(line + verb[0], line + rest[0]);
 			else
 				wsj1_emit(line + api[0], line + verb[0], line + rest[0]);
+			result = 1;
+			break;
 		}
-		pos = i;
 	}
 	count -= pos;
 	if (count == sizeof line) {
@@ -394,6 +430,18 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
 	}
 	if (count)
 		memmove(line, line + pos, count);
+
+	return result;
+}
+
+/* called when something happens on stdin */
+static int on_stdin(sd_event_source *src, int fd, uint32_t revents, void *closure)
+{
+	process_stdin();
+	if (!usein) {
+		sd_event_source_unref(src);
+		evsrc = NULL;
+	}
 	return 1;
 }
 
@@ -504,5 +552,3 @@ static void on_pws_hangup(void *closure)
 	fflush(stdout);
 	exit(0);
 }
-
-
