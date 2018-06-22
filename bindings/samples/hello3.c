@@ -421,6 +421,37 @@ static void uid (afb_req_t request)
 	afb_req_success_f(request, json_object_new_int(uid), "uid is %d", uid);
 }
 
+static void closess (afb_req_t request)
+{
+	afb_req_session_close(request);
+	afb_req_reply(request, NULL, NULL, "session closed");
+}
+
+static void setloa (afb_req_t request)
+{
+	int loa = json_object_get_int(afb_req_json(request));
+	afb_req_session_set_LOA(request, loa);
+	afb_req_reply_f(request, NULL, NULL, "LOA set to %d", loa);
+}
+
+static void setctx (afb_req_t request)
+{
+	struct json_object *x = afb_req_json(request);
+	afb_req_context(request, (int)(intptr_t)afb_req_get_vcbdata(request), (void*)json_object_get, (void*)json_object_put, x);
+	afb_req_reply(request, json_object_get(x), NULL, "context set");
+}
+
+static void getctx (afb_req_t request)
+{
+	struct json_object *x = afb_req_context(request, 0, 0, 0, 0);
+	afb_req_reply(request, json_object_get(x), NULL, "returning the context");
+}
+
+static void info (afb_req_t request)
+{
+	afb_req_reply(request, afb_req_get_client_info(request), NULL, NULL);
+}
+
 static int preinit(afb_api_t api)
 {
 	AFB_NOTICE("hello binding comes to live");
@@ -463,6 +494,12 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="appid",       .callback=appid },
   { .verb="uid",         .callback=uid },
   { .verb="exit",        .callback=exitnow },
+  { .verb="close",       .callback=closess },
+  { .verb="set-loa",     .callback=setloa },
+  { .verb="setctx",      .callback=setctx, .vcbdata = (void*)(intptr_t)1 },
+  { .verb="setctxif",    .callback=setctx, .vcbdata = (void*)(intptr_t)0 },
+  { .verb="getctx",      .callback=getctx },
+  { .verb="info",        .callback=info },
   { .verb=NULL}
 };
 
