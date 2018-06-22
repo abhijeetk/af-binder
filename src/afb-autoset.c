@@ -19,6 +19,8 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <limits.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -113,6 +115,7 @@ static int create_any(const char *path, struct afb_apiset *declare_set, struct a
 {
 	int rc;
 	struct stat st;
+	char sockname[PATH_MAX + 7];
 
 	rc = stat(path, &st);
 	if (!rc) {
@@ -121,7 +124,8 @@ static int create_any(const char *path, struct afb_apiset *declare_set, struct a
 			rc = afb_api_so_add_binding(path, declare_set, call_set);
 			break;
 		case S_IFSOCK:
-			rc = afb_api_ws_add_client(path, declare_set, call_set, 0);
+			snprintf(sockname, sizeof sockname, "unix:%s", path);
+			rc = afb_api_ws_add_client(sockname, declare_set, call_set, 0);
 			break;
 		default:
 			NOTICE("Unexpected autoset entry: %s", path);
