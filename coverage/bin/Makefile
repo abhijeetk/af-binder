@@ -4,7 +4,7 @@
 heredir = .
 basedir = ../..
 
-targets = afb-daemon-cov  afb-client hi3.so hello.so salut.so saha.so demat.so bug.so
+targets = afb-daemon-cov  afb-client hi3.so hello.so salut.so salam.so shalom.so demat.so bug.so
 
 binaries: $(targets)
 
@@ -58,9 +58,13 @@ salut.so: $(hello3_src)
 	@echo creation of $@
 	@gcc -o $@ $(hello3_src) '-DAPINAME="salut"' $(binding_flags) $(cflags)
 
-saha.so: $(hello3_src)
+salam.so: $(hello3_src)
 	@echo creation of $@
-	@gcc -o $@ $(hello3_src) '-DAPINAME="saha"' $(binding_flags) $(cflags)
+	@gcc -o $@ $(hello3_src) '-DAPINAME="salam"' $(binding_flags) $(cflags)
+
+shalom.so: $(hello3_src)
+	@echo creation of $@
+	@gcc -o $@ $(hello3_src) '-DAPINAME="shalom"' $(binding_flags) $(cflags)
 
 demat.so: $(hello3_src)
 	@echo creation of $@
