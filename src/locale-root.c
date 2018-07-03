@@ -193,7 +193,8 @@ static int init_container(struct locale_container *container, int dirfd)
 				return -1;
 			break;
 		}
-		if (dent->d_type == DT_DIR || (dent->d_type == DT_UNKNOWN && fstatat(sfd, dent->d_name, &st, 0) == 0 && S_ISDIR(st.st_mode))) {
+		rc = fstatat(sfd, dent->d_name, &st, 0);
+		if (rc == 0 && S_ISDIR(st.st_mode)) {
 			/* directory aka folder */
 			if (dent->d_name[0] == '.' && (dent->d_name[1] == 0 || (dent->d_name[1] == '.' && dent->d_name[2] == 0))) {
 				/* nothing to do for special directories, basic detection, improves if needed */

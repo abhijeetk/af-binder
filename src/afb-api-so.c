@@ -152,6 +152,7 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *declare_s
 {
 	DIR *dir;
 	struct dirent *dent;
+	struct stat st;
 	size_t len;
 	int rc = 0;
 
@@ -175,12 +176,19 @@ static int adddirs(char path[PATH_MAX], size_t end, struct afb_apiset *declare_s
 			break;
 		}
 
+		/* get the name and inspect dereferenced link instead of the directory entry */
 		len = strlen(dent->d_name);
 		if (len + end >= PATH_MAX) {
-			ERROR("path too long while scanning bindings for %s", dent->d_name);
+			ERROR("path too long while scanning bindings for %.*s%s", (int)end, path, dent->d_name);
 			continue;
 		}
-		if (dent->d_type == DT_DIR) {
+		memcpy(&path[end], dent->d_name, len+1);
+		rc = stat(path, &st);
+		if (rc < 0) {
+			ERROR("getting status of %s failed: %m", path);
+			continue;
+		}
+		else if (S_ISDIR(st.st_mode)) {
 			/* case of directories */
 			if (dent->d_name[0] == '.') {
 /*
@@ -213,7 +221,7 @@ debug file made dlopen crashing.
 See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
  */
 #if !defined(AFB_API_SO_ACCEPT_DOT_PREFIXED_DIRS) /* not defined by default */
-				continue; /* ignore any directory beginnign with a dot */
+				continue; /* ignore any directory beginning with a dot */
 #else
 				if (len == 1)
 					continue; /* . */
@@ -230,13 +238,11 @@ See https://sourceware.org/bugzilla/show_bug.cgi?id=22101
 #endif
 #endif
 			}
-			memcpy(&path[end], dent->d_name, len+1);
 			rc = adddirs(path, end+len, declare_set, call_set, failstops);
-		} else if (dent->d_type == DT_REG || dent->d_type == DT_LNK) {
+		} else if (S_ISREG(st.st_mode)) {
 			/* case of files */
 			if (memcmp(&dent->d_name[len - 3], ".so", 4))
 				continue;
-			memcpy(&path[end], dent->d_name, len+1);
 			rc = load_binding(path, 0, declare_set, call_set);
 		}
 		if (rc < 0 && failstops) {
