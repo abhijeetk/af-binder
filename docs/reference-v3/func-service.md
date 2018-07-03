@@ -1,4 +1,4 @@
-Functions of class afb_service
+Functions of class **afb_service**
 ==============================
 
 All the functions of the class **afb_daemon** use the default api.

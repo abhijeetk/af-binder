@@ -1,4 +1,4 @@
-Functions of class afb_req_t
+Functions of class **afb_req_t**
 ============================
 
 ## General function
