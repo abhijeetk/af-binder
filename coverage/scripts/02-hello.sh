@@ -47,7 +47,7 @@ hello getctx
 #------------------------
 # TODO bug to be fixed!
 #hello info
-#hello verbose {"level":2,"message":"hello"}
 #------------------------
+hello verbose {"level":2,"message":"hello"}
 EOC
 

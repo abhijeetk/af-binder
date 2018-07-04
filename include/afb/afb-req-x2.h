@@ -642,7 +642,7 @@ void afb_req_x2_verbose(
 {
 	va_list args;
 	va_start(args, fmt);
-	afb_req_x2_verbose(req, level, file, line, func, fmt, args);
+	afb_req_x2_vverbose(req, level, file, line, func, fmt, args);
 	va_end(args);
 }
 
