@@ -371,6 +371,8 @@ static int process_stdin()
 			break;
 	}
 	if (rc < 0) {
+		if (errno == EAGAIN)
+			return 0;
 		fprintf(stderr, "read error: %m\n");
 		exit(1);
 	}
