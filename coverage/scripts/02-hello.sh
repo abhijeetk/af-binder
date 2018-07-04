@@ -44,10 +44,7 @@ hello setctxif "some-text-1"
 hello getctx 
 hello setctx "some-text-2"
 hello getctx
-#------------------------
-# TODO bug to be fixed!
-#hello info
-#------------------------
+hello info
 hello verbose {"level":2,"message":"hello"}
 EOC
 

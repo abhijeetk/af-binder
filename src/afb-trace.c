@@ -489,7 +489,7 @@ static void hook_xreq_get_uid(void *closure, const struct afb_hookid *hookid, co
 
 static void hook_xreq_get_client_info(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *result)
 {
-	hook_xreq(closure, hookid, xreq, "get_client_info", "{so}",
+	hook_xreq(closure, hookid, xreq, "get_client_info", "{sO}",
 					"result", result);
 }
 
