@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#if defined(WITH_LEGACY_BINDING_VDYN)
+
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -58,4 +60,6 @@ int afb_api_so_vdyn_add(const char *path, void *handle, struct afb_apiset *decla
 
 	return 1;
 }
+
+#endif
 

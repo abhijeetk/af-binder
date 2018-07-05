@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#if defined(WITH_LEGACY_BINDING_V1)
+
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -216,4 +218,6 @@ error:
 
 	return -1;
 }
+
+#endif
 

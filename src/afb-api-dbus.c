@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#if defined(WITH_DBUS_TRANSPARENCY)
+
 #define _GNU_SOURCE
 #define NO_PLUGIN_VERBOSE_MACRO
 
@@ -1013,4 +1015,5 @@ error:
 	return -1;
 }
 
+#endif
 
