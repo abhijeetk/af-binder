@@ -157,7 +157,7 @@ static struct locale_folder *search_folder(struct locale_container *container, c
  */
 static int init_container(struct locale_container *container, int dirfd)
 {
-	int rc, sfd;
+	int rc = 0, sfd;
 	DIR *dir;
 	struct dirent *dent;
 	struct stat st;
