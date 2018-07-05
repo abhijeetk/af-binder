@@ -56,7 +56,9 @@
 #include "afb-hook.h"
 #include "afb-debug.h"
 #include "process-name.h"
-#include "afb-supervision.h"
+#if defined(WITH_SUPERVISION)
+#   include "afb-supervision.h"
+#endif
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -577,10 +579,12 @@ static void start(int signum, void *arg)
 		ERROR("failed to setup monitor");
 		goto error;
 	}
+#if defined(WITH_SUPERVISION)
 	if (afb_supervision_init() < 0) {
 		ERROR("failed to setup supervision");
 		goto error;
 	}
+#endif
 
 	/* install hooks */
 	if (main_config->tracereq)

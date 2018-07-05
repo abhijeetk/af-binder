@@ -54,7 +54,6 @@ SET(AFB_LIB_SOURCES
 	afb-proto-ws.c
 	afb-session.c
 	afb-stub-ws.c
-	afb-supervision.c
 	afb-systemd.c
 	afb-trace.c
 	afb-websock.c
@@ -89,6 +88,10 @@ ENDIF(INCLUDE_LEGACY_BINDING_VDYN)
 IF(INCLUDE_DBUS_TRANSPARENCY)
 	ADD_DEFINITIONS(-DWITH_DBUS_TRANSPARENCY)
 	SET(AFB_LIB_SOURCES ${AFB_LIB_SOURCES} afb-api-dbus.c)
+ENDIF()
+IF(INCLUDE_SUPERVISOR)
+	ADD_DEFINITIONS(-DWITH_SUPERVISION)
+	SET(AFB_LIB_SOURCES ${AFB_LIB_SOURCES} afb-supervision.c)
 ENDIF()
 
 ADD_LIBRARY(afb-lib STATIC ${AFB_LIB_SOURCES})

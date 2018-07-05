@@ -14,6 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#if defined(WITH_SUPERVISION)
+
 #define _GNU_SOURCE
 #define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
@@ -395,3 +398,4 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 	}
 }
 
+#endif

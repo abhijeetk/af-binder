@@ -26,7 +26,7 @@ cflags = -I$(incdir) \
 	-ldl -lrt -lpthread 
 
 afb_lib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|-fake' )
-afb_clib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|-fake|afb-supervision' )
+afb_clib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|-fake' )
 
 afb_daemon_srcs = $(srcdir)/main-afb-daemon.c $(afb_lib_src)
 afb_daemon_defs = '-DAFB_VERSION="cov"' -DAGL_DEVEL -DWITH_MONITORING_OPTION '-DBINDING_INSTALL_DIR="fake"'
