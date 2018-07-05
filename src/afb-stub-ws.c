@@ -597,6 +597,11 @@ static void on_hangup(void *closure)
 	afb_stub_ws_unref(stubws);
 }
 
+static int enqueue_processing(void (*callback)(int signum, void* arg), void *arg)
+{
+	return jobs_queue(NULL, 0, callback, arg);
+}
+
 /*****************************************************/
 
 static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset, int client)
@@ -617,6 +622,7 @@ static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *api
 			stubws->apiset = afb_apiset_addref(apiset);
 			stubws->refcount = 1;
 			afb_proto_ws_on_hangup(stubws->proto, on_hangup);
+			afb_proto_ws_set_queuing(stubws->proto, enqueue_processing);
 			return stubws;
 		}
 		free(stubws);

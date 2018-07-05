@@ -25,8 +25,8 @@ cflags = -I$(incdir) \
 	$(shell pkg-config --cflags --libs openssl libmicrohttpd json-c libsystemd uuid) \
 	-ldl -lrt -lpthread 
 
-afb_lib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|-fake' )
-afb_clib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|-fake' )
+afb_lib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-' )
+afb_clib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-' )
 
 afb_daemon_srcs = $(srcdir)/main-afb-daemon.c $(afb_lib_src)
 afb_daemon_defs = '-DAFB_VERSION="cov"' -DAGL_DEVEL -DWITH_MONITORING_OPTION '-DBINDING_INSTALL_DIR="fake"'
