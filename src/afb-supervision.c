@@ -18,7 +18,6 @@
 #if defined(WITH_SUPERVISION)
 
 #define _GNU_SOURCE
-#define AFB_BINDING_PRAGMA_NO_VERBOSE_MACRO
 
 #include <string.h>
 #include <errno.h>

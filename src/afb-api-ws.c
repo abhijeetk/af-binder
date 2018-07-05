@@ -16,7 +16,6 @@
  */
 
 #define _GNU_SOURCE
-#define NO_PLUGIN_VERBOSE_MACRO
 
 #include <stdlib.h>
 #include <string.h>

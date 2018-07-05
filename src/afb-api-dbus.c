@@ -18,7 +18,6 @@
 #if defined(WITH_DBUS_TRANSPARENCY)
 
 #define _GNU_SOURCE
-#define NO_PLUGIN_VERBOSE_MACRO
 
 #include <stdlib.h>
 #include <stdio.h>
