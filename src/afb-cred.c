@@ -169,10 +169,12 @@ struct afb_cred *afb_cred_addref(struct afb_cred *cred)
 void afb_cred_unref(struct afb_cred *cred)
 {
 	if (cred && !__atomic_sub_fetch(&cred->refcount, 1, __ATOMIC_RELAXED)) {
-		if (cred != current)
-			free(cred);
-		else
+		if (cred == current)
 			cred->refcount = 1;
+		else {
+			free((void*)cred->exported);
+			free(cred);
+		}
 	}
 }
 
