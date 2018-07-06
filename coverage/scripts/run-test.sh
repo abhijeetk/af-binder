@@ -9,6 +9,11 @@ $R/bin/afb-daemon-cov --version > /dev/null
 
 $R/bin/afb-daemon-cov --fake-option > /dev/null
 
+valgrind \
+	--log-file=$R/valgrind.out \
+	--trace-children=no \
+	--track-fds=yes \
+	--leak-check=full \
 $R/bin/afb-daemon-cov \
 	--verbose \
 	--verbose \
