@@ -135,9 +135,9 @@ static struct json_object *describe_verb_v3(const struct afb_verb_v3 *verb)
 
 	a = json_object_new_object();
 	json_object_object_add(g, "responses", a);
-	f = json_object_new_object();
-	json_object_object_add(a, "200", f);
-	json_object_object_add(f, "description", json_object_new_string(verb->info?:verb->verb));
+	g = json_object_new_object();
+	json_object_object_add(a, "200", g);
+	json_object_object_add(g, "description", json_object_new_string(verb->info?:verb->verb));
 
 	return f;
 }
