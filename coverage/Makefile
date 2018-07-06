@@ -8,11 +8,13 @@ all: report
 binaries: 
 	make -C bin -w binaries
 
-.PHONY: clean
+.PHONY: clean cleanall
 
 clean:
 	make -C bin -w clean
-	rm -rf lcov-out.info report
+
+cleanall: clean
+	rm -rf lcov-out.info report valgrind.out
 
 .PHONY: test
 

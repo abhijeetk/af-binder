@@ -6,6 +6,8 @@ HELLO PING false
 hello pIngNull true
 hello PingBug true
 hello PiNgJsOn {"well":"formed","json":[1,2,3,4.5,true,false,null,"oups"]}
+hello call {"api":"hello","verb":"pingjson","args":[{"key1":"value1"}]}
+hello callsync {"api":"hello","verb":"pingjson","args":[{"key1":"value1"}]}
 hello subcall {"api":"hello","verb":"pingjson","args":[{"key1":"value1"}]}
 hello subcall {"api":"hello","verb":"subcall","args":{"api":"hello","verb":"pingjson","args":[{"key1":"value1"}]}}
 hello subcallsync {"api":"hello","verb":"pingjson","args":[{"key1":"value1"}]}

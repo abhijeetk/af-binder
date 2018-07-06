@@ -4,7 +4,7 @@
 heredir = .
 basedir = ../..
 
-targets = afb-daemon-cov  afb-client hi3.so hello.so salut.so salam.so shalom.so demat.so bug.so
+targets = afb-daemon-cov  afb-client hi3.so hello.so salut.so salam.so shalom.so demat.so bug.so hellov2.so
 
 binaries: $(targets)
 
@@ -34,6 +34,7 @@ afb_daemon_defs = '-DAFB_VERSION="cov"' -DAGL_DEVEL -DWITH_MONITORING_OPTION '-D
 afb_client_srcs = $(srcdir)/main-afb-client-demo.c $(afb_clib_src)
 afb_client_defs = '-DAFB_VERSION="cov"' '-DBINDING_INSTALL_DIR="fake"'
 
+hello2_src = $(samdir)/hello2.c
 hello3_src = $(samdir)/hello3.c
 hi_src = $(samdir)/hi3.c
 binding_flags = -shared -fPIC -Wl,--version-script=$(samdir)/export.map
@@ -69,6 +70,10 @@ shalom.so: $(hello3_src)
 demat.so: $(hello3_src)
 	@echo creation of $@
 	@gcc -o $@ $(hello3_src) '-DAPINAME="demat"' $(binding_flags) $(cflags)
+
+hellov2.so: $(hello2_src)
+	@echo creation of $@
+	@gcc -o $@ $(hello2_src) '-DAPINAME="hello-v2"' $(binding_flags) $(cflags)
 
 bug.so: bug.c
 	@echo creation of $@

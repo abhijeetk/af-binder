@@ -14,6 +14,7 @@ valgrind \
 	--trace-children=no \
 	--track-fds=yes \
 	--leak-check=full \
+	 --show-leak-kinds=all \
 $R/bin/afb-daemon-cov \
 	--verbose \
 	--verbose \
