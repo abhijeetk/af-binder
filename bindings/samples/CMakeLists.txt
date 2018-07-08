@@ -104,6 +104,18 @@ INSTALL(TARGETS hi3
         LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
+# hello2
+##################################################
+ADD_LIBRARY(hello2 MODULE hello2.c)
+SET_TARGET_PROPERTIES(hello2 PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
+)
+TARGET_LINK_LIBRARIES(hello2 ${link_libraries})
+INSTALL(TARGETS hello2
+        LIBRARY DESTINATION ${binding_install_dir})
+
+##################################################
 # hello3
 ##################################################
 ADD_LIBRARY(hello3 MODULE hello3.c)
