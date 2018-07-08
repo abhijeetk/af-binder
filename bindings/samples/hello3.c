@@ -175,7 +175,6 @@ static void subcallcb (void *prequest, int status, json_object *object, afb_req_
 		afb_req_fail(request, "failed", json_object_to_json_string(object));
 	else
 		afb_req_success(request, json_object_get(object), NULL);
-	afb_req_unref(request);
 }
 
 static void subcall (afb_req_t request)
