@@ -20,7 +20,7 @@ This guide covers the migration of bindings from version 2 to version 3.
 
 The migration from version 1 is not treated here because bindings version 1
 are very old and probably does not exist anymore. If needed you can refer
-to the old [guide to migrate bindings from v1 to v2](legacy/afb-migration-v1-to-v2.md).
+to the old [guide to migrate bindings from v1 to v2](legacy/afb-migration-v1-to-v2.html).
 
 
 Differences between version 2 and version 3

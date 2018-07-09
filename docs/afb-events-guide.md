@@ -267,7 +267,7 @@ the framework with API prefix.
 
 ## Reference of functions
 
-See the [references for functions of class afb_event](reference-v3/func-event.md)
+See the [references for functions of class afb_event](reference-v3/func-event.html)
 
 ### Function onevent (field of afbBindingExport)
 
