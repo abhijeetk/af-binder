@@ -665,9 +665,6 @@ int main(int argc, char *argv[])
 {
 	afb_debug("main-entry");
 
-	// let's run this program with a low priority
-	nice(20);
-
 	// ------------- Build session handler & init config -------
 	main_config = afb_config_parse_arguments(argc, argv);
 	if (main_config->name) {
