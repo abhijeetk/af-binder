@@ -194,8 +194,10 @@ struct afb_api_v3 *afb_api_v3_create(
 
 	/* allocates the description */
 	api = calloc(1, sizeof *api + (copy_info && info ? 1 + strlen(info) : 0));
-	if (!api)
+	if (!api) {
+		ERROR("out of memory");
 		goto oom;
+	}
 	api->refcount = 1;
 	if (!info)
 		api->info = &nulchar;
@@ -223,7 +225,6 @@ oom3:
 oom2:
 	free(api);
 oom:
-	ERROR("out of memory");
 	return NULL;
 }
 
