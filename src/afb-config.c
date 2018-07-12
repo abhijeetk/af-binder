@@ -52,6 +52,21 @@
 #else
 #   define HAS_DBUS 0
 #endif
+#if defined(WITH_LEGACY_BINDING_V1)
+#   define HAS_BINDING_V1 1
+#else
+#   define HAS_BINDING_V1 0
+#endif
+#if defined(WITH_LEGACY_BINDING_VDYN)
+#   define HAS_BINDING_VDYN 1
+#else
+#   define HAS_BINDING_VDYN 0
+#endif
+#if defined(WITH_SUPERVISION)
+#   define HAS_SUPERVISION 1
+#else
+#   define HAS_SUPERVISION 0
+#endif
 
 /**
  * The default timeout of sessions in seconds
@@ -305,11 +320,14 @@ static void printVersion(FILE * file)
 	static char pm[2] = { '-', '+' };
 	fprintf(file,
 		"\n"
-		"  AGL Framework Binder [AFB %s] %cDBUS %cMONITOR\n"
+		"  AGL Framework Binder [AFB %s] %cDBUS %cMONITOR %cSUPERVISION [BINDINGS %cV1 %cVDYN +V2 +V3]\n"
 		"\n",
 			AFB_VERSION,
 			pm[HAS_DBUS],
-			pm[HAS_MONITORING]
+			pm[HAS_MONITORING],
+			pm[HAS_SUPERVISION],
+			pm[HAS_BINDING_V1],
+			pm[HAS_BINDING_VDYN]
 		);
 	fprintf(file,
 		"  Copyright (C) 2015-2018 \"IoT.bzh\"\n"
@@ -534,7 +552,7 @@ static void set_log(char *args)
 		*p = 0;
 		lvl = verbose_level_of_name(i);
 		if (lvl < 0) {
-			i = strdupa(p);
+			i = strdupa(i);
 			*p = s;
 			ERROR("Bad log name '%s' in %s", i, args);
 			exit(1);
