@@ -18,13 +18,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <json-c/json.h>
 
 #define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
 
+#if !defined(APINAME)
+#define APINAME "hello3"
+#endif
+
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/**************************************************************************/
 
 struct event
 {
@@ -115,6 +125,30 @@ static int event_broadcast(struct json_object *args, const char *tag)
 	e = event_get(tag);
 	return e ? afb_event_broadcast(e->event, json_object_get(args)) : -1;
 }
+
+/**************************************************************************/
+
+struct api
+{
+	struct api *next;
+	afb_api_t api;
+	char name[1];
+};
+
+static struct api *apis = 0;
+
+/* search the api of name */
+static struct api *searchapi(const char *name, struct api ***previous)
+{
+	struct api *a, **p = &apis;
+	while((a = *p) && strcmp(a->name, name))
+		p = &a->next;
+	if (previous)
+		*previous = p;
+	return a;
+}
+
+/**************************************************************************/
 
 // Sample Generic Ping Debug API
 static void ping(afb_req_t request, json_object *jresp, const char *tag)
@@ -451,22 +485,106 @@ static void info (afb_req_t request)
 	afb_req_reply(request, afb_req_get_client_info(request), NULL, NULL);
 }
 
-static int preinit(afb_api_t api)
+static void eventloop (afb_req_t request)
 {
-	AFB_NOTICE("hello binding comes to live");
-	return 0;
+	afb_api_t api = afb_req_get_api(request);
+	struct sd_event *ev = afb_api_get_event_loop(api);
+	afb_req_reply(request, NULL, ev ? NULL : "no-event-loop", NULL);
 }
 
-static int init(afb_api_t api)
+static void dbus (afb_req_t request)
 {
-	AFB_NOTICE("hello binding starting");
-	return 0;
+	afb_api_t api = afb_req_get_api(request);
+	json_object *json = afb_req_json(request);
+	struct sd_bus *bus = (json_object_get_boolean(json) ? afb_api_get_system_bus : afb_api_get_user_bus)(api);
+	afb_req_reply(request, NULL, bus ? NULL : "no-bus", NULL);
 }
 
-static void onevent(afb_api_t api, const char *event, struct json_object *object)
+static void replycount (afb_req_t request)
 {
-	AFB_NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
+	json_object *json = afb_req_json(request);
+	int count = json_object_get_int(json);
+	while (count-- > 0)
+		afb_req_reply(request, NULL, NULL, NULL);
 }
+
+static void get(afb_req_t request)
+{
+	struct afb_arg arg = afb_req_get(request, "name");
+	const char *name, *value, *path;
+
+	if (!arg.name || !arg.value)
+		afb_req_reply(request, NULL, "invalid", "the parameter 'name' is missing");
+	else {
+		name = arg.name;
+		value = afb_req_value(request, name);
+		path = afb_req_path(request, name);
+		afb_req_reply_f(request, NULL, NULL, "found for '%s': %s", name, value ?: path ?: "NULL");
+	}
+}
+
+static void ref(afb_req_t request)
+{
+	afb_req_addref(request);
+	afb_req_reply(request, NULL, NULL, NULL);
+	afb_req_unref(request);
+}
+
+static void rootdir (afb_req_t request)
+{
+	ssize_t s;
+	afb_api_t api = afb_req_get_api(request);
+	int fd = afb_api_rootdir_get_fd(api);
+	char buffer[150], root[1025];
+	sprintf(buffer, "/proc/self/fd/%d", fd);
+	s = readlink(buffer, root, sizeof root - 1);
+	if (s < 0)
+		afb_req_reply_f(request, NULL, "error", "can't readlink %s: %m", buffer);
+	else {
+		root[s] = 0;
+		afb_req_reply(request, json_object_new_string(root), NULL, NULL);
+	}
+}
+
+static void locale (afb_req_t request)
+{
+	char buffer[150], root[1025];
+	const char *lang, *file;
+	ssize_t s;
+	json_object *json = afb_req_json(request), *x;
+	afb_api_t api = afb_req_get_api(request);
+	int fd;
+
+	lang = NULL;
+	if (json_object_is_type(json, json_type_string))
+		file = json_object_get_string(json);
+	else {
+		if (!json_object_object_get_ex(json, "file", &x)) {
+			afb_req_reply(request, NULL, "invalid", "no file");
+			return;
+		}
+		file = json_object_get_string(x);
+		if (json_object_object_get_ex(json, "lang", &x))
+			lang = json_object_get_string(x);
+	}
+
+	fd = afb_api_rootdir_open_locale(api, file, O_RDONLY, lang);
+	if (fd < 0)
+		afb_req_reply_f(request, NULL, "error", "can't open %s [%s]: %m", file?:"NULL", lang?:"NULL");
+	else {
+		sprintf(buffer, "/proc/self/fd/%d", fd);
+		s = readlink(buffer, root, sizeof root - 1);
+		if (s < 0)
+			afb_req_reply_f(request, NULL, "error", "can't readlink %s: %m", buffer);
+		else {
+			root[s] = 0;
+			afb_req_reply(request, json_object_new_string(root), NULL, NULL);
+		}
+		close(fd);
+	}
+}
+
+static void api (afb_req_t request);
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
@@ -499,12 +617,186 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="setctxif",    .callback=setctx, .vcbdata = (void*)(intptr_t)0 },
   { .verb="getctx",      .callback=getctx },
   { .verb="info",        .callback=info },
+  { .verb="eventloop",   .callback=eventloop },
+  { .verb="dbus",        .callback=dbus },
+  { .verb="reply-count", .callback=replycount },
+  { .verb="get",         .callback=get},
+  { .verb="ref",         .callback=ref},
+  { .verb="rootdir",     .callback=rootdir},
+  { .verb="locale",      .callback=locale},
+  { .verb="api",         .callback=api},
   { .verb=NULL}
 };
 
-#if !defined(APINAME)
-#define APINAME "hello3"
+static void pingSample2 (struct afb_req_x1 req)
+{
+	pingSample(req.closure);
+}
+
+static const struct afb_verb_v2 apiverbs2[]= {
+  { .verb="ping",        .callback=pingSample2 },
+  { .verb="ping2",        .callback=pingSample2 },
+  { .verb=NULL }
+};
+
+static int apipreinit(void *closure, afb_api_t api)
+{
+	afb_api_set_verbs_v2(api, apiverbs2);
+	afb_api_set_verbs_v3(api, verbs);
+	return 0;
+}
+
+static void apiverb (afb_req_t request)
+{
+	afb_req_reply_f(request, json_object_get(afb_req_json(request)), NULL, "api: %s, verb: %s",
+		afb_req_get_called_api(request), afb_req_get_called_verb(request));
+}
+
+static void apievhndl(void *closure, const char *event, struct json_object *args, afb_api_t api)
+{
+	struct json_object *obj = closure;
+	afb_api_verbose(api, 0, NULL, 0, NULL, "the handler of closure(%s) received the event %s(%s)",
+		json_object_get_string(obj), event, json_object_get_string(args));
+}
+
+static void api (afb_req_t request)
+{
+	struct api *sapi, **psapi;
+	const char *action, *apiname, *verbname, *pattern;
+	json_object *json = afb_req_json(request), *x, *closure;
+	afb_api_t api = afb_req_get_api(request), oapi;
+
+	/* get the action */
+	if (!json_object_object_get_ex(json, "action", &x)) {
+		afb_req_reply(request, NULL, "invalid", "no action");
+		goto end;
+	}
+	action = json_object_get_string(x);
+
+	/* get the verb */
+	verbname = json_object_object_get_ex(json, "verb", &x) ?
+		json_object_get_string(x) : NULL;
+
+	/* get the pattern */
+	pattern = json_object_object_get_ex(json, "pattern", &x) ?
+		json_object_get_string(x) : NULL;
+
+	/* get the closure */
+	closure = NULL;
+	json_object_object_get_ex(json, "closure", &closure);
+
+	/* get the api */
+	if (json_object_object_get_ex(json, "api", &x)) {
+		apiname = json_object_get_string(x);
+		sapi = searchapi(apiname, &psapi);
+		oapi = sapi ? sapi->api : NULL;
+	} else {
+		oapi = api;
+		apiname = afb_api_name(api);
+		sapi = searchapi(apiname, &psapi);
+	}
+
+	/* search the sapi */
+	if (!strcasecmp(action, "create")) {
+		if (!apiname) {
+			afb_req_reply(request, NULL, "invalid", "no api");
+			goto end;
+		}
+		if (sapi) {
+			afb_req_reply(request, NULL, "already-exist", NULL);
+			goto end;
+		}
+		sapi = malloc (sizeof * sapi + strlen(apiname));
+		if (!sapi) {
+			afb_req_reply(request, NULL, "out-of-memory", NULL);
+			goto end;
+		}
+		sapi->api = afb_api_new_api(api, apiname, NULL, 1, apipreinit, NULL);
+		if (!sapi->api) {
+			afb_req_reply_f(request, NULL, "cant-create", "%m");
+			goto end;
+		}
+		strcpy(sapi->name, apiname);
+		sapi->next = NULL;
+		*psapi = sapi;
+	} else {
+		if (!oapi) {
+			afb_req_reply(request, NULL, "cant-find-api", NULL);
+			goto end;
+		}
+		if (!strcasecmp(action, "destroy")) {
+			if (!sapi) {
+				afb_req_reply(request, NULL, "cant-destroy", NULL);
+				goto end;
+			}
+			afb_api_delete_api(oapi);
+			*psapi = sapi->next;
+			free(sapi);
+		} else if (!strcasecmp(action, "addverb")) {
+			if (!verbname){
+				afb_req_reply(request, NULL, "invalid", "no verb");
+				goto end;
+			}
+			afb_api_add_verb(oapi, verbname, NULL, apiverb, NULL, NULL, 0, !!strchr(verbname, '*'));
+		} else if (!strcasecmp(action, "delverb")) {
+			if (!verbname){
+				afb_req_reply(request, NULL, "invalid", "no verb");
+				goto end;
+			}
+			afb_api_del_verb(oapi, verbname, NULL);
+		} else if (!strcasecmp(action, "addhandler")) {
+			if (!pattern){
+				afb_req_reply(request, NULL, "invalid", "no pattern");
+				goto end;
+			}
+			afb_api_event_handler_add(oapi, pattern, apievhndl, json_object_get(closure));
+		} else if (!strcasecmp(action, "delhandler")) {
+			if (!pattern){
+				afb_req_reply(request, NULL, "invalid", "no pattern");
+				goto end;
+			}
+			closure = NULL;
+			afb_api_event_handler_del(oapi, pattern, (void**)&closure);
+			json_object_put(closure);
+		} else if (!strcasecmp(action, "seal")) {
+			afb_api_seal(oapi);
+		} else {
+			afb_req_reply_f(request, NULL, "invalid", "unknown action %s", action ?: "NULL");
+			goto end;
+		}
+	}
+	afb_req_reply(request, NULL, NULL, NULL);
+end:	return;
+}
+
+/*************************************************************/
+
+static int preinit(afb_api_t api)
+{
+	AFB_NOTICE("hello binding comes to live");
+#if defined(PREINIT_PROVIDE_CLASS)
+	afb_api_provide_class(api, PREINIT_PROVIDE_CLASS);
 #endif
+#if defined(PREINIT_REQUIRE_CLASS)
+	afb_api_require_class(api, PREINIT_REQUIRE_CLASS);
+#endif
+	return 0;
+}
+
+static int init(afb_api_t api)
+{
+	AFB_NOTICE("hello binding starting");
+#if defined(INIT_REQUIRE_API)
+	afb_api_require_api(api, INIT_REQUIRE_API, 1);
+#endif
+	afb_api_add_alias(api, api->apiname, "fakename");
+	return 0;
+}
+
+static void onevent(afb_api_t api, const char *event, struct json_object *object)
+{
+	AFB_NOTICE("received event %s(%s)", event, json_object_to_json_string(object));
+}
 
 const struct afb_binding_v3 afbBindingV3 = {
 	.api = APINAME,
