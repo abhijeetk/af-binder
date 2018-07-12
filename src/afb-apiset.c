@@ -858,20 +858,21 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
  */
 int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
 {
-	int rc;
+	int rc, ret;
 	int i;
 
+	ret = 0;
 	while (set) {
 		i = 0;
 		while (i < set->apis.count) {
 			rc = start_api(set->apis.apis[i], share_session, 1);
 			if (rc < 0)
-				return rc;
+				ret = rc;
 			i++;
 		}
 		set = set->subset;
 	}
-	return 0;
+	return ret;
 }
 
 /**
