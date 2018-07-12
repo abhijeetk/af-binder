@@ -36,6 +36,7 @@
 #include "afb-msg-json.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
+#include "afb-hsrv.h"
 #include "afb-session.h"
 #include "afb-cred.h"
 #include "verbose.h"
@@ -168,10 +169,9 @@ static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_
 
 	hreq->replied = 1;
 	if (hreq->suspended != 0) {
-		extern void run_micro_httpd(struct afb_hsrv *hsrv);
 		MHD_resume_connection (hreq->connection);
 		hreq->suspended = 0;
-		run_micro_httpd(hreq->hsrv);
+		afb_hsrv_run(hreq->hsrv);
 	}
 }
 

@@ -1739,7 +1739,7 @@ int afb_trace_add(afb_req_t req, struct json_object *args, struct afb_trace *tra
 }
 
 /* drop traces */
-extern int afb_trace_drop(afb_req_t req, struct json_object *args, struct afb_trace *trace)
+int afb_trace_drop(afb_req_t req, struct json_object *args, struct afb_trace *trace)
 {
 	int rc;
 	struct context context;

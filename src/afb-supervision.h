@@ -18,4 +18,7 @@
 
 #pragma once
 
-extern int afb_supervision_init();
+struct afb_apiset;
+struct afb_config;
+
+extern int afb_supervision_init(struct afb_apiset *apiset, struct afb_config *config);

@@ -263,7 +263,7 @@ static void do_run(int signum, void *arg)
 	fdev_set_events(hsrv->fdev, EPOLLIN);
 }
 
-void run_micro_httpd(struct afb_hsrv *hsrv)
+void afb_hsrv_run(struct afb_hsrv *hsrv)
 {
 	fdev_set_events(hsrv->fdev, 0);
 	if (jobs_queue(hsrv, 0, do_run, hsrv) < 0)
@@ -272,7 +272,7 @@ void run_micro_httpd(struct afb_hsrv *hsrv)
 
 static void listen_callback(void *hsrv, uint32_t revents, struct fdev *fdev)
 {
-	run_micro_httpd(hsrv);
+	afb_hsrv_run(hsrv);
 }
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)

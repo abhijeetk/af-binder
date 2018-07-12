@@ -32,3 +32,4 @@ extern int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, int dir
 extern int afb_hsrv_add_alias_root(struct afb_hsrv *hsrv, const char *prefix, struct locale_root *root, int priority, int relax);
 extern int afb_hsrv_add_handler(struct afb_hsrv *hsrv, const char *prefix, int (*handler) (struct afb_hreq *, void *), void *data, int priority);
 
+extern void afb_hsrv_run(struct afb_hsrv *hsrv);

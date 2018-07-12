@@ -580,7 +580,7 @@ static void start(int signum, void *arg)
 		goto error;
 	}
 #if defined(WITH_SUPERVISION)
-	if (afb_supervision_init() < 0) {
+	if (afb_supervision_init(main_apiset, main_config) < 0) {
 		ERROR("failed to setup supervision");
 		goto error;
 	}

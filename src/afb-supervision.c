@@ -51,8 +51,6 @@
 #include "wrap-json.h"
 #include "jobs.h"
 
-extern struct afb_config *main_config;
-
 /* api and apiset name */
 static const char supervision_apiname[] = AFS_SUPERVISION_APINAME;
 static const char supervisor_apiname[] = AFS_SUPERVISOR_APINAME;
@@ -64,7 +62,10 @@ static const char supervisor_socket_path[] = AFS_SUPERVISION_SOCKET;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* the standard apiset */
-extern struct afb_apiset *main_apiset;
+static struct {
+	struct afb_apiset *apiset;
+	struct afb_config *config;
+} global;
 
 /* the supervision apiset (not exported) */
 static struct afb_apiset *supervision_apiset;
@@ -237,7 +238,7 @@ static void on_sighup(int signum)
 /**
  * initialize the supervision
  */
-int afb_supervision_init()
+int afb_supervision_init(struct afb_apiset *apiset, struct afb_config *config)
 {
 	int rc;
 	struct sigaction sa;
@@ -262,6 +263,10 @@ int afb_supervision_init()
 		supervision_apiset = NULL;
 		return rc;
 	}
+
+	/* init the globals */
+	global.apiset = apiset;
+	global.config = config;
 
 	/* get SIGHUP */
 	memset(&sa, 0, sizeof sa);
@@ -346,7 +351,7 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		afb_xreq_reply(xreq, list, NULL, NULL);
 		break;
 	case Config:
-		afb_xreq_reply(xreq, afb_config_json(main_config), NULL, NULL);
+		afb_xreq_reply(xreq, afb_config_json(global.config), NULL, NULL);
 		break;
 	case Trace:
 		if (!trace)
@@ -372,7 +377,7 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		if (wrap_json_unpack(args, "{ss ss s?o*}", "api", &api, "verb", &verb, "args", &sub))
 			afb_xreq_reply(xreq, NULL, "error", "bad request");
 		else {
-			xapi = afb_apiset_lookup_started(main_apiset, api, 1);
+			xapi = afb_apiset_lookup_started(global.apiset, api, 1);
 			if (!xapi)
 				afb_xreq_reply_unknown_api(xreq);
 			else {

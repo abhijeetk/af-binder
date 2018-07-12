@@ -59,7 +59,7 @@ struct cookie
 struct afb_session
 {
 	struct afb_session *next; /**< link to the next */
-	unsigned refcount;      /**< external reference count of the session */
+	unsigned refcount;      /**< count of reference to the session */
 	int timeout;            /**< timeout of the session */
 	time_t expiration;	/**< expiration time of the token */
 	pthread_mutex_t mutex;  /**< mutex of the session */
