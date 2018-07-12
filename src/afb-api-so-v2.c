@@ -22,6 +22,7 @@
 #include <dlfcn.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #include <json-c/json.h>
 #include <afb/afb-binding-v2.h>
@@ -35,6 +36,7 @@
 #include "afb-context.h"
 #include "afb-api-so.h"
 #include "afb-xreq.h"
+#include "sig-monitor.h"
 #include "verbose.h"
 
 /*
@@ -42,6 +44,12 @@
  */
 static const char afb_api_so_v2_descriptor[] = "afbBindingV2";
 static const char afb_api_so_v2_data[] = "afbBindingV2data";
+
+struct preinit
+{
+	int return_code;
+	const struct afb_binding_v2 *binding;
+};
 
 static const struct afb_verb_v2 *search(const struct afb_binding_v2 *binding, const char *name)
 {
@@ -110,10 +118,23 @@ struct json_object *afb_api_so_v2_make_description_openAPIv3(const struct afb_bi
 	return r;
 }
 
+static void do_preinit(int sig, void *closure)
+{
+	struct preinit *preinit = closure;
+
+	if (!sig)
+		preinit->return_code = preinit->binding->preinit();
+	else {
+		errno = EINTR;
+		preinit->return_code = -1;
+	}
+};
+
 int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set, struct afb_binding_data_v2 *data)
 {
 	int rc;
 	struct afb_export *export;
+	struct preinit preinit;
 
 	/* basic checks */
 	assert(binding);
@@ -136,7 +157,9 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	/* init the binding */
 	if (binding->preinit) {
 		INFO("binding %s calling preinit function", binding->api);
-		rc = binding->preinit();
+		preinit.binding = binding;
+		sig_monitor(0, do_preinit, &preinit);
+		rc = preinit.return_code;
 		if (rc < 0) {
 			ERROR("binding %s preinit function failed...", afb_export_apiname(export));
 			afb_export_undeclare(export);
