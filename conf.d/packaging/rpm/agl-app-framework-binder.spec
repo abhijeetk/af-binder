@@ -94,6 +94,7 @@ EOF
 %{_libdir}/afb/helloWorld.so
 %{_libdir}/afb/tic-tac-toe.so
 %{_libdir}/afb/ave.so
+%{_libdir}/afb/hello2.so
 %{_libdir}/afb/hello3.so
 %{_libdir}/afb/hi3.so
 %config(noreplace) %{_sysconfdir}/profile.d/AGL-%{name}.sh
