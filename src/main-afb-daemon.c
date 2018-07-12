@@ -64,7 +64,7 @@
    if SELF_PGROUP == 0 the launched command is the group leader
    if SELF_PGROUP != 0 afb-daemon is the group leader
 */
-#define SELF_PGROUP 1
+#define SELF_PGROUP 0
 
 struct afb_apiset *main_apiset;
 struct afb_config *main_config;
