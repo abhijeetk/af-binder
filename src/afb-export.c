@@ -47,6 +47,7 @@
 #include "afb-calls.h"
 #include "jobs.h"
 #include "verbose.h"
+#include "sig-monitor.h"
 
 /*************************************************************************
  * internal types
@@ -1511,8 +1512,49 @@ void afb_export_userdata_set(struct afb_export *export, void *data)
  ******************************************************************************
  ******************************************************************************/
 
+struct init
+{
+	int return_code;
+	struct afb_export *export;
+};
+
+static void do_init(int sig, void *closure)
+{
+	int rc = -1;
+	struct init *init = closure;
+	struct afb_export *export;
+
+	if (sig)
+		errno = EFAULT;
+	else {
+		export = init->export;
+		switch (export->version) {
+#if defined(WITH_LEGACY_BINDING_V1)
+		case Api_Version_1:
+			rc = export->init.v1 ? export->init.v1(
+				(struct afb_service_x1){
+					.itf = &hooked_service_itf,
+					.closure = to_api_x3(export) }) : 0;
+			break;
+#endif
+		case Api_Version_2:
+			rc = export->init.v2 ? export->init.v2() : 0;
+			break;
+		case Api_Version_3:
+			rc = export->init.v3 ? export->init.v3(to_api_x3(export)) : 0;
+			break;
+		default:
+			errno = EINVAL;
+			break;
+		}
+	}
+	init->return_code = rc;
+};
+
+
 int afb_export_start(struct afb_export *export, int share_session, int onneed)
 {
+	struct init init;
 	int rc;
 
 	/* check state */
@@ -1541,9 +1583,11 @@ int afb_export_start(struct afb_export *export, int share_session, int onneed)
 	case Api_Version_1:
 #endif
 	case Api_Version_2:
-		if (export->on_any_event_v12)
+		if (export->on_any_event_v12) {
 			rc = afb_export_handle_events_v12(export, export->on_any_event_v12);
-		break;
+			break;
+		}
+		/*@fallthrough@*/
 	default:
 		rc = 0;
 		break;
@@ -1558,23 +1602,9 @@ int afb_export_start(struct afb_export *export, int share_session, int onneed)
 		afb_hook_api_start_before(export);
 
 	export->state = Api_State_Init;
-	switch (export->version) {
-#if defined(WITH_LEGACY_BINDING_V1)
-	case Api_Version_1:
-		rc = export->init.v1 ? export->init.v1((struct afb_service_x1){ .itf = &hooked_service_itf, .closure = to_api_x3(export) }) : 0;
-		break;
-#endif
-	case Api_Version_2:
-		rc = export->init.v2 ? export->init.v2() : 0;
-		break;
-	case Api_Version_3:
-		rc = export->init.v3 ? export->init.v3(to_api_x3(export)) : 0;
-		break;
-	default:
-		errno = EINVAL;
-		rc = -1;
-		break;
-	}
+	init.export = export;
+	sig_monitor(0, do_init, &init);
+	rc = init.return_code;
 	export->state = Api_State_Run;
 
 	if (export->hooksvc & afb_hook_flag_api_start)
