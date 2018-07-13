@@ -693,19 +693,18 @@ const struct afb_api_item *afb_apiset_lookup(struct afb_apiset *set, const char 
 	return NULL;
 }
 
-static int start_api(struct api_desc *api, int share_session, int onneed);
+static int start_api(struct api_desc *api);
 
 /**
  * Start the apis of the 'array'
- * The attribute 'share_session' is sent to the start function.
  */
-static int start_array_apis(struct api_array *array, int share_session)
+static int start_array_apis(struct api_array *array)
 {
 	int i, rc = 0, rc2;
 
 	i = array->count;
 	while (i) {
-		rc2 = start_api(array->apis[--i], share_session, 1);
+		rc2 = start_api(array->apis[--i]);
 		if (rc2 < 0) {
 			rc = rc2;
 		}
@@ -715,24 +714,22 @@ static int start_array_apis(struct api_array *array, int share_session)
 
 /**
  * Start the class 'cla' (start the apis that provide it).
- * The attribute 'share_session' is sent to the start function.
  */
-static int start_class(struct api_class *cla, int share_session)
+static int start_class(struct api_class *cla)
 {
-	return start_array_apis(&cla->providers, share_session);
+	return start_array_apis(&cla->providers);
 }
 
 /**
  * Start the classes of the 'array'
- * The attribute 'share_session' is sent to the start function.
  */
-static int start_array_classes(struct api_array *array, int share_session)
+static int start_array_classes(struct api_array *array)
 {
 	int i, rc = 0, rc2;
 
 	i = array->count;
 	while (i) {
-		rc2 = start_class(array->classes[--i], share_session);
+		rc2 = start_class(array->classes[--i]);
 		if (rc2 < 0) {
 			rc = rc2;
 		}
@@ -742,9 +739,8 @@ static int start_array_classes(struct api_array *array, int share_session)
 
 /**
  * Start the depends of the 'array'
- * The attribute 'share_session' is sent to the start function.
  */
-static int start_array_depends(struct api_array *array, int share_session)
+static int start_array_depends(struct api_array *array)
 {
 	struct api_desc *api;
 	int i, rc = 0, rc2;
@@ -756,7 +752,7 @@ static int start_array_depends(struct api_array *array, int share_session)
 		if (!api)
 			rc = -1;
 		else {
-			rc2 = start_api(api, share_session, 1);
+			rc2 = start_api(api);
 			if (rc2 < 0) {
 				rc = rc2;
 			}
@@ -768,13 +764,9 @@ static int start_array_depends(struct api_array *array, int share_session)
 /**
  * Starts the service 'api'.
  * @param api the api
- * @param share_session if true start the servic"e in a shared session
- *                      if false start it in its own session
- * @param onneed if true start the service if possible, if false the api
- *               must be a service
  * @return a positive number on success
  */
-static int start_api(struct api_desc *api, int share_session, int onneed)
+static int start_api(struct api_desc *api)
 {
 	int rc;
 
@@ -786,20 +778,22 @@ static int start_api(struct api_desc *api, int share_session, int onneed)
 	}
 
 	INFO("API %s starting...", api->name);
-	rc = start_array_classes(&api->require.classes, share_session);
-	rc = start_array_depends(&api->require.apis, share_session);
-	if (api->api.itf->service_start) {
-		api->status = EBUSY;
-		rc = api->api.itf->service_start(api->api.closure, share_session, onneed);
-		if (rc < 0) {
-			api->status = errno ?: ECANCELED;
-			ERROR("The api %s failed to start (%d)", api->name, rc);
-			return -1;
+	api->status = EBUSY;
+	rc = start_array_classes(&api->require.classes);
+	if (rc < 0)
+		ERROR("Can start classes needed by api %s", api->name);
+	else {
+		rc = start_array_depends(&api->require.apis);
+		if (rc < 0)
+			ERROR("Can start apis needed by api %s", api->name);
+		else if (api->api.itf->service_start) {
+			rc = api->api.itf->service_start(api->api.closure);
+			if (rc < 0)
+				ERROR("The api %s failed to start", api->name);
 		}
-	} else if (!onneed) {
-		/* already started: it is an error */
-		ERROR("The api %s is not a startable service", api->name);
-		api->status = EINVAL;
+	}
+	if (rc < 0) {
+		api->status = errno ?: ECANCELED;
 		return -1;
 	}
 	NOTICE("API %s started", api->name);
@@ -820,7 +814,7 @@ const struct afb_api_item *afb_apiset_lookup_started(struct afb_apiset *set, con
 
 	i = lookup(set, name, rec);
 	if (i)
-		return i->status && start_api(i, 1, 1) ? NULL : &i->api;
+		return i->status && start_api(i) ? NULL : &i->api;
 	errno = ENOENT;
 	return NULL;
 }
@@ -829,13 +823,9 @@ const struct afb_api_item *afb_apiset_lookup_started(struct afb_apiset *set, con
  * Starts a service by its 'api' name.
  * @param set the api set
  * @param name name of the service to start
- * @param share_session if true start the servic"e in a shared session
- *                      if false start it in its own session
- * @param onneed if true start the service if possible, if false the api
- *               must be a service
  * @return a positive number on success
  */
-int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share_session, int onneed)
+int afb_apiset_start_service(struct afb_apiset *set, const char *name)
 {
 	struct api_desc *a;
 
@@ -846,17 +836,15 @@ int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share
 		return -1;
 	}
 
-	return start_api(a, share_session, onneed);
+	return start_api(a);
 }
 
 /**
  * Starts all possible services but stops at first error.
  * @param set the api set
- * @param share_session if true start the servic"e in a shared session
- *                      if false start it in its own session
  * @return 0 on success or a negative number when an error is found
  */
-int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
+int afb_apiset_start_all_services(struct afb_apiset *set)
 {
 	int rc, ret;
 	int i;
@@ -865,7 +853,7 @@ int afb_apiset_start_all_services(struct afb_apiset *set, int share_session)
 	while (set) {
 		i = 0;
 		while (i < set->apis.count) {
-			rc = start_api(set->apis.apis[i], share_session, 1);
+			rc = start_api(set->apis.apis[i]);
 			if (rc < 0)
 				ret = rc;
 			i++;
@@ -1120,11 +1108,10 @@ int afb_apiset_provide_class(struct afb_apiset *set, const char *apiname, const 
 
 /**
  * Start any API that provides the class of name 'classname'
- * The attribute 'share_session' is sent to the start function.
  */
-int afb_apiset_class_start(const char *classname, int share_session)
+int afb_apiset_class_start(const char *classname)
 {
 	struct api_class *cla = class_search(classname, 0);
-	return cla ? start_class(cla, share_session) : (errno = ENOENT, -1);
+	return cla ? start_class(cla) : (errno = ENOENT, -1);
 }
 

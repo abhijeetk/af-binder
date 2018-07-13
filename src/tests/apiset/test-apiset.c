@@ -384,7 +384,7 @@ int set_cb_getmask(void *closure)
 	return set_last_api->mask;
 }
 
-int set_cb_start(void *closure, int share_session, int onneed)
+int set_cb_start(void *closure)
 {
 	set_cb0(closure);
 	ck_assert_int_eq(0, set_last_api->init);
@@ -422,7 +422,7 @@ START_TEST (check_settings)
 	nn = i;
 
 	set_count = 0;
-	afb_apiset_start_all_services(a, 1);
+	afb_apiset_start_all_services(a);
 	ck_assert_int_eq(nn, set_count);
 
 	set_count = 0;
@@ -480,7 +480,7 @@ struct clapi {
 
 int clorder;
 
-int clacb_start(void *closure, int share_session, int onneed)
+int clacb_start(void *closure)
 {
 	struct clapi *a = closure;
 	int i;
@@ -541,7 +541,7 @@ START_TEST (check_classes)
 	}
 
 	/* start all */
-	ck_assert_int_eq(0, afb_apiset_start_all_services(a, 0));
+	ck_assert_int_eq(0, afb_apiset_start_all_services(a));
 
 	afb_apiset_unref(a);
 }

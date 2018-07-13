@@ -160,7 +160,7 @@ static void start(int signum, void *arg)
 	}
 
 	/* start the services */
-	if (afb_apiset_start_all_services(main_apiset, 1) < 0)
+	if (afb_apiset_start_all_services(main_apiset) < 0)
 		goto error;
 
 	/* start the HTTP server */

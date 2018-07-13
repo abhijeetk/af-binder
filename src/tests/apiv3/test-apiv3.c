@@ -165,7 +165,7 @@ START_TEST (test)
 	ck_assert_ptr_nonnull(out_api);
 
 	/* start all services */
-	rc = afb_apiset_start_all_services(apiset, 1);
+	rc = afb_apiset_start_all_services(apiset);
 	ck_assert_int_eq(rc, 0);
 }
 END_TEST

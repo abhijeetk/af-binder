@@ -51,8 +51,8 @@ extern const char *afb_apiset_unalias(struct afb_apiset *set, const char *name);
 extern const struct afb_api_item *afb_apiset_lookup(struct afb_apiset *set, const char *name, int rec);
 extern const struct afb_api_item *afb_apiset_lookup_started(struct afb_apiset *set, const char *name, int rec);
 
-extern int afb_apiset_start_service(struct afb_apiset *set, const char *name, int share_session, int onneed);
-extern int afb_apiset_start_all_services(struct afb_apiset *set, int share_session);
+extern int afb_apiset_start_service(struct afb_apiset *set, const char *name);
+extern int afb_apiset_start_all_services(struct afb_apiset *set);
 
 extern void afb_apiset_update_hooks(struct afb_apiset *set, const char *name);
 extern void afb_apiset_set_logmask(struct afb_apiset *set, const char *name, int mask);
@@ -70,4 +70,4 @@ extern void afb_apiset_enum(
 extern int afb_apiset_require(struct afb_apiset *set, const char *name, const char *required);
 extern int afb_apiset_require_class(struct afb_apiset *set, const char *apiname, const char *classname);
 extern int afb_apiset_provide_class(struct afb_apiset *set, const char *apiname, const char *classname);
-extern int afb_apiset_class_start(const char *classname, int share_session);
+extern int afb_apiset_class_start(const char *classname);

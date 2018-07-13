@@ -85,7 +85,7 @@ extern int afb_export_handle_init_v3(
 				struct afb_export *export,
 				int (*oninit)(struct afb_api_x3 *api));
 
-extern int afb_export_start(struct afb_export *export, int share_session, int onneed);
+extern int afb_export_start(struct afb_export *export);
 
 extern int afb_export_logmask_get(const struct afb_export *export);
 extern void afb_export_logmask_set(struct afb_export *export, int mask);

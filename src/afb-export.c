@@ -1552,29 +1552,23 @@ static void do_init(int sig, void *closure)
 };
 
 
-int afb_export_start(struct afb_export *export, int share_session, int onneed)
+int afb_export_start(struct afb_export *export)
 {
 	struct init init;
 	int rc;
 
 	/* check state */
-	if (export->state != Api_State_Pre_Init) {
-		/* not an error when onneed */
-		if (onneed != 0)
-			goto done;
+	switch (export->state) {
+	case Api_State_Run:
+		return 0;
 
-		/* already started: it is an error */
-		ERROR("Service of API %s already started", export->api.apiname);
+	case Api_State_Init:
+		/* starting in progress: it is an error */
+		ERROR("Service of API %s required started while starting", export->api.apiname);
 		return -1;
-	}
 
-	/* unshare the session if asked */
-	if (!share_session) {
-		rc = afb_export_unshare_session(export);
-		if (rc < 0) {
-			ERROR("Can't unshare the session for %s", export->api.apiname);
-			return -1;
-		}
+	default:
+		break;
 	}
 
 	/* set event handling */
@@ -1616,7 +1610,6 @@ int afb_export_start(struct afb_export *export, int share_session, int onneed)
 		return rc;
 	}
 
-done:
 	return 0;
 }
 
@@ -1668,11 +1661,11 @@ static struct json_object *api_describe_cb(void *closure)
 	return result;
 }
 
-static int api_service_start_cb(void *closure, int share_session, int onneed)
+static int api_service_start_cb(void *closure)
 {
 	struct afb_export *export = closure;
 
-	return afb_export_start(export, share_session, onneed);
+	return afb_export_start(export);
 }
 
 static void api_update_hooks_cb(void *closure)
