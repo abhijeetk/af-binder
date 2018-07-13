@@ -169,6 +169,7 @@ static int get_flag(const char *name, struct flag flags[], int count)
 /* timestamp */
 static struct json_object *timestamp(const struct afb_hookid *hookid)
 {
+#if JSON_C_MAJOR_VERSION > 0 || JSON_C_MINOR_VERSION >= 12
 	char ts[50];
 
 	snprintf(ts, sizeof ts, "%llu.%06lu",
@@ -176,9 +177,9 @@ static struct json_object *timestamp(const struct afb_hookid *hookid)
 			(long unsigned)((hookid->time.tv_nsec + 500) / 1000));
 
 	return json_object_new_double_s(0.0f, ts); /* the real value isn't used */
-#if 0
-	return json_object_new_string(ts);
-	return json_object_new_double_s(0f, ts); /* the real value isn't used */
+#else
+	return json_object_new_double((double)hookid->time.tv_sec + 
+			(double)hookid->time.tv_nsec * .000000001);
 #endif
 }
 
