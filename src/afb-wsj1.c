@@ -392,6 +392,8 @@ struct json_object *afb_wsj1_msg_object_j(struct afb_wsj1_msg *msg)
 		pthread_mutex_lock(&msg->wsj1->mutex);
 		json_tokener_reset(msg->wsj1->tokener);
 		object = json_tokener_parse_ex(msg->wsj1->tokener, msg->object_s, (int)msg->object_s_length);
+		if (object == NULL && json_tokener_get_error(msg->wsj1->tokener) == json_tokener_continue)
+			object = json_tokener_parse_ex(msg->wsj1->tokener, "", 1);
 		pthread_mutex_unlock(&msg->wsj1->mutex);
 		if (object == NULL) {
 			/* lazy error detection of json request. Is it to improve? */
