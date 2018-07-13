@@ -325,6 +325,8 @@
 #define afb_api_x3_on_init		afb_api_on_init
 #define afb_api_x3_seal			afb_api_seal
 #define afb_api_x3_add_alias		afb_api_add_alias
+#define afb_api_x3_require_class	afb_api_require_class
+#define afb_api_x3_provide_class	afb_api_provide_class
 
 #define AFB_API_ERROR			AFB_API_ERROR_V3
 #define AFB_API_WARNING			AFB_API_WARNING_V3
