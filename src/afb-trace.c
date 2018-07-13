@@ -687,10 +687,12 @@ static void hook_api_rootdir_get_fd(void *closure, const struct afb_hookid *hook
 {
 	char path[PATH_MAX], proc[100];
 	const char *key, *val;
+	ssize_t s;
 
 	if (result >= 0) {
 		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
-		readlink(proc, path, sizeof path);
+		s = readlink(proc, path, sizeof path);
+		path[s < 0 ? 0 : s >= sizeof path ? sizeof path - 1 : s] = 0;
 		key = "path";
 		val = path;
 	} else {
@@ -705,10 +707,12 @@ static void hook_api_rootdir_open_locale(void *closure, const struct afb_hookid 
 {
 	char path[PATH_MAX], proc[100];
 	const char *key, *val;
+	ssize_t s;
 
 	if (result >= 0) {
 		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
-		readlink(proc, path, sizeof path);
+		s = readlink(proc, path, sizeof path);
+		path[s < 0 ? 0 : s >= sizeof path ? sizeof path - 1 : s] = 0;
 		key = "path";
 		val = path;
 	} else {

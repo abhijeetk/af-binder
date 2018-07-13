@@ -736,11 +736,14 @@ static void hook_api_event_make_cb(void *closure, const struct afb_hookid *hooki
 static void hook_api_rootdir_get_fd_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result)
 {
 	char path[PATH_MAX], proc[100];
+	ssize_t s;
+
 	if (result < 0)
 		_hook_api_(export, "rootdir_get_fd() -> %d, %m", result);
 	else {
 		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
-		readlink(proc, path, sizeof path);
+		s = readlink(proc, path, sizeof path);
+		path[s < 0 ? 0 : s >= sizeof path ? sizeof path - 1 : s] = 0;
 		_hook_api_(export, "rootdir_get_fd() -> %d = %s", result, path);
 	}
 }
@@ -748,13 +751,16 @@ static void hook_api_rootdir_get_fd_cb(void *closure, const struct afb_hookid *h
 static void hook_api_rootdir_open_locale_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *filename, int flags, const char *locale, int result)
 {
 	char path[PATH_MAX], proc[100];
+	ssize_t s;
+
 	if (!locale)
 		locale = "(null)";
 	if (result < 0)
 		_hook_api_(export, "rootdir_open_locale(%s, %d, %s) -> %d, %m", filename, flags, locale, result);
 	else {
 		snprintf(proc, sizeof proc, "/proc/self/fd/%d", result);
-		readlink(proc, path, sizeof path);
+		s = readlink(proc, path, sizeof path);
+		path[s < 0 ? 0 : s >= sizeof path ? sizeof path - 1 : s] = 0;
 		_hook_api_(export, "rootdir_open_locale(%s, %d, %s) -> %d = %s", filename, flags, locale, result, path);
 	}
 }
