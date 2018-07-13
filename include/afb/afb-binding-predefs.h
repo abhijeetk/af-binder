@@ -318,7 +318,9 @@
 #define afb_api_x3_call_legacy		afb_api_call_legacy
 #define afb_api_x3_call_sync_legacy	afb_api_call_sync_legacy
 #define afb_api_x3_new_api		afb_api_new_api
+#define afb_api_x3_delete_api		afb_api_delete_api
 #define afb_api_x3_set_verbs_v2		afb_api_set_verbs_v2
+#define afb_api_x3_set_verbs_v3		afb_api_set_verbs_v3
 #define afb_api_x3_add_verb		afb_api_add_verb
 #define afb_api_x3_del_verb		afb_api_del_verb
 #define afb_api_x3_on_event		afb_api_on_event
