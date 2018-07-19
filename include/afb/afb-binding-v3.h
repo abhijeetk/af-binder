@@ -245,9 +245,9 @@ extern const struct afb_binding_v3 afbBindingV3;
 #define afb_get_logmask_v3()			(afbBindingV3root->logmask)
 #define afb_get_verbosity_v3()			AFB_SYSLOG_LEVEL_TO_VERBOSITY(_afb_verbomask_to_upper_level_(afbBindingV3root->logmask))
 
-#define afb_daemon_get_event_loop_v3(...)	afb_api_get_event_loop(afbBindingV3root,__VA_ARGS__)
-#define afb_daemon_get_user_bus_v3(...)		afb_api_get_user_bus(afbBindingV3root,__VA_ARGS__)
-#define afb_daemon_get_system_bus_v3(...)	afb_api_get_system_bus(afbBindingV3root,__VA_ARGS__)
+#define afb_daemon_get_event_loop_v3()		afb_api_get_event_loop(afbBindingV3root)
+#define afb_daemon_get_user_bus_v3()		afb_api_get_user_bus(afbBindingV3root)
+#define afb_daemon_get_system_bus_v3()		afb_api_get_system_bus(afbBindingV3root)
 #define afb_daemon_broadcast_event_v3(...)	afb_api_broadcast_event(afbBindingV3root,__VA_ARGS__)
 #define afb_daemon_make_event_v3(...)		afb_api_make_event(afbBindingV3root,__VA_ARGS__)
 #define afb_daemon_verbose_v3(...)		afb_api_verbose(afbBindingV3root,__VA_ARGS__)

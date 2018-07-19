@@ -40,7 +40,7 @@ s:\<afb_api_make_eventid\>:afb_api_make_event:g
 s:\<afb_api_new_api\>:-!&:g
 s:\<afb_api_sub_verb\>:afb_api_del_verb:g
 
-# udate legacy calls
+# update legacy calls
 # ------------------
 s:\<afb_req_subcall\(_req\)\>:afb_req_subcall_legacy:g
 s:\<afb_req_subcall_sync\>:afb_req_subcall_sync_legacy:g
@@ -48,11 +48,14 @@ s:\<afb_api_call\>:afb_api_call_legacy:g
 s:\<afb_api_call_sync\>:afb_api_call_sync_legacy:g
 s:\<afb_req_store\>:afb_req_addref:g
 s:\<afb_req_unstore\> *( *\(.*\) *):\1:g
-s:\<afb_daemon_\([a-z_0-9]* *(\):afb_api_\1afbBindingV3root,:g
-s:\<afb_daemon_\([a-z_0-9]* *(\):afb_api_\1afbBindingV3root,:g
-s:\<afb_service_call_\([a-z_0-9]*\)\( *(\):afb_api_\1_legacy\2afbBindingV3root,:g
-s:\<afb_service_\([a-z_0-9]* *(\):afb_api_\1afbBindingV3root,:g
-s:\<AFB_\(\(ERROR\|WARNING\|NOTICE\|INFO\|DEBUG\)\> *(\):AFB_API_\1afbBindingV3root,:g
+
+# optional but activated by default
+# ---------------------------------
+s:\<afb_daemon_get_\(event_loop\|user_bus\|system_bus\)[ \t]*(:afb_api_get_\1(afbBindingV3root:g
+s:\<afb_daemon_\([a-z_0-9]* *(\):afb_api_\1afbBindingV3root, :g
+s:\<afb_service_call_\([a-z_0-9]*\)\( *(\):afb_api_\1_legacy\2afbBindingV3root, :g
+s:\<afb_service_\([a-z_0-9]* *(\):afb_api_\1afbBindingV3root, :g
+s:\<AFB_\(\(ERROR\|WARNING\|NOTICE\|INFO\|DEBUG\)\> *(\):AFB_API_\1afbBindingV3root, :g
 
 # special app-controller
 # ----------------------

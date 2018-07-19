@@ -91,11 +91,15 @@ you want to upgrade. It can be done using **curl** and applied using **sed**
 as below.
 
 ```bash
-BASE=https://git.automotivelinux.org/src/app-framework-binder/tree
+BASE=https://git.automotivelinux.org/src/app-framework-binder/plain
 SED=migration-to-binding-v3.sed
 curl -o $SED $BASE/docs/$SED
 sed -i -f $SED file1 file2 file3...
 ```
+
+You can also follow
+[this link](https://git.automotivelinux.org/src/app-framework-binder/plain/docs/migration-to-binding-v3.sed)
+and save the file.
 
 This automatic action does most of the boring job but not all the job.
 The remaining of this guide explains the missing part.
