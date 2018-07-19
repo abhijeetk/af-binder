@@ -1026,7 +1026,7 @@ static void hook_session(void *closure, const struct afb_hookid *hookid, struct 
 
 	va_start(ap, format);
 	emit(closure, hookid, "session", "{ss ss}", format, ap,
-					"uuid", session,
+					"uuid", afb_session_uuid(session),
 					"action", action);
 	va_end(ap);
 }
