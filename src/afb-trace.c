@@ -1600,7 +1600,7 @@ static void add(void *closure, struct json_object *object)
 			wrap_json_optarray_for_all(event, add_evt_flags, &desc);
 
 		if (session)
-			wrap_json_optarray_for_all(event, add_session_flags, &desc);
+			wrap_json_optarray_for_all(session, add_session_flags, &desc);
 
 		if (global)
 			wrap_json_optarray_for_all(global, add_global_flags, &desc);
