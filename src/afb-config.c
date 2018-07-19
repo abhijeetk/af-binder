@@ -41,33 +41,6 @@
 #error "you should define AFB_VERSION"
 #endif
 
-/* set the HAS_ options */
-#if defined(WITH_MONITORING_OPTION)
-#   define HAS_MONITORING 1
-#else
-#   define HAS_MONITORING 0
-#endif
-#if defined(WITH_DBUS_TRANSPARENCY)
-#   define HAS_DBUS 1
-#else
-#   define HAS_DBUS 0
-#endif
-#if defined(WITH_LEGACY_BINDING_V1)
-#   define HAS_BINDING_V1 1
-#else
-#   define HAS_BINDING_V1 0
-#endif
-#if defined(WITH_LEGACY_BINDING_VDYN)
-#   define HAS_BINDING_VDYN 1
-#else
-#   define HAS_BINDING_VDYN 0
-#endif
-#if defined(WITH_SUPERVISION)
-#   define HAS_SUPERVISION 1
-#else
-#   define HAS_SUPERVISION 0
-#endif
-
 /**
  * The default timeout of sessions in seconds
  */
@@ -92,10 +65,6 @@
  * The default HTTP port to serve
  */
 #define DEFAULT_HTTP_PORT		1234
-
-
-
-
 
 // Define command line option
 #define SET_BACKGROUND     1
@@ -134,7 +103,7 @@
 #define SET_TRACESVC       25
 #endif
 
-#if HAS_DBUS
+#if defined(WITH_DBUS_TRANSPARENCY)
 #   define DBUS_CLIENT        30
 #   define DBUS_SERVICE       31
 #endif
@@ -146,7 +115,7 @@
 #define SET_EXEC           'e'
 #define DISPLAY_HELP       'h'
 #define SET_LOG            'l'
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 #define SET_MONITORING     'M'
 #endif
 #define SET_NAME           'n'
@@ -166,7 +135,7 @@ const char shortopts[] =
 	"e"
 	"h"
 	"l:"
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 	"M"
 #endif
 	"n:"
@@ -225,7 +194,7 @@ static AFB_options cliOptions[] = {
 	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
 	{DISPLAY_HELP,      0, "help",        "Display this help"},
 
-#if HAS_DBUS
+#if defined(WITH_DBUS_TRANSPARENCY)
 	{DBUS_CLIENT,       1, "dbus-client", "Bind to an afb service through dbus"},
 	{DBUS_SERVICE,      1, "dbus-server", "Provide an afb service through dbus"},
 #endif
@@ -250,7 +219,7 @@ static AFB_options cliOptions[] = {
 	{SET_NO_HTTPD,      0, "no-httpd",    "Forbid HTTP service"},
 	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
 
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 	{SET_MONITORING,    0, "monitoring",  "Enable HTTP monitoring at <ROOT>/monitoring/"},
 #endif
 	{0, 0, NULL, NULL}
@@ -317,18 +286,42 @@ static struct enumdesc traceapi_desc[] = {
  +--------------------------------------------------------- */
 static void printVersion(FILE * file)
 {
-	static char pm[2] = { '-', '+' };
 	fprintf(file,
 		"\n"
-		"  AGL Framework Binder [AFB %s] %cDBUS %cMONITOR %cSUPERVISION [BINDINGS %cV1 %cVDYN +V2 +V3]\n"
+		"  AGL Framework Binder [AFB %s] "
+#if defined(WITH_DBUS_TRANSPARENCY)
+		"+"
+#else
+		"-"
+#endif
+		"DBUS "
+#if defined(WITH_MONITORING_OPTION)
+		"+"
+#else
+		"-"
+#endif
+		"MONITOR "
+#if defined(WITH_SUPERVISION)
+		"+"
+#else
+		"-"
+#endif
+		"SUPERVISION [BINDINGS "
+#if defined(WITH_LEGACY_BINDING_V1)
+		"+"
+#else
+		"-"
+#endif
+		"V1 "
+#if defined(WITH_LEGACY_BINDING_VDYN)
+		"+"
+#else
+		"-"
+#endif
+		"VDYN +V2 +V3]\n"
 		"\n",
-			AFB_VERSION,
-			pm[HAS_DBUS],
-			pm[HAS_MONITORING],
-			pm[HAS_SUPERVISION],
-			pm[HAS_BINDING_V1],
-			pm[HAS_BINDING_VDYN]
-		);
+		AFB_VERSION
+	);
 	fprintf(file,
 		"  Copyright (C) 2015-2018 \"IoT.bzh\"\n"
 		"  AFB comes with ABSOLUTELY NO WARRANTY.\n"
@@ -697,7 +690,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->name = argvalstr(optc);
 			break;
 
-#if HAS_DBUS
+#if defined(WITH_DBUS_TRANSPARENCY)
 		case DBUS_CLIENT:
 			list_add(&config->dbus_clients, argvalstr(optc));
 			break;
@@ -763,7 +756,7 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			config->random_token = 1;
 			break;
 
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 		case SET_MONITORING:
 			config->monitoring = 1;
 			break;
@@ -831,7 +824,7 @@ static void fulfill_config(struct afb_config *config)
 	if (config->ldpaths == NULL && config->weak_ldpaths == NULL && !config->no_ldpaths)
 		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
 
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 	if (config->monitoring)
 		list_add(&config->aliases, strdup("/monitoring:"BINDING_INSTALL_DIR"/monitoring"));
 #endif
@@ -877,7 +870,7 @@ void afb_config_dump(struct afb_config *config)
 	S(name)
 
 	L(aliases)
-#if HAS_DBUS
+#if defined(WITH_DBUS_TRANSPARENCY)
 	L(dbus_clients)
 	L(dbus_servers)
 #endif
@@ -909,7 +902,7 @@ void afb_config_dump(struct afb_config *config)
 	B(no_ldpaths)
 	B(no_httpd)
 	B(background)
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 	B(monitoring)
 #endif
 	B(random_token)
@@ -1017,7 +1010,7 @@ struct json_object *afb_config_json(struct afb_config *config)
 	S(name)
 
 	L(aliases)
-#if HAS_DBUS
+#if defined(WITH_DBUS_TRANSPARENCY)
 	L(dbus_clients)
 	L(dbus_servers)
 #endif
@@ -1049,7 +1042,7 @@ struct json_object *afb_config_json(struct afb_config *config)
 	B(no_ldpaths)
 	B(no_httpd)
 	B(background)
-#if HAS_MONITORING
+#if defined(WITH_MONITORING_OPTION)
 	B(monitoring)
 #endif
 	B(random_token)
