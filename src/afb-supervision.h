@@ -19,6 +19,6 @@
 #pragma once
 
 struct afb_apiset;
-struct afb_config;
+struct json_object;
 
-extern int afb_supervision_init(struct afb_apiset *apiset, struct afb_config *config);
+extern int afb_supervision_init(struct afb_apiset *apiset, struct json_object *config);

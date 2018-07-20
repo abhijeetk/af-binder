@@ -54,8 +54,10 @@
 #include "afb-common.h"
 #include "afb-monitor.h"
 #include "afb-hook.h"
+#include "afb-hook-flags.h"
 #include "afb-debug.h"
 #include "process-name.h"
+#include "wrap-json.h"
 #if defined(WITH_SUPERVISION)
 #   include "afb-supervision.h"
 #endif
@@ -67,7 +69,7 @@
 #define SELF_PGROUP 0
 
 struct afb_apiset *main_apiset;
-struct afb_config *main_config;
+struct json_object *main_config;
 
 static pid_t childpid;
 
@@ -75,35 +77,40 @@ static pid_t childpid;
  |   helpers for handling list of arguments
  +--------------------------------------------------------- */
 
-/*
- * Calls the callback 'run' for each value of the 'list'
- * until the callback returns 0 or the end of the list is reached.
- * Returns either NULL if the end of the list is reached or a pointer
- * to the item whose value made 'run' return 0.
- * 'closure' is used for passing user data.
- */
-static struct afb_config_list *run_for_list(struct afb_config_list *list,
-					    int (*run) (void *closure, char *value),
+static const char *run_for_config_array_opt(const char *name,
+					    int (*run) (void *closure, const char *value),
 					    void *closure)
 {
-	while (list && run(closure, list->value))
-		list = list->next;
-	return list;
+	int i, n, rc;
+	struct json_object *array, *value;
+
+	if (json_object_object_get_ex(main_config, name, &array)) {
+		if (!json_object_is_type(array, json_type_array))
+			return json_object_get_string(array);
+		n = (int)json_object_array_length(array);
+		for (i = 0 ; i < n ; i++) {
+			value = json_object_array_get_idx(array, i);
+			rc = run(closure, json_object_get_string(value));
+			if (!rc)
+				return json_object_get_string(value);
+		}
+	}
+	return NULL;
 }
 
-static int run_start(void *closure, char *value)
+static int run_start(void *closure, const char *value)
 {
 	int (*starter) (const char *value, struct afb_apiset *declare_set, struct afb_apiset *call_set) = closure;
 	return starter(value, main_apiset, main_apiset) >= 0;
 }
 
-static void apiset_start_list(struct afb_config_list *list,
+static void apiset_start_list(const char *name,
 			int (*starter) (const char *value, struct afb_apiset *declare_set, struct afb_apiset *call_set),
 			const char *message)
 {
-	list = run_for_list(list, run_start, starter);
-	if (list) {
-		ERROR("can't start %s %s", message, list->value);
+	const char *item = run_for_config_array_opt(name, run_start, starter);
+	if (item) {
+		ERROR("can't start %s %s", message, item);
 		exit(1);
 	}
 }
@@ -165,50 +172,53 @@ static void setup_daemon()
  +--------------------------------------------------------- */
 static void daemonize()
 {
-	int consoleFD;
-	int pid;
+	int fd, daemon;
+	const char *output;
+	pid_t pid;
 
-	// open /dev/console to redirect output messAFBes
-	consoleFD = open(main_config->console, O_WRONLY | O_APPEND | O_CREAT, 0640);
-	if (consoleFD < 0) {
-		ERROR("AFB-daemon cannot open /dev/console (use --foreground)");
-		exit(1);
+	daemon = 0;
+	output = NULL;
+	wrap_json_unpack(main_config, "{s?b s?s}", "daemon", &daemon, "output", &output);
+
+	if (output) {
+		fd = open(output, O_WRONLY | O_APPEND | O_CREAT, 0640);
+		if (fd < 0) {
+			ERROR("Can't open output %s", output);
+			exit(1);
+		}
 	}
-	// fork process when running background mode
-	pid = fork();
 
-	// if fail nothing much to do
-	if (pid == -1) {
-		ERROR("AFB-daemon Failed to fork son process");
-		exit(1);
+	if (daemon) {
+		INFO("entering background mode");
+
+		pid = fork();
+		if (pid == -1) {
+			ERROR("Failed to fork daemon process");
+			exit(1);
+		}
+		if (pid != 0)
+			_exit(0);
 	}
-	// if in father process, just leave
-	if (pid != 0)
-		_exit(0);
 
-	// son process get all data in standalone mode
-	NOTICE("background mode [pid:%d console:%s]", getpid(),
-	       main_config->console);
+	/* closes the input */
+	if (output) {
+		NOTICE("Redirecting output to %s", output);
+		close(2);
+		dup(fd);
+		close(1);
+		dup(fd);
+		close(fd);
+	}
 
-	// redirect default I/O on console
-	close(2);
-	dup(consoleFD);		// redirect stderr
-	close(1);
-	dup(consoleFD);		// redirect stdout
-	close(0);		// no need for stdin
-	close(consoleFD);
-
-#if 0
-	setsid();		// allow father process to fully exit
-	sleep(2);		// allow main to leave and release port
-#endif
+	/* after that ctrl+C still works */
+	close(0);
 }
 
 /*---------------------------------------------------------
  | http server
  |   Handles the HTTP server
  +--------------------------------------------------------- */
-static int init_alias(void *closure, char *spec)
+static int init_alias(void *closure, const char *spec)
 {
 	struct afb_hsrv *hsrv = closure;
 	char *path = strchr(spec, ':');
@@ -225,27 +235,38 @@ static int init_alias(void *closure, char *spec)
 
 static int init_http_server(struct afb_hsrv *hsrv)
 {
-	if (!afb_hsrv_add_handler
-	    (hsrv, main_config->rootapi, afb_hswitch_websocket_switch, main_apiset, 20))
+	int rc;
+	const char *rootapi, *roothttp, *rootbase;
+
+	roothttp = NULL;
+	rc = wrap_json_unpack(main_config, "{ss ss s?s}",
+				"rootapi", &rootapi,
+				"rootbase", &rootbase,
+				"roothttp", &roothttp);
+	if (rc < 0) {
+		ERROR("Can't get HTTP server config");
+		exit(1);
+	}
+
+	if (!afb_hsrv_add_handler(hsrv, rootapi,
+			afb_hswitch_websocket_switch, main_apiset, 20))
 		return 0;
 
-	if (!afb_hsrv_add_handler
-	    (hsrv, main_config->rootapi, afb_hswitch_apis, main_apiset, 10))
+	if (!afb_hsrv_add_handler(hsrv, rootapi,
+			afb_hswitch_apis, main_apiset, 10))
 		return 0;
 
-	if (run_for_list(main_config->aliases, init_alias, hsrv))
+	if (run_for_config_array_opt("alias", init_alias, hsrv))
 		return 0;
 
-	if (main_config->roothttp != NULL) {
-		if (!afb_hsrv_add_alias
-		    (hsrv, "", afb_common_rootdir_get_fd(), main_config->roothttp,
-		     -10, 1))
+	if (roothttp != NULL) {
+		if (!afb_hsrv_add_alias(hsrv, "",
+			afb_common_rootdir_get_fd(), roothttp, -10, 1))
 			return 0;
 	}
 
-	if (!afb_hsrv_add_handler
-	    (hsrv, main_config->rootbase, afb_hswitch_one_page_api_redirect, NULL,
-	     -20))
+	if (!afb_hsrv_add_handler(hsrv, rootbase,
+			afb_hswitch_one_page_api_redirect, NULL, -20))
 		return 0;
 
 	return 1;
@@ -254,10 +275,22 @@ static int init_http_server(struct afb_hsrv *hsrv)
 static struct afb_hsrv *start_http_server()
 {
 	int rc;
+	const char *uploaddir, *rootdir;
 	struct afb_hsrv *hsrv;
+	int cache_timeout, http_port;
 
-	if (afb_hreq_init_download_path(main_config->uploaddir)) {
-		ERROR("unable to set the upload directory %s", main_config->uploaddir);
+	rc = wrap_json_unpack(main_config, "{ss ss si si}",
+				"uploaddir", &uploaddir,
+				"rootdir", &rootdir,
+				"cache-eol", &cache_timeout,
+				"port", &http_port);
+	if (rc < 0) {
+		ERROR("Can't get HTTP server start config");
+		exit(1);
+	}
+
+	if (afb_hreq_init_download_path(uploaddir)) {
+		ERROR("unable to set the upload directory %s", uploaddir);
 		return NULL;
 	}
 
@@ -267,17 +300,17 @@ static struct afb_hsrv *start_http_server()
 		return NULL;
 	}
 
-	if (!afb_hsrv_set_cache_timeout(hsrv, main_config->cache_timeout)
+	if (!afb_hsrv_set_cache_timeout(hsrv, cache_timeout)
 	    || !init_http_server(hsrv)) {
 		ERROR("initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
 
-	NOTICE("Waiting port=%d rootdir=%s", main_config->http_port, main_config->rootdir);
-	NOTICE("Browser URL= http://localhost:%d", main_config->http_port);
+	NOTICE("Waiting port=%d rootdir=%s", http_port, rootdir);
+	NOTICE("Browser URL= http://localhost:%d", http_port);
 
-	rc = afb_hsrv_start(hsrv, (uint16_t) main_config->http_port, 15);
+	rc = afb_hsrv_start(hsrv, (uint16_t) http_port, 15);
 	if (!rc) {
 		ERROR("starting of httpd failed");
 		afb_hsrv_put(hsrv);
@@ -316,7 +349,7 @@ static void on_sigchld(int signum, siginfo_t *info, void *uctx)
 #define SUBST_CHAR  '@'
 #define SUBST_STR   "@"
 
-static char *instanciate_string(char *arg, const char *port, const char *token)
+static char *instanciate_string(const char *arg, const char *port, const char *token)
 {
 	char *resu, *it, *wr;
 	int chg, dif;
@@ -337,7 +370,7 @@ static char *instanciate_string(char *arg, const char *port, const char *token)
 
 	/* return arg when no change */
 	if (!chg)
-		return arg;
+		return strdup(arg);
 
 	/* allocates the result */
 	resu = malloc((it - arg) + dif + 1);
@@ -372,7 +405,7 @@ static int instanciate_environ(const char *port, const char *token)
 	char *repl;
 	int i;
 
-	/* instanciate the environment */
+	/* instantiate the environment */
 	for (i = 0 ; environ[i] ; i++) {
 		repl = instanciate_string(environ[i], port, token);
 		if (!repl)
@@ -382,30 +415,46 @@ static int instanciate_environ(const char *port, const char *token)
 	return 0;
 }
 
-static int instanciate_command_args(const char *port, const char *token)
+static char **instanciate_command_args(struct json_object *exec, const char *port, const char *token)
 {
+	char **result;
 	char *repl;
-	int i;
+	int i, n;
+
+	/* allocates the result */
+	n = (int)json_object_array_length(exec);
+	result = malloc((n + 1) * sizeof * result);
+	if (!result) {
+		ERROR("out of memory");
+		return NULL;
+	}
 
 	/* instanciate the arguments */
-	for (i = 0 ; main_config->exec[i] ; i++) {
-		repl = instanciate_string(main_config->exec[i], port, token);
-		if (!repl)
-			return -1;
-		main_config->exec[i] = repl;
+	for (i = 0 ; i < n ; i++) {
+		repl = instanciate_string(json_object_get_string(json_object_array_get_idx(exec, i)), port, token);
+		if (!repl) {
+			while(i)
+				free(result[--i]);
+			free(result);
+			return NULL;
+		}
+		result[i] = repl;
 	}
-	return 0;
+	result[i] = NULL;
+	return result;
 }
 
 static int execute_command()
 {
+	struct json_object *exec, *oport;
 	struct sigaction siga;
 	char port[20];
 	const char *token;
+	char **args;
 	int rc;
 
 	/* check whether a command is to execute or not */
-	if (!main_config->exec || !main_config->exec[0])
+	if (!json_object_object_get_ex(main_config, "exec", &exec))
 		return 0;
 
 	if (SELF_PGROUP)
@@ -423,8 +472,8 @@ static int execute_command()
 		return 0;
 
 	/* compute the string for port */
-	if (main_config->http_port)
-		rc = snprintf(port, sizeof port, "%d", main_config->http_port);
+	if (json_object_object_get_ex(main_config, "port", &oport))
+		rc = snprintf(port, sizeof port, "%s", json_object_get_string(oport));
 	else
 		rc = snprintf(port, sizeof port, "%cp", SUBST_CHAR);
 	if (rc < 0 || rc >= (int)(sizeof port)) {
@@ -433,13 +482,13 @@ static int execute_command()
 	else {
 		/* instanciate arguments and environment */
 		token = afb_session_initial_token();
-		if (instanciate_command_args(port, token) >= 0
-		 && instanciate_environ(port, token) >= 0) {
+		args = instanciate_command_args(exec, port, token);
+		if (args && instanciate_environ(port, token) >= 0) {
 			/* run */
 			if (!SELF_PGROUP)
 				setpgid(0, 0);
-			execv(main_config->exec[0], main_config->exec);
-			ERROR("can't launch %s: %m", main_config->exec[0]);
+			execv(args[0], args);
+			ERROR("can't launch %s: %m", args[0]);
 		}
 	}
 	exit(1);
@@ -455,7 +504,10 @@ struct startup_req
 	struct afb_xreq xreq;
 	char *api;
 	char *verb;
-	struct afb_config_list *current;
+	struct json_object *calls;
+	int index;
+	int count;
+	const char *callspec;
 	struct afb_session *session;
 };
 
@@ -465,10 +517,10 @@ static void startup_call_reply(struct afb_xreq *xreq, struct json_object *object
 
 	info = info ?: "";
 	if (!error) {
-		NOTICE("startup call %s returned %s (%s)", sreq->current->value, json_object_get_string(object), info);
+		NOTICE("startup call %s returned %s (%s)", sreq->callspec, json_object_get_string(object), info);
 		json_object_put(object);
 	} else {
-		ERROR("startup call %s ERROR! %s (%s)", sreq->current->value, error, info);
+		ERROR("startup call %s ERROR! %s (%s)", sreq->callspec, error, info);
 		exit(1);
 	}
 }
@@ -482,8 +534,8 @@ static void startup_call_unref(struct afb_xreq *xreq)
 	free(sreq->api);
 	free(sreq->verb);
 	json_object_put(sreq->xreq.json);
-	sreq->current = sreq->current->next;
-	if (sreq->current)
+	sreq->index++;
+	if (sreq->index < sreq->count)
 		startup_call_current(sreq);
 	else {
 		afb_session_close(sreq->session);
@@ -500,9 +552,10 @@ static struct afb_xreq_query_itf startup_xreq_itf =
 
 static void startup_call_current(struct startup_req *sreq)
 {
-	char *api, *verb, *json;
+	const char *api, *verb, *json;
 
-	api = sreq->current->value;
+	sreq->callspec = json_object_get_string(json_object_array_get_idx(sreq->calls, sreq->index)),
+	api = sreq->callspec;
 	verb = strchr(api, '/');
 	if (verb) {
 		json = strchr(verb, ':');
@@ -521,20 +574,24 @@ static void startup_call_current(struct startup_req *sreq)
 			}
 		}
 	}
-	ERROR("Bad call specification %s", sreq->current->value);
+	ERROR("Bad call specification %s", sreq->callspec);
 	exit(1);
 }
 
 static void run_startup_calls()
 {
-	struct afb_config_list *list;
+	struct json_object *calls;
 	struct startup_req *sreq;
+	int count;
 
-	list = main_config->calls;
-	if (list) {
+	if (json_object_object_get_ex(main_config, "call", &calls)
+	 && json_object_is_type(calls, json_type_array)
+	 && (count = (int)json_object_array_length(calls))) {
 		sreq = calloc(1, sizeof *sreq);
 		sreq->session = afb_session_create(3600);
-		sreq->current = list;
+		sreq->calls = calls;
+		sreq->index = 0;
+		sreq->count = count;
 		startup_call_current(sreq);
 	}
 }
@@ -545,7 +602,13 @@ static void run_startup_calls()
 
 static void start(int signum, void *arg)
 {
+	const char *tracereq, *traceapi, *traceevt, *traceses, *tracesvc, *traceditf, *traceglob;
+	const char *workdir, *rootdir, *token, *rootapi;
 	struct afb_hsrv *hsrv;
+	int max_session_count, session_timeout, api_timeout;
+	int no_httpd, http_port;
+	int rc;
+
 
 	afb_debug("start-entry");
 
@@ -554,23 +617,63 @@ static void start(int signum, void *arg)
 		exit(1);
 	}
 
+	token = rootapi = tracesvc = traceditf = tracereq =
+		traceapi = traceevt = traceses = traceglob = NULL;
+	no_httpd = http_port = 0;
+	rc = wrap_json_unpack(main_config, "{"
+			"ss ss s?s"
+			"si si si"
+			"s?b s?i s?s"
+#if !defined(REMOVE_LEGACY_TRACE)
+			"s?s s?s"
+#endif
+			"s?s s?s s?s s?s s?s"
+			"}",
+
+			"rootdir", &rootdir,
+			"workdir", &workdir,
+			"token", &token,
+
+			"apitimeout", &api_timeout,
+			"cntxtimeout", &session_timeout,
+			"session-max", &max_session_count,
+
+			"no-httpd", &no_httpd,
+			"port", &http_port,
+			"rootapi", &rootapi,
+
+#if !defined(REMOVE_LEGACY_TRACE)
+			"tracesvc", &tracesvc,
+			"traceditf", &traceditf,
+#endif
+			"tracereq", &tracereq,
+			"traceapi", &traceapi,
+			"traceevt", &traceevt,
+			"traceses",  &traceses,
+			"traceglob", &traceglob
+			);
+	if (rc < 0) {
+		ERROR("Unable to get start config");
+		exit(1);
+	}
+
 	/* set the directories */
-	mkdir(main_config->workdir, S_IRWXU | S_IRGRP | S_IXGRP);
-	if (chdir(main_config->workdir) < 0) {
-		ERROR("Can't enter working dir %s", main_config->workdir);
+	mkdir(workdir, S_IRWXU | S_IRGRP | S_IXGRP);
+	if (chdir(workdir) < 0) {
+		ERROR("Can't enter working dir %s", workdir);
 		goto error;
 	}
-	if (afb_common_rootdir_set(main_config->rootdir) < 0) {
+	if (afb_common_rootdir_set(rootdir) < 0) {
 		ERROR("failed to set common root directory");
 		goto error;
 	}
 
 	/* configure the daemon */
-	if (afb_session_init(main_config->max_session_count, main_config->session_timeout, main_config->token)) {
+	if (afb_session_init(max_session_count, session_timeout, token)) {
 		ERROR("initialisation of session manager failed");
 		goto error;
 	}
-	main_apiset = afb_apiset_create("main", main_config->api_timeout);
+	main_apiset = afb_apiset_create("main", api_timeout);
 	if (!main_apiset) {
 		ERROR("can't create main api set");
 		goto error;
@@ -587,27 +690,36 @@ static void start(int signum, void *arg)
 #endif
 
 	/* install hooks */
-	if (main_config->tracereq)
-		afb_hook_create_xreq(NULL, NULL, NULL, main_config->tracereq, NULL, NULL);
-	if (main_config->traceapi)
-		afb_hook_create_api(NULL, main_config->traceapi, NULL, NULL);
-	if (main_config->traceevt)
-		afb_hook_create_evt(NULL, main_config->traceevt, NULL, NULL);
-	if (main_config->traceses)
-		afb_hook_create_session(NULL, main_config->traceses, NULL, NULL);
+	if (tracereq)
+		afb_hook_create_xreq(NULL, NULL, NULL, afb_hook_flags_xreq_from_text(tracereq), NULL, NULL);
+#if !defined(REMOVE_LEGACY_TRACE)
+	if (traceapi || tracesvc || traceditf)
+		afb_hook_create_api(NULL, afb_hook_flags_api_from_text(traceapi)
+			| afb_hook_flags_legacy_ditf_from_text(traceditf)
+			| afb_hook_flags_legacy_svc_from_text(tracesvc), NULL, NULL);
+#else
+	if (traceapi)
+		afb_hook_create_api(NULL, afb_hook_flags_api_from_text(traceapi), NULL, NULL);
+#endif
+	if (traceevt)
+		afb_hook_create_evt(NULL, afb_hook_flags_evt_from_text(traceevt), NULL, NULL);
+	if (traceses)
+		afb_hook_create_session(NULL, afb_hook_flags_session_from_text(traceses), NULL, NULL);
+	if (traceglob)
+		afb_hook_create_global(afb_hook_flags_global_from_text(traceglob), NULL, NULL);
 
 	/* load bindings */
 	afb_debug("start-load");
-	apiset_start_list(main_config->so_bindings, afb_api_so_add_binding, "the binding");
-	apiset_start_list(main_config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
-	apiset_start_list(main_config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
-	apiset_start_list(main_config->auto_api, afb_autoset_add_any, "the automatic api path set");
-	apiset_start_list(main_config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
+	apiset_start_list("binding", afb_api_so_add_binding, "the binding");
+	apiset_start_list("ldpaths", afb_api_so_add_pathset_fails, "the binding path set");
+	apiset_start_list("weak-ldpaths", afb_api_so_add_pathset_nofails, "the weak binding path set");
+	apiset_start_list("auto-api", afb_autoset_add_any, "the automatic api path set");
+	apiset_start_list("ws-server", afb_api_ws_add_server, "the afb-websocket service");
 #if defined(WITH_DBUS_TRANSPARENCY)
-	apiset_start_list(main_config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
-	apiset_start_list(main_config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
+	apiset_start_list("dbus-server", afb_api_dbus_add_server, "the afb-dbus service");
+	apiset_start_list("dbus-client", afb_api_dbus_add_client, "the afb-dbus client");
 #endif
-	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
+	apiset_start_list("ws-client", afb_api_ws_add_client_weak, "the afb-websocket client");
 
 	DEBUG("Init config done");
 
@@ -621,13 +733,13 @@ static void start(int signum, void *arg)
 
 	/* start the HTTP server */
 	afb_debug("start-http");
-	if (!main_config->no_httpd) {
-		if (main_config->http_port <= 0) {
+	if (!no_httpd) {
+		if (http_port <= 0) {
 			ERROR("no port is defined");
 			goto error;
 		}
 
-		if (!afb_hreq_init_cookie(main_config->http_port, main_config->rootapi, main_config->session_timeout)) {
+		if (!afb_hreq_init_cookie(http_port, rootapi, session_timeout)) {
 			ERROR("initialisation of HTTP cookies failed");
 			goto error;
 		}
@@ -660,26 +772,20 @@ error:
 
 int main(int argc, char *argv[])
 {
+	struct json_object *name;
 	afb_debug("main-entry");
 
 	// ------------- Build session handler & init config -------
 	main_config = afb_config_parse_arguments(argc, argv);
-	if (main_config->name) {
-		verbose_set_name(main_config->name, 0);
-		process_name_set_name(main_config->name);
-		process_name_replace_cmdline(argv, main_config->name);
+	if (json_object_object_get_ex(main_config, "name", &name)) {
+		verbose_set_name(json_object_get_string(name), 0);
+		process_name_set_name(json_object_get_string(name));
+		process_name_replace_cmdline(argv, json_object_get_string(name));
 	}
 	afb_debug("main-args");
 
 	// --------- run -----------
-	if (main_config->background) {
-		// --------- in background mode -----------
-		INFO("entering background mode");
-		daemonize();
-	} else {
-		// ---- in foreground mode --------------------
-		INFO("entering foreground mode");
-	}
+	daemonize();
 	INFO("running with pid %d", getpid());
 
 	/* set the daemon environment */

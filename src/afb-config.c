@@ -32,7 +32,8 @@
 
 #include "verbose.h"
 #include "afb-config.h"
-#include "afb-hook.h"
+#include "afb-hook-flags.h"
+#include "wrap-json.h"
 
 #define _d2s_(x)  #x
 #define d2s(x)    _d2s_(x)
@@ -70,218 +71,249 @@
 #define DEFAULT_HTTP_PORT		1234
 
 // Define command line option
-#define SET_BACKGROUND     1
-#define SET_FORGROUND      2
-#define SET_ROOT_DIR       3
-#define SET_ROOT_BASE      4
-#define SET_ROOT_API       5
-#define SET_ALIAS          6
+#define SET_BACKGROUND       1
+#define SET_FOREGROUND       2
+#define SET_ROOT_DIR         3
+#define SET_ROOT_BASE        4
+#define SET_ROOT_API         5
+#define ADD_ALIAS            6
 
-#define SET_CACHE_TIMEOUT  7
+#define SET_CACHE_TIMEOUT    7
 
-#define AUTO_WS            8
-#define AUTO_LINK          9
+#define AUTO_WS              8
+#define AUTO_LINK            9
 
-#define SET_LDPATH         10
-#define SET_APITIMEOUT     11
-#define SET_CNTXTIMEOUT    12
-#define SET_WEAK_LDPATH    13
-#define NO_LDPATH          14
+#define ADD_LDPATH          10
+#define SET_API_TIMEOUT     11
+#define SET_SESSION_TIMEOUT 12
+#define ADD_WEAK_LDPATH     13
+#define SET_NO_LDPATH       14
 
-#define SET_SESSIONMAX     15
+#define SET_SESSIONMAX      15
 
-#define WS_CLIENT          16
-#define WS_SERVICE         17
+#define ADD_WS_CLIENT       16
+#define ADD_WS_SERVICE      17
 
-#define SET_ROOT_HTTP      18
+#define SET_ROOT_HTTP       18
 
-#define SET_NO_HTTPD       19
+#define SET_NO_HTTPD        19
 
-#define SET_TRACEEVT       20
-#define SET_TRACESES       21
-#define SET_TRACEREQ       22
-#define SET_TRACEAPI       23
+#define SET_TRACEEVT        20
+#define SET_TRACESES        21
+#define SET_TRACEREQ        22
+#define SET_TRACEAPI        23
+#define SET_TRACEGLOB       24
 #if !defined(REMOVE_LEGACY_TRACE)
-#define SET_TRACEDITF      24
-#define SET_TRACESVC       25
+#define SET_TRACEDITF       25
+#define SET_TRACESVC        26
 #endif
 
 #if defined(WITH_DBUS_TRANSPARENCY)
-#   define DBUS_CLIENT        30
-#   define DBUS_SERVICE       31
+#   define ADD_DBUS_CLIENT  30
+#   define ADD_DBUS_SERVICE 31
 #endif
 
 
-#define AUTO_API           'A'
-#define SO_BINDING         'b'
+#define ADD_AUTO_API       'A'
+#define ADD_BINDING        'b'
+#define SET_CONFIG         'C'
 #define ADD_CALL           'c'
+#define SET_DAEMON         'D'
 #define SET_EXEC           'e'
-#define DISPLAY_HELP       'h'
+#define GET_HELP           'h'
 #define SET_LOG            'l'
 #if defined(WITH_MONITORING_OPTION)
 #define SET_MONITORING     'M'
 #endif
 #define SET_NAME           'n'
-#define SET_TCP_PORT       'p'
+#define SET_OUTPUT         'o'
+#define SET_PORT           'p'
 #define SET_QUIET          'q'
-#define SET_RNDTOKEN       'r'
-#define SET_AUTH_TOKEN     't'
+#define SET_RANDOM_TOKEN   'r'
+#define SET_TOKEN          't'
 #define SET_UPLOAD_DIR     'u'
-#define DISPLAY_VERSION    'V'
+#define GET_VERSION        'V'
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
 
-const char shortopts[] =
-	"A:"
-	"b:"
-	"c:"
-	"e"
-	"h"
-	"l:"
-#if defined(WITH_MONITORING_OPTION)
-	"M"
-#endif
-	"n:"
-	"p:"
-	"q"
-	"r"
-	"t:"
-	"u:"
-	"V"
-	"v"
-	"w:"
-;
+/* structure for defining of options */
+struct option_desc {
+	int id;		/* id of the option         */
+	int has_arg;	/* is a value required      */
+	char *name;	/* long name of the option  */
+	char *help;	/* help text                */
+};
 
-// Command line structure hold cli --command + help text
-typedef struct {
-	int val;		// command number within application
-	int has_arg;		// command number within application
-	char *name;		// command as used in --xxxx cli
-	char *help;		// help text
-} AFB_options;
-
-// Supported option
-static AFB_options cliOptions[] = {
+/* definition of options */
+static struct option_desc optdefs[] = {
 /* *INDENT-OFF* */
-	{SET_VERBOSE,       0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
-	{SET_QUIET,         0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
-	{SET_LOG,           1, "log",         "Tune log level"},
+	{SET_VERBOSE,         0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
+	{SET_QUIET,           0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
+	{SET_LOG,             1, "log",         "Tune log level"},
 
-	{SET_FORGROUND,     0, "foreground",  "Get all in foreground mode"},
-	{SET_BACKGROUND,    0, "daemon",      "Get all in background mode"},
+	{SET_FOREGROUND,      0, "foreground",  "Get all in foreground mode"},
+	{SET_BACKGROUND,      0, "background",  "Get all in background mode"},
+	{SET_DAEMON,          0, "daemon",      "Get all in background mode"},
 
-	{SET_NAME,          1, "name",        "Set the visible name"},
+	{SET_NAME,            1, "name",        "Set the visible name"},
 
-	{SET_TCP_PORT,      1, "port",        "HTTP listening TCP port  [default " d2s(DEFAULT_HTTP_PORT) "]"},
-	{SET_ROOT_HTTP,     1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
-	{SET_ROOT_BASE,     1, "rootbase",    "Angular Base Root URL [default /opa]"},
-	{SET_ROOT_API,      1, "rootapi",     "HTML Root API URL [default /api]"},
-	{SET_ALIAS,         1, "alias",       "Multiple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
+	{SET_PORT,            1, "port",        "HTTP listening TCP port  [default " d2s(DEFAULT_HTTP_PORT) "]"},
+	{SET_ROOT_HTTP,       1, "roothttp",    "HTTP Root Directory [default no root http (files not served but apis still available)]"},
+	{SET_ROOT_BASE,       1, "rootbase",    "Angular Base Root URL [default /opa]"},
+	{SET_ROOT_API,        1, "rootapi",     "HTML Root API URL [default /api]"},
+	{ADD_ALIAS,           1, "alias",       "Multiple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
 
-	{SET_APITIMEOUT,    1, "apitimeout",  "Binding API timeout in seconds [default " d2s(DEFAULT_API_TIMEOUT) "]"},
-	{SET_CNTXTIMEOUT,   1, "cntxtimeout", "Client Session Context Timeout [default " d2s(DEFAULT_SESSION_TIMEOUT) "]"},
-	{SET_CACHE_TIMEOUT, 1, "cache-eol",   "Client cache end of live [default " d2s(DEFAULT_CACHE_TIMEOUT) "]"},
+	{SET_API_TIMEOUT,     1, "apitimeout",  "Binding API timeout in seconds [default " d2s(DEFAULT_API_TIMEOUT) "]"},
+	{SET_SESSION_TIMEOUT, 1, "cntxtimeout", "Client Session Context Timeout [default " d2s(DEFAULT_SESSION_TIMEOUT) "]"},
+	{SET_CACHE_TIMEOUT,   1, "cache-eol",   "Client cache end of live [default " d2s(DEFAULT_CACHE_TIMEOUT) "]"},
 
-	{SET_WORK_DIR,      1, "workdir",     "Set the working directory [default: $PWD or current working directory]"},
-	{SET_UPLOAD_DIR,    1, "uploaddir",   "Directory for uploading files [default: workdir]"},
-	{SET_ROOT_DIR,      1, "rootdir",     "Root Directory of the application [default: workdir]"},
+	{SET_WORK_DIR,        1, "workdir",     "Set the working directory [default: $PWD or current working directory]"},
+	{SET_UPLOAD_DIR,      1, "uploaddir",   "Directory for uploading files [default: workdir]"},
+	{SET_ROOT_DIR,        1, "rootdir",     "Root Directory of the application [default: workdir]"},
 
-	{SET_LDPATH,        1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
-	{SO_BINDING,        1, "binding",     "Load the binding of path"},
-	{SET_WEAK_LDPATH,   1, "weak-ldpaths","Same as --ldpaths but ignore errors"},
-	{NO_LDPATH,         0, "no-ldpaths",  "Discard default ldpaths loading"},
+	{ADD_LDPATH,          1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
+	{ADD_BINDING,         1, "binding",     "Load the binding of path"},
+	{ADD_WEAK_LDPATH,     1, "weak-ldpaths","Same as --ldpaths but ignore errors"},
+	{SET_NO_LDPATH,       0, "no-ldpaths",  "Discard default ldpaths loading"},
 
-	{SET_AUTH_TOKEN,    1, "token",       "Initial Secret [default=random, use --token="" to allow any token]"},
-	{SET_RNDTOKEN,      0, "random-token","Enforce a random token"},
+	{SET_TOKEN,           1, "token",       "Initial Secret [default=random, use --token="" to allow any token]"},
+	{SET_RANDOM_TOKEN,    0, "random-token","Enforce a random token"},
 
-	{DISPLAY_VERSION,   0, "version",     "Display version and copyright"},
-	{DISPLAY_HELP,      0, "help",        "Display this help"},
+	{GET_VERSION,         0, "version",     "Display version and copyright"},
+	{GET_HELP,            0, "help",        "Display this help"},
 
 #if defined(WITH_DBUS_TRANSPARENCY)
-	{DBUS_CLIENT,       1, "dbus-client", "Bind to an afb service through dbus"},
-	{DBUS_SERVICE,      1, "dbus-server", "Provide an afb service through dbus"},
+	{ADD_DBUS_CLIENT,     1, "dbus-client", "Bind to an afb service through dbus"},
+	{ADD_DBUS_SERVICE,    1, "dbus-server", "Provide an afb service through dbus"},
 #endif
-	{WS_CLIENT,         1, "ws-client",   "Bind to an afb service through websocket"},
-	{WS_SERVICE,        1, "ws-server",   "Provide an afb service through websockets"},
+	{ADD_WS_CLIENT,       1, "ws-client",   "Bind to an afb service through websocket"},
+	{ADD_WS_SERVICE,      1, "ws-server",   "Provide an afb service through websockets"},
 
-	{AUTO_API,          1, "auto-api",    "Automatic load of api of the given directory"},
+	{ADD_AUTO_API,        1, "auto-api",    "Automatic load of api of the given directory"},
 
-	{SET_SESSIONMAX,    1, "session-max", "Max count of session simultaneously [default " d2s(DEFAULT_MAX_SESSION_COUNT) "]"},
+	{SET_SESSIONMAX,      1, "session-max", "Max count of session simultaneously [default " d2s(DEFAULT_MAX_SESSION_COUNT) "]"},
 
-	{SET_TRACEREQ,      1, "tracereq",    "Log the requests: no, common, extra, all"},
+	{SET_TRACEREQ,        1, "tracereq",    "Log the requests: none, common, extra, all"},
+	{SET_TRACEEVT,        1, "traceevt",    "Log the events: none, common, extra, all"},
+	{SET_TRACESES,        1, "traceses",    "Log the sessions: none, all"},
+	{SET_TRACEAPI,        1, "traceapi",    "Log the apis: none, common, api, event, all"},
+	{SET_TRACEGLOB,       1, "traceglob",   "Log the globals: none, all"},
 #if !defined(REMOVE_LEGACY_TRACE)
-	{SET_TRACEDITF,     1, "traceditf",   "Log the daemons: no, common, all"},
-	{SET_TRACESVC,      1, "tracesvc",    "Log the services: no, all"},
+	{SET_TRACEDITF,       1, "traceditf",   "Log the daemons: no, common, all"},
+	{SET_TRACESVC,        1, "tracesvc",    "Log the services: no, all"},
 #endif
-	{SET_TRACEEVT,      1, "traceevt",    "Log the events: no, common, extra, all"},
-	{SET_TRACESES,      1, "traceses",    "Log the sessions: no, all"},
-	{SET_TRACEAPI,      1, "traceapi",    "Log the apis: no, common, api, event, all"},
 
-	{ADD_CALL,          1, "call",        "call at start format of val: API/VERB:json-args"},
+	{ADD_CALL,            1, "call",        "Call at start, format of val: API/VERB:json-args"},
 
-	{SET_NO_HTTPD,      0, "no-httpd",    "Forbid HTTP service"},
-	{SET_EXEC,          0, "exec",        "Execute the remaining arguments"},
+	{SET_NO_HTTPD,        0, "no-httpd",    "Forbid HTTP service"},
+	{SET_EXEC,            0, "exec",        "Execute the remaining arguments"},
 
 #if defined(WITH_MONITORING_OPTION)
-	{SET_MONITORING,    0, "monitoring",  "Enable HTTP monitoring at <ROOT>/monitoring/"},
+	{SET_MONITORING,      0, "monitoring",  "Enable HTTP monitoring at <ROOT>/monitoring/"},
 #endif
+
+	{SET_CONFIG,          1, "config",      "Load options from the given config file"},
+	{SET_OUTPUT,          1, "output",      "Redirect stdout and stderr to output file (when --daemon)"},
+
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
 };
 
-
-struct enumdesc
-{
-	const char *name;
-	int value;
-};
-
-static struct enumdesc tracereq_desc[] = {
-	{ "no",     0 },
-	{ "common", afb_hook_flags_req_common },
-	{ "extra",  afb_hook_flags_req_extra },
-	{ "all",    afb_hook_flags_req_all },
-	{ NULL, 0 }
-};
-
-#if !defined(REMOVE_LEGACY_TRACE)
-static struct enumdesc traceditf_desc[] = {
-	{ "no",     0 },
-	{ "common", afb_hook_flags_api_ditf_common },
-	{ "all",    afb_hook_flags_api_ditf_all },
-	{ NULL, 0 }
-};
-
-static struct enumdesc tracesvc_desc[] = {
-	{ "no",     0 },
-	{ "all",    afb_hook_flags_api_svc_all },
-	{ NULL, 0 }
-};
+#if defined(WITH_MONITORING_OPTION)
+static const char MONITORING_ALIAS[] = "/monitoring:"BINDING_INSTALL_DIR"/monitoring";
 #endif
 
-static struct enumdesc traceevt_desc[] = {
-	{ "no",     0 },
-	{ "common", afb_hook_flags_evt_common },
-	{ "extra",  afb_hook_flags_evt_extra },
-	{ "all",    afb_hook_flags_evt_all },
-	{ NULL, 0 }
+static const struct {
+	int optid;
+	int valdef;
+} default_optint_values[] = {
+	{ SET_PORT,		DEFAULT_HTTP_PORT },
+	{ SET_API_TIMEOUT,	DEFAULT_API_TIMEOUT },
+	{ SET_CACHE_TIMEOUT,	DEFAULT_CACHE_TIMEOUT },
+	{ SET_SESSION_TIMEOUT,	DEFAULT_SESSION_TIMEOUT },
+	{ SET_SESSIONMAX,	DEFAULT_MAX_SESSION_COUNT }
 };
 
-static struct enumdesc traceses_desc[] = {
-	{ "no",     0 },
-	{ "common", afb_hook_flags_session_common },
-	{ "all",    afb_hook_flags_session_all },
-	{ NULL, 0 }
+static const struct {
+	int optid;
+	const char *valdef;
+} default_optstr_values[] = {
+	{ SET_WORK_DIR,		"." },
+	{ SET_ROOT_DIR,		"." },
+	{ SET_UPLOAD_DIR,	"." },
+	{ SET_ROOT_BASE,	"/opa" },
+	{ SET_ROOT_API,		"/api" }
 };
 
-static struct enumdesc traceapi_desc[] = {
-	{ "no",		0 },
-	{ "common",	afb_hook_flags_api_common },
-	{ "api",	afb_hook_flags_api_api|afb_hook_flag_api_start },
-	{ "event",	afb_hook_flags_api_event|afb_hook_flag_api_start },
-	{ "all",	afb_hook_flags_api_all },
-	{ NULL, 0 }
-};
+/**********************************
+* preparing items
+***********************************/
+
+static char *shortopts = NULL;
+static int *id2idx = NULL;
+
+static void *oomchk(void *ptr)
+{
+	if (!ptr) {
+		ERROR("Out of memory");
+		exit(1);
+	}
+	return ptr;
+}
+
+static char is_short_option(int val)
+{
+	return (val >= 'a' && val <= 'z') || (val >= 'A' && val <= 'Z') || (val >= '0' && val <= '9');
+}
+
+static void init_options()
+{
+	int i, ns, mi, id;
+
+	if (!shortopts) {
+		ns = 2;
+		mi = -1;
+		for (i = 0 ; optdefs[i].name ; i++) {
+			id = optdefs[i].id;
+			if (id > mi)
+				mi = id;
+			if (is_short_option(id))
+				ns += 1 + !!optdefs[i].has_arg;
+		}
+		shortopts = oomchk(malloc(2 + ns));
+		id2idx = oomchk(calloc(1 + mi, sizeof *id2idx));
+		shortopts[ns = 0] = ':';
+		for (i = 0 ; optdefs[i].name ; i++) {
+			id = optdefs[i].id;
+			id2idx[id] = i;
+			if (is_short_option(id)) {
+				shortopts[++ns] = (char)id;
+				if (optdefs[i].has_arg)
+					shortopts[++ns] = ':';
+			}
+		}
+		shortopts[++ns] = 0;
+	}
+}
+
+static const char *name_of_optid(int optid)
+{
+	return optdefs[id2idx[optid]].name;
+}
+
+static int get_enum_val(const char *name, int optid, int (*func)(const char*))
+{
+	int i;
+
+	i = func(name);
+	if (i < 0) {
+		ERROR("option [--%s] bad value (found %s)",
+			name_of_optid(optid), name);
+		exit(1);
+	}
+	return i;
+}
+
 
 /*----------------------------------------------------------
  | printversion
@@ -342,88 +374,45 @@ static void printHelp(FILE * file, const char *name)
 	int ind;
 	char command[50], sht[4];
 
+	fprintf(file, "%s:\nallowed options\n", strrchr(name, '/') ? strrchr(name, '/') + 1 : name);
 	sht[3] = 0;
-	fprintf(file, "%s:\nallowed options\n", name);
-	for (ind = 0; cliOptions[ind].name != NULL; ind++) {
-		if (((cliOptions[ind].val >= 'a' && cliOptions[ind].val <= 'z')
-		 || (cliOptions[ind].val >= 'A' && cliOptions[ind].val <= 'Z')
-		 || (cliOptions[ind].val >= '0' && cliOptions[ind].val <= '9'))
-		 && strchr(shortopts, (char)cliOptions[ind].val)) {
+	for (ind = 0; optdefs[ind].name != NULL; ind++) {
+		if (is_short_option(optdefs[ind].id)) {
 			sht[0] = '-';
-			sht[1] = (char)cliOptions[ind].val;
+			sht[1] = (char)optdefs[ind].id;
 			sht[2] = ',';
 		} else {
 			sht[0] = sht[1] = sht[2] = ' ';
 		}
-		strcpy(command, cliOptions[ind].name);
-		if (cliOptions[ind].has_arg)
+		strcpy(command, optdefs[ind].name);
+		if (optdefs[ind].has_arg)
 			strcat(command, "=xxxx");
-		fprintf(file, " %s --%-17s %s\n", sht, command, cliOptions[ind].help);
+		fprintf(file, " %s --%-17s %s\n", sht, command, optdefs[ind].help);
 	}
 	fprintf(file,
-		"Example:\n  %s  --verbose --port=" d2s(DEFAULT_HTTP_PORT) " --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
+		"Example:\n  %s  --verbose --port="
+		d2s(DEFAULT_HTTP_PORT)
+		" --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n",
 		name);
-}
-
-
-/*----------------------------------------------------------
- |   adds a string to the list
- +--------------------------------------------------------- */
-static void list_add(struct afb_config_list **head, char *value)
-{
-	struct afb_config_list *item;
-
-	/*
-	 * search tail
-	 */
-	item = *head;
-	while (item != NULL) {
-		head = &item->next;
-		item = item->next;
-	}
-
-	/*
-	 * alloc the item
-	 */
-	item = malloc(sizeof *item);
-	if (item == NULL) {
-		ERROR("out of memory");
-		exit(1);
-	}
-
-	/*
-	 * init the item
-	 */
-	*head = item;
-	item->value = value;
-	item->next = NULL;
 }
 
 /*---------------------------------------------------------
  |   helpers for argument scanning
  +--------------------------------------------------------- */
 
-static const char *name_of_option(int optc)
-{
-	AFB_options *o = cliOptions;
-	while (o->name && o->val != optc)
-		o++;
-	return o->name ? : "<unknown-option-name>";
-}
-
-static const char *current_argument(int optc)
+static const char *current_argument(int optid)
 {
 	if (optarg == 0) {
 		ERROR("option [--%s] needs a value i.e. --%s=xxx",
-		      name_of_option(optc), name_of_option(optc));
+		      name_of_optid(optid), name_of_optid(optid));
 		exit(1);
 	}
 	return optarg;
 }
 
-static char *argvalstr(int optc)
+static char *argvalstr(int optid)
 {
-	char *result = strdup(current_argument(optc));
+	char *result = strdup(current_argument(optid));
 	if (result == NULL) {
 		ERROR("can't alloc memory");
 		exit(1);
@@ -431,94 +420,164 @@ static char *argvalstr(int optc)
 	return result;
 }
 
-static int argvalenum(int optc, struct enumdesc *desc)
-{
-	int i;
-	size_t len;
-	char *list;
-	const char *name = current_argument(optc);
+/**********************************
+* json helpers
+***********************************/
 
-	i = 0;
-	while(desc[i].name && strcmp(desc[i].name, name))
-		i++;
-	if (!desc[i].name) {
-		len = 0;
-		i = 0;
-		while(desc[i].name)
-			len += strlen(desc[i++].name);
-		list = malloc(len + i + i);
-		if (!i || !list)
-			ERROR("option [--%s] bad value (found %s)",
-				name_of_option(optc), name);
-		else {
-			i = 0;
-			strcpy(list, desc[i].name ? : "");
-			while(desc[++i].name)
-				strcat(strcat(list, ", "), desc[i].name);
-			ERROR("option [--%s] bad value, only accepts values %s (found %s)",
-				name_of_option(optc), list, name);
-		}
-		free(list);
-		exit(1);
-	}
-	return desc[i].value;
+static struct json_object *joomchk(struct json_object *value)
+{
+	return oomchk(value);
 }
 
-static int argvalint(int optc, int mini, int maxi, int base)
+static struct json_object *to_jstr(const char *value)
+{
+	return joomchk(json_object_new_string(value));
+}
+
+static struct json_object *to_jint(int value)
+{
+	return joomchk(json_object_new_int(value));
+}
+
+static struct json_object *to_jbool(int value)
+{
+	return joomchk(json_object_new_boolean(value));
+}
+
+/**********************************
+* arguments helpers
+***********************************/
+
+static void noarg(int optid)
+{
+	if (optarg) {
+		ERROR("option [--%s] need no value (found %s)", name_of_optid(optid), optarg);
+		exit(1);
+	}
+}
+
+static const char *get_arg(int optid)
+{
+	if (optarg == 0) {
+		ERROR("option [--%s] needs a value i.e. --%s=xxx",
+				name_of_optid(optid), name_of_optid(optid));
+		exit(1);
+	}
+	return optarg;
+}
+
+static void config_del(struct json_object *config, int optid)
+{
+	return json_object_object_del(config, name_of_optid(optid));
+}
+
+static int config_has(struct json_object *config, int optid)
+{
+	return json_object_object_get_ex(config, name_of_optid(optid), NULL);
+}
+
+static int config_has_bool(struct json_object *config, int optid)
+{
+	struct json_object *x;
+	return json_object_object_get_ex(config, name_of_optid(optid), &x)
+		&& json_object_get_boolean(x);
+}
+
+static int config_has_str(struct json_object *config, int optid, const char *val)
+{
+	int i, n;
+	struct json_object *a;
+
+	if (!json_object_object_get_ex(config, name_of_optid(optid), &a))
+		return 0;
+
+	if (!json_object_is_type(a, json_type_array))
+		return !strcmp(val, json_object_get_string(a));
+
+	n = (int)json_object_array_length(a);
+	for (i = 0 ; i < n ; i++) {
+		if (!strcmp(val, json_object_get_string(json_object_array_get_idx(a, i))))
+			return 1;
+	}
+	return 0;
+}
+
+static void config_set(struct json_object *config, int optid, struct json_object *val)
+{
+	json_object_object_add(config, name_of_optid(optid), val);
+}
+
+static void config_set_str(struct json_object *config, int optid, const char *val)
+{
+	config_set(config, optid, to_jstr(val));
+}
+
+static void config_set_optstr(struct json_object *config, int optid)
+{
+	config_set_str(config, optid, get_arg(optid));
+}
+
+static void config_set_int(struct json_object *config, int optid, int value)
+{
+	config_set(config, optid, to_jint(value));
+}
+
+static void config_set_bool(struct json_object *config, int optid, int value)
+{
+	config_set(config, optid, to_jbool(value));
+}
+
+static void config_set_optint_base(struct json_object *config, int optid, int mini, int maxi, int base)
 {
 	const char *beg, *end;
 	long int val;
-	beg = current_argument(optc);
+
+	beg = get_arg(optid);
 	val = strtol(beg, (char**)&end, base);
 	if (*end || end == beg) {
 		ERROR("option [--%s] requires a valid integer (found %s)",
-			name_of_option(optc), beg);
+			name_of_optid(optid), beg);
 		exit(1);
 	}
 	if (val < (long int)mini || val > (long int)maxi) {
-		ERROR("option [--%s] value out of bounds (not %d<=%ld<=%d)",
-			name_of_option(optc), mini, val, maxi);
+		ERROR("option [--%s] value %ld out of bounds (not in [%d , %d])",
+			name_of_optid(optid), val, mini, maxi);
 		exit(1);
 	}
-	return (int)val;
+	config_set_int(config, optid, (int)val);
 }
 
-static int argvalintdec(int optc, int mini, int maxi)
+static void config_set_optint(struct json_object *config, int optid, int mini, int maxi)
 {
-	return argvalint(optc, mini, maxi, 10);
+	return config_set_optint_base(config, optid, mini, maxi, 10);
 }
 
-static void noarg(int optc)
+static void config_set_optenum(struct json_object *config, int optid, int (*func)(const char*))
 {
-	if (optarg != 0) {
-		ERROR("option [--%s] need no value (found %s)", name_of_option(optc), optarg);
-		exit(1);
-	}
+	const char *name = get_arg(optid);
+	get_enum_val(name, optid, func);
+	config_set_str(config, optid, name);
 }
 
-static char **make_exec(char **argv)
+static void config_add(struct json_object *config, int optid, struct json_object *val)
 {
-	char **result, *iter;
-	size_t length;
-	int i;
-
-	length = 0;
-	for (i = 0 ; argv[i] ; i++)
-		length += strlen(argv[i]) + 1;
-
-	result = malloc(length + ((unsigned)(i + 1)) * sizeof *result);
-	if (result == NULL) {
-		ERROR("can't alloc memory");
-		exit(1);
+	struct json_object *a;
+	if (!json_object_object_get_ex(config, name_of_optid(optid), &a)) {
+		a = json_object_new_array();
+		oomchk(a);
+		json_object_object_add(config, name_of_optid(optid), a);
 	}
+	json_object_array_add(a, val);
+}
 
-	iter = (char*)&result[i+1];
-	for (i = 0 ; argv[i] ; i++) {
-		result[i] = iter;
-		iter = stpcpy(iter, argv[i]) + 1;
-	}
-	result[i] = NULL;
-	return result;
+static void config_add_str(struct json_object *config, int optid, const char *val)
+{
+	config_add(config, optid, to_jstr(val));
+}
+
+static void config_add_optstr(struct json_object *config, int optid)
+{
+	config_add_str(config, optid, get_arg(optid));
 }
 
 /*---------------------------------------------------------
@@ -572,28 +631,19 @@ static void set_log(char *args)
  |   Parse option and launch action
  +--------------------------------------------------------- */
 
-static void parse_arguments(int argc, char **argv, struct afb_config *config)
+static void parse_arguments_inner(int argc, char **argv, struct json_object *config, struct option *options)
 {
-	char *programName = argv[0];
-	int optc, ind;
-	int nbcmd;
-	struct option *gnuOptions;
+	struct json_object *conf;
+	int optid, cind;
 
-	// ------------------ Process Command Line -----------------------
-
-	// build GNU getopt info from cliOptions
-	nbcmd = sizeof(cliOptions) / sizeof(AFB_options);
-	gnuOptions = malloc(sizeof(*gnuOptions) * (unsigned)nbcmd);
-	for (ind = 0; ind < nbcmd; ind++) {
-		gnuOptions[ind].name = cliOptions[ind].name;
-		gnuOptions[ind].has_arg = cliOptions[ind].has_arg;
-		gnuOptions[ind].flag = 0;
-		gnuOptions[ind].val = cliOptions[ind].val;
-	}
-
-	// get all options from command line
-	while ((optc = getopt_long(argc, argv, shortopts, gnuOptions, NULL)) != EOF) {
-		switch (optc) {
+	for (;;) {
+		cind = optind;
+		optid = getopt_long(argc, argv, shortopts, options, NULL);
+		if (optid < 0) {
+			/* end of options */
+			break;
+		}
+		switch (optid) {
 		case SET_VERBOSE:
 			verbose_inc();
 			break;
@@ -603,369 +653,258 @@ static void parse_arguments(int argc, char **argv, struct afb_config *config)
 			break;
 
 		case SET_LOG:
-			set_log(argvalstr(optc));
+			set_log(argvalstr(optid));
 			break;
 
-		case SET_TCP_PORT:
-			config->http_port = argvalintdec(optc, 1024, 32767);
+		case SET_PORT:
+			config_set_optint(config, optid, 1024, 32767);
 			break;
 
-		case SET_APITIMEOUT:
-			config->api_timeout = argvalintdec(optc, 0, INT_MAX);
-			break;
-
-		case SET_CNTXTIMEOUT:
-			config->session_timeout = argvalintdec(optc, 0, INT_MAX);
-			break;
-
-		case SET_ROOT_DIR:
-			config->rootdir = argvalstr(optc);
-			INFO("Forcing Rootdir=%s", config->rootdir);
-			break;
-
-		case SET_ROOT_HTTP:
-			config->roothttp = argvalstr(optc);
-			INFO("Forcing Root HTTP=%s", config->roothttp);
-			break;
-
-		case SET_ROOT_BASE:
-			config->rootbase = argvalstr(optc);
-			INFO("Forcing Rootbase=%s", config->rootbase);
-			break;
-
-		case SET_ROOT_API:
-			config->rootapi = argvalstr(optc);
-			INFO("Forcing Rootapi=%s", config->rootapi);
-			break;
-
-		case SET_ALIAS:
-			list_add(&config->aliases, argvalstr(optc));
-			break;
-
-		case SET_AUTH_TOKEN:
-			config->token = argvalstr(optc);
-			break;
-
-		case SET_LDPATH:
-			list_add(&config->ldpaths, argvalstr(optc));
-			break;
-
-		case SET_WEAK_LDPATH:
-			list_add(&config->weak_ldpaths, argvalstr(optc));
-			break;
-
-		case NO_LDPATH:
-			noarg(optc);
-			config->no_ldpaths = 1;
-			break;
-
-		case ADD_CALL:
-			list_add(&config->calls, argvalstr(optc));
-			break;
-
-		case SET_UPLOAD_DIR:
-			config->uploaddir = argvalstr(optc);
-			break;
-
-		case SET_WORK_DIR:
-			config->workdir = argvalstr(optc);
-			break;
-
+		case SET_API_TIMEOUT:
+		case SET_SESSION_TIMEOUT:
 		case SET_CACHE_TIMEOUT:
-			config->cache_timeout = argvalintdec(optc, 0, INT_MAX);
+			config_set_optint(config, optid, 0, INT_MAX);
 			break;
 
 		case SET_SESSIONMAX:
-			config->max_session_count = argvalintdec(optc, 1, INT_MAX);
+			config_set_optint(config, optid, 1, INT_MAX);
 			break;
 
-		case SET_FORGROUND:
-			noarg(optc);
-			config->background = 0;
-			break;
-
-		case SET_BACKGROUND:
-			noarg(optc);
-			config->background = 1;
-			break;
-
+		case SET_ROOT_DIR:
+		case SET_ROOT_HTTP:
+		case SET_ROOT_BASE:
+		case SET_ROOT_API:
+		case SET_TOKEN:
+		case SET_UPLOAD_DIR:
+		case SET_WORK_DIR:
 		case SET_NAME:
-			config->name = argvalstr(optc);
+			config_set_optstr(config, optid);
 			break;
 
 #if defined(WITH_DBUS_TRANSPARENCY)
-		case DBUS_CLIENT:
-			list_add(&config->dbus_clients, argvalstr(optc));
-			break;
-
-		case DBUS_SERVICE:
-			list_add(&config->dbus_servers, argvalstr(optc));
-			break;
+		case ADD_DBUS_CLIENT:
+		case ADD_DBUS_SERVICE:
 #endif
-
-		case WS_CLIENT:
-			list_add(&config->ws_clients, argvalstr(optc));
-			break;
-
-		case WS_SERVICE:
-			list_add(&config->ws_servers, argvalstr(optc));
-			break;
-
-		case SO_BINDING:
-			list_add(&config->so_bindings, argvalstr(optc));
-			break;
-
-		case AUTO_API:
-			list_add(&config->auto_api, argvalstr(optc));
-			break;
-
-		case SET_TRACEREQ:
-			config->tracereq = argvalenum(optc, tracereq_desc);
-			break;
-
-#if !defined(REMOVE_LEGACY_TRACE)
-		case SET_TRACEDITF:
-			config->traceditf = argvalenum(optc, traceditf_desc);
-			break;
-
-		case SET_TRACESVC:
-			config->tracesvc = argvalenum(optc, tracesvc_desc);
-			break;
-#endif
-
-		case SET_TRACEEVT:
-			config->traceevt = argvalenum(optc, traceevt_desc);
-			break;
-
-		case SET_TRACESES:
-			config->traceses = argvalenum(optc, traceses_desc);
-			break;
-
-		case SET_TRACEAPI:
-			config->traceapi = argvalenum(optc, traceapi_desc);
-			break;
-
-		case SET_NO_HTTPD:
-			noarg(optc);
-			config->no_httpd = 1;
-			break;
-
-		case SET_EXEC:
-			config->exec = make_exec(&argv[optind]);
-			optind = argc; /* stop option scanning */
-			break;
-
-		case SET_RNDTOKEN:
-			config->random_token = 1;
+		case ADD_ALIAS:
+		case ADD_LDPATH:
+		case ADD_WEAK_LDPATH:
+		case ADD_CALL:
+		case ADD_WS_CLIENT:
+		case ADD_WS_SERVICE:
+		case ADD_BINDING:
+		case ADD_AUTO_API:
+			config_add_optstr(config, optid);
 			break;
 
 #if defined(WITH_MONITORING_OPTION)
 		case SET_MONITORING:
-			config->monitoring = 1;
+#endif
+		case SET_RANDOM_TOKEN:
+		case SET_NO_HTTPD:
+		case SET_NO_LDPATH:
+			noarg(optid);
+			config_set_bool(config, optid, 1);
+			break;
+
+
+		case SET_FOREGROUND:
+		case SET_BACKGROUND:
+		case SET_DAEMON:
+			noarg(optid);
+			config_set_bool(config, SET_DAEMON, optid != SET_FOREGROUND);
+			break;
+
+		case SET_TRACEREQ:
+			config_set_optenum(config, optid, afb_hook_flags_xreq_from_text);
+			break;
+
+		case SET_TRACEEVT:
+			config_set_optenum(config, optid, afb_hook_flags_evt_from_text);
+			break;
+
+		case SET_TRACESES:
+			config_set_optenum(config, optid, afb_hook_flags_session_from_text);
+			break;
+
+		case SET_TRACEAPI:
+			config_set_optenum(config, optid, afb_hook_flags_api_from_text);
+			break;
+
+		case SET_TRACEGLOB:
+			config_set_optenum(config, optid, afb_hook_flags_global_from_text);
+			break;
+
+#if !defined(REMOVE_LEGACY_TRACE)
+		case SET_TRACEDITF:
+			config_set_optenum(config, optid, afb_hook_flags_legacy_ditf_from_text);
+			break;
+
+		case SET_TRACESVC:
+			config_set_optenum(config, optid, afb_hook_flags_legacy_svc_from_text);
 			break;
 #endif
 
-		case DISPLAY_VERSION:
-			noarg(optc);
+		case SET_EXEC:
+			if (optind == argc) {
+				ERROR("The option --exec requires arguments");
+				exit(1);
+			}
+			while (optind != argc)
+				config_add_str(config, optid, argv[optind++]);
+			break;
+
+		case SET_CONFIG:
+			conf = json_object_from_file(get_arg(optid));
+			if (!conf) {
+				ERROR("Can't read config file %s", get_arg(optid));
+				exit(1);
+			}
+			wrap_json_object_add(config, conf);
+			json_object_put(conf);
+			break;
+
+		case GET_VERSION:
+			noarg(optid);
 			printVersion(stdout);
 			exit(0);
 
-		case DISPLAY_HELP:
-			printHelp(stdout, programName);
+		case GET_HELP:
+			printHelp(stdout, argv[0]);
 			exit(0);
 
 		default:
+			ERROR("Bad option detected, check %s", argv[cind]);
 			exit(1);
 		}
 	}
-	free(gnuOptions);
+	/* TODO: check for extra value */
 }
 
-static void fulfill_config(struct afb_config *config)
+static void parse_arguments(int argc, char **argv, struct json_object *config)
 {
-	// default HTTP port
-	if (config->http_port == 0)
-		config->http_port = DEFAULT_HTTP_PORT;
+	int ind;
+	struct option *options;
 
-	// default binding API timeout
-	if (config->api_timeout == 0)
-		config->api_timeout = DEFAULT_API_TIMEOUT;
+	/* create GNU getopt options from optdefs */
+	options = malloc((sizeof optdefs / sizeof * optdefs) * sizeof * options);
+	for (ind = 0; optdefs[ind].name; ind++) {
+		options[ind].name = optdefs[ind].name;
+		options[ind].has_arg = optdefs[ind].has_arg;
+		options[ind].flag = NULL;
+		options[ind].val = optdefs[ind].id;
+	}
+	memset(&options[ind], 0, sizeof options[ind]);
+
+	/* parse the arguments */
+	parse_arguments_inner(argc, argv, config, options);
+
+	/* release the memory of options */
+	free(options);
+}
+
+static void fulfill_config(struct json_object *config)
+{
+	int i;
+
+	for (i = 0 ; i < sizeof default_optint_values / sizeof * default_optint_values ; i++)
+		if (!config_has(config, default_optint_values[i].optid))
+			config_set_int(config, default_optint_values[i].optid, default_optint_values[i].valdef);
+
+	for (i = 0 ; i < sizeof default_optstr_values / sizeof * default_optstr_values ; i++)
+		if (!config_has(config, default_optstr_values[i].optid))
+			config_set_str(config, default_optstr_values[i].optid, default_optstr_values[i].valdef);
 
 	// default AUTH_TOKEN
-	if (config->random_token)
-		config->token = NULL;
+	if (config_has_bool(config, SET_RANDOM_TOKEN))
+		config_del(config, SET_TOKEN);
 
-	// cache timeout default one hour
-	if (config->cache_timeout == 0)
-		config->cache_timeout = DEFAULT_CACHE_TIMEOUT;
-
-	// cache timeout default one hour
-	if (config->session_timeout == 0)
-		config->session_timeout = DEFAULT_SESSION_TIMEOUT;
-
-	// max count of sessions
-	if (config->max_session_count == 0)
-		config->max_session_count = DEFAULT_MAX_SESSION_COUNT;
-
-	/* set directories */
-	if (config->workdir == NULL)
-		config->workdir = ".";
-
-	if (config->rootdir == NULL)
-		config->rootdir = ".";
-
-	if (config->uploaddir == NULL)
-		config->uploaddir = ".";
-
-	// if no Angular/HTML5 rootbase let's try '/' as default
-	if (config->rootbase == NULL)
-		config->rootbase = "/opa";
-
-	if (config->rootapi == NULL)
-		config->rootapi = "/api";
-
-	if (config->ldpaths == NULL && config->weak_ldpaths == NULL && !config->no_ldpaths)
-		list_add(&config->ldpaths, BINDING_INSTALL_DIR);
+	if (!config_has(config, ADD_LDPATH) && !config_has(config, ADD_WEAK_LDPATH) && !config_has_bool(config, SET_NO_LDPATH))
+		config_add_str(config, ADD_LDPATH, BINDING_INSTALL_DIR);
 
 #if defined(WITH_MONITORING_OPTION)
-	if (config->monitoring)
-		list_add(&config->aliases, strdup("/monitoring:"BINDING_INSTALL_DIR"/monitoring"));
+	if (config_has_bool(config, SET_MONITORING) && !config_has_str(config, ADD_ALIAS, MONITORING_ALIAS))
+		config_add_str(config, ADD_ALIAS, MONITORING_ALIAS);
 #endif
 
-	// if no config dir create a default path from uploaddir
-	if (config->console == NULL) {
-		config->console = malloc(512);
-		strncpy(config->console, config->uploaddir, 512);
-		strncat(config->console, "/AFB-console.out", 512);
-	}
-
-#if !defined(REMOVE_LEGACY_TRACE)
+#if !defined(REMOVE_LEGACY_TRACE) && 0
 	config->traceapi |= config->traceditf | config->tracesvc;
 #endif
 }
 
-void afb_config_dump(struct afb_config *config)
+static void dump(struct json_object *config, FILE *file, const char *prefix, const char *title)
 {
-	struct afb_config_list *l;
-	struct enumdesc *e;
-	char **v;
+	char z;
+	const char *head, *tail;
 
-#define NN(x)   (x)?:""
-#define P(...)  fprintf(stderr, __VA_ARGS__)
-#define PF(x)   P("-- %15s: ", #x)
-#define PE      P("\n")
-#define S(x)	PF(x);P("%s",NN(config->x));PE;
-#define D(x)	PF(x);P("%d",config->x);PE;
-#define B(x)	PF(x);P("%s",config->x?"yes":"no");PE;
-#define L(x)	PF(x);l=config->x;if(l){P("%s\n",NN(l->value));for(l=l->next;l;l=l->next)P("-- %15s  %s\n","",NN(l->value));}else PE;
-#define E(x,d)	for(e=d;e->name&&e->value!=config->x;e++);if(e->name){PF(x);P("%s",e->name);PE;}else{D(x);}
-#define V(x)	P("-- %15s:", #x);for(v=config->x;v&&*v;v++)P(" %s",*v); PE;
+	if (!prefix) {
+		z = 0;
+		prefix = &z;
+	}
 
-	P("---BEGIN-OF-CONFIG---\n");
-	S(console)
-	S(rootdir)
-	S(roothttp)
-	S(rootbase)
-	S(rootapi)
-	S(workdir)
-	S(uploaddir)
-	S(token)
-	S(name)
+	if (title)
+		fprintf(file, "%s----BEGIN OF %s-----\n", prefix, title);
 
-	L(aliases)
-#if defined(WITH_DBUS_TRANSPARENCY)
-	L(dbus_clients)
-	L(dbus_servers)
-#endif
-	L(ws_clients)
-	L(ws_servers)
-	L(so_bindings)
-	L(auto_api)
-	L(ldpaths)
-	L(weak_ldpaths)
-	L(calls)
+	head = json_object_to_json_string_ext(config, JSON_C_TO_STRING_PRETTY
+		|JSON_C_TO_STRING_SPACED|JSON_C_TO_STRING_NOSLASHESCAPE);
 
-	V(exec)
+	if (head) {
+		while(*head) {
+			for (tail = head ; *tail && *tail != '\n' ; tail++);
+			fprintf(file, "%s %.*s\n", prefix, (int)(tail - head), head);
+			head = tail + !!*tail;
+		}
+	}
 
-	D(http_port)
-	D(cache_timeout)
-	D(api_timeout)
-	D(session_timeout)
-	D(max_session_count)
-
-	E(tracereq,tracereq_desc)
-#if !defined(REMOVE_LEGACY_TRACE)
-	E(traceditf,traceditf_desc)
-	E(tracesvc,tracesvc_desc)
-#endif
-	E(traceevt,traceevt_desc)
-	E(traceses,traceses_desc)
-	E(traceapi,traceapi_desc)
-
-	B(no_ldpaths)
-	B(no_httpd)
-	B(background)
-#if defined(WITH_MONITORING_OPTION)
-	B(monitoring)
-#endif
-	B(random_token)
-	P("---END-OF-CONFIG---\n");
-
-#undef V
-#undef E
-#undef L
-#undef B
-#undef D
-#undef S
-#undef PE
-#undef PF
-#undef P
-#undef NN
+	if (title)
+		fprintf(file, "%s----END OF %s-----\n", prefix, title);
 }
 
-static void on_environment_list(struct afb_config_list **to, const char *name)
+void afb_config_dump(struct json_object *config)
+{
+	dump(config, stderr, "--", "CONFIG");
+}
+
+static void on_environment_add(struct json_object *config, int optid, const char *name)
 {
 	char *value = getenv(name);
 
-	if (value)
-		list_add(to, value);
+	if (value && *value)
+		config_add_str(config, optid, value);
 }
 
-static void on_environment_enum(int *to, const char *name, struct enumdesc *desc)
+static void on_environment_enum(struct json_object *config, int optid, const char *name, int (*func)(const char*))
 {
 	char *value = getenv(name);
 
 	if (value) {
-		while (desc->name) {
-			if (strcmp(desc->name, value))
-				desc++;
-			else {
-				*to = desc->value;
-				return;
-			}
-		}
-		WARNING("Unknown value %s for environment variable %s, ignored", value, name);
+		if (func(value) == -1)
+			WARNING("Unknown value %s for environment variable %s, ignored", value, name);
+		else
+			config_set_str(config, optid, value);
 	}
 }
 
-static void parse_environment(struct afb_config *config)
+static void parse_environment(struct json_object *config)
 {
-	on_environment_enum(&config->tracereq, "AFB_TRACEREQ", tracereq_desc);
+	on_environment_enum(config, SET_TRACEREQ, "AFB_TRACEREQ", afb_hook_flags_xreq_from_text);
+	on_environment_enum(config, SET_TRACEEVT, "AFB_TRACEEVT", afb_hook_flags_evt_from_text);
+	on_environment_enum(config, SET_TRACESES, "AFB_TRACESES", afb_hook_flags_session_from_text);
+	on_environment_enum(config, SET_TRACEAPI, "AFB_TRACEAPI", afb_hook_flags_api_from_text);
+	on_environment_enum(config, SET_TRACEGLOB, "AFB_TRACEGLOB", afb_hook_flags_global_from_text);
+	on_environment_add(config, ADD_LDPATH, "AFB_LDPATHS");
 #if !defined(REMOVE_LEGACY_TRACE)
-	on_environment_enum(&config->traceditf, "AFB_TRACEDITF", traceditf_desc);
-	on_environment_enum(&config->tracesvc, "AFB_TRACESVC", tracesvc_desc);
+	on_environment_enum(config, SET_TRACEDITF, "AFB_TRACEDITF", afb_hook_flags_legacy_ditf_from_text);
+	on_environment_enum(config, SET_TRACESVC, "AFB_TRACESVC", afb_hook_flags_legacy_svc_from_text);
 #endif
-	on_environment_enum(&config->traceevt, "AFB_TRACEEVT", traceevt_desc);
-	on_environment_enum(&config->traceses, "AFB_TRACESES", traceses_desc);
-	on_environment_enum(&config->traceapi, "AFB_TRACEAPI", traceapi_desc);
-	on_environment_list(&config->ldpaths, "AFB_LDPATHS");
 }
 
-struct afb_config *afb_config_parse_arguments(int argc, char **argv)
+struct json_object *afb_config_parse_arguments(int argc, char **argv)
 {
-	struct afb_config *result;
+	struct json_object *result;
 
-	result = calloc(1, sizeof *result);
+	init_options();
+
+	result = json_object_new_object();
 
 	parse_environment(result);
 	parse_arguments(argc, argv, result);
@@ -975,100 +914,8 @@ struct afb_config *afb_config_parse_arguments(int argc, char **argv)
 	return result;
 }
 
-struct json_object *afb_config_json(struct afb_config *config)
+struct json_object *afb_config_json(struct json_object *config)
 {
-	struct json_object *r, *a;
-	struct afb_config_list *l;
-	struct enumdesc *e;
-	char **v;
-
-#define XA(t,o)		json_object_array_add(t,o);
-#define XO(t,x,o)	json_object_object_add(t,x,o);
-#define YS(s)		((s)?json_object_new_string(s):NULL)
-
-#define AO(o)		XA(a,o)
-#define AS(s)		AO(YS(s))
-#define RO(x,o)		XO(r,x,o)
-#define RS(x,s)		RO(x,YS(s))
-#define RA(x)		RO(x,(a=json_object_new_array()))
-#define RI(x,i)		RO(x,json_object_new_int(i))
-#define RB(x,b)		RO(x,json_object_new_boolean(b))
-
-#define S(x)		RS(#x,config->x)
-#define V(x)		RA(#x);for(v=config->x;v&&*v;v++)AS(*v);
-#define L(x)		RA(#x);for(l=config->x;l;l=l->next)AS(l->value);
-#define D(x)		RI(#x,config->x)
-#define B(x)		RB(#x,config->x)
-#define E(x,d)		for(e=d;e->name&&e->value!=config->x;e++);if(e->name){RS(#x,e->name);}else{D(x);}
-
-	r = json_object_new_object();
-	S(console)
-	S(rootdir)
-	S(roothttp)
-	S(rootbase)
-	S(rootapi)
-	S(workdir)
-	S(uploaddir)
-	S(token)
-	S(name)
-
-	L(aliases)
-#if defined(WITH_DBUS_TRANSPARENCY)
-	L(dbus_clients)
-	L(dbus_servers)
-#endif
-	L(ws_clients)
-	L(ws_servers)
-	L(so_bindings)
-	L(auto_api)
-	L(ldpaths)
-	L(weak_ldpaths)
-	L(calls)
-
-	V(exec)
-
-	D(http_port)
-	D(cache_timeout)
-	D(api_timeout)
-	D(session_timeout)
-	D(max_session_count)
-
-	E(tracereq,tracereq_desc)
-#if !defined(REMOVE_LEGACY_TRACE)
-	E(traceditf,traceditf_desc)
-	E(tracesvc,tracesvc_desc)
-#endif
-	E(traceevt,traceevt_desc)
-	E(traceses,traceses_desc)
-	E(traceapi,traceapi_desc)
-
-	B(no_ldpaths)
-	B(no_httpd)
-	B(background)
-#if defined(WITH_MONITORING_OPTION)
-	B(monitoring)
-#endif
-	B(random_token)
-
-#undef E
-#undef B
-#undef D
-#undef L
-#undef V
-#undef S
-
-#undef RB
-#undef RI
-#undef RA
-#undef RS
-#undef RS
-#undef AS
-#undef AO
-
-#undef YS
-#undef XO
-#undef XA
-
-	return r;
+	return NULL;
 }
 

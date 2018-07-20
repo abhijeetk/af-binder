@@ -45,6 +45,7 @@ SET(AFB_LIB_SOURCES
 	afb-export.c
 	afb-fdev.c
 	afb-hook.c
+	afb-hook-flags.c
 	afb-hreq.c
 	afb-hsrv.c
 	afb-hswitch.c

@@ -64,7 +64,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 /* the standard apiset */
 static struct {
 	struct afb_apiset *apiset;
-	struct afb_config *config;
+	struct json_object *config;
 } global;
 
 /* the supervision apiset (not exported) */
@@ -238,7 +238,7 @@ static void on_sighup(int signum)
 /**
  * initialize the supervision
  */
-int afb_supervision_init(struct afb_apiset *apiset, struct afb_config *config)
+int afb_supervision_init(struct afb_apiset *apiset, struct json_object *config)
 {
 	int rc;
 	struct sigaction sa;
@@ -351,7 +351,7 @@ static void on_supervision_call(void *closure, struct afb_xreq *xreq)
 		afb_xreq_reply(xreq, list, NULL, NULL);
 		break;
 	case Config:
-		afb_xreq_reply(xreq, afb_config_json(global.config), NULL, NULL);
+		afb_xreq_reply(xreq, json_object_get(global.config), NULL, NULL);
 		break;
 	case Trace:
 		if (!trace)

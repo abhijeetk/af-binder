@@ -35,6 +35,7 @@
 #include <afb/afb-binding.h>
 
 #include "afb-hook.h"
+#include "afb-hook-flags.h"
 #include "afb-cred.h"
 #include "afb-session.h"
 #include "afb-xreq.h"
@@ -60,13 +61,6 @@
 /*******************************************************************************/
 /*****  types                                                              *****/
 /*******************************************************************************/
-
-/* structure for searching flags by names */
-struct flag
-{
-	const char *name;	/** the name */
-	int value;		/** the value */
-};
 
 /* struct for tags */
 struct tag {
@@ -151,24 +145,6 @@ static void ctxt_error(char **errors, const char *format, ...)
 	}
 }
 
-/* get the value of the flag of 'name' in the array 'flags' of 'count elements */
-static int get_flag(const char *name, struct flag flags[], int count)
-{
-	/* dichotomic search */
-	int lower = 0, upper = count;
-	while (lower < upper) {
-		int mid = (lower + upper) >> 1;
-		int cmp = strcmp(name, flags[mid].name);
-		if (!cmp)
-			return flags[mid].value;
-		if (cmp < 0)
-			upper = mid;
-		else
-			lower = mid + 1;
-	}
-	return 0;
-}
-
 /* timestamp */
 static struct json_object *timestamp(const struct afb_hookid *hookid)
 {
@@ -181,7 +157,7 @@ static struct json_object *timestamp(const struct afb_hookid *hookid)
 
 	return json_object_new_double_s(0.0f, ts); /* the real value isn't used */
 #else
-	return json_object_new_double((double)hookid->time.tv_sec + 
+	return json_object_new_double((double)hookid->time.tv_sec +
 			(double)hookid->time.tv_nsec * .000000001);
 #endif
 }
@@ -228,52 +204,6 @@ static void emit(void *closure, const struct afb_hookid *hookid, const char *typ
 /*******************************************************************************/
 /*****  trace the requests                                                 *****/
 /*******************************************************************************/
-
-static struct flag xreq_flags[] = { /* must be sorted by names */
-		{ "addref",		afb_hook_flag_req_addref },
-		{ "all",		afb_hook_flags_req_all },
-		{ "args",		afb_hook_flags_req_args },
-		{ "begin",		afb_hook_flag_req_begin },
-		{ "common",		afb_hook_flags_req_common },
-		{ "context",		afb_hook_flags_req_context },
-		{ "context_get",	afb_hook_flag_req_legacy_context_get },
-		{ "context_make",	afb_hook_flag_req_context_make },
-		{ "context_set",	afb_hook_flag_req_legacy_context_set },
-		{ "end",		afb_hook_flag_req_end },
-		{ "event",		afb_hook_flags_req_event },
-		{ "extra",		afb_hook_flags_req_extra },
-		{ "get",		afb_hook_flag_req_get },
-		{ "get_application_id",	afb_hook_flag_req_get_application_id },
-		{ "get_client_info",	afb_hook_flag_req_get_client_info },
-		{ "get_uid",		afb_hook_flag_req_get_uid },
-		{ "has_permission",	afb_hook_flag_req_has_permission },
-		{ "json",		afb_hook_flag_req_json },
-		{ "life",		afb_hook_flags_req_life },
-		{ "ref",		afb_hook_flags_req_ref },
-		{ "reply",		afb_hook_flag_req_reply },
-		{ "security",		afb_hook_flags_req_security },
-		{ "session",		afb_hook_flags_req_session },
-		{ "session_close",	afb_hook_flag_req_session_close },
-		{ "session_set_LOA",	afb_hook_flag_req_session_set_LOA },
-		{ "store",		afb_hook_flag_req_legacy_store },
-		{ "stores",		afb_hook_flags_req_stores },
-		{ "subcall",		afb_hook_flag_req_subcall },
-		{ "subcall_result",	afb_hook_flag_req_subcall_result },
-		{ "subcalls",		afb_hook_flags_req_subcalls },
-		{ "subcallsync",	afb_hook_flag_req_subcallsync },
-		{ "subcallsync_result",	afb_hook_flag_req_subcallsync_result },
-		{ "subscribe",		afb_hook_flag_req_subscribe },
-		{ "unref",		afb_hook_flag_req_unref },
-		{ "unstore",		afb_hook_flag_req_legacy_unstore },
-		{ "unsubscribe",	afb_hook_flag_req_unsubscribe },
-		{ "vverbose",		afb_hook_flag_req_vverbose },
-};
-
-/* get the xreq value for flag of 'name' */
-static int get_xreq_flag(const char *name)
-{
-	return get_flag(name, xreq_flags, (int)(sizeof xreq_flags / sizeof *xreq_flags));
-}
 
 static void hook_xreq(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *action, const char *format, ...)
 {
@@ -528,94 +458,6 @@ static struct afb_hook_xreq_itf hook_xreq_itf = {
 /*******************************************************************************/
 /*****  trace the api interface                                            *****/
 /*******************************************************************************/
-
-#if !defined(REMOVE_LEGACY_TRACE)
-static struct flag legacy_ditf_flags[] = { /* must be sorted by names */
-		{ "all",			afb_hook_flags_api_ditf_all },
-		{ "common",			afb_hook_flags_api_ditf_common },
-		{ "event_broadcast_after",	afb_hook_flag_api_event_broadcast },
-		{ "event_broadcast_before",	afb_hook_flag_api_event_broadcast },
-		{ "event_make",			afb_hook_flag_api_event_make },
-		{ "extra",			afb_hook_flags_api_ditf_extra },
-		{ "get_event_loop",		afb_hook_flag_api_get_event_loop },
-		{ "get_system_bus",		afb_hook_flag_api_get_system_bus },
-		{ "get_user_bus",		afb_hook_flag_api_get_user_bus },
-		{ "queue_job",			afb_hook_flag_api_queue_job },
-		{ "require_api",		afb_hook_flag_api_require_api },
-		{ "require_api_result",		afb_hook_flag_api_require_api },
-		{ "rootdir_get_fd",		afb_hook_flag_api_rootdir_get_fd },
-		{ "rootdir_open_locale",	afb_hook_flag_api_rootdir_open_locale },
-		{ "unstore_req",		afb_hook_flag_api_legacy_unstore_req },
-		{ "vverbose",			afb_hook_flag_api_vverbose },
-};
-
-static struct flag legacy_svc_flags[] = { /* must be sorted by names */
-		{ "all",		afb_hook_flags_api_svc_all },
-		{ "call",		afb_hook_flag_api_call },
-		{ "call_result",	afb_hook_flag_api_call },
-		{ "callsync",		afb_hook_flag_api_callsync },
-		{ "callsync_result",	afb_hook_flag_api_callsync },
-		{ "on_event_after",	afb_hook_flag_api_on_event },
-		{ "on_event_before",	afb_hook_flag_api_on_event },
-		{ "start_after",	afb_hook_flag_api_start },
-		{ "start_before",	afb_hook_flag_api_start },
-};
-
-/* get the export value for flag of 'name' */
-static int get_legacy_ditf_flag(const char *name)
-{
-	return get_flag(name, legacy_ditf_flags, (int)(sizeof legacy_ditf_flags / sizeof *legacy_ditf_flags));
-}
-
-/* get the export value for flag of 'name' */
-static int get_legacy_svc_flag(const char *name)
-{
-	return get_flag(name, legacy_svc_flags, (int)(sizeof legacy_svc_flags / sizeof *legacy_svc_flags));
-}
-#endif
-
-static struct flag api_flags[] = { /* must be sorted by names */
-		{ "add_alias",		afb_hook_flag_api_add_alias },
-		{ "all",		afb_hook_flags_api_all },
-		{ "api_add_verb",	afb_hook_flag_api_api_add_verb },
-		{ "api",		afb_hook_flags_api_api },
-		{ "api_del_verb",	afb_hook_flag_api_api_del_verb },
-		{ "api_seal",		afb_hook_flag_api_api_seal },
-		{ "api_set_on_event",	afb_hook_flag_api_api_set_on_event },
-		{ "api_set_on_init",	afb_hook_flag_api_api_set_on_init },
-		{ "api_set_verbs",	afb_hook_flag_api_api_set_verbs },
-		{ "call",		afb_hook_flag_api_call },
-		{ "callsync",		afb_hook_flag_api_callsync },
-		{ "class_provide",	afb_hook_flag_api_class_provide },
-		{ "class_require",	afb_hook_flag_api_class_require },
-		{ "common",		afb_hook_flags_api_common },
-		{ "delete_api",		afb_hook_flag_api_delete_api },
-		{ "event",		afb_hook_flags_api_event },
-		{ "event_broadcast",	afb_hook_flag_api_event_broadcast },
-		{ "event_handler_add",	afb_hook_flag_api_event_handler_add },
-		{ "event_handler_del",	afb_hook_flag_api_event_handler_del },
-		{ "event_make",		afb_hook_flag_api_event_make },
-		{ "extra",		afb_hook_flags_api_extra },
-		{ "get_event_loop",	afb_hook_flag_api_get_event_loop },
-		{ "get_system_bus",	afb_hook_flag_api_get_system_bus },
-		{ "get_user_bus",	afb_hook_flag_api_get_user_bus },
-		{ "legacy_unstore_req",	afb_hook_flag_api_legacy_unstore_req },
-		{ "new_api",		afb_hook_flag_api_new_api },
-		{ "on_event",		afb_hook_flag_api_on_event },
-		{ "on_event_handler",	afb_hook_flag_api_on_event_handler },
-		{ "queue_job",		afb_hook_flag_api_queue_job },
-		{ "require_api",	afb_hook_flag_api_require_api },
-		{ "rootdir_get_fd",	afb_hook_flag_api_rootdir_get_fd },
-		{ "rootdir_open_locale",afb_hook_flag_api_rootdir_open_locale },
-		{ "start",		afb_hook_flag_api_start },
-		{ "vverbose",		afb_hook_flag_api_vverbose },
-};
-
-/* get the export value for flag of 'name' */
-static int get_api_flag(const char *name)
-{
-	return get_flag(name, api_flags, (int)(sizeof api_flags / sizeof *api_flags));
-}
 
 static void hook_api(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *action, const char *format, ...)
 {
@@ -918,26 +760,6 @@ static struct afb_hook_api_itf hook_api_itf = {
 /*****  trace the events                                                   *****/
 /*******************************************************************************/
 
-static struct flag evt_flags[] = { /* must be sorted by names */
-		{ "addref",		afb_hook_flag_evt_addref },
-		{ "all",		afb_hook_flags_evt_all },
-		{ "broadcast_after",	afb_hook_flag_evt_broadcast_after },
-		{ "broadcast_before",	afb_hook_flag_evt_broadcast_before },
-		{ "common",		afb_hook_flags_evt_common },
-		{ "create",		afb_hook_flag_evt_create },
-		{ "extra",		afb_hook_flags_evt_extra },
-		{ "name",		afb_hook_flag_evt_name },
-		{ "push_after",		afb_hook_flag_evt_push_after },
-		{ "push_before",	afb_hook_flag_evt_push_before },
-		{ "unref",		afb_hook_flag_evt_unref },
-};
-
-/* get the evt value for flag of 'name' */
-static int get_evt_flag(const char *name)
-{
-	return get_flag(name, evt_flags, (int)(sizeof evt_flags / sizeof *evt_flags));
-}
-
 static void hook_evt(void *closure, const struct afb_hookid *hookid, const char *evt, int id, const char *action, const char *format, ...)
 {
 	va_list ap;
@@ -1006,23 +828,6 @@ static struct afb_hook_evt_itf hook_evt_itf = {
 /*****  trace the sessions                                                 *****/
 /*******************************************************************************/
 
-static struct flag session_flags[] = { /* must be sorted by names */
-		{ "addref",		afb_hook_flag_session_addref },
-		{ "all",		afb_hook_flags_session_all },
-		{ "close",		afb_hook_flag_session_close },
-		{ "common",		afb_hook_flags_session_common },
-		{ "create",		afb_hook_flag_session_create },
-		{ "destroy",		afb_hook_flag_session_destroy },
-		{ "renew",		afb_hook_flag_session_renew },
-		{ "unref",		afb_hook_flag_session_unref },
-};
-
-/* get the session value for flag of 'name' */
-static int get_session_flag(const char *name)
-{
-	return get_flag(name, session_flags, (int)(sizeof session_flags / sizeof *session_flags));
-}
-
 static void hook_session(void *closure, const struct afb_hookid *hookid, struct afb_session *session, const char *action, const char *format, ...)
 {
 	va_list ap;
@@ -1076,17 +881,6 @@ static struct afb_hook_session_itf hook_session_itf = {
 /*******************************************************************************/
 /*****  trace the globals                                                  *****/
 /*******************************************************************************/
-
-static struct flag global_flags[] = { /* must be sorted by names */
-		{ "all",		afb_hook_flags_global_all },
-		{ "vverbose",		afb_hook_flag_global_vverbose },
-};
-
-/* get the global value for flag of 'name' */
-static int get_global_flag(const char *name)
-{
-	return get_flag(name, global_flags, (int)(sizeof global_flags / sizeof *global_flags));
-}
 
 static void hook_global(void *closure, const struct afb_hookid *hookid, const char *action, const char *format, ...)
 {
@@ -1144,44 +938,44 @@ abstracting[Trace_Type_Count] =
 	{
 		.name = "request",
 		.unref =  (void(*)(void*))afb_hook_unref_xreq,
-		.get_flag = get_xreq_flag
+		.get_flag = afb_hook_flags_xreq_from_text
 	},
 	[Trace_Type_Api] =
 	{
 		.name = "api",
 		.unref =  (void(*)(void*))afb_hook_unref_api,
-		.get_flag = get_api_flag
+		.get_flag = afb_hook_flags_api_from_text
 	},
 	[Trace_Type_Evt] =
 	{
 		.name = "event",
 		.unref =  (void(*)(void*))afb_hook_unref_evt,
-		.get_flag = get_evt_flag
+		.get_flag = afb_hook_flags_evt_from_text
 	},
 	[Trace_Type_Session] =
 	{
 		.name = "session",
 		.unref =  (void(*)(void*))afb_hook_unref_session,
-		.get_flag = get_session_flag
+		.get_flag = afb_hook_flags_session_from_text
 	},
 	[Trace_Type_Global] =
 	{
 		.name = "global",
 		.unref =  (void(*)(void*))afb_hook_unref_global,
-		.get_flag = get_global_flag
+		.get_flag = afb_hook_flags_global_from_text
 	},
 #if !defined(REMOVE_LEGACY_TRACE)
 	[Trace_Legacy_Type_Ditf] =
 	{
 		.name = "daemon",
 		.unref =  (void(*)(void*))afb_hook_unref_api,
-		.get_flag = get_legacy_ditf_flag
+		.get_flag = afb_hook_flags_legacy_ditf_from_text
 	},
 	[Trace_Legacy_Type_Svc] =
 	{
 		.name = "service",
 		.unref =  (void(*)(void*))afb_hook_unref_api,
-		.get_flag = get_legacy_svc_flag
+		.get_flag = afb_hook_flags_legacy_svc_from_text
 	},
 #endif
 };
