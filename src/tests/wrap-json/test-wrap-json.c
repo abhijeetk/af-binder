@@ -41,6 +41,69 @@ void tclone(struct json_object *object)
 	json_object_put(o);
 }
 
+
+void objcb(void *closure, struct json_object *obj, const char *key)
+{
+	const char *prefix = closure;
+	printf("  %s {%s} %s\n", prefix ?: "", key ?: "[]", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE));
+}
+
+void arrcb(void *closure, struct json_object *obj)
+{
+	objcb(closure, obj, NULL);
+}
+
+void tforall(struct json_object *object)
+{
+	wrap_json_for_all(object, objcb, "wrap_json_for_all");
+	wrap_json_optobject_for_all(object, objcb, "wrap_json_optobject_for_all");
+	wrap_json_object_for_all(object, objcb, "wrap_json_object_for_all");
+	wrap_json_optarray_for_all(object, arrcb, "wrap_json_optarray_for_all");
+	wrap_json_array_for_all(object, arrcb, "wrap_json_array_for_all");
+}
+
+struct mix
+{
+	int n;
+	struct json_object *pair[2];
+};
+
+void mixcb(void *closure, struct json_object *obj, const char *key)
+{
+	struct mix *mix = closure;
+
+	if (!mix->n) {
+		mix->pair[0] = json_object_new_object();
+		mix->pair[1] = json_object_new_object();
+	}
+	json_object_object_add(mix->pair[mix->n & 1], key, json_object_get(obj));
+	mix->n++;
+}
+
+void tmix(struct json_object *object)
+{
+	struct json_object *z;
+	struct mix mix = { .n = 0 };
+
+	wrap_json_object_for_all(object, mixcb, &mix);
+	if (mix.n) {
+		z = wrap_json_object_add(wrap_json_clone(mix.pair[0]), mix.pair[1]);
+		if (!wrap_json_contains(z, mix.pair[0]))
+			printf("  ERROR mix/1\n");
+		if (!wrap_json_contains(z, mix.pair[1]))
+			printf("  ERROR mix/2\n");
+		if (!wrap_json_contains(z, object))
+			printf("  ERROR mix/3\n");
+		if (!wrap_json_contains(object, z))
+			printf("  ERROR mix/4\n");
+		if (!wrap_json_equal(object, z))
+			printf("  ERROR mix/5\n");
+		json_object_put(z);
+		json_object_put(mix.pair[0]);
+		json_object_put(mix.pair[1]);
+	}
+}
+
 void p(const char *desc, ...)
 {
 	int rc;
@@ -66,11 +129,74 @@ struct json_object *xo[10];
 size_t xz[10];
 uint8_t *xy[10];
 
+int extrchk(const char *desc, const char **array, int length, va_list args)
+{
+	unsigned m, k;
+	int n;
+
+	if (!desc)
+		return 0;
+
+	n = 0;
+	k = m = 0;
+	while(*desc) {
+		switch(*desc) {
+		case '{':
+		case '[': k = !(*desc - '{'); m = (m << 1) | k; break;
+		case '}':
+		case ']': m = m >> 1; k = m&1; break;
+		case 's':
+			if (!k)
+				(void)va_arg(args, char**);
+			else {
+				if (n > length)
+					return -1;
+				array[n++] = va_arg(args, const char*);
+			}
+			break;
+		case '%': (void)va_arg(args, size_t*); k = m&1; break;
+		case 'n': k = m&1; break;
+		case 'b':
+		case 'i': (void)va_arg(args, int*); k = m&1; break;
+		case 'I': (void)va_arg(args, int64_t*); k = m&1; break;
+		case 'f':
+		case 'F': (void)va_arg(args, double*); k = m&1; break;
+		case 'o': (void)va_arg(args, struct json_object**), k = m&1; break;
+		case 'O': (void)va_arg(args, struct json_object**); k = m&1; break;
+		case 'y':
+		case 'Y':
+			(void)va_arg(args, uint8_t**);
+			(void)va_arg(args, size_t*);
+			k = m&1;
+			break;
+		default:
+			break;
+		}
+		desc++;
+	}
+	return n;
+}
+
+const char *mkeys[5];
+
+void tchk(struct json_object *object, const char *desc, const char **keys, int length, int qrc)
+{
+	int rm, rc;
+
+	rm = wrap_json_match(object, desc, keys[0], keys[1], keys[2], keys[3], keys[4]);
+	rc = wrap_json_check(object, desc, keys[0], keys[1], keys[2], keys[3], keys[4]);
+	if (rc != qrc)
+		printf("  ERROR DIFFERS[char %d err %d] %s\n", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
+	if (rm != !rc)
+		printf("  ERROR OF MATCH\n");
+}
+
 void u(const char *value, const char *desc, ...)
 {
 	unsigned m, k;
-	int rc;
+	int rc, n;
 	va_list args;
+	const char *d;
 	struct json_object *object, *o;
 
 	memset(xs, 0, sizeof xs);
@@ -85,14 +211,15 @@ void u(const char *value, const char *desc, ...)
 	rc = wrap_json_vunpack(object, desc, args);
 	va_end(args);
 	if (rc)
-		printf("  ERROR[char %d err %d] %s\n\n", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
+		printf("  ERROR[char %d err %d] %s", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
 	else {
 		value = NULL;
 		printf("  SUCCESS");
+		d = desc;
 		va_start(args, desc);
 		k = m = 0;
-		while(*desc) {
-			switch(*desc) {
+		while(*d) {
+			switch(*d) {
 			case '{': m = (m << 1) | 1; k = 1; break;
 			case '}': m = m >> 1; k = m&1; break;
 			case '[': m = m << 1; k = 0; break;
@@ -102,7 +229,7 @@ void u(const char *value, const char *desc, ...)
 			case 'n': printf(" n"); k = m&1; break;
 			case 'b': printf(" b:%d", *va_arg(args, int*)); k = m&1; break;
 			case 'i': printf(" i:%d", *va_arg(args, int*)); k = m&1; break;
-			case 'I': printf(" I:%lld", *va_arg(args, int64_t*)); k = m&1; break;
+			case 'I': printf(" I:%lld", (long long int)*va_arg(args, int64_t*)); k = m&1; break;
 			case 'f': printf(" f:%f", *va_arg(args, double*)); k = m&1; break;
 			case 'F': printf(" F:%f", *va_arg(args, double*)); k = m&1; break;
 			case 'o': printf(" o:%s", json_object_to_json_string_ext(*va_arg(args, struct json_object**), JSON_C_TO_STRING_NOSLASHESCAPE)); k = m&1; break;
@@ -112,17 +239,27 @@ void u(const char *value, const char *desc, ...)
 				uint8_t *p = *va_arg(args, uint8_t**);
 				size_t s = *va_arg(args, size_t*);
 				printf(" y/%d:%.*s", (int)s, (int)s, (char*)p);
-				k ^= m&1;
+				k = m&1;
 				break;
 				}
 			default: break;
 			}
-			desc++;
+			d++;
 		}
 		va_end(args);
-		printf("\n\n");
 	}
+	printf("\n");
+	va_start(args, desc);
+	n = extrchk(desc, mkeys, (int)(sizeof mkeys / sizeof *mkeys), args);
+	va_end(args);
+	if (n < 0)
+		printf("  ERROR: too much keys in %s\n", desc);
+	else
+		tchk(object, desc, mkeys, n, rc);
 	tclone(object);
+	tforall(object);
+	tmix(object);
+	printf("\n");
 	json_object_put(object);
 }
 
@@ -329,6 +466,6 @@ int main()
 	c("{\"a\":true,\"b\":false}", "{\"a\":true}", 0, 1);
 	c("{\"a\":true,\"b\":false}", "{\"a\":true,\"c\":false}", 0, 0);
 	c("{\"a\":true,\"c\":false}", "{\"a\":true,\"b\":false}", 0, 0);
+
 	return 0;
 }
-

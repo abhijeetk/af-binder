@@ -62,11 +62,10 @@ cflags = $(ccflags) $(ldflags)
 
 defs = 	-DAGL_DEVEL \
 	-DWITH_MONITORING_OPTION \
-	-DWITH_SUPERVISION \
 	-DAFB_VERSION=\"cov\" \
 	-DBINDING_INSTALL_DIR=\"$(shell pwd)/fake\"
 
-afb_lib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-' )
+afb_lib_src = $(shell ls $(srcdir)/*.c | egrep -v '/afs-|/main-|/fdev-epoll.c|/afb-ws-client.c' )
 afb_lib_obj = $(patsubst $(srcdir)/%.c,%.o,$(afb_lib_src))
 afb_lib = afb-lib.a
 afb_lib_defs = $(defs)
@@ -74,7 +73,7 @@ afb_lib_defs = $(defs)
 afb_daemon_srcs = $(srcdir)/main-afb-daemon.c $(afb_lib_obj)
 afb_daemon_defs = $(afb_lib_defs)
 
-afb_client_srcs = $(srcdir)/main-afb-client-demo.c $(afb_lib_src)
+afb_client_srcs = $(srcdir)/main-afb-client-demo.c $(srcdir)/afb-ws-client.c $(afb_lib_src)
 afb_client_defs = $(defs)
 
 tst_defs = $(defs)

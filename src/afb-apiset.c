@@ -427,17 +427,23 @@ struct afb_apiset *afb_apiset_subset_get(struct afb_apiset *set)
  * Set the subset of the set
  * @param set the api set
  * @param subset the subset to set
+ *
+ * @return 0 in case of success or -1 if it had created a loop
  */
-void afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
+int afb_apiset_subset_set(struct afb_apiset *set, struct afb_apiset *subset)
 {
 	struct afb_apiset *tmp;
-	if (subset == set) {
-		/* avoid infinite loop */
-		subset = NULL;
-	}
+
+	/* avoid infinite loop */
+	for (tmp = subset ; tmp ; tmp = tmp->subset)
+		if (tmp == set)
+			return -1;
+
 	tmp = set->subset;
 	set->subset = afb_apiset_addref(subset);
 	afb_apiset_unref(tmp);
+
+	return 0;
 }
 
 void afb_apiset_onlack_set(struct afb_apiset *set, int (*callback)(void*, struct afb_apiset*, const char*), void *closure, void (*cleanup)(void*))

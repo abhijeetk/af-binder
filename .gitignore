@@ -9,7 +9,6 @@ CMakeFiles/
 CMakeCache.txt
 nbproject/private/*
 cmake_install.cmake
-*.so
 .vscode
 stress-out*
 node_modules/

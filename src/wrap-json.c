@@ -815,7 +815,7 @@ int wrap_json_check(struct json_object *object, const char *desc, ...)
 	va_list args;
 
 	va_start(args, desc);
-	rc = vunpack(object, desc, args, 0);
+	rc = wrap_json_vcheck(object, desc, args);
 	va_end(args);
 	return rc;
 }
@@ -831,9 +831,9 @@ int wrap_json_match(struct json_object *object, const char *desc, ...)
 	va_list args;
 
 	va_start(args, desc);
-	rc = vunpack(object, desc, args, 0);
+	rc = wrap_json_vmatch(object, desc, args);
 	va_end(args);
-	return !rc;
+	return rc;
 }
 
 int wrap_json_vunpack(struct json_object *object, const char *desc, va_list args)
@@ -992,8 +992,12 @@ struct json_object *wrap_json_clone_depth(struct json_object *item, int depth)
 }
 
 /**
- * Clones the 'object': returns a copy of it. But doen't clones
+ * Clones the 'object': returns a copy of it. But doesn't clones
  * the content. Synonym of wrap_json_clone_depth(object, 1).
+ *
+ * Be aware that this implementation doesn't clones content that is deeper
+ * than 1 but it does link these contents to the original object and
+ * increments their use count. So, everything deeper that 1 is still available.
  *
  * @param object the object to clone
  *

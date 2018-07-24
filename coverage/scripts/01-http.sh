@@ -5,6 +5,7 @@ curl -s -o /dev/null $URL/index.html
 curl -s -o /dev/null $URL/marrus-orthocanna.jpg
 curl -s -o /dev/null $URL/test.js
 curl -s -o /dev/null $URL/icons/marrus-orthocanna.jpg
+curl -s -o /dev/null $URL/opa/item/extra/index.html
 
 curl -s -o /dev/null $URL/fake-file.html
 

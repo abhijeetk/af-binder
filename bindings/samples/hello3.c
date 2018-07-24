@@ -467,6 +467,11 @@ static void setloa (afb_req_t request)
 	afb_req_reply_f(request, NULL, NULL, "LOA set to %d", loa);
 }
 
+static void ok (afb_req_t request)
+{
+	afb_req_reply_f(request, NULL, NULL, NULL);
+}
+
 static void setctx (afb_req_t request)
 {
 	struct json_object *x = afb_req_json(request);
@@ -530,6 +535,23 @@ static void ref(afb_req_t request)
 	afb_req_unref(request);
 }
 
+static void mute(afb_req_t request)
+{
+}
+
+void queue_cb(int signum, void *arg)
+{
+	afb_req_t request = arg;
+	afb_req_reply(request, NULL, NULL, NULL);
+	afb_req_unref(request);
+}
+
+static void queue(afb_req_t request)
+{
+	afb_req_addref(request);
+	afb_api_queue_job(afb_req_get_api(request), queue_cb, request, NULL, 0);
+}
+
 static void rootdir (afb_req_t request)
 {
 	ssize_t s;
@@ -586,6 +608,88 @@ static void locale (afb_req_t request)
 
 static void api (afb_req_t request);
 
+/**
+ * Definition of an authorization entry
+ */
+static struct afb_auth auths[] = {
+	{	/* 0 */
+		.type = afb_auth_Or,
+		.first = &auths[1],
+		.next = &auths[9],
+	},
+	{	/* 1 */
+		.type = afb_auth_And,
+		.first = &auths[2],
+		.next = &auths[3],
+	},
+	{	/* 2 */
+		.type = afb_auth_Yes
+	},
+	{	/* 3 */
+		.type = afb_auth_And,
+		.first = &auths[4],
+		.next = &auths[5],
+	},
+	{	/* 4 */
+		.type = afb_auth_LOA,
+		.loa = 0
+	},
+	{	/* 5 */
+		.type = afb_auth_Or,
+		.first = &auths[6],
+		.next = &auths[7],
+	},
+	{	/* 6 */
+		.type = afb_auth_No
+	},
+	{	/* 7 */
+		.type = afb_auth_Not,
+		.first = &auths[8]
+	},
+	{	/* 8 */
+		.type = afb_auth_Yes
+	},
+	{	/* 9 */
+		.type = afb_auth_And,
+		.first = &auths[10],
+		.next = &auths[13],
+	},
+	{	/* 10 */
+		.type = afb_auth_Or,
+		.first = &auths[12],
+		.next = &auths[11],
+	},
+	{	/* 11 */
+		.type = afb_auth_Not,
+		.first = &auths[13]
+	},
+	{	/* 12 */
+		.type = afb_auth_Token
+	},
+	{	/* 13 */
+		.type = afb_auth_And,
+		.first = &auths[14],
+		.next = &auths[17],
+	},
+	{	/* 14 */
+		.type = afb_auth_Or,
+		.first = &auths[16],
+		.next = &auths[15],
+	},
+	{	/* 15 */
+		.type = afb_auth_Not,
+		.first = &auths[16]
+	},
+	{	/* 16 */
+		.type = afb_auth_Permission,
+		.text = "permission"
+	},
+	{	/* 17 */
+		.type = afb_auth_Yes
+	}
+};
+
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const struct afb_verb_v3 verbs[]= {
@@ -611,11 +715,15 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="appid",       .callback=appid },
   { .verb="uid",         .callback=uid },
   { .verb="exit",        .callback=exitnow },
-  { .verb="close",       .callback=closess },
-  { .verb="set-loa",     .callback=setloa },
+  { .verb="close",       .callback=closess, .session=AFB_SESSION_CLOSE },
+  { .verb="set-loa",     .callback=setloa, .auth = &auths[0] },
+  { .verb="has-loa-1",   .callback=ok, .session=AFB_SESSION_LOA_1 },
+  { .verb="has-loa-2",   .callback=ok, .session=AFB_SESSION_LOA_2 },
+  { .verb="has-loa-3",   .callback=ok, .session=AFB_SESSION_LOA_3 },
   { .verb="setctx",      .callback=setctx, .vcbdata = (void*)(intptr_t)1 },
   { .verb="setctxif",    .callback=setctx, .vcbdata = (void*)(intptr_t)0 },
   { .verb="getctx",      .callback=getctx },
+  { .verb="reftok",      .callback=ok, .session=AFB_SESSION_CHECK | AFB_SESSION_REFRESH },
   { .verb="info",        .callback=info },
   { .verb="eventloop",   .callback=eventloop },
   { .verb="dbus",        .callback=dbus },
@@ -625,6 +733,8 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="rootdir",     .callback=rootdir},
   { .verb="locale",      .callback=locale},
   { .verb="api",         .callback=api},
+  { .verb="mute",        .callback=mute},
+  { .verb="queue",       .callback=queue},
   { .verb=NULL}
 };
 

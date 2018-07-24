@@ -534,8 +534,7 @@ static void startup_call_unref(struct afb_xreq *xreq)
 	free(sreq->api);
 	free(sreq->verb);
 	json_object_put(sreq->xreq.json);
-	sreq->index++;
-	if (sreq->index < sreq->count)
+	if (++sreq->index < sreq->count)
 		startup_call_current(sreq);
 	else {
 		afb_session_close(sreq->session);

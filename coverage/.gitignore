@@ -8,7 +8,7 @@ bin/afb-daemon-cov
 bin/test-apiset
 bin/test-session
 bin/test-wrap-json
-*.o
-*.so
-*.gcda
-*.gcno
+bin/*.o
+bin/*.so
+bin/*.gcda
+bin/*.gcno

@@ -38,9 +38,22 @@ hello eventdel {"tag":"ev2"}
 hello hasperm {"perm":"some-permissison"}
 hello appid true
 hello uid true
+hello reftok true
+hello has_loa-1
+hello has_loa-2
+hello has_loa-3
 hello set-loa 1
+hello has_loa-1
+hello has_loa-2
+hello has_loa-3
 hello set-loa 3
+hello has_loa-1
+hello has_loa-2
+hello has_loa-3
 hello close true
+hello has_loa-1
+hello has_loa-2
+hello has_loa-3
 hello setctx "some-text-0"
 hello setctxif "some-text-1"
 hello getctx 
@@ -89,6 +102,7 @@ extra ping {"c":[1,2,3]}
 extra query {"c":[1,2,3]}
 extra blablabla {"c":[1,2,3]}
 extra api {"action":"addverb","verb":"ping"}
+extra call {"api":"hello","verb":"eventunsub","args":{"tag":"EVENT"}}
 extra ping {"c":[1,2,3]}
 hello api {"action":"destroy","api":"extra"}
 extra ping {"c":[1,2,3]}

@@ -549,6 +549,49 @@ END_TEST
 
 /*********************************************************************/
 
+START_TEST (check_subset)
+{
+	int rc;
+	struct afb_apiset *a, *b, *c, *d;
+
+	a = afb_apiset_create_subset_first(NULL, "a", 0);
+	ck_assert_ptr_nonnull(a);
+	ck_assert_str_eq("a", afb_apiset_name(a));
+	ck_assert_ptr_null(afb_apiset_subset_get(a));
+
+	b = afb_apiset_create_subset_first(a, "b", 0);
+	ck_assert_ptr_nonnull(b);
+	ck_assert_str_eq("b", afb_apiset_name(b));
+	ck_assert_ptr_eq(b, afb_apiset_subset_get(a));
+	ck_assert_ptr_null(afb_apiset_subset_get(b));
+
+	c = afb_apiset_create_subset_first(a, "c", 0);
+	ck_assert_ptr_nonnull(c);
+	ck_assert_str_eq("c", afb_apiset_name(c));
+	ck_assert_ptr_eq(c, afb_apiset_subset_get(a));
+	ck_assert_ptr_eq(b, afb_apiset_subset_get(c));
+	ck_assert_ptr_null(afb_apiset_subset_get(b));
+
+	d = afb_apiset_create_subset_last(a, "d", 0);
+	ck_assert_ptr_nonnull(d);
+	ck_assert_str_eq("d", afb_apiset_name(d));
+	ck_assert_ptr_eq(c, afb_apiset_subset_get(a));
+	ck_assert_ptr_eq(b, afb_apiset_subset_get(c));
+	ck_assert_ptr_eq(d, afb_apiset_subset_get(b));
+	ck_assert_ptr_null(afb_apiset_subset_get(d));
+
+	rc = afb_apiset_subset_set(a, b);
+	ck_assert(rc == 0);
+	ck_assert_ptr_eq(b, afb_apiset_subset_get(a));
+	ck_assert_ptr_eq(d, afb_apiset_subset_get(b));
+	ck_assert_ptr_null(afb_apiset_subset_get(d));
+
+	afb_apiset_unref(a);
+}
+END_TEST
+
+/*********************************************************************/
+
 static Suite *suite;
 static TCase *tcase;
 
@@ -575,5 +618,6 @@ int main(int ac, char **av)
 			addtest(check_onlack);
 			addtest(check_settings);
 			addtest(check_classes);
+			addtest(check_subset);
 	return !!srun();
 }

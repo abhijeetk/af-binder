@@ -34,7 +34,7 @@ enum afb_auth_type
 	/** authorized if token valid, no data */
 	afb_auth_Token,
 
-	/** authorized if LOA greater than data 'loa' */
+	/** authorized if LOA greater than or equal to data 'loa' */
 	afb_auth_LOA,
 
 	/** authorized if permission 'text' is granted */
@@ -60,18 +60,18 @@ struct afb_auth
 {
 	/** type of entry @see afb_auth_type */
 	enum afb_auth_type type;
-	
+
 	union {
 		/** text when @ref type == @ref afb_auth_Permission */
 		const char *text;
-		
+
 		/** level of assurancy when @ref type ==  @ref afb_auth_LOA */
 		unsigned loa;
-		
+
 		/** first child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And, @ref afb_auth_Not } */
 		const struct afb_auth *first;
 	};
-	
+
 	/** second child when @ref type in { @ref afb_auth_Or, @ref afb_auth_And } */
 	const struct afb_auth *next;
 };

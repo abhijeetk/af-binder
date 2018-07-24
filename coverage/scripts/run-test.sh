@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 export R=$(realpath $(dirname $0)/..)
 export PATH="$R/bin:$R/scripts:$PATH"
@@ -45,9 +45,25 @@ mk $R/bin/afb-daemon-cov --no-ldpath --traceapi fake
 
 mk $R/bin/afb-daemon-cov --traceditf all --tracesvc all --log error,alarm
 
-LISTEN_FDNAMES=toto,demat LISTEN_FDS=5 mk $R/bin/afb-daemon-cov --no-ldpath --binding $R/bin/demat.so --ws-server sd:demat --call "demat/exit:0"
+mk $R/bin/afb-daemon-cov --call noapi/noverb:false
+
+mk $R/bin/afb-daemon-cov --call not-a-call
+
+LISTEN_FDNAMES=toto,demat LISTEN_FDS=5
+typeset -x LISTEN_FDNAMES LISTEN_FDS
+mk $R/bin/afb-daemon-cov --no-ldpath --binding $R/bin/demat.so --ws-server sd:demat --call "demat/exit:0"
+typeset +x LISTEN_FDNAMES LISTEN_FDS
 
 mk $R/bin/afb-daemon-cov --weak-ldpaths $R/ldpath/weak --binding $R/bin/demat.so --ws-server sd:demat --call "demat/exit:0"
+
+AFB_DEBUG_BREAK=zero,one,two,main-start  AFB_DEBUG_WAIT="here I am"
+typeset -x AFB_DEBUG_BREAK AFB_DEBUG_WAIT
+mk $R/bin/afb-daemon-cov --rootdir $R/i-will-never-exist
+typeset +x AFB_DEBUG_BREAK AFB_DEBUG_WAIT
+
+mk $R/bin/afb-daemon-cov --workdir=/etc/you/should/not/be/able/to/create/me
+
+mk $R/bin/afb-daemon-cov --exec $R/it-doesn-t-exist
 
 ##########################################################
 # test of the bench
@@ -85,7 +101,7 @@ $R/bin/afb-daemon-cov \
 	--name binder-cov \
 	--port 8888 \
 	--roothttp $R/www \
-	--rootbase /opx \
+	--rootbase /opa \
 	--rootapi /api \
 	--alias /icons:$R/www \
 	--apitimeout 90 \
@@ -104,13 +120,48 @@ $R/bin/afb-daemon-cov \
 	--traceapi all \
 	--traceses all \
 	--traceevt all \
+	--traceglob none \
 	--monitoring \
 	--call demat/ping:true \
+	--call hello/ping:false \
+	--ws-server unix:$R/apis/ws/hello \
+	--ws-server unix:$R/apis/ws/salut \
+	--exec $R/scripts/run-parts.sh @p @t
+
+##########################################################
+# true life test
+##########################################################
+mk \
+valgrind \
+	--log-file=$R/valgrind.out \
+	--trace-children=no \
+	--track-fds=yes \
+	--leak-check=full \
+	--show-leak-kinds=all \
+	--num-callers=50 \
+$R/bin/afb-daemon-cov \
+	--quiet \
+	--quiet \
+	--foreground \
+	--roothttp $R/www \
+	--alias /icons:$R/www \
+	--workdir . \
+	--uploaddir . \
+	--rootdir . \
+	--ldpaths $R/ldpath/strong \
+	--binding $R/bin/demat.so \
+	--auto-api $R/apis/auto \
+	--random-token \
 	--ws-server unix:$R/apis/ws/hello \
 	--ws-server unix:$R/apis/ws/salut \
 	--ws-server localhost:9595/salut \
-	--ws-client localhost:9595/salut2 \
-	--exec $R/scripts/run-parts.sh @p @t
+	--exec \
+            afb-daemon \
+		--auto-api $R/apis/auto \
+		--auto-api $R/apis/ws \
+		--ws-client localhost:@p/salut2 \
+		$R/scripts/run-parts.sh @@p @@t
 
 exit 0
+
 

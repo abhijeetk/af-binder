@@ -198,7 +198,7 @@ enum afb_auth_type
 	/** authorized if token valid, no data */
 	afb_auth_Token,
 
-	/** authorized if LOA greater than data 'loa' */
+	/** authorized if LOA greater than or equal to data 'loa' */
 	afb_auth_LOA,
 
 	/** authorized if permission 'text' is granted */
