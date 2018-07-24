@@ -599,18 +599,15 @@ static void start(int signum, void *arg)
 	/* load bindings */
 	afb_debug("start-load");
 	apiset_start_list(main_config->so_bindings, afb_api_so_add_binding, "the binding");
-#if defined(WITH_DBUS_TRANSPARENCY)
-	apiset_start_list(main_config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
-#endif
-	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
 	apiset_start_list(main_config->ldpaths, afb_api_so_add_pathset_fails, "the binding path set");
 	apiset_start_list(main_config->weak_ldpaths, afb_api_so_add_pathset_nofails, "the weak binding path set");
 	apiset_start_list(main_config->auto_api, afb_autoset_add_any, "the automatic api path set");
-
+	apiset_start_list(main_config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
 #if defined(WITH_DBUS_TRANSPARENCY)
 	apiset_start_list(main_config->dbus_servers, afb_api_dbus_add_server, "the afb-dbus service");
+	apiset_start_list(main_config->dbus_clients, afb_api_dbus_add_client, "the afb-dbus client");
 #endif
-	apiset_start_list(main_config->ws_servers, afb_api_ws_add_server, "the afb-websocket service");
+	apiset_start_list(main_config->ws_clients, afb_api_ws_add_client_weak, "the afb-websocket client");
 
 	DEBUG("Init config done");
 
