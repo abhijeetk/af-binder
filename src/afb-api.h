@@ -41,4 +41,9 @@ struct afb_api_item
 
 extern int afb_api_is_valid_name(const char *name);
 
+static inline int afb_api_is_public(const char *name)
+{
+	return *name != '.';
+}
+
 

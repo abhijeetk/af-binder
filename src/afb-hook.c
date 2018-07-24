@@ -45,7 +45,7 @@
 #define MATCH(pattern,string)   (\
 		pattern \
 			? !fnmatch((pattern),(string),FNM_CASEFOLD|FNM_EXTMATCH|FNM_PERIOD) \
-			: (string)[0] != '.')
+			: afb_api_is_public(string))
 
 #define MATCH_API(pattern,string)	MATCH(pattern,string)
 #define MATCH_VERB(pattern,string)	MATCH(pattern,string)

@@ -495,7 +495,8 @@ int afb_apiset_add(struct afb_apiset *set, const char *name, struct afb_api_item
 	desc->next = all_apis;
 	all_apis = desc;
 
-	INFO("API %s added", name);
+	if (afb_api_is_public(name))
+		INFO("API %s added", name);
 
 	return 0;
 
