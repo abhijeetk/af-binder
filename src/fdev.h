@@ -40,10 +40,8 @@ extern void fdev_unref(struct fdev *fdev);
 
 extern int fdev_fd(const struct fdev *fdev);
 extern uint32_t fdev_events(const struct fdev *fdev);
-extern int fdev_repeat(const struct fdev *fdev);
 extern int fdev_autoclose(const struct fdev *fdev);
 
 extern void fdev_set_callback(struct fdev *fdev, void (*callback)(void*,uint32_t,struct fdev*), void *closure);
 extern void fdev_set_events(struct fdev *fdev, uint32_t events);
-extern void fdev_set_repeat(struct fdev *fdev, int count);
 extern void fdev_set_autoclose(struct fdev *fdev, int autoclose);

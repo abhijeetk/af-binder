@@ -27,7 +27,6 @@ struct fdev
 {
 	int fd;
 	uint32_t events;
-	int repeat;
 	unsigned refcount;
 	struct fdev_itf *itf;
 	void *closure_itf;
@@ -45,7 +44,6 @@ struct fdev *fdev_create(int fd)
 	else {
 		fdev->fd = fd;
 		fdev->refcount = 3; /* set autoclose by default */
-		fdev->repeat = -1; /* always repeat by default */
 	}
 	return fdev;
 }
@@ -58,8 +56,6 @@ void fdev_set_itf(struct fdev *fdev, struct fdev_itf *itf, void *closure_itf)
 
 void fdev_dispatch(struct fdev *fdev, uint32_t events)
 {
-	if (fdev->repeat > 0 && !--fdev->repeat && fdev->itf)
-		fdev->itf->disable(fdev->closure_itf, fdev);
 	if (fdev->callback)
 		fdev->callback(fdev->closure_callback, events, fdev);
 }
@@ -95,11 +91,6 @@ uint32_t fdev_events(const struct fdev *fdev)
 	return fdev->events;
 }
 
-int fdev_repeat(const struct fdev *fdev)
-{
-	return fdev->repeat;
-}
-
 int fdev_autoclose(const struct fdev *fdev)
 {
 	return 1 & fdev->refcount;
@@ -107,7 +98,7 @@ int fdev_autoclose(const struct fdev *fdev)
 
 static inline int is_active(struct fdev *fdev)
 {
-	return fdev->repeat && fdev->callback;
+	return !!fdev->callback;
 }
 
 static inline void update_activity(struct fdev *fdev, int old_active)
@@ -138,15 +129,6 @@ void fdev_set_events(struct fdev *fdev, uint32_t events)
 		if (is_active(fdev))
 			fdev->itf->update(fdev->closure_itf, fdev);
 	}
-}
-
-void fdev_set_repeat(struct fdev *fdev, int count)
-{
-	int oa;
-
-	oa = is_active(fdev);
-	fdev->repeat = count;
-	update_activity(fdev, oa);
 }
 
 void fdev_set_autoclose(struct fdev *fdev, int autoclose)
