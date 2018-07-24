@@ -30,6 +30,9 @@
 
 #include <systemd/sd-event.h>
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include "afb-wsj1.h"
 #include "afb-ws-client.h"
@@ -267,7 +270,7 @@ static void on_wsj1_call(void *closure, const char *api, const char *verb, struc
 	if (human)
 		printf("ON-CALL %s/%s:\n%s\n", api, verb,
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
-							JSON_C_TO_STRING_PRETTY));
+							JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 	rc = afb_wsj1_reply_error_s(msg, "\"unimplemented\"", NULL);
 	if (rc < 0)
@@ -282,7 +285,7 @@ static void on_wsj1_event(void *closure, const char *event, struct afb_wsj1_msg 
 	if (human)
 		printf("ON-EVENT %s:\n%s\n", event,
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
-							JSON_C_TO_STRING_PRETTY));
+							JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 }
 
@@ -295,7 +298,7 @@ static void on_wsj1_reply(void *closure, struct afb_wsj1_msg *msg)
 		printf("ON-REPLY %s: %s\n%s\n", (char*)closure,
 				afb_wsj1_msg_is_reply_ok(msg) ? "OK" : "ERROR",
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
-							JSON_C_TO_STRING_PRETTY));
+							JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 	free(closure);
 	dec_callcount();
@@ -461,11 +464,11 @@ static void on_pws_reply(void *closure, void *request, struct json_object *resul
 		if (result)
 			json_object_object_add(x, "response", json_object_get(result));
 
-		printf("%s\n", json_object_to_json_string(x));
+		printf("%s\n", json_object_to_json_string_ext(x, JSON_C_TO_STRING_NOSLASHESCAPE));
 		json_object_put(x);
 	}
 	if (human)
-		printf("ON-REPLY %s: %s %s\n%s\n", (char*)request, error, info ?: "", json_object_to_json_string_ext(result, JSON_C_TO_STRING_PRETTY));
+		printf("ON-REPLY %s: %s %s\n%s\n", (char*)request, error, info ?: "", json_object_to_json_string_ext(result, JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 	free(request);
 	dec_callcount();
@@ -498,18 +501,18 @@ static void on_pws_event_unsubscribe(void *closure, void *request, const char *e
 static void on_pws_event_push(void *closure, const char *event_name, int event_id, struct json_object *data)
 {
 	if (raw)
-		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, 0));
+		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_NOSLASHESCAPE));
 	if (human)
-		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY));
+		printf("ON-EVENT-PUSH: [%d:%s]\n%s\n", event_id, event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 }
 
 static void on_pws_event_broadcast(void *closure, const char *event_name, struct json_object *data)
 {
 	if (raw)
-		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, 0));
+		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_NOSLASHESCAPE));
 	if (human)
-		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY));
+		printf("ON-EVENT-BROADCAST: [%s]\n%s\n", event_name, json_object_to_json_string_ext(data, JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
 }
 

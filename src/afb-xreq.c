@@ -24,6 +24,9 @@
 #include <stdarg.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include <afb/afb-binding-v1.h>
 #include <afb/afb-binding-v2.h>
@@ -666,7 +669,7 @@ void afb_xreq_reply_f(struct afb_xreq *xreq, struct json_object *obj, const char
 const char *afb_xreq_raw(struct afb_xreq *xreq, size_t *size)
 {
 	struct json_object *obj = xreq_json_cb(xreq_to_req_x2(xreq));
-	const char *result = json_object_to_json_string(obj);
+	const char *result = json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE);
 	if (size != NULL)
 		*size = strlen(result);
 	return result;

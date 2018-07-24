@@ -1247,6 +1247,9 @@ int wrap_json_contains(struct json_object *x, struct json_object *y)
 
 #if defined(WRAP_JSON_TEST)
 #include <stdio.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 void tclone(struct json_object *object)
 {
@@ -1254,12 +1257,12 @@ void tclone(struct json_object *object)
 
 	o = wrap_json_clone(object);
 	if (!wrap_json_equal(object, o))
-		printf("ERROR in clone or equal: %s VERSUS %s\n", json_object_to_json_string(object), json_object_to_json_string(o));
+		printf("ERROR in clone or equal: %s VERSUS %s\n", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), json_object_to_json_string_ext(o, JSON_C_TO_STRING_NOSLASHESCAPE));
 	json_object_put(o);
 
 	o = wrap_json_clone_deep(object);
 	if (!wrap_json_equal(object, o))
-		printf("ERROR in clone_deep or equal: %s VERSUS %s\n", json_object_to_json_string(object), json_object_to_json_string(o));
+		printf("ERROR in clone_deep or equal: %s VERSUS %s\n", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), json_object_to_json_string_ext(o, JSON_C_TO_STRING_NOSLASHESCAPE));
 	json_object_put(o);
 }
 
@@ -1273,7 +1276,7 @@ void p(const char *desc, ...)
 	rc = wrap_json_vpack(&result, desc, args);
 	va_end(args);
 	if (!rc)
-		printf("  SUCCESS %s\n\n", json_object_to_json_string(result));
+		printf("  SUCCESS %s\n\n", json_object_to_json_string_ext(result, JSON_C_TO_STRING_NOSLASHESCAPE));
 	else
 		printf("  ERROR[char %d err %d] %s\n\n", wrap_json_get_error_position(rc), wrap_json_get_error_code(rc), wrap_json_get_error_string(rc));
 	tclone(result);
@@ -1327,8 +1330,8 @@ void u(const char *value, const char *desc, ...)
 			case 'I': printf(" I:%lld", *va_arg(args, int64_t*)); k = m&1; break;
 			case 'f': printf(" f:%f", *va_arg(args, double*)); k = m&1; break;
 			case 'F': printf(" F:%f", *va_arg(args, double*)); k = m&1; break;
-			case 'o': printf(" o:%s", json_object_to_json_string(*va_arg(args, struct json_object**))); k = m&1; break;
-			case 'O': o = *va_arg(args, struct json_object**); printf(" O:%s", json_object_to_json_string(o)); json_object_put(o); k = m&1; break;
+			case 'o': printf(" o:%s", json_object_to_json_string_ext(*va_arg(args, struct json_object**), JSON_C_TO_STRING_NOSLASHESCAPE)); k = m&1; break;
+			case 'O': o = *va_arg(args, struct json_object**); printf(" O:%s", json_object_to_json_string_ext(o, JSON_C_TO_STRING_NOSLASHESCAPE)); json_object_put(o); k = m&1; break;
 			case 'y':
 			case 'Y': {
 				uint8_t *p = *va_arg(args, uint8_t**);

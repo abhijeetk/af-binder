@@ -27,6 +27,9 @@
 
 #include <systemd/sd-bus.h>
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include <afb/afb-event-x2.h>
 
@@ -42,6 +45,7 @@
 #include "afb-evt.h"
 #include "afb-xreq.h"
 #include "verbose.h"
+
 
 static const char DEFAULT_PATH_PREFIX[] = "/org/agl/afb/api/";
 
@@ -810,7 +814,7 @@ void dbus_req_raw_reply(struct afb_xreq *xreq, struct json_object *obj, const ch
 	int rc;
 
 	rc = sd_bus_reply_method_return(dreq->message, "sss",
-		obj ? json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN) : "",
+		obj ? json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE) : "",
 		error ? : "",
 		info ? : "");
 	if (rc < 0)
@@ -892,7 +896,7 @@ static void afb_api_dbus_server_event_remove(void *closure, const char *event, i
 
 static void afb_api_dbus_server_event_push(void *closure, const char *event, int eventid, struct json_object *object)
 {
-	const char *data = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	const char *data = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE);
 	afb_api_dbus_server_event_send(closure, '!', event, eventid, data, 0);
 	json_object_put(object);
 }
@@ -904,7 +908,7 @@ static void afb_api_dbus_server_event_broadcast(void *closure, const char *event
 
 	api = closure;
 	rc = sd_bus_emit_signal(api->sdbus, api->path, api->name, "broadcast",
-			"ss", event, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN));
+			"ss", event, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE));
 	if (rc < 0)
 		ERROR("error while broadcasting event %s", event);
 	json_object_put(object);

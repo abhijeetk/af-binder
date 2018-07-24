@@ -26,6 +26,9 @@
 #include <ctype.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include "verbose.h"
 #include "afb-config.h"

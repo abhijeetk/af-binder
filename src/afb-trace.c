@@ -27,6 +27,9 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #define AFB_BINDING_VERSION 3
 #include <afb/afb-binding.h>
@@ -1487,7 +1490,7 @@ static void add_flags(void *closure, struct json_object *object, enum trace_type
 	if (wrap_json_unpack(object, "s", &name))
 		ctxt_error(&desc->context->errors, "unexpected %s value %s",
 					abstracting[type].name,
-					json_object_to_json_string(object));
+					json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 	else {
 		queried = (name[0] == '*' && !name[1]) ? "all" : name;
 		value = abstracting[type].get_flag(queried);
@@ -1627,7 +1630,7 @@ static void drop_tag(void *closure, struct json_object *object)
 
 	rc = wrap_json_unpack(object, "s", &name);
 	if (rc)
-		ctxt_error(&context->errors, "unexpected tag value %s", json_object_to_json_string(object));
+		ctxt_error(&context->errors, "unexpected tag value %s", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 	else {
 		tag = trace_get_tag(context->trace, name, 0);
 		if (!tag)
@@ -1647,7 +1650,7 @@ static void drop_event(void *closure, struct json_object *object)
 
 	rc = wrap_json_unpack(object, "s", &name);
 	if (rc)
-		ctxt_error(&context->errors, "unexpected event value %s", json_object_to_json_string(object));
+		ctxt_error(&context->errors, "unexpected event value %s", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 	else {
 		event = trace_get_event(context->trace, name, 0);
 		if (!event)
@@ -1667,7 +1670,7 @@ static void drop_session(void *closure, struct json_object *object)
 
 	rc = wrap_json_unpack(object, "s", &uuid);
 	if (rc)
-		ctxt_error(&context->errors, "unexpected session value %s", json_object_to_json_string(object));
+		ctxt_error(&context->errors, "unexpected session value %s", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 	else {
 		session = trace_get_session_by_uuid(context->trace, uuid, 0);
 		if (!session)

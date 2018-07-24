@@ -24,6 +24,9 @@
 #include <ctype.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #define AFB_BINDING_VERSION 0
 #include <afb/afb-binding.h>
@@ -252,7 +255,8 @@ static int event_broadcast_cb(struct afb_api_x3 *closure, const char *name, stru
 
 	/* check daemon state */
 	if (export->state == Api_State_Pre_Init) {
-		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit", export->api.apiname, name, json_object_to_json_string(object));
+		ERROR("[API %s] Bad call to 'afb_daemon_event_broadcast(%s, %s)', must not be in PreInit",
+			export->api.apiname, name, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 		errno = EINVAL;
 		return 0;
 	}

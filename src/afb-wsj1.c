@@ -26,6 +26,9 @@
 #include <pthread.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include "afb-ws.h"
 #include "afb-wsj1.h"
@@ -473,7 +476,7 @@ static int wsj1_send_issot(struct afb_wsj1 *wsj1, int i1, const char *s1, const 
 
 int afb_wsj1_send_event_j(struct afb_wsj1 *wsj1, const char *event, struct json_object *object)
 {
-	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE);
 	int rc = afb_wsj1_send_event_s(wsj1, event, objstr);
 	json_object_put(object);
 	return rc;
@@ -486,7 +489,7 @@ int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const char *
 
 int afb_wsj1_call_j(struct afb_wsj1 *wsj1, const char *api, const char *verb, struct json_object *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure)
 {
-	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE);
 	int rc = afb_wsj1_call_s(wsj1, api, verb, objstr, on_reply, closure);
 	json_object_put(object);
 	return rc;
@@ -520,7 +523,7 @@ int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, co
 
 int afb_wsj1_reply_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token, int iserror)
 {
-	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE);
 	int rc = afb_wsj1_reply_s(msg, objstr, token, iserror);
 	json_object_put(object);
 	return rc;

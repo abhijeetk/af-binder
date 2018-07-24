@@ -26,6 +26,9 @@
 #include <sys/uio.h>
 
 #include <json-c/json.h>
+#if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#define JSON_C_TO_STRING_NOSLASHESCAPE 0
+#endif
 
 #include <afb/afb-req-x1.h>
 #include <afb/afb-event-x2.h>
@@ -245,7 +248,7 @@ static void hook_xreq_end_cb(void *closure, const struct afb_hookid *hookid, con
 
 static void hook_xreq_json_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *obj)
 {
-	_hook_xreq_(xreq, "json() -> %s", json_object_to_json_string(obj));
+	_hook_xreq_(xreq, "json() -> %s", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_xreq_get_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *name, struct afb_arg arg)
@@ -255,7 +258,7 @@ static void hook_xreq_get_cb(void *closure, const struct afb_hookid *hookid, con
 
 static void hook_xreq_reply_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *obj, const char *error, const char *info)
 {
-	_hook_xreq_(xreq, "reply[%s](%s, %s)", error?:"success", json_object_to_json_string(obj), info);
+	_hook_xreq_(xreq, "reply[%s](%s, %s)", error?:"success", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE), info);
 }
 
 static void hook_xreq_legacy_context_get_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, void *value)
@@ -300,22 +303,22 @@ static void hook_xreq_unsubscribe_cb(void *closure, const struct afb_hookid *hoo
 
 static void hook_xreq_subcall_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_xreq_(xreq, "subcall(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_xreq_(xreq, "subcall(%s/%s, %s) ...", api, verb, json_object_to_json_string_ext(args, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_xreq_subcall_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *object, const char *error, const char *info)
 {
-	_hook_xreq_(xreq, "    ...subcall... [%s] -> %s (%s)", error?:"success", json_object_to_json_string(object), info?:"");
+	_hook_xreq_(xreq, "    ...subcall... [%s] -> %s (%s)", error?:"success", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), info?:"");
 }
 
 static void hook_xreq_subcallsync_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_xreq_(xreq, "subcallsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_xreq_(xreq, "subcallsync(%s/%s, %s) ...", api, verb, json_object_to_json_string_ext(args, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_xreq_subcallsync_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int status, struct json_object *object, const char *error, const char *info)
 {
-	_hook_xreq_(xreq, "    ...subcallsync... %d [%s] -> %s (%s)", status, error?:"success", json_object_to_json_string(object), info?:"");
+	_hook_xreq_(xreq, "    ...subcallsync... %d [%s] -> %s (%s)", status, error?:"success", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), info?:"");
 }
 
 static void hook_xreq_vverbose_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, int level, const char *file, int line, const char *func, const char *fmt, va_list args)
@@ -368,7 +371,7 @@ static void hook_xreq_get_uid_cb(void *closure, const struct afb_hookid *hookid,
 
 static void hook_xreq_get_client_info_cb(void *closure, const struct afb_hookid *hookid, const struct afb_xreq *xreq, struct json_object *result)
 {
-	_hook_xreq_(xreq, "get_client_info() -> %s", json_object_to_json_string(result));
+	_hook_xreq_(xreq, "get_client_info() -> %s", json_object_to_json_string_ext(result, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static struct afb_hook_xreq_itf hook_xreq_default_itf = {
@@ -687,12 +690,12 @@ static void _hook_api_(const struct afb_export *export, const char *format, ...)
 
 static void hook_api_event_broadcast_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object)
 {
-	_hook_api_(export, "event_broadcast.before(%s, %s)....", name, json_object_to_json_string(object));
+	_hook_api_(export, "event_broadcast.before(%s, %s)....", name, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_event_broadcast_after_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *name, struct json_object *object, int result)
 {
-	_hook_api_(export, "event_broadcast.after(%s, %s) -> %d", name, json_object_to_json_string(object), result);
+	_hook_api_(export, "event_broadcast.after(%s, %s) -> %d", name, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), result);
 }
 
 static void hook_api_get_event_loop_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct sd_event *result)
@@ -802,32 +805,32 @@ static void hook_api_start_after_cb(void *closure, const struct afb_hookid *hook
 
 static void hook_api_on_event_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object)
 {
-	_hook_api_(export, "on_event.before(%s, %d, %s)", event, event_x2, json_object_to_json_string(object));
+	_hook_api_(export, "on_event.before(%s, %d, %s)", event, event_x2, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_on_event_after_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object)
 {
-	_hook_api_(export, "on_event.after(%s, %d, %s)", event, event_x2, json_object_to_json_string(object));
+	_hook_api_(export, "on_event.after(%s, %d, %s)", event, event_x2, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_call_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_api_(export, "call(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_api_(export, "call(%s/%s, %s) ...", api, verb, json_object_to_json_string_ext(args, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_call_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct json_object *object, const char *error, const char *info)
 {
-	_hook_api_(export, "    ...call... [%s] -> %s (%s)", error?:"success", json_object_to_json_string(object), info?:"");
+	_hook_api_(export, "    ...call... [%s] -> %s (%s)", error?:"success", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), info?:"");
 }
 
 static void hook_api_callsync_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *verb, struct json_object *args)
 {
-	_hook_api_(export, "callsync(%s/%s, %s) ...", api, verb, json_object_to_json_string(args));
+	_hook_api_(export, "callsync(%s/%s, %s) ...", api, verb, json_object_to_json_string_ext(args, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_callsync_result_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int status, struct json_object *object, const char *error, const char *info)
 {
-	_hook_api_(export, "    ...callsync... %d [%s] -> %s (%s)", status, error?:"success", json_object_to_json_string(object), info?:"");
+	_hook_api_(export, "    ...callsync... %d [%s] -> %s (%s)", status, error?:"success", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE), info?:"");
 }
 
 static void hook_api_new_api_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *api, const char *info, int noconcurrency)
@@ -902,12 +905,12 @@ static void hook_api_delete_api_cb(void *closure, const struct afb_hookid *hooki
 
 static void hook_api_on_event_handler_before_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern)
 {
-	_hook_api_(export, "on_event_handler[%s].before(%s, %d, %s)", pattern, event, event_x2, json_object_to_json_string(object));
+	_hook_api_(export, "on_event_handler[%s].before(%s, %d, %s)", pattern, event, event_x2, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_api_on_event_handler_after_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern)
 {
-	_hook_api_(export, "on_event_handler[%s].after(%s, %d, %s)", pattern, event, event_x2, json_object_to_json_string(object));
+	_hook_api_(export, "on_event_handler[%s].after(%s, %d, %s)", pattern, event, event_x2, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static struct afb_hook_api_itf hook_api_default_itf = {
@@ -1291,23 +1294,23 @@ static void hook_evt_create_cb(void *closure, const struct afb_hookid *hookid, c
 
 static void hook_evt_push_before_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj)
 {
-	_hook_evt_(evt, id, "push.before(%s)", json_object_to_json_string(obj));
+	_hook_evt_(evt, id, "push.before(%s)", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 
 static void hook_evt_push_after_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj, int result)
 {
-	_hook_evt_(evt, id, "push.after(%s) -> %d", json_object_to_json_string(obj), result);
+	_hook_evt_(evt, id, "push.after(%s) -> %d", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE), result);
 }
 
 static void hook_evt_broadcast_before_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj)
 {
-	_hook_evt_(evt, id, "broadcast.before(%s)", json_object_to_json_string(obj));
+	_hook_evt_(evt, id, "broadcast.before(%s)", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
 static void hook_evt_broadcast_after_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id, struct json_object *obj, int result)
 {
-	_hook_evt_(evt, id, "broadcast.after(%s) -> %d", json_object_to_json_string(obj), result);
+	_hook_evt_(evt, id, "broadcast.after(%s) -> %d", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOSLASHESCAPE), result);
 }
 
 static void hook_evt_name_cb(void *closure, const struct afb_hookid *hookid, const char *evt, int id, const char *result)
