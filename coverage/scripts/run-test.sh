@@ -108,6 +108,8 @@ $R/bin/afb-daemon-cov \
 	--call demat/ping:true \
 	--ws-server unix:$R/apis/ws/hello \
 	--ws-server unix:$R/apis/ws/salut \
+	--ws-server localhost:9595/salut \
+	--ws-client localhost:9595/salut2 \
 	--exec $R/scripts/run-parts.sh @p @t
 
 exit 0
