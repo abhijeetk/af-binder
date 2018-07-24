@@ -805,7 +805,7 @@ void afb_req_subcall_legacy(
  *
  * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
  * This call is made in the context of the request 'req'.
- * This call is synchronous, it waits untill completion of the request.
+ * This call is synchronous, it waits until completion of the request.
  * It returns 0 on success or a negative value on error answer.
  * The object pointed by 'result' is filled and must be released by the caller
  * after its use by calling 'json_object_put'.

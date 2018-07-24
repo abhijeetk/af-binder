@@ -1,21 +1,20 @@
 # Overview of the bindings
 
-The ***binder*** serves files through HTTP protocol and offers to
-developers the capability to offer application API methods through HTTP or
+The ***binder*** serves files through HTTP protocol and offers developers the capability to offer application API methods through HTTP or
 WebSocket protocol.
 
 The ***bindings*** are used to add **API** to ***binders***.  
 This part describes how to write a ***binding*** for ***binder***
 or in other words how to add a new **API** to the system.
 
-Excepting this summary, this section target developers.
+This section target developers.
 
 This section shortly explain how to write a binding
 using the C programming language.
 
 It is convenient to install the ***binder*** on the
 desktop used for writing the binding.  
-It allows easy debug and test.
+It allows for easy debug and test.
 
 ## Nature of a binding
 
@@ -28,7 +27,7 @@ The **API** is designated and accessed through its name.
 It contains several **verbs** that implement the ***binding***
 functionalities.  
 Each of these **verbs** is a **method** that
-processes requests of applications and sends result.
+processes requests of applications and sends results.
 
 The ***binding***'s methods are invoked by HTTP or websocket
 requests.
@@ -139,7 +138,7 @@ This shows basic things:
 
 - The include to get for creating a binding
 - How to declare the API offered by the binding
-- How to handle request made to the binding
+- How to handle requests made to the binding
 
 ### Getting declarations for the binding
 

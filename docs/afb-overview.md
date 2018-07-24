@@ -31,7 +31,7 @@ The shown elements are:
 
 - The SECURITY CONTEXT
 
-  The primary intend of any ***binder*** is to provide
+  The primary intention of any ***binder*** is to provide
   a secured environment for any application.  
   On AGL, the   **security context** is ensured by [Smack] 
   , the security context of the application or service.

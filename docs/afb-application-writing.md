@@ -41,13 +41,13 @@ C applications can use afb-daemon binder through a websocket connection.
 The library **libafbwsc** is provided for C clients that need
 to connect with an afb-daemon binder.
 
-The program **afb-client-demo** is the C example that use
+The program **afb-client-demo** is the C example that uses the
 **libafbwsc** library.  
 Source code is available here
 [src/afb-client-demo.c](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=src/afb-client-demo.c).
 
 Current implementation relies on libsystemd and file descriptors.  
-This model might be review in the future to support secure sockets
+This model may be reviewed in the future to support secure sockets
 and get rid of libsystemd dependency.
 
 ### Handling sessions within applications
@@ -56,7 +56,7 @@ Applications should understand sessions and token management when interacting
 with afb-daemon binder.
 
 Applications communicate with their private binder (afb-daemon) using
-a network connection or potentially any other connection channel.  
+a network connection or any other potential connection channel.  
 While the current version does not yet implement Unix socket,
 this feature might be added in the near future.  
 Developers need to be warn that HTTP protocol is a none
@@ -65,7 +65,7 @@ clients is not supported.
 
 For this reason, the binder should authenticate the application
 by using a shared secret.  
-The secret is named "token" and the identification of client is named "session".
+The secret is named "token" and the identification of client is named "session.”
 
 The examples **token-websock.qml** and **afb-client** are demonstrating
 how authentication and sessions are managed.
@@ -77,7 +77,7 @@ instances.
 This is especially important for bindings running as services
 as they may typically have to keep each client's data separated.
 
-For HTML5 applications, the web runtime handles the cookie of session
+For HTML5 applications, the web runtime handles the cookie of the session
 that the binder afb-daemon automatically sets.
 
 Session identifier can be set using the parameter **uuid** or **x-afb-uuid** in

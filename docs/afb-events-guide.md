@@ -1,7 +1,7 @@
 # Guide for developing with events
 
 Signaling agents are services that send events to any clients that
-subscribed for receiving it.
+are subscribed to receive it.
 The sent events carry any data.
 
 To have a good understanding of how to:
@@ -34,7 +34,7 @@ a “binding” are similar.
 Subscription must :
 
 1. Create resources for generating the data.
-1. Delivering the data to the client.
+1. Deliver the data to the client.
 
 These two aspects are not handled by the same piece of software.
 
@@ -43,13 +43,13 @@ These two aspects are not handled by the same piece of software.
 
 When a client subscribes for data, the agent must:
 
-1. check that the subscription request is correct.
-1. establish the computation chain of the required data (if not already done).
-1. create a named event for the computed data (if not already done).
-1. ask the framework to establish the subscription to the event for the request.
-1. optionally give indications about the event in the reply to the client.
+1. Check that the subscription request is correct.
+1. Establish the computation chain of the required data (if not already done).
+1. Create a named event for the computed data (if not already done).
+1. Ask the framework to establish the subscription to the event for the request.
+1. Optionally give indications about the event in the reply to the client.
 
-The first two steps are not involving the framework.
+The first two steps do not involve the framework.
 They are linked to the business logic of the binding.
 The request can be any description of the requested data
 and the computing stream can be of any nature,
@@ -283,7 +283,7 @@ appropriate service enable parking brake.).
 
 ### Event handlers
 
-The apis functions allow to declare event handling callbacks. These callback are
+The apis functions allow to declare event handling callbacks. These callbacks are
 called on reception of an  event matching a pattern and a receive in more that
 the event name and its companion JSON data, a user defiend closure and the api
 that is used to create it.

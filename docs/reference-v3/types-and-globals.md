@@ -2,7 +2,7 @@
 
 ## The global afbBindingRoot
 
-The global **afbBindingRoot** of type **afb_api_t** is always implicitely
+The global **afbBindingRoot** of type **afb_api_t** is always implicitly
 defined for bindings of version 3 or upper. It records the root api of
 the binding.
 

@@ -6,12 +6,12 @@ A shared library object intended to add a functionality to an afb-daemon
 instance.
 It implements an API and may provide a service.
 
-Binding made for services can have specific entry point called after
+Binding made for services can have specific entry points called after
 initialization and before serving.
 
 ## Event
 
-Message with data propagated from the services to the client and not expecting
+Messages with data propagated from the services to the client and not expecting
 any reply.
 
 The current implementation allows to widely broadcast events to all clients.

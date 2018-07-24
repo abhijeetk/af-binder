@@ -2,7 +2,7 @@ Functions of class **afb_service**
 ==============================
 
 All the functions of the class **afb_daemon** use the default api.
-This are internally aliased to the corresponding legacy function of
+These are internally aliased to the corresponding legacy function of
 class **afb_api**.
 
 ```C

@@ -1,6 +1,6 @@
 # Desktop packages for binder development
 
-It exists packages of the ***binder*** (afb-daemon)
+Packages of the ***binder*** (afb-daemon)exist
 for common desktop linux distributions.
 
 - Fedora

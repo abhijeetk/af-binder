@@ -1,7 +1,7 @@
 # Debugging binder and bindings
 
 When compiled with the symbol AGL_DEVEL defined, the ***binder***
-understand the 2 configuration variables:
+understands the 2 configuration variables:
 
  - AFB_DEBUG_BREAK: to emit interrupts
  - AFB_DEBUG_WAIT: to wait interrupts
@@ -20,7 +20,7 @@ wait at the points **start-load** and **start-exec**.
 
 The items of the list can be separated using comma, space, tab or new-line.
 
-The break/wait points are, in the order of their occurence:
+The break/wait points are, in the order of their occurrence:
 
 - main-entry: before decode arguments
 - main-args: before daemon setup

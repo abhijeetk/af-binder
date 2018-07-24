@@ -56,7 +56,7 @@ void afb_api_set_userdata(
 ```C
 /**
  * Check that it requires the API of 'name'.
- * If 'initialized' is not zero it request the API to be
+ * If 'initialized' is not zero it requests the API to be
  * initialized, implying its initialization if needed.
  * 
  * Calling this function is only allowed within init.
@@ -199,7 +199,7 @@ void afb_api_verbose(
  * Get the root directory file descriptor. This file descriptor can
  * be used with functions 'openat', 'fstatat', ...
  *
- * CAUTION, manipulate this this descriptor with care, in particular, don't close
+ * CAUTION, manipulate this descriptor with care, in particular, don't close
  * it.
  *
  * This can be used to get the path of the root directory using:

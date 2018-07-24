@@ -6,12 +6,12 @@ for the following reasons:
 
 - integration of the security requirements within the bindings
 - simplification of the API (after developer feedbacks)
-- removal of obscure features, cleanup
+- removal of obscure features and cleanup
 
 The ***binder*** can run ***bindings*** v1, v2 and/or v3 in any combination.  
 Thus moving from v1 or v2 to v3 is not enforced at this time. But ...
 
-In the face to face meeting of Karlsruhe it was decided to remove support
+In the face to face meeting in Karlsruhe it was decided to remove support
 of bindings v1 and to deprecate the use of bindings v2.
 
 So at the end, **IT IS HIGHLY NEEDED TO SWITCH TO VERSION 3**
@@ -19,7 +19,7 @@ So at the end, **IT IS HIGHLY NEEDED TO SWITCH TO VERSION 3**
 This guide covers the migration of bindings from version 2 to version 3.
 
 The migration from version 1 is not treated here because bindings version 1
-are very old and probably does not exist anymore. If needed you can refer
+are very old and probably do not exist anymore. If needed you can refer
 to the old [guide to migrate bindings from v1 to v2](legacy/afb-migration-v1-to-v2.html).
 
 
