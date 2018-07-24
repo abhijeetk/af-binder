@@ -1149,7 +1149,7 @@ int afb_export_event_handler_add(
 	}
 
 	/* create the event */
-	handler = malloc(strlen(pattern) + strlen(pattern));
+	handler = malloc(strlen(pattern) + sizeof * handler);
 	if (!handler) {
 		ERROR("[API %s] can't allocate event handler %s", export->api.apiname, pattern);
 		errno = ENOMEM;
@@ -1161,7 +1161,7 @@ int afb_export_event_handler_add(
 	handler->callback = callback;
 	handler->closure = closure;
 	strcpy(handler->pattern, pattern);
-	export->event_handlers = handler;
+	*previous = handler;
 
 	return 0;
 }
