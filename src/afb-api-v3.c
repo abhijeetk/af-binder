@@ -325,19 +325,16 @@ int afb_api_v3_del_verb(
 		const char *verb,
 		void **vcbdata)
 {
-	struct afb_verb_v3 **v, **e, *i;
+	struct afb_verb_v3 *v;
+	int i;
 
-	v = api->verbs;
-	e = &v[api->count];
-	while (v != e) {
-		i = *v++;
-		if (!strcasecmp(i->verb, verb)) {
-			api->count--;
+	for (i = 0 ; i < api->count ; i++) {
+		v = api->verbs[i];
+		if (!strcasecmp(verb, v->verb)) {
+			api->verbs[i] = api->verbs[--api->count];
 			if (vcbdata)
-				*vcbdata = i->vcbdata;
-			if (v != e)
-				*--v = *--e;
-			free(i);
+				*vcbdata = v->vcbdata;
+			free(v);
 			return 0;
 		}
 	}
