@@ -396,30 +396,6 @@ static void printHelp(FILE * file, const char *name)
 		name);
 }
 
-/*---------------------------------------------------------
- |   helpers for argument scanning
- +--------------------------------------------------------- */
-
-static const char *current_argument(int optid)
-{
-	if (optarg == 0) {
-		ERROR("option [--%s] needs a value i.e. --%s=xxx",
-		      name_of_optid(optid), name_of_optid(optid));
-		exit(1);
-	}
-	return optarg;
-}
-
-static char *argvalstr(int optid)
-{
-	char *result = strdup(current_argument(optid));
-	if (result == NULL) {
-		ERROR("can't alloc memory");
-		exit(1);
-	}
-	return result;
-}
-
 /**********************************
 * json helpers
 ***********************************/
@@ -584,9 +560,9 @@ static void config_add_optstr(struct json_object *config, int optid)
  |   set the log levels
  +--------------------------------------------------------- */
 
-static void set_log(char *args)
+static void set_log(const char *args)
 {
-	char o = 0, s, *p, *i = args;
+	char o = 0, s, *p, *i = strdupa(args);
 	int lvl;
 
 	for(;;) switch (*i) {
@@ -653,7 +629,7 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 			break;
 
 		case SET_LOG:
-			set_log(argvalstr(optid));
+			set_log(get_arg(optid));
 			break;
 
 		case SET_PORT:

@@ -239,6 +239,9 @@ void afb_api_v3_unref(struct afb_api_v3 *api)
 {
 	if (api && !__atomic_sub_fetch(&api->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_export_destroy(api->export);
+		while (api->count)
+			free(api->verbs[--api->count]);
+		free(api->verbs);
 		free(api);
 	}
 }
