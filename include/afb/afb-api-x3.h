@@ -549,9 +549,9 @@ int afb_api_x3_call_sync_legacy(
  * @param info the brief description of the new api (can be NULL)
  * @param noconcurrency zero or not zero whether the new api is reentrant or not
  * @param preinit the pre-initialization function if any (can be NULL)
- * @param closure the closure for the pre-initialization \ref preinit
+ * @param closure the closure for the pre-initialization preinit
  *
- * @return 0 in case of success or -1 on failure with errno set
+ * @return the created api in case of success or NULL on error
  *
  * @see afb_api_x3_delete_api
  */
