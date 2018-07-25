@@ -17,8 +17,6 @@
 
 #pragma once
 
-struct fdev_epoll;
-struct sd_event;
 struct jobloop;
 
 extern int jobs_queue(
@@ -41,9 +39,6 @@ extern int jobs_call(
 		void (*callback)(int, void*),
 		void *arg);
 
-extern struct sd_event *jobs_get_sd_event();
-extern struct fdev_epoll *jobs_get_fdev_epoll();
-
 extern void jobs_terminate();
 
 extern int jobs_start(
@@ -53,3 +48,10 @@ extern int jobs_start(
 		void (*start)(int signum, void* arg),
 		void *arg);
 
+#if !defined(REMOVE_SYSTEMD_EVENT)
+struct sd_event;
+extern struct sd_event *jobs_get_sd_event();
+#else
+struct fdev_epoll;
+extern struct fdev_epoll *jobs_get_fdev_epoll();
+#endif

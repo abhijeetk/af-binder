@@ -44,7 +44,11 @@
 #include "jobs.h"
 #include "sig-monitor.h"
 #include "verbose.h"
+
+#if defined(REMOVE_SYSTEMD_EVENT)
 #include "fdev-epoll.h"
+#endif
+
 #if 0
 #define _alert_ "do you really want to remove signal monitoring?"
 #define sig_monitor_init_timeouts()  ((void)0)
@@ -131,11 +135,11 @@ static struct job *free_jobs;
 
 /* event loop */
 static struct evloop evloop[1];
+
+#if defined(REMOVE_SYSTEMD_EVENT)
 static struct fdev_epoll *fdevepoll;
-#if !defined(REMOVE_SYSTEMD_EVENT)
-__attribute__((unused))
-#endif
 static int waitevt;
+#endif
 
 /**
  * Create a new job with the given parameters
@@ -269,6 +273,7 @@ static void job_cancel(int signum, void *arg)
 	job->callback(SIGABRT, job->arg);
 }
 
+#if defined(REMOVE_SYSTEMD_EVENT)
 /**
  * Gets a fdev_epoll item.
  * @return a fdev_epoll or NULL in case of error
@@ -283,6 +288,7 @@ static struct fdev_epoll *get_fdevepoll()
 
 	return result;
 }
+#endif
 
 /**
  * Monitored normal callback for events.
@@ -331,6 +337,7 @@ static void evloop_run(int signum, void *arg)
 }
 
 
+#if defined(REMOVE_SYSTEMD_EVENT)
 /**
  * Monitored normal loop for waiting events.
  * @param signum 0 on normal flow or the number
@@ -338,9 +345,6 @@ static void evloop_run(int signum, void *arg)
  *               flow
  * @param arg     the events to run
  */
-#if !defined(REMOVE_SYSTEMD_EVENT)
-__attribute__((unused))
-#endif
 static void monitored_wait_and_dispatch(int signum, void *arg)
 {
 	struct fdev_epoll *fdev_epoll = arg;
@@ -348,6 +352,7 @@ static void monitored_wait_and_dispatch(int signum, void *arg)
 		fdev_epoll_wait_and_dispatch(fdev_epoll, -1);
 	}
 }
+#endif
 
 /**
  * Main processing loop of threads processing jobs.
@@ -823,6 +828,7 @@ struct sd_event *jobs_get_sd_event()
 	return result;
 }
 
+#if defined(REMOVE_SYSTEMD_EVENT)
 /**
  * Gets the fdev_epoll item.
  * @return a fdev_epoll or NULL in case of error
@@ -837,6 +843,7 @@ struct fdev_epoll *jobs_get_fdev_epoll()
 
 	return result;
 }
+#endif
 
 /**
  * Enter the jobs processing loop.

@@ -18,14 +18,6 @@
 #include "fdev.h"
 
 #if !defined(REMOVE_SYSTEMD_EVENT)
-#   define USE_SYSTEMD 1
-#   define USE_EPOLL   0
-#else
-#   define USE_SYSTEMD 0
-#   define USE_EPOLL   1
-#endif
-
-#if USE_SYSTEMD
 
 #include "afb-systemd.h"
 #include "fdev-systemd.h"
@@ -35,9 +27,7 @@ struct fdev *afb_fdev_create(int fd)
 	return fdev_systemd_create(afb_systemd_get_event_loop(), fd);
 }
 
-#endif
-
-#if USE_EPOLL
+#else
 
 #include "jobs.h"
 #include "fdev-epoll.h"
