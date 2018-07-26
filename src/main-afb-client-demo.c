@@ -38,6 +38,16 @@
 #include "afb-ws-client.h"
 #include "afb-proto-ws.h"
 
+enum {
+	Exit_Success      = 0,
+	Exit_Error        = 1,
+	Exit_HangUp       = 2,
+	Exit_Input_Fail   = 3,
+	Exit_Bad_Arg      = 4,
+	Exit_Cant_Connect = 5
+};
+
+
 /* declaration of functions */
 static void on_wsj1_hangup(void *closure, struct afb_wsj1 *wsj1);
 static void on_wsj1_call(void *closure, const char *api, const char *verb, struct afb_wsj1_msg *msg);
@@ -93,6 +103,7 @@ static int usein;
 static sd_event *loop;
 static sd_event_source *evsrc;
 static char *sessionid = "afb-client-demo";
+static int exitcode = 0;
 
 /* print usage of the program */
 static void usage(int status, char *arg0)
@@ -156,7 +167,7 @@ int main(int ac, char **av, char **env)
 
 			/* emit usage and exit */
 			else
-				usage(!!strcmp(av[1], "--help"), a0);
+				usage(strcmp(av[1], "--help") ? Exit_Bad_Arg : Exit_Success, a0);
 		} else {
 			/* short option(s) */
 			for (rc = 1 ; av[1][rc] ; rc++)
@@ -168,7 +179,7 @@ int main(int ac, char **av, char **env)
 				case 'k': keeprun = 1; break;
 				case 's': synchro = 1; break;
 				case 'e': echo = 1; break;
-				default: usage(av[1][rc] != 'h', a0);
+				default: usage(av[1][rc] != 'h' ? Exit_Bad_Arg : Exit_Success, a0);
 				}
 		}
 		av++;
@@ -195,14 +206,14 @@ int main(int ac, char **av, char **env)
 		pws = afb_ws_client_connect_api(loop, av[1], &pws_itf, NULL);
 		if (pws == NULL) {
 			fprintf(stderr, "connection to %s failed: %m\n", av[1]);
-			return 1;
+			return Exit_Cant_Connect;
 		}
 		afb_proto_ws_on_hangup(pws, on_pws_hangup);
 	} else {
 		wsj1 = afb_ws_client_connect_wsj1(loop, av[1], &wsj1_itf, NULL);
 		if (wsj1 == NULL) {
 			fprintf(stderr, "connection to %s failed: %m\n", av[1]);
-			return 1;
+			return Exit_Cant_Connect;
 		}
 	}
 
@@ -233,7 +244,7 @@ static void idle()
 	for(;;) {
 		if (!usein) {
 			if (!keeprun && !callcount)
-				exit(0);
+				exit(exitcode);
 			sd_event_run(loop, 30000000);
 		}
 		else if (!synchro || !callcount) {
@@ -250,7 +261,7 @@ static void dec_callcount()
 {
 	callcount--;
 	if (exonrep && !callcount)
-		exit(0);
+		exit(exitcode);
 }
 
 /* called when wsj1 hangsup */
@@ -258,7 +269,7 @@ static void on_wsj1_hangup(void *closure, struct afb_wsj1 *wsj1)
 {
 	printf("ON-HANGUP\n");
 	fflush(stdout);
-	exit(0);
+	exit(Exit_HangUp);
 }
 
 /* called when wsj1 receives a method invocation */
@@ -292,11 +303,13 @@ static void on_wsj1_event(void *closure, const char *event, struct afb_wsj1_msg 
 /* called when wsj1 receives a reply */
 static void on_wsj1_reply(void *closure, struct afb_wsj1_msg *msg)
 {
+	int iserror = !afb_wsj1_msg_is_reply_ok(msg);
+	exitcode = iserror ? Exit_Error : Exit_Success;
 	if (raw)
 		printf("%s\n", afb_wsj1_msg_object_s(msg));
 	if (human)
 		printf("ON-REPLY %s: %s\n%s\n", (char*)closure,
-				afb_wsj1_msg_is_reply_ok(msg) ? "OK" : "ERROR",
+				iserror ? "ERROR" : "OK",
 				json_object_to_json_string_ext(afb_wsj1_msg_object_j(msg),
 							JSON_C_TO_STRING_PRETTY|JSON_C_TO_STRING_NOSLASHESCAPE));
 	fflush(stdout);
@@ -377,13 +390,13 @@ static int process_stdin()
 		if (errno == EAGAIN)
 			return 0;
 		fprintf(stderr, "read error: %m\n");
-		exit(1);
+		exit(Exit_Input_Fail);
 	}
 	if (rc == 0) {
 		usein = count != 0;
 		if (!usein && !keeprun) {
 			if (!callcount)
-				exit(0);
+				exit(exitcode);
 			exonrep = 1;
 		}
 	}
@@ -431,7 +444,7 @@ static int process_stdin()
 	count -= pos;
 	if (count == sizeof line) {
 		fprintf(stderr, "overflow\n");
-		exit(1);
+		exit(Exit_Input_Fail);
 	}
 	if (count)
 		memmove(line, line + pos, count);
@@ -452,6 +465,8 @@ static int on_stdin(sd_event_source *src, int fd, uint32_t revents, void *closur
 
 static void on_pws_reply(void *closure, void *request, struct json_object *result, const char *error, const char *info)
 {
+	int iserror = !!error;
+	exitcode = iserror ? Exit_Error : Exit_Success;
 	error = error ?: "success";
 	if (raw) {
 		/* TODO: transitionnal: fake the structured response */
@@ -555,5 +570,5 @@ static void on_pws_hangup(void *closure)
 {
 	printf("ON-HANGUP\n");
 	fflush(stdout);
-	exit(0);
+	exit(Exit_HangUp);
 }
