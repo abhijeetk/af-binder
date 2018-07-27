@@ -130,11 +130,13 @@
 #define SET_PORT           'p'
 #define SET_QUIET          'q'
 #define SET_RANDOM_TOKEN   'r'
+#define ADD_SET            's'
 #define SET_TOKEN          't'
 #define SET_UPLOAD_DIR     'u'
 #define GET_VERSION        'V'
 #define SET_VERBOSE        'v'
 #define SET_WORK_DIR       'w'
+#define DUMP_CONFIG        'Z'
 
 /* structure for defining of options */
 struct option_desc {
@@ -213,6 +215,9 @@ static struct option_desc optdefs[] = {
 #endif
 
 	{SET_CONFIG,          1, "config",      "Load options from the given config file"},
+	{DUMP_CONFIG,         0, "dump-config", "Dump the config to stdout and exit"},
+
+	{ADD_SET,             1, "set",         "Set parameters ([API]/[KEY]:JSON or {\"API\":{\"KEY\":JSON}}" },
 	{SET_OUTPUT,          1, "output",      "Redirect stdout and stderr to output file (when --daemon)"},
 
 	{0, 0, NULL, NULL}
@@ -396,6 +401,30 @@ static void printHelp(FILE * file, const char *name)
 		name);
 }
 
+static void dump(struct json_object *config, FILE *file, const char *prefix, const char *title)
+{
+	const char *head, *tail;
+
+	if (title)
+		fprintf(file, "%s----BEGIN OF %s-----\n", prefix ?: "", title);
+
+	head = json_object_to_json_string_ext(config, JSON_C_TO_STRING_PRETTY
+		|JSON_C_TO_STRING_SPACED|JSON_C_TO_STRING_NOSLASHESCAPE);
+
+	if (!prefix)
+		fprintf(file, "%s\n", head);
+	else {
+		while(*head) {
+			for (tail = head ; *tail && *tail != '\n' ; tail++);
+			fprintf(file, "%s %.*s\n", prefix, (int)(tail - head), head);
+			head = tail + !!*tail;
+		}
+	}
+
+	if (title)
+		fprintf(file, "%s----END OF %s-----\n", prefix ?: "", title);
+}
+
 /**********************************
 * json helpers
 ***********************************/
@@ -539,8 +568,7 @@ static void config_add(struct json_object *config, int optid, struct json_object
 {
 	struct json_object *a;
 	if (!json_object_object_get_ex(config, name_of_optid(optid), &a)) {
-		a = json_object_new_array();
-		oomchk(a);
+		a = joomchk(json_object_new_array());
 		json_object_object_add(config, name_of_optid(optid), a);
 	}
 	json_object_array_add(a, val);
@@ -554,6 +582,73 @@ static void config_add_str(struct json_object *config, int optid, const char *va
 static void config_add_optstr(struct json_object *config, int optid)
 {
 	config_add_str(config, optid, get_arg(optid));
+}
+
+static void config_mix2_cb(void *closure, struct json_object *obj, const char *name)
+{
+	struct json_object *dest, *base = closure;
+
+	if (!name)
+		name = "";
+
+	if (!json_object_object_get_ex(base, name, &dest)) {
+		dest = joomchk(json_object_new_object());
+		json_object_object_add(base, name, dest);
+	}
+	if (json_object_is_type(obj, json_type_object))
+		wrap_json_object_add(dest, obj);
+	else
+		json_object_object_add(dest, "", json_object_get(obj));
+}
+
+static void config_mix2(struct json_object *config, int optid, struct json_object *val)
+{
+	struct json_object *obj;
+
+	if (!json_object_object_get_ex(config, name_of_optid(optid), &obj)) {
+		obj = joomchk(json_object_new_object());
+		json_object_object_add(config, name_of_optid(optid), obj);
+	}
+	wrap_json_for_all(val, config_mix2_cb, obj);
+}
+
+static void config_mix2_str(struct json_object *config, int optid, const char *val)
+{
+	size_t st1, st2;
+	const char *api, *key;
+	struct json_object *obj, *sub;
+	enum json_tokener_error jerr;
+
+	st1 = strcspn(val, "/:{[\"");
+	st2 = strcspn(&val[st1], ":{[\"");
+	if (val[st1] != '/' || val[st1 + st2] != ':') {
+		obj = json_tokener_parse_verbose(val, &jerr);
+		if (jerr != json_tokener_success)
+			obj = json_object_new_string(val);
+	} else {
+		api = st1 == 0 ? "*" : strndupa(val, st1);
+		val += st1 + 1;
+		key = st2 <= 1 || (st2 == 2 && *val == '*') ? NULL : strndupa(val, st2 - 1);
+		val += st2;
+		sub = json_tokener_parse_verbose(val, &jerr);
+		if (jerr != json_tokener_success)
+			sub = json_object_new_string(val);
+
+		if (key) {
+			obj = json_object_new_object();
+			json_object_object_add(obj, key, sub);
+			sub = obj;
+		}
+		obj = json_object_new_object();
+		json_object_object_add(obj, api, sub);
+	}
+	config_mix2(config, optid, obj);
+	json_object_put(obj);
+}
+
+static void config_mix2_optstr(struct json_object *config, int optid)
+{
+	config_mix2_str(config, optid, get_arg(optid));
 }
 
 /*---------------------------------------------------------
@@ -610,7 +705,7 @@ static void set_log(const char *args)
 static void parse_arguments_inner(int argc, char **argv, struct json_object *config, struct option *options)
 {
 	struct json_object *conf;
-	int optid, cind;
+	int optid, cind, dodump = 0;
 
 	for (;;) {
 		cind = optind;
@@ -670,6 +765,10 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 		case ADD_BINDING:
 		case ADD_AUTO_API:
 			config_add_optstr(config, optid);
+			break;
+
+		case ADD_SET:
+			config_mix2_optstr(config, optid);
 			break;
 
 #if defined(WITH_MONITORING_OPTION)
@@ -739,6 +838,11 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 			json_object_put(conf);
 			break;
 
+		case DUMP_CONFIG:
+			noarg(optid);
+			dodump = 1;
+			break;
+
 		case GET_VERSION:
 			noarg(optid);
 			printVersion(stdout);
@@ -754,6 +858,11 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 		}
 	}
 	/* TODO: check for extra value */
+
+	if (dodump) {
+		dump(config, stdout, NULL, NULL);
+		exit(0);
+	}
 }
 
 static void parse_arguments(int argc, char **argv, struct json_object *config)
@@ -807,45 +916,17 @@ static void fulfill_config(struct json_object *config)
 #endif
 }
 
-static void dump(struct json_object *config, FILE *file, const char *prefix, const char *title)
-{
-	char z;
-	const char *head, *tail;
-
-	if (!prefix) {
-		z = 0;
-		prefix = &z;
-	}
-
-	if (title)
-		fprintf(file, "%s----BEGIN OF %s-----\n", prefix, title);
-
-	head = json_object_to_json_string_ext(config, JSON_C_TO_STRING_PRETTY
-		|JSON_C_TO_STRING_SPACED|JSON_C_TO_STRING_NOSLASHESCAPE);
-
-	if (head) {
-		while(*head) {
-			for (tail = head ; *tail && *tail != '\n' ; tail++);
-			fprintf(file, "%s %.*s\n", prefix, (int)(tail - head), head);
-			head = tail + !!*tail;
-		}
-	}
-
-	if (title)
-		fprintf(file, "%s----END OF %s-----\n", prefix, title);
-}
-
 void afb_config_dump(struct json_object *config)
 {
 	dump(config, stderr, "--", "CONFIG");
 }
 
-static void on_environment_add(struct json_object *config, int optid, const char *name)
+static void on_environment(struct json_object *config, int optid, const char *name, void (*func)(struct json_object*, int, const char*))
 {
 	char *value = getenv(name);
 
 	if (value && *value)
-		config_add_str(config, optid, value);
+		func(config, optid, value);
 }
 
 static void on_environment_enum(struct json_object *config, int optid, const char *name, int (*func)(const char*))
@@ -867,7 +948,8 @@ static void parse_environment(struct json_object *config)
 	on_environment_enum(config, SET_TRACESES, "AFB_TRACESES", afb_hook_flags_session_from_text);
 	on_environment_enum(config, SET_TRACEAPI, "AFB_TRACEAPI", afb_hook_flags_api_from_text);
 	on_environment_enum(config, SET_TRACEGLOB, "AFB_TRACEGLOB", afb_hook_flags_global_from_text);
-	on_environment_add(config, ADD_LDPATH, "AFB_LDPATHS");
+	on_environment(config, ADD_LDPATH, "AFB_LDPATHS", config_add_str);
+	on_environment(config, ADD_SET, "AFB_SET", config_mix2_str);
 #if !defined(REMOVE_LEGACY_TRACE)
 	on_environment_enum(config, SET_TRACEDITF, "AFB_TRACEDITF", afb_hook_flags_legacy_ditf_from_text);
 	on_environment_enum(config, SET_TRACESVC, "AFB_TRACESVC", afb_hook_flags_legacy_svc_from_text);

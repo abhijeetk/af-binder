@@ -357,7 +357,7 @@ int afb_api_x3_queue_job(
  * Check that it requires the API of 'name'.
  * If 'initialized' is not zero it request the API to be
  * initialized, implying its initialization if needed.
- * 
+ *
  * Calling this function is only allowed within init.
  *
  * A single request allows to require multiple apis.
@@ -581,7 +581,7 @@ struct afb_api_x3 *afb_api_x3_new_api(
  * @see afb_api_x3_add_verb
  * @see afb_api_x3_set_verbs_v3
  */
-static inline 
+static inline
 int afb_api_x3_set_verbs_v2(
 			struct afb_api_x3 *api,
 			const struct afb_verb_v2 *verbs)
@@ -939,6 +939,24 @@ int afb_api_x3_delete_api(
 			struct afb_api_x3 *api)
 {
 	return api->itf->delete_api(api);
+}
+
+/**
+ * Settings of the api.
+ *
+ * Get the settings of the API. The settings are recorded
+ * as a JSON object. The returned object should not be modified.
+ * It MUST NOT be released using json_object_put.
+ *
+ * @param api the api whose settings are required
+ *
+ * @returns The setting object.
+ */
+static inline
+struct json_object *afb_api_x3_settings(
+			struct afb_api_x3 *api)
+{
+	return api->itf->settings(api);
 }
 
 /** @} */

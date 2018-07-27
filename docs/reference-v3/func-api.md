@@ -58,7 +58,7 @@ void afb_api_set_userdata(
  * Check that it requires the API of 'name'.
  * If 'initialized' is not zero it requests the API to be
  * initialized, implying its initialization if needed.
- * 
+ *
  * Calling this function is only allowed within init.
  *
  * A single request allows to require multiple apis.
@@ -253,6 +253,24 @@ int afb_api_rootdir_open_locale(
 			const char *filename,
 			int flags,
 			const char *locale);
+```
+
+### afb_api_settings
+
+```C
+/**
+ * Settings of the api.
+ *
+ * Get the settings of the API. The settings are recorded
+ * as a JSON object. The returned object should not be modified.
+ * It MUST NOT be released using json_object_put.
+ *
+ * @param api the api whose settings are required
+ *
+ * @returns The setting object.
+ */
+struct json_object *afb_api_settings(
+			struct afb_api_x3 *api);
 ```
 
 ## Calls and job functions

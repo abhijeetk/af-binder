@@ -261,6 +261,10 @@ struct afb_api_x3_itf
 	/** delete the api */
 	int (*delete_api)(
 		struct afb_api_x3 *api);
+
+	/** settings of the api */
+	struct json_object *(*settings)(
+		struct afb_api_x3 *api);
 };
 
 /** @} */

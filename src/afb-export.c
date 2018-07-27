@@ -51,6 +51,7 @@
 #include "jobs.h"
 #include "verbose.h"
 #include "sig-monitor.h"
+#include "wrap-json.h"
 
 /*************************************************************************
  * internal types
@@ -139,6 +140,9 @@ struct afb_export
 	/* event handler list */
 	struct event_handler *event_handlers;
 
+	/* settings */
+	struct json_object *settings;
+
 	/* internal descriptors */
 	union {
 #if defined(WITH_LEGACY_BINDING_V1)
@@ -193,6 +197,41 @@ struct afb_export *afb_export_from_api_x3(struct afb_api_x3 *api)
 struct afb_api_x3 *afb_export_to_api_x3(struct afb_export *export)
 {
 	return to_api_x3(export);
+}
+
+/******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+	SETTINGS
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************
+ ******************************************************************************/
+
+static struct json_object *configuration;
+
+void afb_export_set_config(struct json_object *config)
+{
+	struct json_object *save = configuration;
+	configuration = json_object_get(config);
+	json_object_put(save);
+}
+
+static struct json_object *get_settings(const char *name)
+{
+	struct json_object *result;
+	struct json_object *obj;
+
+	if (json_object_object_get_ex(configuration, "*", &obj))
+		result = wrap_json_clone(obj);
+	else
+		result = json_object_new_object();
+
+	if (json_object_object_get_ex(configuration, name, &obj))
+		wrap_json_object_add(result, obj);
+
+	return result;
 }
 
 /******************************************************************************
@@ -867,6 +906,17 @@ static int delete_api_cb(struct afb_api_x3 *api)
 	return 0;
 }
 
+static struct json_object *settings_cb(struct afb_api_x3 *api)
+{
+	struct afb_export *export = from_api_x3(api);
+	struct json_object *result = export->settings;
+	if (!result) {
+		result = get_settings(export->name);
+		export->settings = result;
+	}
+	return result;
+}
+
 static int hooked_api_set_verbs_v2_cb(
 		struct afb_api_x3 *api,
 		const struct afb_verb_v2 *verbs)
@@ -980,6 +1030,14 @@ static int hooked_delete_api_cb(struct afb_api_x3 *api)
 	return result;
 }
 
+static struct json_object *hooked_settings_cb(struct afb_api_x3 *api)
+{
+	struct afb_export *export = from_api_x3(api);
+	struct json_object *result = settings_cb(api);
+	result = afb_hook_api_settings(export, result);
+	return result;
+}
+
 static const struct afb_api_x3_itf api_x3_itf = {
 
 	.vverbose = (void*)vverbose_cb,
@@ -1018,6 +1076,7 @@ static const struct afb_api_x3_itf api_x3_itf = {
 	.class_require = class_require_cb,
 
 	.delete_api = delete_api_cb,
+	.settings = settings_cb,
 };
 
 static const struct afb_api_x3_itf hooked_api_x3_itf = {
@@ -1058,6 +1117,7 @@ static const struct afb_api_x3_itf hooked_api_x3_itf = {
 	.class_require = hooked_class_require_cb,
 
 	.delete_api = hooked_delete_api_cb,
+	.settings = hooked_settings_cb,
 };
 
 /******************************************************************************
@@ -1267,6 +1327,7 @@ void afb_export_destroy(struct afb_export *export)
 		afb_apiset_unref(export->call_set);
 		if (export->api.apiname != export->name)
 			free((void*)export->api.apiname);
+		json_object_put(export->settings);
 		free(export);
 	}
 }

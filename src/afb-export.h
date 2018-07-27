@@ -30,6 +30,8 @@ struct afb_api_v3;
 struct afb_api_x3;
 struct afb_event_x2;
 
+extern void afb_export_set_config(struct json_object *config);
+
 extern struct afb_export *afb_export_create_none_for_path(
 				struct afb_apiset *declare_set,
 				struct afb_apiset *call_set,

@@ -717,6 +717,23 @@ static void hook_api_delete_api(void *closure, const struct afb_hookid *hookid, 
 	hook_api(closure, hookid, export, "delete_api", "{si}",  "status", result);
 }
 
+static void hook_api_on_event_handler_before(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern)
+{
+	hook_api(closure, hookid, export, "on_event_handler.before",
+		"{ss ss sO?}", "pattern", pattern, "event", event, "data", object);
+}
+
+static void hook_api_on_event_handler_after(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern)
+{
+	hook_api(closure, hookid, export, "on_event_handler.after",
+		"{ss ss sO?}", "pattern", pattern, "event", event, "data", object);
+}
+
+static void hook_api_settings(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct json_object *object)
+{
+	hook_api(closure, hookid, export, "settings", "{sO}", "settings", object);
+}
+
 static struct afb_hook_api_itf hook_api_itf = {
 	.hook_api_event_broadcast_before = hook_api_event_broadcast_before,
 	.hook_api_event_broadcast_after = hook_api_event_broadcast_after,
@@ -754,6 +771,9 @@ static struct afb_hook_api_itf hook_api_itf = {
 	.hook_api_class_provide = hook_api_class_provide,
 	.hook_api_class_require = hook_api_class_require,
 	.hook_api_delete_api = hook_api_delete_api,
+	.hook_api_on_event_handler_before = hook_api_on_event_handler_before,
+	.hook_api_on_event_handler_after = hook_api_on_event_handler_after,
+	.hook_api_settings = hook_api_settings,
 };
 
 /*******************************************************************************/

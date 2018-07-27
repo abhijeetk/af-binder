@@ -552,6 +552,13 @@ static void queue(afb_req_t request)
 	afb_api_queue_job(afb_req_get_api(request), queue_cb, request, NULL, 0);
 }
 
+static void settings(afb_req_t request)
+{
+	afb_api_t api = afb_req_get_api(request);
+	struct json_object *object = afb_api_settings(api);
+	afb_req_reply(request, json_object_get(object), NULL, NULL);
+}
+
 static void rootdir (afb_req_t request)
 {
 	ssize_t s;
@@ -735,6 +742,7 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="api",         .callback=api},
   { .verb="mute",        .callback=mute},
   { .verb="queue",       .callback=queue},
+  { .verb="settings",    .callback=settings},
   { .verb=NULL}
 };
 

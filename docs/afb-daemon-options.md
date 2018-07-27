@@ -7,6 +7,7 @@ The launch options for binder **afb-daemon** are:
  -q, --quiet             Quiet Mode, repeat to decrease verbosity
  -l, --log=xxxx          Tune log level
      --foreground        Get all in foreground mode
+     --background        Get all in background mode
      --daemon            Get all in background mode
  -n, --name=xxxx         Set the visible name
  -p, --port=xxxx         HTTP listening TCP port  [default 1234]
@@ -33,15 +34,20 @@ The launch options for binder **afb-daemon** are:
  -A, --auto-api=xxxx     Automatic load of api of the given directory
      --session-max=xxxx  Max count of session simultaneously [default 200]
      --tracereq=xxxx     Log the requests: no, common, extra, all
-     --traceditf=xxxx    Log the daemons: no, common, all
-     --tracesvc=xxxx     Log the services: no, all
      --traceevt=xxxx     Log the events: no, common, extra, all
      --traceses=xxxx     Log the sessions: no, all
      --traceapi=xxxx     Log the apis: no, common, api, event, all
+     --traceglob=xxxx    Log the globals: none, all
+     --traceditf=xxxx    Log the daemons: no, common, all
+     --tracesvc=xxxx     Log the services: no, all
  -c, --call=xxxx         call at start format of val: API/VERB:json-args
      --no-httpd          Forbid HTTP service
  -e, --exec              Execute the remaining arguments
  -M, --monitoring        Enable HTTP monitoring at <ROOT>/monitoring/
+ -C, --config=xxxx       Load options from the given config file
+ -Z, --dump-config       Dump the config to stdout and exit
+ -s, --set=xxxx          Set parameters ([API]/[KEY]:JSON or {"API":{"KEY":JSON}}
+ -o, --output=xxxx       Redirect stdout and stderr to output file
 ```
 
 ## help
@@ -246,4 +252,97 @@ Set the visible name
 ## auto-api=xxxx
 
 Automatic activation of api of the given directory when the api is missing.
+
+## config=xxxx
+
+Load options from the given config file
+
+This can be used instead of arguments on the command line.
+
+Example:
+
+	afb-daemon \
+		--no-ldpaths \
+		--binding /home/15646/bindings/binding45.so \
+		--binding /home/15646/bindings/binding3.so \
+		--tracereq common \
+		--port 5555 \
+		--token SPYER \
+		--set api45/key:54027a5e3c6cb2ca5ddb97679ce32f185b067b0a557d16a8333758910bc25a72 \
+		--exec /home/15646/bin/test654 @p @t
+
+is equivalent to:
+
+	afb-daemon --config /home/15646/config1
+
+when the file **/home/15646/config1** is:
+
+	{
+	  "no-ldpaths": true,
+	  "binding": [
+	    "\/home\/15646\/bindings\/binding45.so",
+	    "\/home\/15646\/bindings\/binding3.so"
+	  ],
+	  "tracereq": "common",
+	  "port": 5555,
+	  "token": "SPYER",
+	  "set" : {
+	    "api45": {
+	      "key": "54027a5e3c6cb2ca5ddb97679ce32f185b067b0a557d16a8333758910bc25a72"
+	    }
+	  },
+	  "exec": [
+	    "\/home\/15646\/bin\/test654",
+	    "@p",
+	    "@t"
+	  ]
+	}
+
+The options are the keys of the config object.
+
+See option --dump-config
+
+## dump-config
+
+Output a JSON representation of the configuration resulting from
+environment and options.
+
+## output=xxxx
+
+Redirect stdout and stderr to output file
+
+## set=xxxx
+
+Set values that can be retrieved by bindings.
+
+The set value can have different formats.
+
+The most generic format is **{"API1":{"KEY1":VALUE,"KEY2":VALUE2,...},"API2":...}**
+
+This example set 2 keys for the api *chook*:
+
+	afb-daemon -Z --set '{"chook":{"account":"urn:chook:b2ca5ddb97679","delay":500}}'
+	{
+	   "set": {
+	     "chook": {
+	       "account": "urn:chook:b2ca5ddb97679",
+	       "delay": 500
+	     }
+	   }
+	 }
+
+An other format is: **[API]/[KEY]:VALUE**.
+When API is omitted, it take the value "*".
+When KEY is ommitted, it take the value of "*".
+
+The settings for the API \* are globals and apply to all bindings.
+
+The settings for the KEY \* are mixing the value for the API.
+
+The following examples are all setting the same values:
+
+	afb-daemon --set '{"chook":{"account":"urn:chook:b2ca5ddb97679","delay":500}}'
+	afb-daemon --set 'chook/*:{"account":"urn:chook:b2ca5ddb97679","delay":500}'
+	afb-daemon --set 'chook/:{"account":"urn:chook:b2ca5ddb97679","delay":500}'
+	afb-daemon --set 'chook/account:"urn:chook:b2ca5ddb97679"' --set chook/delay:500
 

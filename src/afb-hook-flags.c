@@ -112,6 +112,7 @@ static struct flag api_flags[] = { /* must be sorted by names */
 		{ "require_api",	afb_hook_flag_api_require_api },
 		{ "rootdir_get_fd",	afb_hook_flag_api_rootdir_get_fd },
 		{ "rootdir_open_locale",afb_hook_flag_api_rootdir_open_locale },
+		{ "settings",		afb_hook_flag_api_settings },
 		{ "start",		afb_hook_flag_api_start },
 		{ "vverbose",		afb_hook_flag_api_vverbose },
 };

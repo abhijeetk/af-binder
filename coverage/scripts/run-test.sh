@@ -122,6 +122,7 @@ $R/bin/afb-daemon-cov \
 	--traceevt all \
 	--traceglob none \
 	--monitoring \
+	--set hello/key:a-kind-of-text \
 	--call demat/ping:true \
 	--call hello/ping:false \
 	--ws-server unix:$R/apis/ws/hello \

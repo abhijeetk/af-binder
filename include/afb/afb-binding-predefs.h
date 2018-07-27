@@ -331,6 +331,7 @@
 #define afb_api_x3_event_handler_del	afb_api_event_handler_del
 #define afb_api_x3_require_class	afb_api_require_class
 #define afb_api_x3_provide_class	afb_api_provide_class
+#define afb_api_x3_settings		afb_api_settings
 
 #define AFB_API_ERROR			AFB_API_ERROR_V3
 #define AFB_API_WARNING			AFB_API_WARNING_V3

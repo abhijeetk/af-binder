@@ -913,6 +913,11 @@ static void hook_api_on_event_handler_after_cb(void *closure, const struct afb_h
 	_hook_api_(export, "on_event_handler[%s].after(%s, %d, %s)", pattern, event, event_x2, json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
 }
 
+static void hook_api_settings_cb(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct json_object *object)
+{
+	_hook_api_(export, "settings -> %s", json_object_to_json_string_ext(object, JSON_C_TO_STRING_NOSLASHESCAPE));
+}
+
 static struct afb_hook_api_itf hook_api_default_itf = {
 	.hook_api_event_broadcast_before = hook_api_event_broadcast_before_cb,
 	.hook_api_event_broadcast_after = hook_api_event_broadcast_after_cb,
@@ -952,6 +957,7 @@ static struct afb_hook_api_itf hook_api_default_itf = {
 	.hook_api_delete_api = hook_api_delete_api_cb,
 	.hook_api_on_event_handler_before = hook_api_on_event_handler_before_cb,
 	.hook_api_on_event_handler_after = hook_api_on_event_handler_after_cb,
+	.hook_api_settings = hook_api_settings_cb,
 };
 
 /******************************************************************************
@@ -1187,6 +1193,12 @@ void afb_hook_api_on_event_handler_before(const struct afb_export *export, const
 void afb_hook_api_on_event_handler_after(const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern)
 {
 	_HOOK_API_2_(on_event_handler, on_event_handler_after, export, event, event_x2, object, pattern);
+}
+
+struct json_object *afb_hook_api_settings(const struct afb_export *export, struct json_object *object)
+{
+	_HOOK_API_(settings, export, object);
+	return object;
 }
 
 /******************************************************************************

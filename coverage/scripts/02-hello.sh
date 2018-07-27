@@ -60,6 +60,7 @@ hello getctx
 hello setctx "some-text-2"
 hello getctx
 hello info
+hello settings
 hello verbose {"level":2,"message":"hello"}
 hello eventloop
 hello dbus false

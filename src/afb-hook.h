@@ -197,6 +197,7 @@ extern struct json_object *afb_hook_xreq_get_client_info(const struct afb_xreq *
 #define afb_hook_flag_api_on_event			0x04000000
 #define afb_hook_flag_api_legacy_unstore_req		0x08000000
 #define afb_hook_flag_api_on_event_handler		0x10000000
+#define afb_hook_flag_api_settings			0x20000000
 
 /* common flags */
 /* extra flags */
@@ -208,7 +209,8 @@ extern struct json_object *afb_hook_xreq_get_client_info(const struct afb_xreq *
 					|afb_hook_flag_api_call\
 					|afb_hook_flag_api_callsync\
 					|afb_hook_flag_api_start\
-					|afb_hook_flag_api_queue_job)
+					|afb_hook_flag_api_queue_job\
+					|afb_hook_flag_api_settings)
 
 
 #define afb_hook_flags_api_extra	(afb_hook_flag_api_get_event_loop\
@@ -311,6 +313,7 @@ struct afb_hook_api_itf {
 	void (*hook_api_delete_api)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, int result);
 	void (*hook_api_on_event_handler_before)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern);
 	void (*hook_api_on_event_handler_after)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern);
+	void (*hook_api_settings)(void *closure, const struct afb_hookid *hookid, const struct afb_export *export, struct json_object *object);
 };
 
 extern void afb_hook_api_event_broadcast_before(const struct afb_export *export, const char *name, struct json_object *object);
@@ -351,6 +354,7 @@ extern int afb_hook_api_class_require(const struct afb_export *export, int resul
 extern int afb_hook_api_delete_api(const struct afb_export *export, int result);
 extern void afb_hook_api_on_event_handler_before(const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern);
 extern void afb_hook_api_on_event_handler_after(const struct afb_export *export, const char *event, int event_x2, struct json_object *object, const char *pattern);
+extern struct json_object *afb_hook_api_settings(const struct afb_export *export, struct json_object *object);
 
 extern int afb_hook_flags_api(const char *api);
 extern struct afb_hook_api *afb_hook_create_api(const char *api, int flags, struct afb_hook_api_itf *itf, void *closure);

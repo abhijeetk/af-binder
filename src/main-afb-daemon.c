@@ -52,6 +52,7 @@
 #include "afb-session.h"
 #include "verbose.h"
 #include "afb-common.h"
+#include "afb-export.h"
 #include "afb-monitor.h"
 #include "afb-hook.h"
 #include "afb-hook-flags.h"
@@ -604,6 +605,7 @@ static void start(int signum, void *arg)
 {
 	const char *tracereq, *traceapi, *traceevt, *traceses, *tracesvc, *traceditf, *traceglob;
 	const char *workdir, *rootdir, *token, *rootapi;
+	struct json_object *settings;
 	struct afb_hsrv *hsrv;
 	int max_session_count, session_timeout, api_timeout;
 	int no_httpd, http_port;
@@ -617,6 +619,7 @@ static void start(int signum, void *arg)
 		exit(1);
 	}
 
+	settings = NULL;
 	token = rootapi = tracesvc = traceditf = tracereq =
 		traceapi = traceevt = traceses = traceglob = NULL;
 	no_httpd = http_port = 0;
@@ -624,6 +627,7 @@ static void start(int signum, void *arg)
 			"ss ss s?s"
 			"si si si"
 			"s?b s?i s?s"
+			"s?o"
 #if !defined(REMOVE_LEGACY_TRACE)
 			"s?s s?s"
 #endif
@@ -642,6 +646,7 @@ static void start(int signum, void *arg)
 			"port", &http_port,
 			"rootapi", &rootapi,
 
+			"set", &settings,
 #if !defined(REMOVE_LEGACY_TRACE)
 			"tracesvc", &tracesvc,
 			"traceditf", &traceditf,
@@ -669,6 +674,7 @@ static void start(int signum, void *arg)
 	}
 
 	/* configure the daemon */
+	afb_export_set_config(settings);
 	if (afb_session_init(max_session_count, session_timeout, token)) {
 		ERROR("initialisation of session manager failed");
 		goto error;
