@@ -75,9 +75,4 @@ struct json_object *afb_msg_json_event(const char *event, struct json_object *ob
 	return msg;
 }
 
-struct json_object *afb_msg_json_internal_error()
-{
-	return afb_msg_json_reply(NULL, "failed", "internal error", NULL);
-}
-
 

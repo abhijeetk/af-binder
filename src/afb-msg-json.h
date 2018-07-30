@@ -25,4 +25,3 @@ extern struct json_object *afb_msg_json_reply(struct json_object *resp, const ch
 
 extern struct json_object *afb_msg_json_event(const char *event, struct json_object *object);
 
-extern struct json_object *afb_msg_json_internal_error();

@@ -107,6 +107,10 @@ struct callreq
 
 /******************************************************************************/
 
+static const char _internal_error_[] = "internal-error";
+
+/******************************************************************************/
+
 static int store_reply(
 		struct json_object *iobject, const char *ierror, const char *iinfo,
 		struct json_object **sobject, char **serror, char **sinfo)
@@ -153,7 +157,7 @@ static void sync_enter(int signum, void *closure, struct jobloop *jobloop)
 		callreq->jobloop = jobloop;
 		afb_export_process_xreq(callreq->export, &callreq->xreq);
 	} else {
-		afb_xreq_reply(&callreq->xreq, NULL, "internal-error", NULL);
+		afb_xreq_reply(&callreq->xreq, NULL, _internal_error_, NULL);
 	}
 }
 
@@ -341,7 +345,7 @@ static int do_sync(
 
 	afb_xreq_unhooked_unref(&callreq->xreq);
 interr:
-	return store_reply(NULL, "internal-error", NULL, object, info, error);
+	return store_reply(NULL, _internal_error_, NULL, object, info, error);
 }
 
 /******************************************************************************/
@@ -363,7 +367,7 @@ static void do_async(
 	callreq = callreq_create(export, caller, api, verb, args, flags, mode);
 
 	if (!callreq)
-		final(closure, NULL, "internal-error", NULL, (union callback){ .any = callback }, export, caller);
+		final(closure, NULL, _internal_error_, NULL, (union callback){ .any = callback }, export, caller);
 	else {
 		callreq->callback.any = callback;
 		callreq->closure = closure;
@@ -548,7 +552,7 @@ static int do_legacy_sync(
 	afb_xreq_unhooked_unref(&callreq->xreq);
 interr:
 	if (object)
-		*object = afb_msg_json_internal_error();
+		*object = afb_msg_json_reply(NULL, _internal_error_, NULL, NULL);
 	return -1;
 }
 
@@ -572,7 +576,7 @@ static void do_legacy_async(
 	callreq = callreq_create(export, caller, api, verb, args, flags, mode);
 
 	if (!callreq) {
-		ie = afb_msg_json_internal_error();
+		ie = afb_msg_json_reply(NULL, _internal_error_, NULL, NULL);
 		final(closure, -1, ie, (union callback){ .any = callback }, export, caller);
 		json_object_put(ie);
 	} else {
