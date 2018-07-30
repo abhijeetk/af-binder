@@ -280,7 +280,7 @@ static void server_event_remove(void *closure, const char *event, int eventid)
 	afb_proto_ws_server_event_remove(stubws->proto, event, eventid);
 }
 
-static void server_event_push(void *closure, const char *event, int eventid, struct json_object *object)
+static void server_event_push(void *closure, const char *event, int eventid, struct json_object *object, int hooked)
 {
 	struct afb_stub_ws *stubws = closure;
 
@@ -288,7 +288,7 @@ static void server_event_push(void *closure, const char *event, int eventid, str
 	json_object_put(object);
 }
 
-static void server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object)
+static void server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object, int hooked)
 {
 	struct afb_stub_ws *stubws = closure;
 

@@ -141,7 +141,7 @@ static int event_id_wrapped = 0;
  * 'obj' is released (like json_object_put)
  * Returns the count of listener having receive the event.
  */
-static int broadcast(const char *event, struct json_object *obj, int id)
+static int broadcast(const char *event, struct json_object *obj, int id, int hooked)
 {
 	int result;
 	struct afb_evt_listener *listener;
@@ -152,7 +152,7 @@ static int broadcast(const char *event, struct json_object *obj, int id)
 	listener = listeners;
 	while(listener) {
 		if (listener->itf->broadcast != NULL) {
-			listener->itf->broadcast(listener->closure, event, id, json_object_get(obj));
+			listener->itf->broadcast(listener->closure, event, id, json_object_get(obj), hooked);
 			result++;
 		}
 		listener = listener->next;
@@ -177,7 +177,7 @@ static int hooked_broadcast(const char *event, struct json_object *obj, int id, 
 	if (hookflags & afb_hook_flag_evt_broadcast_before)
 		afb_hook_evt_broadcast_before(event, id, obj);
 
-	result = broadcast(event, obj, id);
+	result = broadcast(event, obj, id, 1);
 
 	if (hookflags & afb_hook_flag_evt_broadcast_after)
 		afb_hook_evt_broadcast_after(event, id, obj, result);
@@ -194,7 +194,7 @@ static int hooked_broadcast(const char *event, struct json_object *obj, int id, 
  */
 int afb_evt_evtid_broadcast(struct afb_evtid *evtid, struct json_object *object)
 {
-	return broadcast(evtid->fullname, object, evtid->id);
+	return broadcast(evtid->fullname, object, evtid->id, 0);
 }
 
 /*
@@ -222,7 +222,7 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
  * 'obj' is released (like json_object_put)
  * Returns the count of listener that received the event.
  */
-int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
+static int evtid_push(struct afb_evtid *evtid, struct json_object *obj, int hooked)
 {
 	int result;
 	struct afb_evt_watch *watch;
@@ -235,7 +235,7 @@ int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
 		listener = watch->listener;
 		assert(listener->itf->push != NULL);
 		if (watch->activity != 0) {
-			listener->itf->push(listener->closure, evtid->fullname, evtid->id, json_object_get(obj));
+			listener->itf->push(listener->closure, evtid->fullname, evtid->id, json_object_get(obj), hooked);
 			result++;
 		}
 		watch = watch->next_by_evtid;
@@ -243,6 +243,17 @@ int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
 	pthread_rwlock_unlock(&evtid->rwlock);
 	json_object_put(obj);
 	return result;
+}
+
+
+/*
+ * Pushes the event 'evtid' with 'obj' to its listeners
+ * 'obj' is released (like json_object_put)
+ * Returns the count of listener that received the event.
+ */
+int afb_evt_evtid_push(struct afb_evtid *evtid, struct json_object *obj)
+{
+	return evtid_push(evtid, obj, 0);
 }
 
 /*
@@ -264,7 +275,7 @@ int afb_evt_evtid_hooked_push(struct afb_evtid *evtid, struct json_object *obj)
 		afb_hook_evt_push_before(evtid->fullname, evtid->id, obj);
 
 	/* push */
-	result = afb_evt_evtid_push(evtid, obj);
+	result = evtid_push(evtid, obj, 1);
 
 	/* hook after push */
 	if (evtid->hookflags & afb_hook_flag_evt_push_after)

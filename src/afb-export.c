@@ -1073,13 +1073,14 @@ static const struct afb_api_x3_itf hooked_api_x3_itf = {
 /*
  * Propagates the event to the service
  */
-static void listener_of_events(void *closure, const char *event, int eventid, struct json_object *object)
+static void listener_of_events(void *closure, const char *event, int eventid, struct json_object *object, int hooked)
 {
 	struct event_handler *handler;
 	struct afb_export *export = from_api_x3(closure);
+	int hooksvc = hooked ? export->hooksvc : 0;
 
 	/* hook the event before */
-	if (export->hooksvc & afb_hook_flag_api_on_event)
+	if (hooksvc & afb_hook_flag_api_on_event)
 		afb_hook_api_on_event_before(export, event, eventid, object);
 
 	/* transmit to specific handlers */
@@ -1087,7 +1088,7 @@ static void listener_of_events(void *closure, const char *event, int eventid, st
 	handler = export->event_handlers;
 	while (handler) {
 		if (fnmatch(handler->pattern, event, 0)) {
-			if (!(export->hooksvc & afb_hook_flag_api_on_event_handler))
+			if (!(hooksvc & afb_hook_flag_api_on_event_handler))
 				handler->callback(handler->closure, event, object, to_api_x3(export));
 			else {
 				afb_hook_api_on_event_handler_before(export, event, eventid, object, handler->pattern);
@@ -1105,8 +1106,9 @@ static void listener_of_events(void *closure, const char *event, int eventid, st
 		export->on_any_event_v12(event, object);
 
 	/* hook the event after */
-	if (export->hooksvc & afb_hook_flag_api_on_event)
+	if (hooksvc & afb_hook_flag_api_on_event)
 		afb_hook_api_on_event_after(export, event, eventid, object);
+
 	json_object_put(object);
 }
 

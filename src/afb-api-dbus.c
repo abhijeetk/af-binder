@@ -618,8 +618,8 @@ error:
 
 static void afb_api_dbus_server_event_add(void *closure, const char *event, int eventid);
 static void afb_api_dbus_server_event_remove(void *closure, const char *event, int eventid);
-static void afb_api_dbus_server_event_push(void *closure, const char *event, int eventid, struct json_object *object);
-static void afb_api_dbus_server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object);
+static void afb_api_dbus_server_event_push(void *closure, const char *event, int eventid, struct json_object *object, int hooked);
+static void afb_api_dbus_server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object, int hooked);
 
 /* the interface for events broadcasting */
 static const struct afb_evt_itf evt_broadcast_itf = {
@@ -894,14 +894,14 @@ static void afb_api_dbus_server_event_remove(void *closure, const char *event, i
 	afb_api_dbus_server_event_send(closure, '-', event, eventid, "", 0);
 }
 
-static void afb_api_dbus_server_event_push(void *closure, const char *event, int eventid, struct json_object *object)
+static void afb_api_dbus_server_event_push(void *closure, const char *event, int eventid, struct json_object *object, int hooked)
 {
 	const char *data = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE);
 	afb_api_dbus_server_event_send(closure, '!', event, eventid, data, 0);
 	json_object_put(object);
 }
 
-static void afb_api_dbus_server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object)
+static void afb_api_dbus_server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object, int hooked)
 {
 	int rc;
 	struct api_dbus *api;
