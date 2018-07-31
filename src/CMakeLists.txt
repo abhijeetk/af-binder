@@ -54,6 +54,7 @@ SET(AFB_LIB_SOURCES
 	afb-msg-json.c
 	afb-proto-ws.c
 	afb-session.c
+	afb-socket.c
 	afb-stub-ws.c
 	afb-systemd.c
 	afb-trace.c

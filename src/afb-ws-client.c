@@ -499,6 +499,7 @@ static int get_socket(const char *uri)
 	}
 	return fd;
 }
+
 /*
  * Establish a websocket-like client connection to the API of 'uri' and if successful
  * instantiate a client afb_proto_ws websocket for this API using 'itf' and 'closure'.
