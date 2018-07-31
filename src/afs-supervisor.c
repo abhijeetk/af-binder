@@ -173,14 +173,22 @@ static int should_accept(struct afb_cred *cred)
 static void on_supervised_hangup(struct afb_stub_ws *stub)
 {
 	struct supervised *s, **ps;
+
+	/* Search the supervised of the ws-stub */
 	pthread_mutex_lock(&mutex);
 	ps = &superviseds;
 	while ((s = *ps) && s->stub != stub)
 		ps = &s->next;
+
+	/* unlink the supervised if found */
 	if (s)
 		*ps = s->next;
 	pthread_mutex_unlock(&mutex);
+
+	/* forgive the ws-stub */
 	afb_stub_ws_unref(stub);
+
+	/* forgive the supervised */
 	if (s) {
 		afb_event_push(event_del_pid, json_object_new_int((int)s->cred->pid));
 		afb_cred_unref(s->cred);
@@ -363,6 +371,8 @@ static void propagate(afb_req_t req, const char *verb)
 
 	xreq = xreq_from_req_x2(req);
 	args = afb_xreq_json(xreq);
+
+	/* extract the pid */
 	if (!json_object_object_get_ex(args, "pid", &item)) {
 		afb_xreq_reply(xreq, NULL, "no-pid", NULL);
 		return;
@@ -373,14 +383,20 @@ static void propagate(afb_req_t req, const char *verb)
 		afb_xreq_reply(xreq, NULL, "bad-pid", NULL);
 		return;
 	}
+
+	/* get supervised of pid */
 	s = supervised_of_pid((pid_t)p);
 	if (!s) {
 		afb_req_reply(req, NULL, "unknown-pid", NULL);
 		return;
 	}
 	json_object_object_del(args, "pid");
+
+	/* replace the verb to call if needed */
 	if (verb)
 		xreq->request.called_verb = verb;
+
+	/* call it now */
 	api = afb_stub_ws_client_api(s->stub);
 	api.itf->call(api.closure, xreq);
 }
