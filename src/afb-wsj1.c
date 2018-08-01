@@ -390,15 +390,15 @@ const char *afb_wsj1_msg_object_s(struct afb_wsj1_msg *msg)
 
 struct json_object *afb_wsj1_msg_object_j(struct afb_wsj1_msg *msg)
 {
+	enum json_tokener_error jerr;
 	struct json_object *object = msg->object_j;
 	if (object == NULL) {
 		pthread_mutex_lock(&msg->wsj1->mutex);
 		json_tokener_reset(msg->wsj1->tokener);
-		object = json_tokener_parse_ex(msg->wsj1->tokener, msg->object_s, (int)msg->object_s_length);
-		if (object == NULL && json_tokener_get_error(msg->wsj1->tokener) == json_tokener_continue)
-			object = json_tokener_parse_ex(msg->wsj1->tokener, "", 1);
+		object = json_tokener_parse_ex(msg->wsj1->tokener, msg->object_s, 1 + (int)msg->object_s_length);
+		jerr = json_tokener_get_error(msg->wsj1->tokener);
 		pthread_mutex_unlock(&msg->wsj1->mutex);
-		if (object == NULL) {
+		if (jerr != json_tokener_success) {
 			/* lazy error detection of json request. Is it to improve? */
 			object = json_object_new_string_len(msg->object_s, (int)msg->object_s_length);
 		}

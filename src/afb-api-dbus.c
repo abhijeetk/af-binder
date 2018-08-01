@@ -286,6 +286,8 @@ static int api_dbus_client_on_reply(sd_bus_message *message, void *userdata, sd_
 	int rc;
 	struct dbus_memo *memo;
 	const char *json, *error, *info;
+	struct json_object *object;
+	enum json_tokener_error jerr;
 
 	/* retrieve the recorded data */
 	memo = userdata;
@@ -297,7 +299,14 @@ static int api_dbus_client_on_reply(sd_bus_message *message, void *userdata, sd_
 		afb_xreq_reply(memo->xreq, NULL, "error", "dbus error");
 	} else {
 		/* report the answer */
-		afb_xreq_reply(memo->xreq, *json ? json_tokener_parse(json) : NULL, *error ? error : NULL, *info ? info : NULL);
+		if (!*json)
+			object = NULL;
+		else {
+			object = json_tokener_parse_verbose(json, &jerr);
+			if (jerr != json_tokener_success)
+				object = json_object_new_string(json);
+		}
+		afb_xreq_reply(memo->xreq, object, *error ? error : NULL, *info ? info : NULL);
 	}
 	api_dbus_client_memo_destroy(memo);
 	return 1;
@@ -358,11 +367,14 @@ static int api_dbus_client_on_broadcast_event(sd_bus_message *m, void *userdata,
 {
 	struct json_object *object;
 	const char *event, *data;
+	enum json_tokener_error jerr;
 	int rc = sd_bus_message_read(m, "ss", &event, &data);
 	if (rc < 0)
 		ERROR("unreadable broadcasted event");
 	else {
-		object = json_tokener_parse(data);
+		object = json_tokener_parse_verbose(data, &jerr);
+		if (jerr != json_tokener_success)
+			object = json_object_new_string(data);
 		afb_evt_broadcast(event, object);
 	}
 	return 1;
@@ -441,6 +453,7 @@ static void api_dbus_client_event_push(struct api_dbus *api, int id, const char 
 {
 	struct json_object *object;
 	struct dbus_event *ev;
+	enum json_tokener_error jerr;
 
 	/* retrieves the event */
 	ev = api_dbus_client_event_search(api, id, name);
@@ -450,7 +463,9 @@ static void api_dbus_client_event_push(struct api_dbus *api, int id, const char 
 	}
 
 	/* destroys the event */
-	object = json_tokener_parse(data);
+	object = json_tokener_parse_verbose(data, &jerr);
+	if (jerr != json_tokener_success)
+		object = json_object_new_string(data);
 	afb_evt_event_x2_push(ev->event, object);
 }
 
@@ -926,6 +941,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	uint32_t flags;
 	struct afb_session *session;
 	struct listener *listener;
+	enum json_tokener_error jerr;
 
 	/* check the interface */
 	if (strcmp(sd_bus_message_get_interface(message), api->name) != 0)
@@ -961,8 +977,8 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	dreq->xreq.context.flags = flags;
 	dreq->xreq.cred = afb_cred_mixed_on_behalf_import(listener->origin->cred, uuid, creds && creds[0] ? creds : NULL);
 	dreq->message = sd_bus_message_ref(message);
-	dreq->json = json_tokener_parse(dreq->request);
-	if (dreq->json == NULL && strcmp(dreq->request, "null")) {
+	dreq->json = json_tokener_parse_verbose(dreq->request, &jerr);
+	if (jerr != json_tokener_success) {
 		/* lazy error detection of json request. Is it to improve? */
 		dreq->json = json_object_new_string(dreq->request);
 	}

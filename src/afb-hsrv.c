@@ -109,6 +109,7 @@ static int access_handler(
 	struct afb_hsrv *hsrv;
 	struct hsrv_handler *iter;
 	const char *type;
+	enum json_tokener_error jerr;
 
 	hsrv = cls;
 	hreq = *recordreq;
@@ -179,12 +180,13 @@ static int access_handler(
 			}
 		} else if (hreq->tokener) {
 			hreq->json = json_tokener_parse_ex(hreq->tokener, upload_data, (int)*upload_data_size);
-			switch (json_tokener_get_error(hreq->tokener)) {
-			case json_tokener_success:
-			case json_tokener_continue:
-				break;
-			default:
-				ERROR("error in POST json: %s", json_tokener_error_desc(json_tokener_get_error(hreq->tokener)));
+			jerr = json_tokener_get_error(hreq->tokener);
+			if (jerr == json_tokener_continue) {
+				hreq->json = json_tokener_parse_ex(hreq->tokener, "", 1);
+				jerr = json_tokener_get_error(hreq->tokener);
+			}
+			if (jerr != json_tokener_success) {
+				ERROR("error in POST json: %s", json_tokener_error_desc(jerr));
 				afb_hreq_reply_error(hreq, MHD_HTTP_BAD_REQUEST);
 				return MHD_YES;
 			}

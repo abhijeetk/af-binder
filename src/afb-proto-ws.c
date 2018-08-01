@@ -261,10 +261,11 @@ static int readbuf_object(struct readbuf *rb, struct json_object **object)
 {
 	const char *string;
 	struct json_object *o;
+	enum json_tokener_error jerr;
 	int rc = readbuf_string(rb, &string, NULL);
 	if (rc) {
-		o = json_tokener_parse(string);
-		if (o == NULL && strcmp(string, "null"))
+		o = json_tokener_parse_verbose(string, &jerr);
+		if (jerr != json_tokener_success)
 			o = json_object_new_string(string);
 		*object = o;
 	}

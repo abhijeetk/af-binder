@@ -538,6 +538,7 @@ static void pws_call(const char *verb, const char *object)
 	char *key;
 	int rc;
 	struct json_object *o;
+	enum json_tokener_error jerr;
 
 	/* allocates an id for the request */
 	rc = asprintf(&key, "%d:%s", ++num, verb);
@@ -548,11 +549,11 @@ static void pws_call(const char *verb, const char *object)
 
 	/* send the request */
 	callcount++;
-	if (object == NULL || object[0] == 0 || !strcmp(object, "null"))
+	if (object == NULL || object[0] == 0)
 		o = NULL;
 	else {
-		o = json_tokener_parse(object);
-		if (!o)
+		o = json_tokener_parse_verbose(object, &jerr);
+		if (jerr != json_tokener_success)
 			o = json_object_new_string(object);
 	}
 	rc = afb_proto_ws_client_call(pws, verb, o, sessionid, key, NULL);

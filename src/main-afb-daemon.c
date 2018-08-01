@@ -552,6 +552,7 @@ static struct afb_xreq_query_itf startup_xreq_itf =
 static void startup_call_current(struct startup_req *sreq)
 {
 	const char *api, *verb, *json;
+	enum json_tokener_error jerr;
 
 	sreq->callspec = json_object_get_string(json_object_array_get_idx(sreq->calls, sreq->index)),
 	api = sreq->callspec;
@@ -566,8 +567,8 @@ static void startup_call_current(struct startup_req *sreq)
 			sreq->verb = strndup(verb + 1, json - verb - 1);
 			sreq->xreq.request.called_api = sreq->api;
 			sreq->xreq.request.called_verb = sreq->verb;
-			sreq->xreq.json = json_tokener_parse(json + 1);
-			if (sreq->api && sreq->verb && sreq->xreq.json) {
+			sreq->xreq.json = json_tokener_parse_verbose(json + 1, &jerr);
+			if (sreq->api && sreq->verb && jerr == json_tokener_success) {
 				afb_xreq_process(&sreq->xreq, main_apiset);
 				return;
 			}

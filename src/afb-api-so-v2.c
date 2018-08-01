@@ -75,11 +75,11 @@ struct json_object *afb_api_so_v2_make_description_openAPIv3(const struct afb_bi
 	char buffer[256];
 	const struct afb_verb_v2 *verb;
 	struct json_object *r, *f, *a, *i, *p, *g;
-
+	enum json_tokener_error jerr;
 
 	if (binding->specification) {
-		r = json_tokener_parse(binding->specification);
-		if (r)
+		r = json_tokener_parse_verbose(binding->specification, &jerr);
+		if (jerr == json_tokener_success)
 			return r;
 	}
 
