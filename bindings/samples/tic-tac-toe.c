@@ -64,7 +64,7 @@ static struct board *search_board(int id)
 /*
  * Creates a new board and returns it.
  */
-static struct board *get_new_board(afb_req_t req)
+static struct board *get_new_board()
 {
 	/* allocation */
 	struct board *board = calloc(1, sizeof *board);
@@ -78,18 +78,11 @@ static struct board *get_new_board(afb_req_t req)
 		board->id = (rand() >> 2) % 1000;
 	} while(board->id == 0 || search_board(board->id) != NULL);
 	board->event = afb_daemon_make_event("board");
-	afb_req_subscribe(req, board->event);
 
 	/* link */
 	board->next = all_boards;
 	all_boards = board;
 	return board;
-}
-
-static void *get_new_board_cb(void *closure)
-{
-	afb_req_t req = closure;
-	return get_new_board(req);
 }
 
 /*
@@ -110,12 +103,6 @@ static void release_board(struct board *board)
 		/* release the used memory */
 		free(board);
 	}
-}
-
-static void release_board_cb(void *closure)
-{
-	struct board *board = closure;
-	return release_board(board);
 }
 
 /*
@@ -317,6 +304,20 @@ static void changed(struct board *board, const char *reason)
 	afb_event_push(board->event, json_object_new_string(reason));
 }
 
+static void *get_new_board_cb(void *closure)
+{
+	afb_req_t req = closure;
+	struct board *board = get_new_board();
+	afb_req_subscribe(req, board->event);
+	return board;
+}
+
+static void release_board_cb(void *closure)
+{
+	struct board *board = closure;
+	return release_board(board);
+}
+
 /*
  * retrieves the board of the request
  */
@@ -491,8 +492,9 @@ static void join(afb_req_t req)
 	new_board->use_count++;
 setctx:
 	/* set the new board (and leaves the previous one) */
-	afb_req_context(req, 1, NULL, release_board_cb, new_board);
 	afb_req_unsubscribe(req, board->event);
+	afb_req_context(req, 1, NULL, release_board_cb, new_board);
+	afb_req_subscribe(req, new_board->event);
 
 success:
 	/* replies */
