@@ -105,7 +105,7 @@ int afb_api_so_v3_add(const char *path, void *handle, struct afb_apiset *declare
 			goto error;
 		}
 
-		api = afb_api_v3_create(declare_set, call_set, a.desc->api, a.desc->info, a.desc->noconcurrency, init, &a, 0);
+		api = afb_api_v3_create(declare_set, call_set, a.desc->api, a.desc->info, a.desc->noconcurrency, init, &a, 0, NULL, path);
 		if (api)
 			return 1;
 	} else {
@@ -116,8 +116,10 @@ int afb_api_so_v3_add(const char *path, void *handle, struct afb_apiset *declare
 		}
 
 		export = afb_export_create_none_for_path(declare_set, call_set, path, init, &a);
-		if (export)
+		if (export) {
+			afb_export_unref(export);
 			return 1;
+		}
 	}
 
 	ERROR("binding [%s] initialisation failed", path);

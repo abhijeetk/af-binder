@@ -140,6 +140,12 @@ struct afb_export
 	/* event handler list */
 	struct event_handler *event_handlers;
 
+	/* creator if any */
+	struct afb_export *creator;
+
+	/* path indication if any */
+	const char *path;
+
 	/* settings */
 	struct json_object *settings;
 
@@ -218,19 +224,28 @@ void afb_export_set_config(struct json_object *config)
 	json_object_put(save);
 }
 
-static struct json_object *get_settings(const char *name)
+static struct json_object *make_settings(struct afb_export *export)
 {
 	struct json_object *result;
 	struct json_object *obj;
+	struct afb_export *iter;
 
+	/* clone the globals */
 	if (json_object_object_get_ex(configuration, "*", &obj))
 		result = wrap_json_clone(obj);
 	else
 		result = json_object_new_object();
 
-	if (json_object_object_get_ex(configuration, name, &obj))
+	/* add locals */
+	if (json_object_object_get_ex(configuration, export->name, &obj))
 		wrap_json_object_add(result, obj);
 
+	/* add library path */
+	for (iter = export ; iter && !iter->path ; iter = iter->creator);
+	if (iter)
+		json_object_object_add(result, "binding-path", json_object_new_string(iter->path));
+
+	export->settings = result;
 	return result;
 }
 
@@ -385,7 +400,11 @@ static struct afb_api_x3 *api_new_api_cb(
 		void *preinit_closure)
 {
 	struct afb_export *export = from_api_x3(closure);
-	struct afb_api_v3 *apiv3 = afb_api_v3_create(export->declare_set, export->call_set, api, info, noconcurrency, preinit, preinit_closure, 1);
+	struct afb_api_v3 *apiv3 = afb_api_v3_create(
+					export->declare_set, export->call_set,
+					api, info, noconcurrency,
+					preinit, preinit_closure, 1,
+					export, NULL);
 	return apiv3 ? to_api_x3(afb_api_v3_export(apiv3)) : NULL;
 }
 
@@ -910,10 +929,8 @@ static struct json_object *settings_cb(struct afb_api_x3 *api)
 {
 	struct afb_export *export = from_api_x3(api);
 	struct json_object *result = export->settings;
-	if (!result) {
-		result = get_settings(export->name);
-		export->settings = result;
-	}
+	if (!result)
+		result = make_settings(export);
 	return result;
 }
 
@@ -1272,9 +1289,11 @@ static struct afb_export *create(
 				struct afb_apiset *declare_set,
 				struct afb_apiset *call_set,
 				const char *apiname,
+				const char *path,
 				enum afb_api_version version)
 {
 	struct afb_export *export;
+	size_t lenapi;
 
 	/* session shared with other exports */
 	if (common_session == NULL) {
@@ -1282,13 +1301,18 @@ static struct afb_export *create(
 		if (common_session == NULL)
 			return NULL;
 	}
-	export = calloc(1, sizeof *export + strlen(apiname));
+	lenapi = strlen(apiname);
+	export = calloc(1, sizeof *export + lenapi + (path == apiname || !path ? 0 : strlen(path)));
 	if (!export)
 		errno = ENOMEM;
 	else {
 		export->refcount = 1;
 		strcpy(export->name, apiname);
 		export->api.apiname = export->name;
+		if (path == apiname)
+			export->path = export->name;
+		else if (path)
+			export->path = strcpy(&export->name[lenapi + 1], path);
 		export->version = version;
 		export->state = Api_State_Pre_Init;
 		export->session = afb_session_addref(common_session);
@@ -1325,9 +1349,10 @@ void afb_export_destroy(struct afb_export *export)
 		afb_session_unref(export->session);
 		afb_apiset_unref(export->declare_set);
 		afb_apiset_unref(export->call_set);
+		json_object_put(export->settings);
+		afb_export_unref(export->creator);
 		if (export->api.apiname != export->name)
 			free((void*)export->api.apiname);
-		json_object_put(export->settings);
 		free(export);
 	}
 }
@@ -1339,7 +1364,7 @@ struct afb_export *afb_export_create_none_for_path(
 			int (*creator)(void*, struct afb_api_x3*),
 			void *closure)
 {
-	struct afb_export *export = create(declare_set, call_set, path, Api_Version_None);
+	struct afb_export *export = create(declare_set, call_set, path, path, Api_Version_None);
 	if (export) {
 		afb_export_logmask_set(export, logmask);
 		afb_export_update_hooks(export);
@@ -1352,14 +1377,14 @@ struct afb_export *afb_export_create_none_for_path(
 }
 
 #if defined(WITH_LEGACY_BINDING_V1)
-struct afb_export *afb_export_create_v1(
-			struct afb_apiset *declare_set,
+struct afb_export *afb_export_create_v1(struct afb_apiset *declare_set,
 			struct afb_apiset *call_set,
 			const char *apiname,
 			int (*init)(struct afb_service_x1),
-			void (*onevent)(const char*, struct json_object*))
+			void (*onevent)(const char*, struct json_object*),
+			const char* path)
 {
-	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_1);
+	struct afb_export *export = create(declare_set, call_set, apiname, path, Api_Version_1);
 	if (export) {
 		export->init.v1 = init;
 		export->on_any_event_v12 = onevent;
@@ -1372,16 +1397,16 @@ struct afb_export *afb_export_create_v1(
 }
 #endif
 
-struct afb_export *afb_export_create_v2(
-			struct afb_apiset *declare_set,
+struct afb_export *afb_export_create_v2(struct afb_apiset *declare_set,
 			struct afb_apiset *call_set,
 			const char *apiname,
 			const struct afb_binding_v2 *binding,
 			struct afb_binding_data_v2 *data,
 			int (*init)(),
-			void (*onevent)(const char*, struct json_object*))
+			void (*onevent)(const char*, struct json_object*),
+			const char* path)
 {
-	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_2);
+	struct afb_export *export = create(declare_set, call_set, apiname, path, Api_Version_2);
 	if (export) {
 		export->init.v2 = init;
 		export->on_any_event_v12 = onevent;
@@ -1398,12 +1423,15 @@ struct afb_export *afb_export_create_v2(
 struct afb_export *afb_export_create_v3(struct afb_apiset *declare_set,
 			struct afb_apiset *call_set,
 			const char *apiname,
-			struct afb_api_v3 *apiv3)
+			struct afb_api_v3 *apiv3,
+			struct afb_export* creator,
+			const char* path)
 {
-	struct afb_export *export = create(declare_set, call_set, apiname, Api_Version_3);
+	struct afb_export *export = create(declare_set, call_set, apiname, path, Api_Version_3);
 	if (export) {
 		export->unsealed = 1;
 		export->desc.v3 = apiv3;
+		export->creator = afb_export_addref(creator);
 		afb_export_logmask_set(export, logmask);
 		afb_export_update_hooks(export);
 	}
@@ -1794,7 +1822,7 @@ int afb_export_declare(struct afb_export *export,
 			ERROR("can't declare export %s to set %s, ABORTING it!",
 				export->api.apiname,
 				afb_apiset_name(export->declare_set));
-			afb_export_addref(export);
+			afb_export_unref(export);
 		}
 	}
 

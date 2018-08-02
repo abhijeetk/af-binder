@@ -179,16 +179,16 @@ struct json_object *afb_api_v3_make_description_openAPIv3(struct afb_api_v3 *api
 	return r;
 }
 
-struct afb_api_v3 *afb_api_v3_create(
-		struct afb_apiset *declare_set,
+struct afb_api_v3 *afb_api_v3_create(struct afb_apiset *declare_set,
 		struct afb_apiset *call_set,
 		const char *apiname,
 		const char *info,
 		int noconcurrency,
 		int (*preinit)(void*, struct afb_api_x3 *),
 		void *closure,
-		int copy_info
-)
+		int copy_info,
+		struct afb_export* creator,
+		const char* path)
 {
 	struct afb_api_v3 *api;
 
@@ -206,7 +206,7 @@ struct afb_api_v3 *afb_api_v3_create(
 	else
 		api->info = info;
 
-	api->export = afb_export_create_v3(declare_set, call_set, apiname, api);
+	api->export = afb_export_create_v3(declare_set, call_set, apiname, api, creator, path);
 	if (!api->export)
 		goto oom2;
 
@@ -400,6 +400,6 @@ static int init_binding(void *closure, struct afb_api_x3 *api)
 
 struct afb_api_v3 *afb_api_v3_from_binding(const struct afb_binding_v3 *desc, struct afb_apiset *declare_set, struct afb_apiset * call_set)
 {
-	return afb_api_v3_create(declare_set, call_set, desc->api, desc->info, desc->noconcurrency, init_binding, (void*)desc, 0);
+	return afb_api_v3_create(declare_set, call_set, desc->api, desc->info, desc->noconcurrency, init_binding, (void*)desc, 0, NULL, NULL);
 }
 

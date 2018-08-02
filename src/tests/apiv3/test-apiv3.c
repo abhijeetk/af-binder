@@ -151,16 +151,16 @@ START_TEST (test)
 	apiset = afb_apiset_create("test-apiv3", 1);
 	ck_assert_ptr_nonnull(apiset);
 
-	out_v3 = afb_api_v3_create(
-		apiset,
+	out_v3 = afb_api_v3_create(apiset,
 		apiset,
 		out_apiname,
 		NULL,
 		0,
 		out_preinit,
 		out_apiname,
-		0
-	);
+		0,
+		NULL,
+		NULL);
 	ck_assert_ptr_nonnull(out_v3);
 	ck_assert_ptr_nonnull(out_api);
 

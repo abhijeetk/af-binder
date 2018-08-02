@@ -39,19 +39,21 @@ extern struct afb_export *afb_export_create_none_for_path(
 				int (*creator)(void*, struct afb_api_x3*),
 				void *closure);
 
-extern struct afb_export *afb_export_create_v2(
-				struct afb_apiset *declare_set,
+extern struct afb_export *afb_export_create_v2(struct afb_apiset *declare_set,
 				struct afb_apiset *call_set,
 				const char *apiname,
 				const struct afb_binding_v2 *binding,
 				struct afb_binding_data_v2 *data,
 				int (*init)(),
-				void (*onevent)(const char*, struct json_object*));
+				void (*onevent)(const char*, struct json_object*),
+				const char* path);
 
 extern struct afb_export *afb_export_create_v3(struct afb_apiset *declare_set,
 				struct afb_apiset *call_set,
 				const char *apiname,
-				struct afb_api_v3 *api);
+				struct afb_api_v3 *api,
+				struct afb_export* creator,
+				const char* path);
 
 extern struct afb_export *afb_export_addref(struct afb_export *export);
 extern void afb_export_unref(struct afb_export *export);
@@ -118,12 +120,12 @@ extern struct afb_api_x3 *afb_export_to_api_x3(struct afb_export *export);
 struct afb_service_x1;
 struct afb_binding_interface_v1;
 
-extern struct afb_export *afb_export_create_v1(
-				struct afb_apiset *declare_set,
+extern struct afb_export *afb_export_create_v1(struct afb_apiset *declare_set,
 				struct afb_apiset *call_set,
 				const char *apiname,
 				int (*init)(struct afb_service_x1),
-				void (*onevent)(const char*, struct json_object*));
+				void (*onevent)(const char*, struct json_object*),
+				const char* path);
 
 extern struct afb_binding_v1 *afb_export_register_v1(
 				struct afb_export *export,

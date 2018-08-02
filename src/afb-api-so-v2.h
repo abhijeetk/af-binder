@@ -25,7 +25,7 @@ struct afb_xreq;
 struct json_object;
 
 extern int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set);
-extern int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set, struct afb_binding_data_v2 *data);
+extern int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set, struct afb_binding_data_v2 *data, const char *path);
 
 extern void afb_api_so_v2_process_call(const struct afb_binding_v2 *binding, struct afb_xreq *xreq);
 extern struct json_object *afb_api_so_v2_make_description_openAPIv3(const struct afb_binding_v2 *binding, const char *apiname);

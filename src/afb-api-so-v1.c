@@ -164,7 +164,7 @@ int afb_api_so_v1_add(const char *path, void *handle, struct afb_apiset *declare
 	/* allocates the description */
 	init = dlsym(handle, afb_api_so_v1_service_init);
 	onevent = dlsym(handle, afb_api_so_v1_service_event);
-	export = afb_export_create_v1(declare_set, call_set, path, init, onevent);
+	export = afb_export_create_v1(declare_set, call_set, path, init, onevent, path);
 	if (export == NULL) {
 		ERROR("binding [%s] creation failure...", path);
 		goto error;

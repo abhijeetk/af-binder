@@ -130,7 +130,13 @@ static void do_preinit(int sig, void *closure)
 	}
 };
 
-int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle, struct afb_apiset *declare_set, struct afb_apiset * call_set, struct afb_binding_data_v2 *data)
+int afb_api_so_v2_add_binding(
+		const struct afb_binding_v2 *binding,
+		void *handle,
+		struct afb_apiset *declare_set,
+		struct afb_apiset * call_set,
+		struct afb_binding_data_v2 *data,
+		const char *path)
 {
 	int rc;
 	struct afb_export *export;
@@ -143,7 +149,7 @@ int afb_api_so_v2_add_binding(const struct afb_binding_v2 *binding, void *handle
 	assert(data);
 
 	/* allocates the description */
-	export = afb_export_create_v2(declare_set, call_set, binding->api, binding, data, binding->init, binding->onevent);
+	export = afb_export_create_v2(declare_set, call_set, binding->api, binding, data, binding->init, binding->onevent, path);
 	if (!export) {
 		ERROR("out of memory");
 		goto error;
@@ -209,7 +215,7 @@ int afb_api_so_v2_add(const char *path, void *handle, struct afb_apiset *declare
 		goto error;
 	}
 
-	return afb_api_so_v2_add_binding(binding, handle, declare_set, call_set, data);
+	return afb_api_so_v2_add_binding(binding, handle, declare_set, call_set, data, path);
 
  error:
 	return -1;

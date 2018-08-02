@@ -30,16 +30,16 @@ struct afb_xreq;
 struct json_object;
 struct afb_export;
 
-extern struct afb_api_v3 *afb_api_v3_create(
-		struct afb_apiset *declare_set,
+extern struct afb_api_v3 *afb_api_v3_create(struct afb_apiset *declare_set,
 		struct afb_apiset *call_set,
 		const char *apiname,
 		const char *info,
 		int noconcurrency,
 		int (*preinit)(void*, struct afb_api_x3 *),
 		void *closure,
-		int copy_info
-);
+		int copy_info,
+		struct afb_export* creator,
+		const char* path);
 
 extern struct afb_api_v3 *afb_api_v3_from_binding(
 		const struct afb_binding_v3 *desc,
