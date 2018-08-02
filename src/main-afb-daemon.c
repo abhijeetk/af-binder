@@ -173,7 +173,7 @@ static void setup_daemon()
  +--------------------------------------------------------- */
 static void daemonize()
 {
-	int fd, daemon;
+	int fd = 0, daemon;
 	const char *output;
 	pid_t pid;
 

@@ -229,7 +229,7 @@ static char *to_text(int value, struct flags flags)
 		}
 		borrow = 0;
 		while (borrow != value) {
-			mask = 0;
+			mask = imask = 0;
 			i = flags.count;
 			while (i) {
 				v = flags.flags[--i].value;
