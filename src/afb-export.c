@@ -229,6 +229,7 @@ static struct json_object *make_settings(struct afb_export *export)
 	struct json_object *result;
 	struct json_object *obj;
 	struct afb_export *iter;
+	char *path;
 
 	/* clone the globals */
 	if (json_object_object_get_ex(configuration, "*", &obj))
@@ -242,8 +243,11 @@ static struct json_object *make_settings(struct afb_export *export)
 
 	/* add library path */
 	for (iter = export ; iter && !iter->path ; iter = iter->creator);
-	if (iter)
-		json_object_object_add(result, "binding-path", json_object_new_string(iter->path));
+	if (iter) {
+		path = realpath(iter->path, NULL);
+		json_object_object_add(result, "binding-path", json_object_new_string(path));
+		free(path);
+	}
 
 	export->settings = result;
 	return result;
