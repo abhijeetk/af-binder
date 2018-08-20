@@ -539,6 +539,11 @@ static void mute(afb_req_t request)
 {
 }
 
+static void mutebug(afb_req_t request)
+{
+	afb_req_addref(request);
+}
+
 void queue_cb(int signum, void *arg)
 {
 	afb_req_t request = arg;
@@ -741,6 +746,7 @@ static const struct afb_verb_v3 verbs[]= {
   { .verb="locale",      .callback=locale},
   { .verb="api",         .callback=api},
   { .verb="mute",        .callback=mute},
+  { .verb="mutebug",     .callback=mutebug},
   { .verb="queue",       .callback=queue},
   { .verb="settings",    .callback=settings},
   { .verb=NULL}
