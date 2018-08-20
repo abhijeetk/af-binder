@@ -39,6 +39,74 @@
 
 /******************************************************************************/
 
+/**
+ * known types
+ */
+enum type {
+	/** type internet */
+	Type_Inet,
+
+	/** type systemd */
+	Type_Systemd,
+
+	/** type Unix */
+	Type_Unix
+};
+
+/**
+ * Structure for known entries
+ */
+struct entry
+{
+	/** the known prefix */
+	const char *prefix;
+
+	/** the type of the entry */
+	unsigned type: 2;
+
+	/** should not set SO_REUSEADDR for servers */
+	unsigned noreuseaddr: 1;
+
+	/** should not call listen for servers */
+	unsigned nolisten: 1;
+};
+
+/**
+ * The known entries with the default one at the first place
+ */
+static struct entry entries[] = {
+	{
+		.prefix = "tcp:",
+		.type = Type_Inet
+	},
+	{
+		.prefix = "sd:",
+		.type = Type_Systemd,
+		.noreuseaddr = 1,
+		.nolisten = 1
+	},
+	{
+		.prefix = "unix:",
+		.type = Type_Unix
+	}
+};
+
+/**
+ * It is possible to set explicit api name instead of using the
+ * default one.
+ */
+static const char as_api[] = "?as-api=";
+
+/******************************************************************************/
+
+/**
+ * open a unix domain socket for client or server
+ *
+ * @param spec the specification of the path (prefix with @ for abstract)
+ * @param server 0 for client, server otherwise
+ *
+ * @return the file descriptor number of the socket or -1 in case of error
+ */
 static int open_unix(const char *spec, int server)
 {
 	int fd, rc, abstract;
@@ -82,21 +150,29 @@ static int open_unix(const char *spec, int server)
 	return fd;
 }
 
-static int open_inet(const char *spec, int server)
+/**
+ * open a tcp socket for client or server
+ *
+ * @param spec the specification of the host:port/...
+ * @param server 0 for client, server otherwise
+ *
+ * @return the file descriptor number of the socket or -1 in case of error
+ */
+static int open_tcp(const char *spec, int server)
 {
 	int rc, fd;
-	const char *service, *host, *api;
+	const char *service, *host, *tail;
 	struct addrinfo hint, *rai, *iai;
 
 	/* scan the uri */
-	api = strrchr(spec, '/');
-	service = strrchr(spec, ':');
-	if (api == NULL || service == NULL || api < service) {
+	tail = strchr(spec, '/');
+	service = strchr(spec, ':');
+	if (tail == NULL || service == NULL || tail < service) {
 		errno = EINVAL;
 		return -1;
 	}
 	host = strndupa(spec, service++ - spec);
-	service = strndupa(service, api - service);
+	service = strndupa(service, tail - service);
 
 	/* get addr */
 	memset(&hint, 0, sizeof hint);
@@ -130,6 +206,13 @@ static int open_inet(const char *spec, int server)
 	return -1;
 }
 
+/**
+ * open a systemd socket for server
+ *
+ * @param spec the specification of the systemd name
+ *
+ * @return the file descriptor number of the socket or -1 in case of error
+ */
 static int open_systemd(const char *spec)
 {
 #if defined(NO_SYSTEMD_ACTIVATION)
@@ -142,70 +225,55 @@ static int open_systemd(const char *spec)
 
 /******************************************************************************/
 
-enum type {
-	Type_Inet,
-	Type_Systemd,
-	Type_Unix
-};
-
-struct entry
-{
-	const char *prefix;
-	unsigned type: 2;
-	unsigned noreuseaddr: 1;
-	unsigned nolisten: 1;
-};
-
-static struct entry entries[] = { /* default at first place */
-	{
-		.prefix = "tcp:",
-		.type = Type_Inet
-	},
-	{
-		.prefix = "sd:",
-		.type = Type_Systemd,
-		.noreuseaddr = 1,
-		.nolisten = 1
-	},
-	{
-		.prefix = "unix:",
-		.type = Type_Unix
-	}
-};
-
-/******************************************************************************/
-
-/* get the entry of the uri by searching to its prefix */
+/**
+ * Get the entry of the uri by searching to its prefix
+ *
+ * @param uri the searched uri
+ * @param offset where to store the prefix length
+ *
+ * @return the found entry or the default one
+ */
 static struct entry *get_entry(const char *uri, int *offset)
 {
-	int l, search = 1, i = (int)(sizeof entries / sizeof * entries);
+	int l, i = (int)(sizeof entries / sizeof * entries);
 
-	while (search) {
+	for (;;) {
 		if (!i) {
 			l = 0;
-			search = 0;
-		} else {
-			i--;
-			l = (int)strlen(entries[i].prefix);
-			search = strncmp(uri, entries[i].prefix, l);
+			break;
 		}
+		i--;
+		l = (int)strlen(entries[i].prefix);
+		if (!strncmp(uri, entries[i].prefix, l))
+			break;
 	}
 
 	*offset = l;
 	return &entries[i];
 }
 
-static int open_any(const char *uri, int server)
+/**
+ * open socket for client or server
+ *
+ * @param uri the specification of the socket
+ * @param server 0 for client, server otherwise
+ *
+ * @return the file descriptor number of the socket or -1 in case of error
+ */
+static int open_uri(const char *uri, int server)
 {
 	int fd, rc, offset;
 	struct entry *e;
+	const char *api;
 
 	/* search for the entry */
 	e = get_entry(uri, &offset);
 
 	/* get the names */
-
 	uri += offset;
+	api = strstr(uri, as_api);
+	if (api)
+		uri = strndupa(uri, api - uri);
 
 	/* open the socket */
 	switch (e->type) {
@@ -213,10 +281,15 @@ static int open_any(const char *uri, int server)
 		fd = open_unix(uri, server);
 		break;
 	case Type_Inet:
-		fd = open_inet(uri, server);
+		fd = open_tcp(uri, server);
 		break;
 	case Type_Systemd:
-		fd = open_systemd(uri);
+		if (server)
+			fd = open_systemd(uri);
+		else {
+			errno = EINVAL;
+			fd = -1;
+		}
 		break;
 	default:
 		errno = EAFNOSUPPORT;
@@ -240,25 +313,73 @@ static int open_any(const char *uri, int server)
 	return fd;
 }
 
-struct fdev *afb_socket_open(const char *uri, int server)
+/**
+ * open socket for client or server
+ *
+ * @param uri the specification of the socket
+ * @param server 0 for client, server otherwise
+ *
+ * @return the file descriptor number of the socket or -1 in case of error
+ */
+int afb_socket_open(const char *uri, int server)
 {
-	int fd;
-	struct fdev *fdev;
-
-	fd = open_any(uri, server);
+	int fd = open_uri(uri, server);
 	if (fd < 0)
-		goto error;
-
-	fdev = afb_fdev_create(fd);
-	if (!fdev)
-		goto error2;
-
-	return fdev;
-
-error2:
-	close(fd);
-error:
-	ERROR("can't make %s socket for %s", server ? "server" : "client", uri);
-	return NULL;
+		ERROR("can't open %s socket for %s", server ? "server" : "client", uri);
+	return fd;
 }
 
+/**
+ * open socket for client or server
+ *
+ * @param uri the specification of the socket
+ * @param server 0 for client, server otherwise
+ *
+ * @return the fdev of the socket or NULL in case of error
+ */
+struct fdev *afb_socket_open_fdev(const char *uri, int server)
+{
+	struct fdev *fdev;
+	int fd;
+
+	fd = afb_socket_open(uri, server);
+	if (fd < 0)
+		fdev = NULL;
+	else {
+		fdev = afb_fdev_create(fd);
+		if (!fdev) {
+			close(fd);
+			ERROR("can't make %s socket for %s", server ? "server" : "client", uri);
+		}
+	}
+	return fdev;
+}
+
+/**
+ * Get the api name of the uri
+ *
+ * @param uri the specification of the socket
+ *
+ * @return the api name or NULL if none can be deduced
+ */
+const char *afb_socket_api(const char *uri)
+{
+	int offset;
+	const char *api;
+
+	get_entry(uri, &offset);
+	uri += offset;
+	api = strstr(uri, as_api);
+	if (api)
+		api += sizeof as_api - 1;
+	else {
+		api = strrchr(uri, '/');
+		if (api)
+			api++;
+		else
+			api = uri;
+		if (strchr(api, ':'))
+			api = NULL;
+	}
+	return api;
+}

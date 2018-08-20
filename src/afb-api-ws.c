@@ -98,7 +98,7 @@ int afb_api_ws_add_client(const char *uri, struct afb_apiset *declare_set, struc
 		goto error;
 
 	/* connect to the service */
-	apiws->fdev = afb_socket_open(apiws->uri, 0);
+	apiws->fdev = afb_socket_open_fdev(apiws->uri, 0);
 	if (!apiws->fdev)
 		goto error2;
 
@@ -184,7 +184,7 @@ static int api_ws_server_connect(struct api_ws *apiws)
 	api_ws_server_disconnect(apiws);
 
 	/* request the service object name */
-	apiws->fdev = afb_socket_open(apiws->uri, 1);
+	apiws->fdev = afb_socket_open_fdev(apiws->uri, 1);
 	if (!apiws->fdev)
 		ERROR("can't create socket %s", apiws->uri);
 	else {
