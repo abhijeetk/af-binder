@@ -279,7 +279,7 @@ struct json_object *afb_api_settings(
 
 ```C
 /**
- * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
+ * Calls the 'verb' of the 'apiname' with the arguments 'args' and 'verb' in the name of the binding 'api'.
  * The result of the call is delivered to the 'callback' function with the 'callback_closure'.
  *
  * For convenience, the function calls 'json_object_put' for 'args'.
@@ -323,7 +323,7 @@ void afb_api_call(
 
 ```C
 /**
- * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
+ * Calls the 'verb' of the 'apiname' with the arguments 'args' and 'verb' in the name of the binding 'api'.
  * 'result' will receive the response.
  *
  * For convenience, the function calls 'json_object_put' for 'args'.
@@ -880,8 +880,10 @@ of work.
 /**
  * @deprecated try to use @ref afb_api_call instead
  *
- *  * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
- * The result of the call is delivered to the 'callback' function with the 'callback_closure'.
+ * Calls the 'verb' of the 'apiname' with the arguments 'args' and 'verb'
+ * in the name of the binding.
+ * The result of the call is delivered to the 'callback' function
+ * with the 'callback_closure'.
  *
  * For convenience, the function calls 'json_object_put' for 'args'.
  * Thus, in the case where 'args' should remain available after
@@ -924,7 +926,8 @@ void afb_api_call_legacy(
 /**
  * @deprecated try to use @ref afb_api_call_sync instead
  *
- * Calls the 'verb' of the 'api' with the arguments 'args' and 'verb' in the name of the binding.
+ * Calls the 'verb' of the 'apiname' with the arguments 'args' and 'verb'
+ * in the name of the binding.
  * 'result' will receive the response.
  *
  * For convenience, the function calls 'json_object_put' for 'args'.

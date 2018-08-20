@@ -180,6 +180,16 @@ of the context and event subscriptions. The new design allows you to specify:
 See [calls](reference-v3/func-api/#calls-and-job-functions) and
 [subcalls](reference-v3/func-req/#subcall-functions).
 
+The table below list the changes to apply:
+
+| Name in Version 2      | New name of Version 3
+|:----------------------:|:----------------------------------------------------:
+| afb_req_subcall        | afb_req_subcall_legacy
+| afb_req_subcall_sync   | afb_req_subcall_sync_legacy
+| afb_service_call       | afb_service_call_legacy
+| afb_service_call_sync  | afb_service_call_sync_legacy
+| afb_req_subcall_req    | afb_req_subcall_req (same but obsolete)
+
 
 Consider use of event handlers
 ------------------------------

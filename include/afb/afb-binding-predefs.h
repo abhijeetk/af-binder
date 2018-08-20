@@ -370,6 +370,8 @@
 
 # define afb_service_call		afb_service_call_v3
 # define afb_service_call_sync		afb_service_call_sync_v3
+# define afb_service_call_legacy	afb_service_call_legacy_v3
+# define afb_service_call_sync_legacy	afb_service_call_sync_legacy_v3
 
 # define AFB_ERROR			AFB_ERROR_V3
 # define AFB_WARNING			AFB_WARNING_V3
