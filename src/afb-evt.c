@@ -537,7 +537,7 @@ void afb_evt_listener_unref(struct afb_evt_listener *listener)
 	struct afb_evt_listener **prv;
 	struct afb_evtid *evtid;
 
-	if (!__atomic_sub_fetch(&listener->refcount, 1, __ATOMIC_RELAXED)) {
+	if (listener && !__atomic_sub_fetch(&listener->refcount, 1, __ATOMIC_RELAXED)) {
 
 		/* unlink the listener */
 		pthread_rwlock_wrlock(&listeners_rwlock);

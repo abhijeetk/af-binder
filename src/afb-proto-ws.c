@@ -1022,7 +1022,7 @@ struct afb_proto_ws *afb_proto_ws_create_server(struct fdev *fdev, const struct 
 
 void afb_proto_ws_unref(struct afb_proto_ws *protows)
 {
-	if (!__atomic_sub_fetch(&protows->refcount, 1, __ATOMIC_RELAXED)) {
+	if (protows && !__atomic_sub_fetch(&protows->refcount, 1, __ATOMIC_RELAXED)) {
 		afb_proto_ws_hangup(protows);
 		afb_ws_destroy(protows->ws);
 		pthread_mutex_destroy(&protows->mutex);

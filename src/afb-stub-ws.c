@@ -50,37 +50,37 @@
 struct afb_stub_ws;
 
 
-/*
- * structure for a ws request
+/**
+ * structure for a ws request: requests on server side
  */
 struct server_req {
-	struct afb_xreq xreq;		/* the xreq */
-	struct afb_stub_ws *stubws;	/* the client of the request */
-	struct afb_proto_ws_call *call;	/* the incoming call */
+	struct afb_xreq xreq;		/**< the xreq */
+	struct afb_stub_ws *stubws;	/**< the client of the request */
+	struct afb_proto_ws_call *call;	/**< the incoming call */
 };
 
-/*
+/**
  * structure for recording events on client side
  */
 struct client_event
 {
-	struct client_event *next;
-	struct afb_event_x2 *event;
-	int id;
-	int refcount;
+	struct client_event *next;	/**< link to the next */
+	struct afb_event_x2 *event;	/**< the local event */
+	int id;				/**< the identifier */
+	int refcount;			/**< a reference count */
 };
 
-/*
- * structure for recording describe requests
+/**
+ * structure for recording describe requests on the client side
  */
 struct client_describe
 {
-	struct afb_stub_ws *stubws;
-	struct jobloop *jobloop;
-	struct json_object *result;
+	struct afb_stub_ws *stubws;	/**< the stub */
+	struct jobloop *jobloop;	/**< the jobloop to leave */
+	struct json_object *result;	/**< result */
 };
 
-/*
+/**
  * structure for jobs of describing
  */
 struct server_describe
@@ -89,7 +89,7 @@ struct server_describe
 	struct afb_proto_ws_describe *describe;
 };
 
-/*
+/**
  * structure for recording sessions
  */
 struct server_session
@@ -102,32 +102,40 @@ struct server_session
 
 struct afb_stub_ws
 {
-	/* count of references */
-	int refcount;
-
-	/* resource control */
-	pthread_mutex_t mutex;
-
 	/* protocol */
 	struct afb_proto_ws *proto;
-
-	/* listener for events (server side) */
-	struct afb_evt_listener *listener;
-
-	/* event replica (client side) */
-	struct client_event *events;
-
-	/* credentials of the client (server side) */
-	struct afb_cred *cred;
-
-	/* sessions (server side) */
-	struct server_session *sessions;
 
 	/* apiset */
 	struct afb_apiset *apiset;
 
 	/* on hangup callback */
 	void (*on_hangup)(struct afb_stub_ws *);
+
+	union {
+		/* server side */
+		struct {
+			/* listener for events */
+			struct afb_evt_listener *listener;
+
+			/* sessions */
+			struct server_session *sessions;
+
+			/* credentials of the client */
+			struct afb_cred *cred;
+		};
+
+		/* client side */
+		struct {
+			/* event replica  */
+			struct client_event *events;
+		};
+	};
+
+	/* count of references */
+	unsigned refcount;
+
+	/* type of the stub: 0=server, 1=client */
+	uint8_t is_client;
 
 	/* the api name */
 	char apiname[1];
@@ -195,6 +203,20 @@ static const struct afb_xreq_query_itf server_req_xreq_itf = {
 
 /******************* client part **********************************/
 
+/* destroy all events */
+static void client_drop_all_events(struct afb_stub_ws *stubws)
+{
+	struct client_event *ev, *nxt;
+
+	nxt = __atomic_exchange_n(&stubws->events, NULL, __ATOMIC_RELAXED);
+	while (nxt) {
+		ev = nxt;
+		nxt = ev->next;
+		afb_evt_event_x2_unref(ev->event);
+		free(ev);
+	}
+}
+
 /* search the event */
 static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint32_t eventid, const char *name)
 {
@@ -208,10 +230,15 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 }
 
 /* on call, propagate it to the ws service */
-static void client_call_cb(void * closure, struct afb_xreq *xreq)
+static void client_api_call_cb(void * closure, struct afb_xreq *xreq)
 {
 	int rc;
 	struct afb_stub_ws *stubws = closure;
+
+	if (stubws->proto == NULL) {
+		afb_xreq_reply(xreq, NULL, "disconnected", "server hung up");
+		return;
+	}
 
 	rc = afb_proto_ws_client_call(
 			stubws->proto,
@@ -238,7 +265,7 @@ static void client_send_describe_cb(int signum, void *closure, struct jobloop *j
 {
 	struct client_describe *desc = closure;
 
-	if (signum)
+	if (signum || desc->stubws->proto == NULL)
 		jobs_leave(jobloop);
 	else {
 		desc->jobloop = jobloop;
@@ -247,7 +274,7 @@ static void client_send_describe_cb(int signum, void *closure, struct jobloop *j
 }
 
 /* get the description */
-static struct json_object *client_describe_cb(void * closure)
+static struct json_object *client_api_describe_cb(void * closure)
 {
 	struct client_describe desc;
 
@@ -260,39 +287,43 @@ static struct json_object *client_describe_cb(void * closure)
 
 /******************* server part: manage events **********************************/
 
-static void server_event_add(void *closure, const char *event, int eventid)
+static void server_event_add_cb(void *closure, const char *event, int eventid)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_server_event_create(stubws->proto, event, eventid);
+	if (stubws->proto != NULL)
+		afb_proto_ws_server_event_create(stubws->proto, event, eventid);
 }
 
-static void server_event_remove(void *closure, const char *event, int eventid)
+static void server_event_remove_cb(void *closure, const char *event, int eventid)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_server_event_remove(stubws->proto, event, eventid);
+	if (stubws->proto != NULL)
+		afb_proto_ws_server_event_remove(stubws->proto, event, eventid);
 }
 
-static void server_event_push(void *closure, const char *event, int eventid, struct json_object *object)
+static void server_event_push_cb(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_server_event_push(stubws->proto, event, eventid, object);
+	if (stubws->proto != NULL)
+		afb_proto_ws_server_event_push(stubws->proto, event, eventid, object);
 	json_object_put(object);
 }
 
-static void server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object)
+static void server_event_broadcast_cb(void *closure, const char *event, int eventid, struct json_object *object)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_server_event_broadcast(stubws->proto, event, object);
+	if (stubws->proto != NULL)
+		afb_proto_ws_server_event_broadcast(stubws->proto, event, object);
 	json_object_put(object);
 }
 
 /*****************************************************/
 
-static void on_reply(void *closure, void *request, struct json_object *object, const char *error, const char *info)
+static void client_on_reply_cb(void *closure, void *request, struct json_object *object, const char *error, const char *info)
 {
 	struct afb_xreq *xreq = request;
 
@@ -300,7 +331,7 @@ static void on_reply(void *closure, void *request, struct json_object *object, c
 	afb_xreq_unhooked_unref(xreq);
 }
 
-static void on_event_create(void *closure, const char *event_name, int event_id)
+static void client_on_event_create_cb(void *closure, const char *event_name, int event_id)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct client_event *ev;
@@ -308,7 +339,7 @@ static void on_event_create(void *closure, const char *event_name, int event_id)
 	/* check conflicts */
 	ev = client_event_search(stubws, event_id, event_name);
 	if (ev != NULL) {
-		ev->refcount++;
+		__atomic_add_fetch(&ev->refcount, 1, __ATOMIC_RELAXED);
 		return;
 	}
 
@@ -328,7 +359,7 @@ static void on_event_create(void *closure, const char *event_name, int event_id)
 	ERROR("can't create event %s, out of memory", event_name);
 }
 
-static void on_event_remove(void *closure, const char *event_name, int event_id)
+static void client_on_event_remove_cb(void *closure, const char *event_name, int event_id)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct client_event *ev, **prv;
@@ -339,7 +370,8 @@ static void on_event_remove(void *closure, const char *event_name, int event_id)
 		return;
 
 	/* decrease the reference count */
-	if (--ev->refcount)
+
+	if (__atomic_sub_fetch(&ev->refcount, 1, __ATOMIC_RELAXED))
 		return;
 
 	/* unlinks the event */
@@ -353,7 +385,7 @@ static void on_event_remove(void *closure, const char *event_name, int event_id)
 	free(ev);
 }
 
-static void on_event_subscribe(void *closure, void *request, const char *event_name, int event_id)
+static void client_on_event_subscribe_cb(void *closure, void *request, const char *event_name, int event_id)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct afb_xreq *xreq = request;
@@ -368,7 +400,7 @@ static void on_event_subscribe(void *closure, void *request, const char *event_n
 		ERROR("can't subscribe: %m");
 }
 
-static void on_event_unsubscribe(void *closure, void *request, const char *event_name, int event_id)
+static void client_on_event_unsubscribe_cb(void *closure, void *request, const char *event_name, int event_id)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct afb_xreq *xreq = request;
@@ -383,7 +415,7 @@ static void on_event_unsubscribe(void *closure, void *request, const char *event
 		ERROR("can't unsubscribe: %m");
 }
 
-static void on_event_push(void *closure, const char *event_name, int event_id, struct json_object *data)
+static void client_on_event_push_cb(void *closure, const char *event_name, int event_id, struct json_object *data)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct client_event *ev;
@@ -396,14 +428,14 @@ static void on_event_push(void *closure, const char *event_name, int event_id, s
 		ERROR("unreadable push event");
 }
 
-static void on_event_broadcast(void *closure, const char *event_name, struct json_object *data)
+static void client_on_event_broadcast_cb(void *closure, const char *event_name, struct json_object *data)
 {
 	afb_evt_broadcast(event_name, data);
 }
 
 /*****************************************************/
 
-static void record_session(struct afb_stub_ws *stubws, struct afb_session *session)
+static void server_record_session(struct afb_stub_ws *stubws, struct afb_session *session)
 {
 	struct server_session *s, **prv;
 
@@ -430,22 +462,22 @@ static void record_session(struct afb_stub_ws *stubws, struct afb_session *sessi
 	}
 }
 
-static void release_all_sessions(struct afb_stub_ws *stubws)
+static void server_release_all_sessions(struct afb_stub_ws *stubws)
 {
-	struct server_session *s, *n;
+	struct server_session *ses, *nses;
 
-	s = __atomic_exchange_n(&stubws->sessions, NULL, __ATOMIC_RELAXED);
-	while(s) {
-		n = s->next;
-		afb_session_unref(s->session);
-		free(s);
-		s = n;
+	nses = __atomic_exchange_n(&stubws->sessions, NULL, __ATOMIC_RELAXED);
+	while(nses) {
+		ses = nses;
+		nses = ses->next;
+		afb_session_unref(ses->session);
+		free(ses);
 	}
 }
 
 /*****************************************************/
 
-static void on_call(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid, const char *user_creds)
+static void server_on_call_cb(void *closure, struct afb_proto_ws_call *call, const char *verb, struct json_object *args, const char *sessionid, const char *user_creds)
 {
 	struct afb_stub_ws *stubws = closure;
 	struct server_req *wreq;
@@ -465,7 +497,7 @@ static void on_call(void *closure, struct afb_proto_ws_call *call, const char *v
 	if (afb_context_connect(&wreq->xreq.context, sessionid, NULL) < 0)
 		goto unconnected;
 	wreq->xreq.context.validated = 1;
-	record_session(stubws, wreq->xreq.context.session);
+	server_record_session(stubws, wreq->xreq.context.session);
 	if (wreq->xreq.context.created)
 		afb_session_set_autoclose(wreq->xreq.context.session, 1);
 
@@ -486,7 +518,7 @@ out_of_memory:
 	afb_proto_ws_call_unref(call);
 }
 
-static void server_describe_sjob(int signum, void *closure)
+static void server_describe_cb(int signum, void *closure)
 {
 	struct json_object *obj;
 	struct server_describe *desc = closure;
@@ -502,11 +534,11 @@ static void server_describe_sjob(int signum, void *closure)
 
 static void server_describe_job(int signum, void *closure)
 {
-	server_describe_sjob(signum, closure);
+	server_describe_cb(signum, closure);
 	free(closure);
 }
 
-static void on_describe(void *closure, struct afb_proto_ws_describe *describe)
+static void server_on_describe_cb(void *closure, struct afb_proto_ws_describe *describe)
 {
 	struct server_describe *desc, sdesc;
 	struct afb_stub_ws *stubws = closure;
@@ -520,74 +552,70 @@ static void on_describe(void *closure, struct afb_proto_ws_describe *describe)
 	afb_stub_ws_addref(stubws);
 
 	/* process */
-	if (desc == &sdesc)
-		jobs_call(NULL, 0, server_describe_sjob, desc);
-	else {
-		if (jobs_queue(NULL, 0, server_describe_job, desc) < 0)
-			jobs_call(NULL, 0, server_describe_job, desc);
-	}
+	if (desc == &sdesc || jobs_queue(NULL, 0, server_describe_job, desc) < 0)
+		jobs_call(NULL, 0, server_describe_cb, desc);
 }
 
 /*****************************************************/
 
 static const struct afb_proto_ws_client_itf client_itf =
 {
-	.on_reply = on_reply,
-	.on_event_create = on_event_create,
-	.on_event_remove = on_event_remove,
-	.on_event_subscribe = on_event_subscribe,
-	.on_event_unsubscribe = on_event_unsubscribe,
-	.on_event_push = on_event_push,
-	.on_event_broadcast = on_event_broadcast,
+	.on_reply = client_on_reply_cb,
+	.on_event_create = client_on_event_create_cb,
+	.on_event_remove = client_on_event_remove_cb,
+	.on_event_subscribe = client_on_event_subscribe_cb,
+	.on_event_unsubscribe = client_on_event_unsubscribe_cb,
+	.on_event_push = client_on_event_push_cb,
+	.on_event_broadcast = client_on_event_broadcast_cb,
+};
+
+static struct afb_api_itf client_api_itf = {
+	.call = client_api_call_cb,
+	.describe = client_api_describe_cb
 };
 
 static const struct afb_proto_ws_server_itf server_itf =
 {
-	.on_call = on_call,
-	.on_describe = on_describe
-};
-
-static struct afb_api_itf ws_api_itf = {
-	.call = client_call_cb,
-	.describe = client_describe_cb
+	.on_call = server_on_call_cb,
+	.on_describe = server_on_describe_cb
 };
 
 /* the interface for events pushing */
-static const struct afb_evt_itf server_evt_itf = {
-	.broadcast = server_event_broadcast,
-	.push = server_event_push,
-	.add = server_event_add,
-	.remove = server_event_remove
+static const struct afb_evt_itf server_event_itf = {
+	.broadcast = server_event_broadcast_cb,
+	.push = server_event_push_cb,
+	.add = server_event_add_cb,
+	.remove = server_event_remove_cb
 };
 
 /*****************************************************/
 
-static void drop_all_events(struct afb_stub_ws *stubws)
+/* disconnect */
+static void disconnect(struct afb_stub_ws *stubws)
 {
-	struct client_event *ev, *nxt;
-
-	ev = stubws->events;
-	stubws->events = NULL;
-
-	while (ev) {
-		nxt = ev->next;
-		afb_evt_event_x2_unref(ev->event);
-		free(ev);
-		ev = nxt;
+	afb_proto_ws_unref(__atomic_exchange_n(&stubws->proto, NULL, __ATOMIC_RELAXED));
+	if (stubws->is_client)
+		client_drop_all_events(stubws);
+	else {
+		afb_evt_listener_unref(__atomic_exchange_n(&stubws->listener, NULL, __ATOMIC_RELAXED));
+		afb_cred_unref(__atomic_exchange_n(&stubws->cred, NULL, __ATOMIC_RELAXED));
+		server_release_all_sessions(stubws);
 	}
 }
+
 
 /* callback when receiving a hangup */
 static void on_hangup(void *closure)
 {
 	struct afb_stub_ws *stubws = closure;
 
-	afb_stub_ws_addref(stubws);
-	if (stubws->on_hangup)
-		stubws->on_hangup(stubws);
-
-	release_all_sessions(stubws);
-	afb_stub_ws_unref(stubws);
+	if (stubws->proto) {
+		afb_stub_ws_addref(stubws);
+		disconnect(stubws);
+		if (stubws->on_hangup)
+			stubws->on_hangup(stubws);
+		afb_stub_ws_unref(stubws);
+	}
 }
 
 static int enqueue_processing(void (*callback)(int signum, void* arg), void *arg)
@@ -597,7 +625,22 @@ static int enqueue_processing(void (*callback)(int signum, void* arg), void *arg
 
 /*****************************************************/
 
-static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset, int client)
+static struct afb_proto_ws *afb_stub_ws_create_proto(struct afb_stub_ws *stubws, struct fdev *fdev, uint8_t is_client)
+{
+	struct afb_proto_ws *proto;
+
+	stubws->proto = proto = is_client
+		  ? afb_proto_ws_create_client(fdev, &client_itf, stubws)
+		  : afb_proto_ws_create_server(fdev, &server_itf, stubws);
+	if (proto) {
+		afb_proto_ws_on_hangup(proto, on_hangup);
+		afb_proto_ws_set_queuing(proto, enqueue_processing);
+	}
+
+	return proto;
+}
+
+static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *apiname, struct afb_apiset *apiset, uint8_t is_client)
 {
 	struct afb_stub_ws *stubws;
 
@@ -605,17 +648,11 @@ static struct afb_stub_ws *afb_stub_ws_create(struct fdev *fdev, const char *api
 	if (stubws == NULL)
 		errno = ENOMEM;
 	else {
-		if (client)
-			stubws->proto = afb_proto_ws_create_client(fdev, &client_itf, stubws);
-		else
-			stubws->proto = afb_proto_ws_create_server(fdev, &server_itf, stubws);
-
-		if (stubws->proto) {
+		if (afb_stub_ws_create_proto(stubws, fdev, is_client)) {
+			stubws->refcount = 1;
+			stubws->is_client = is_client;
 			strcpy(stubws->apiname, apiname);
 			stubws->apiset = afb_apiset_addref(apiset);
-			stubws->refcount = 1;
-			afb_proto_ws_on_hangup(stubws->proto, on_hangup);
-			afb_proto_ws_set_queuing(stubws->proto, enqueue_processing);
 			return stubws;
 		}
 		free(stubws);
@@ -636,7 +673,7 @@ struct afb_stub_ws *afb_stub_ws_create_server(struct fdev *fdev, const char *api
 	stubws = afb_stub_ws_create(fdev, apiname, apiset, 0);
 	if (stubws) {
 		stubws->cred = afb_cred_create_for_socket(fdev_fd(fdev));
-		stubws->listener = afb_evt_listener_create(&server_evt_itf, stubws);
+		stubws->listener = afb_evt_listener_create(&server_event_itf, stubws);
 		if (stubws->listener != NULL)
 			return stubws;
 		afb_stub_ws_unref(stubws);
@@ -646,13 +683,9 @@ struct afb_stub_ws *afb_stub_ws_create_server(struct fdev *fdev, const char *api
 
 void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 {
-	if (!__atomic_sub_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED)) {
-		drop_all_events(stubws);
-		if (stubws->listener)
-			afb_evt_listener_unref(stubws->listener);
-		release_all_sessions(stubws);
-		afb_proto_ws_unref(stubws->proto);
-		afb_cred_unref(stubws->cred);
+	if (stubws && !__atomic_sub_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED)) {
+
+		disconnect(stubws);
 		afb_apiset_unref(stubws->apiset);
 		free(stubws);
 	}
@@ -677,9 +710,9 @@ struct afb_api_item afb_stub_ws_client_api(struct afb_stub_ws *stubws)
 {
 	struct afb_api_item api;
 
-	assert(!stubws->listener); /* check client */
+	assert(stubws->is_client); /* check client */
 	api.closure = stubws;
-	api.itf = &ws_api_itf;
+	api.itf = &client_api_itf;
 	api.group = NULL;
 	return api;
 }
@@ -688,4 +721,3 @@ int afb_stub_ws_client_add(struct afb_stub_ws *stubws, struct afb_apiset *apiset
 {
 	return afb_apiset_add(apiset, stubws->apiname, afb_stub_ws_client_api(stubws));
 }
-
