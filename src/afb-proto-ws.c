@@ -89,7 +89,7 @@ For the purpose of handling events the server can:
 struct client_call {
 	struct client_call *next;	/* the next call */
 	struct afb_proto_ws *protows;	/* the proto_ws */
-	void *request;
+	void *request;			/* the request closure */
 	uint32_t callid;		/* the message identifier */
 };
 
@@ -936,8 +936,18 @@ static void on_hangup(void *closure)
 {
 	struct afb_proto_ws *protows = closure;
 	struct client_describe *cd, *ncd;
+	struct client_call *call, *ncall;
 
-	ncd = protows->describes;
+	ncd = __atomic_exchange_n(&protows->describes, NULL, __ATOMIC_RELAXED);
+	ncall = __atomic_exchange_n(&protows->calls, NULL, __ATOMIC_RELAXED);
+
+	while (ncall) {
+		call= ncall;
+		ncall = call->next;
+		protows->client_itf->on_reply(protows->closure, call->request, NULL, "disconnected", "server hung up");
+		free(call);
+	}
+
 	while (ncd) {
 		cd= ncd;
 		ncd = cd->next;

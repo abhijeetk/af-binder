@@ -44,6 +44,7 @@
 
 static void wsj1_on_hangup(struct afb_wsj1 *wsj1);
 static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size);
+static struct afb_wsj1_msg *wsj1_msg_make(struct afb_wsj1 *wsj1, char *text, size_t size);
 
 static struct afb_ws_itf wsj1_itf = {
 	.on_hangup = (void*)wsj1_on_hangup,
@@ -141,6 +142,32 @@ void afb_wsj1_unref(struct afb_wsj1 *wsj1)
 
 static void wsj1_on_hangup(struct afb_wsj1 *wsj1)
 {
+	struct wsj1_call *call, *ncall;
+	struct afb_wsj1_msg *msg;
+	char *text;
+	int len;
+
+	static const char error_object_str[] = "{"
+		"\"jtype\":\"afb-reply\","
+		"\"request\":{"
+			"\"status\":\"disconnected\","
+			"\"info\":\"server hung up\"}}";
+
+	ncall = __atomic_exchange_n(&wsj1->calls, NULL, __ATOMIC_RELAXED);
+	while (ncall) {
+		call = ncall;
+		ncall = call->next;
+		len = asprintf(&text, "[%d,\"%s\",%s]", RETERR, call->id, error_object_str);
+		if (len > 0) {
+			msg = wsj1_msg_make(wsj1, text, (size_t)len);
+			if (msg != NULL) {
+				call->callback(call->closure, msg);
+				afb_wsj1_msg_unref(msg);
+			}
+		}
+		free(call);
+	}
+
 	if (wsj1->itf->on_hangup != NULL)
 		wsj1->itf->on_hangup(wsj1->closure, wsj1);
 }

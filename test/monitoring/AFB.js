@@ -67,12 +67,13 @@ var AFB_websocket;
 	var PROTO1 = "x-afb-ws-json1";
 
 	AFB_websocket = function(on_open, on_abort) {
-		var u = urlws;
+		var u = urlws, p = '?';
 		if (AFB_context.token) {
 			u = u + '?x-afb-token=' + AFB_context.token;
-			if (AFB_context.uuid)
-				u = u + '&x-afb-uuid=' + AFB_context.uuid;
+			p = '&';
 		}
+		if (AFB_context.uuid)
+			u = u + p + 'x-afb-uuid=' + AFB_context.uuid;
 		this.ws = new WebSocket(u, [ PROTO1 ]);
 		this.url = u;
 		this.pendings = {};
@@ -104,8 +105,15 @@ var AFB_websocket;
 	}
 
 	function onclose(event) {
+		var err = {
+			jtype: 'afb-reply',
+			request: {
+				status:	'disconnected',
+				info: 'server hung up'
+			}
+		};
 		for (var id in this.pendings) {
-			try { this.pendings[id][1](); } catch (x) {/*TODO?*/}
+			try { this.pendings[id][1](err); } catch (x) {/*NOTHING*/}
 		}
 		this.pendings = {};
 		this.onclose && this.onclose();

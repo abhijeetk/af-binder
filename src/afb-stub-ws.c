@@ -430,8 +430,7 @@ static void release_all_sessions(struct afb_stub_ws *stubws)
 {
 	struct server_session *s, *n;
 
-	s = stubws->sessions;
-	stubws->sessions = NULL;
+	s = __atomic_exchange_n(&stubws->sessions, NULL, __ATOMIC_RELAXED);
 	while(s) {
 		n = s->next;
 		afb_session_unref(s->session);
