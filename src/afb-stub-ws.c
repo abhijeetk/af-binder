@@ -51,16 +51,6 @@ struct afb_stub_ws;
 
 
 /*
- * structure for recording calls on client side
- */
-struct client_call {
-	struct client_call *next;	/* the next call */
-	struct afb_stub_ws *stubws;	/* the stub_ws */
-	struct afb_xreq *xreq;		/* the request handle */
-	uint32_t msgid;			/* the message identifier */
-};
-
-/*
  * structure for a ws request
  */
 struct server_req {
