@@ -31,7 +31,7 @@ extern void afb_stub_ws_unref(struct afb_stub_ws *stubws);
 
 extern void afb_stub_ws_addref(struct afb_stub_ws *stubws);
 
-extern void afb_stub_ws_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*));
+extern void afb_stub_ws_set_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*));
 
 extern const char *afb_stub_ws_name(struct afb_stub_ws *stubws);
 

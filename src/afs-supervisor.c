@@ -225,7 +225,7 @@ static int make_supervised(int fd, struct afb_cred *cred)
 	s->next = superviseds;
 	superviseds = s;
 	pthread_mutex_unlock(&mutex);
-	afb_stub_ws_on_hangup(s->stub, on_supervised_hangup);
+	afb_stub_ws_set_on_hangup(s->stub, on_supervised_hangup);
 	return 0;
 }
 

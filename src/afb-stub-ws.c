@@ -670,7 +670,7 @@ void afb_stub_ws_addref(struct afb_stub_ws *stubws)
 	__atomic_add_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED);
 }
 
-void afb_stub_ws_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*))
+void afb_stub_ws_set_on_hangup(struct afb_stub_ws *stubws, void (*on_hangup)(struct afb_stub_ws*))
 {
 	stubws->on_hangup = on_hangup;
 }

@@ -212,7 +212,7 @@ static void try_connect_supervisor()
 		ERROR("Creation of supervisor failed: %m");
 		goto end;
 	}
-	afb_stub_ws_on_hangup(supervisor, on_supervisor_hangup);
+	afb_stub_ws_set_on_hangup(supervisor, on_supervisor_hangup);
 
 	/* successful termination */
 	goto end;
