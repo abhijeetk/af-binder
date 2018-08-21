@@ -210,16 +210,20 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 /* on call, propagate it to the ws service */
 static void client_call_cb(void * closure, struct afb_xreq *xreq)
 {
+	int rc;
 	struct afb_stub_ws *stubws = closure;
 
-	afb_proto_ws_client_call(
+	rc = afb_proto_ws_client_call(
 			stubws->proto,
 			xreq->request.called_verb,
 			afb_xreq_json(xreq),
 			afb_session_uuid(xreq->context.session),
 			xreq,
 			xreq_on_behalf_cred_export(xreq));
-	afb_xreq_unhooked_addref(xreq);
+	if (rc >= 0)
+		afb_xreq_unhooked_addref(xreq);
+	else
+		afb_xreq_reply(xreq, NULL, "internal", "can't send message");
 }
 
 static void client_on_description_cb(void *closure, struct json_object *data)
