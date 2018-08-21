@@ -39,6 +39,9 @@
 #define RETERR 4
 #define EVENT 5
 
+#define WEBSOCKET_CODE_POLICY_VIOLATION  1008
+#define WEBSOCKET_CODE_INTERNAL_ERROR    1011
+
 static void wsj1_on_hangup(struct afb_wsj1 *wsj1);
 static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size);
 
@@ -62,13 +65,13 @@ struct afb_wsj1_msg
 	struct afb_wsj1_msg *next, *previous;
 	char *text;
 	int code;
-	char *id;
-	char *api;
-	char *verb;
-	char *event;
-	char *object_s;
+	const char *id;
+	const char *api;
+	const char *verb;
+	const char *event;
+	const char *object_s;
 	size_t object_s_length;
-	char *token;
+	const char *token;
 	struct json_object *object_j;
 };
 
@@ -261,17 +264,19 @@ static char *wsj1_msg_parse_string(char *text, size_t offset, size_t size)
 	return wsj1_msg_parse_extract(text, offset, size);
 }
 
-static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
+static struct afb_wsj1_msg *wsj1_msg_make(struct afb_wsj1 *wsj1, char *text, size_t size)
 {
 	size_t items[10][2];
 	int n;
 	struct afb_wsj1_msg *msg;
-	struct wsj1_call *call = NULL;
+	char *verb;
 
 	/* allocate */
 	msg = calloc(1, sizeof *msg);
-	if (msg == NULL)
+	if (msg == NULL) {
+		errno = ENOMEM;
 		goto alloc_error;
+	}
 
 	/* scan */
 	n = wsj1_msg_scan(text, items);
@@ -294,9 +299,11 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 		if (n != 4 && n != 5) goto bad_header;
 		msg->id = wsj1_msg_parse_string(text, items[1][0], items[1][1]);
 		msg->api = wsj1_msg_parse_string(text, items[2][0], items[2][1]);
-		msg->verb = strchr(msg->api, '/');
-		if (msg->verb == NULL) goto bad_header;
-		*msg->verb++ = 0;
+		verb = strchr(msg->api, '/');
+		if (verb == NULL) goto bad_header;
+		*verb++ = 0;
+		if (!*verb || *verb == '/') goto bad_header;
+		msg->verb = verb;
 		msg->object_s = wsj1_msg_parse_extract(text, items[3][0], items[3][1]);
 		msg->object_s_length = items[3][1];
 		msg->token = n == 5 ? wsj1_msg_parse_string(text, items[4][0], items[4][1]) : NULL;
@@ -305,8 +312,6 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 	case RETERR:
 		if (n != 3 && n != 4) goto bad_header;
 		msg->id = wsj1_msg_parse_string(text, items[1][0], items[1][1]);
-		call = wsj1_call_search(wsj1, msg->id, 1);
-		if (call == NULL) goto bad_header;
 		msg->object_s = wsj1_msg_parse_extract(text, items[2][0], items[2][1]);
 		msg->object_s_length = items[2][1];
 		msg->token = n == 5 ? wsj1_msg_parse_string(text, items[3][0], items[3][1]) : NULL;
@@ -332,14 +337,43 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 	wsj1->messages = msg;
 	pthread_mutex_unlock(&wsj1->mutex);
 
-	/* incoke the handler */
+	return msg;
+
+bad_header:
+	errno = EBADMSG;
+	free(msg);
+
+alloc_error:
+	free(text);
+	return NULL;
+}
+
+static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
+{
+	struct wsj1_call *call;
+	struct afb_wsj1_msg *msg;
+
+	/* allocate */
+	msg = wsj1_msg_make(wsj1, text, size);
+	if (msg == NULL) {
+		afb_ws_close(wsj1->ws, errno == EBADMSG
+			? WEBSOCKET_CODE_POLICY_VIOLATION
+			: WEBSOCKET_CODE_INTERNAL_ERROR, NULL);
+		return;
+	}
+
+	/* handle the message */
 	switch (msg->code) {
 	case CALL:
 		wsj1->itf->on_call(wsj1->closure, msg->api, msg->verb, msg);
 		break;
 	case RETOK:
 	case RETERR:
-		call->callback(call->closure, msg);
+		call = wsj1_call_search(wsj1, msg->id, 1);
+		if (call == NULL)
+			afb_ws_close(wsj1->ws, WEBSOCKET_CODE_POLICY_VIOLATION, NULL);
+		else
+			call->callback(call->closure, msg);
 		free(call);
 		break;
 	case EVENT:
@@ -348,13 +382,6 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 		break;
 	}
 	afb_wsj1_msg_unref(msg);
-	return;
-
-bad_header:
-	free(msg);
-alloc_error:
-	free(text);
-	afb_ws_close(wsj1->ws, 1008, NULL);
 }
 
 void afb_wsj1_msg_addref(struct afb_wsj1_msg *msg)
