@@ -39,3 +39,5 @@ extern struct afb_api_item afb_stub_ws_client_api(struct afb_stub_ws *stubws);
 
 extern int afb_stub_ws_client_add(struct afb_stub_ws *stubws, struct afb_apiset *apiset);
 
+extern void afb_stub_ws_client_robustify(struct afb_stub_ws *stubws, struct fdev *(*reopen)(void*), void *closure, void (*release)(void*));
+

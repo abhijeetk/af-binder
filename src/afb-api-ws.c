@@ -50,6 +50,12 @@ struct api_ws_server
 /***       C L I E N T                                                      ***/
 /******************************************************************************/
 
+static struct fdev *reopen_client(void *closure)
+{
+	const char *uri = closure;
+	return afb_socket_open_fdev(uri, 0);
+}
+
 int afb_api_ws_add_client(const char *uri, struct afb_apiset *declare_set, struct afb_apiset *call_set, int strong)
 {
 	struct afb_stub_ws *stubws;
@@ -73,8 +79,16 @@ int afb_api_ws_add_client(const char *uri, struct afb_apiset *declare_set, struc
 			ERROR("can't setup client ws service to %s", uri);
 			fdev_unref(fdev);
 		} else {
-			if (afb_stub_ws_client_add(stubws, declare_set) >= 0)
+			if (afb_stub_ws_client_add(stubws, declare_set) >= 0) {
+#if 1
+				/* it is asserted here that uri is never released */
+				afb_stub_ws_client_robustify(stubws, reopen_client, (void*)uri, NULL);
+#else
+				/* it is asserted here that uri is released, so use a copy */
+				afb_stub_ws_client_robustify(stubws, reopen_client, strdup(uri), free);
+#endif
 				return 0;
+			}
 			ERROR("can't add the client to the apiset for service %s", uri);
 			afb_stub_ws_unref(stubws);
 		}

@@ -128,6 +128,13 @@ struct afb_stub_ws
 		struct {
 			/* event replica  */
 			struct client_event *events;
+
+			/* robustify */
+			struct {
+				struct fdev *(*reopen)(void*);
+				void *closure;
+				void (*release)(void*);
+			} robust;
 		};
 	};
 
@@ -140,6 +147,8 @@ struct afb_stub_ws
 	/* the api name */
 	char apiname[1];
 };
+
+static struct afb_proto_ws *afb_stub_ws_create_proto(struct afb_stub_ws *stubws, struct fdev *fdev, uint8_t server);
 
 /******************* ws request part for server *****************/
 
@@ -229,19 +238,35 @@ static struct client_event *client_event_search(struct afb_stub_ws *stubws, uint
 	return ev;
 }
 
+static struct afb_proto_ws *client_get_proto(struct afb_stub_ws *stubws)
+{
+	struct fdev *fdev;
+	struct afb_proto_ws *proto;
+
+	proto = stubws->proto;
+	if (proto == NULL && stubws->robust.reopen) {
+		fdev = stubws->robust.reopen(stubws->robust.closure);
+		if (fdev != NULL)
+			proto = afb_stub_ws_create_proto(stubws, fdev, 0);
+	}
+	return proto;
+}
+
 /* on call, propagate it to the ws service */
 static void client_api_call_cb(void * closure, struct afb_xreq *xreq)
 {
 	int rc;
 	struct afb_stub_ws *stubws = closure;
+	struct afb_proto_ws *proto;
 
-	if (stubws->proto == NULL) {
+	proto = client_get_proto(stubws);
+	if (proto == NULL) {
 		afb_xreq_reply(xreq, NULL, "disconnected", "server hung up");
 		return;
 	}
 
 	rc = afb_proto_ws_client_call(
-			stubws->proto,
+			proto,
 			xreq->request.called_verb,
 			afb_xreq_json(xreq),
 			afb_session_uuid(xreq->context.session),
@@ -264,12 +289,14 @@ static void client_on_description_cb(void *closure, struct json_object *data)
 static void client_send_describe_cb(int signum, void *closure, struct jobloop *jobloop)
 {
 	struct client_describe *desc = closure;
+	struct afb_proto_ws *proto;
 
-	if (signum || desc->stubws->proto == NULL)
+	proto = client_get_proto(desc->stubws);
+	if (signum || proto == NULL)
 		jobs_leave(jobloop);
 	else {
 		desc->jobloop = jobloop;
-		afb_proto_ws_client_describe(desc->stubws->proto, client_on_description_cb, desc);
+		afb_proto_ws_client_describe(proto, client_on_description_cb, desc);
 	}
 }
 
@@ -685,6 +712,12 @@ void afb_stub_ws_unref(struct afb_stub_ws *stubws)
 {
 	if (stubws && !__atomic_sub_fetch(&stubws->refcount, 1, __ATOMIC_RELAXED)) {
 
+		if (stubws->is_client) {
+			stubws->robust.reopen = NULL;
+			if (stubws->robust.release)
+				stubws->robust.release(stubws->robust.closure);
+		}
+
 		disconnect(stubws);
 		afb_apiset_unref(stubws->apiset);
 		free(stubws);
@@ -713,11 +746,23 @@ struct afb_api_item afb_stub_ws_client_api(struct afb_stub_ws *stubws)
 	assert(stubws->is_client); /* check client */
 	api.closure = stubws;
 	api.itf = &client_api_itf;
-	api.group = NULL;
+	api.group = stubws; /* serialize for reconnections */
 	return api;
 }
 
 int afb_stub_ws_client_add(struct afb_stub_ws *stubws, struct afb_apiset *apiset)
 {
 	return afb_apiset_add(apiset, stubws->apiname, afb_stub_ws_client_api(stubws));
+}
+
+void afb_stub_ws_client_robustify(struct afb_stub_ws *stubws, struct fdev *(*reopen)(void*), void *closure, void (*release)(void*))
+{
+	assert(stubws->is_client); /* check client */
+
+	if (stubws->robust.release)
+		stubws->robust.release(stubws->robust.closure);
+
+	stubws->robust.reopen = reopen;
+	stubws->robust.closure = closure;
+	stubws->robust.release = release;
 }
