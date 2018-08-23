@@ -313,7 +313,8 @@ static void evloop_run(int signum, void *arg)
 		rc = sd_event_prepare(se);
 		if (rc < 0) {
 			errno = -rc;
-			ERROR("sd_event_prepare returned an error (state: %d): %m", sd_event_get_state(se));
+			CRITICAL("sd_event_prepare returned an error (state: %d): %m", sd_event_get_state(se));
+			abort();
 		} else {
 			if (rc == 0) {
 				rc = sd_event_wait(se, (uint64_t)(int64_t)-1);
