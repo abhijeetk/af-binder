@@ -24,6 +24,8 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -73,6 +75,44 @@ struct afb_apiset *main_apiset;
 struct json_object *main_config;
 
 static pid_t childpid;
+
+/**
+ * Tiny helper around putenv: add the variable name=value
+ *
+ * @param name name of the variable to set
+ * @param value value to set to the variable
+ *
+ * @return 0 in case of success or -1 in case of error (with errno set to ENOMEM)
+ */
+static int addenv(const char *name, const char *value)
+{
+	char *head, *middle;
+
+	head = malloc(2 + strlen(name) + strlen(value));
+	if (head == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
+	middle = stpcpy(head, name);
+	middle[0] = '=';
+	strcpy(&middle[1], value);
+	return putenv(head);
+}
+
+/**
+ * Tiny helper around addenv that export the real path
+ *
+ * @param name name of the variable to set
+ * @param path the path value to export to the variable
+ *
+ * @return 0 in case of success or -1 in case of error (with errno set to ENOMEM)
+ */
+static int addenv_realpath(const char *name, const char *path)
+{
+	char buffer[PATH_MAX];
+	char *p = realpath(path, buffer);
+	return p ? addenv(name, p) : -1;
+}
 
 /*----------------------------------------------------------
  |   helpers for handling list of arguments
@@ -669,7 +709,12 @@ static void start(int signum, void *arg)
 		goto error;
 	}
 	if (afb_common_rootdir_set(rootdir) < 0) {
-		ERROR("failed to set common root directory");
+		ERROR("failed to set common root directory %s", rootdir);
+		goto error;
+	}
+	if (addenv_realpath("AFB_WORKDIR", "."     /* resolved by realpath */)
+	 || addenv_realpath("AFB_ROOTDIR", rootdir /* relative to current directory */)) {
+		ERROR("can't set environment");
 		goto error;
 	}
 

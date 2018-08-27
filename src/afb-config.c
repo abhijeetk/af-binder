@@ -170,8 +170,8 @@ static struct option_desc optdefs[] = {
 	{SET_CACHE_TIMEOUT,   1, "cache-eol",   "Client cache end of live [default " d2s(DEFAULT_CACHE_TIMEOUT) "]"},
 
 	{SET_WORK_DIR,        1, "workdir",     "Set the working directory [default: $PWD or current working directory]"},
-	{SET_UPLOAD_DIR,      1, "uploaddir",   "Directory for uploading files [default: workdir]"},
-	{SET_ROOT_DIR,        1, "rootdir",     "Root Directory of the application [default: workdir]"},
+	{SET_UPLOAD_DIR,      1, "uploaddir",   "Directory for uploading files [default: workdir] relative to workdir"},
+	{SET_ROOT_DIR,        1, "rootdir",     "Root Directory of the application [default: workdir] relative to workdir"},
 
 	{ADD_LDPATH,          1, "ldpaths",     "Load bindings from dir1:dir2:... [default = " BINDING_INSTALL_DIR "]"},
 	{ADD_BINDING,         1, "binding",     "Load the binding of path"},
