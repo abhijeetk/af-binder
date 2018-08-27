@@ -216,7 +216,7 @@ static char *to_text(int value, struct flags flags)
 {
 	int borrow = 0, mask = 0, i, v, imask;
 	size_t s = 0;
-	char *result;
+	char *result = NULL;
 
 	if (!value)
 		return strdup("none");
