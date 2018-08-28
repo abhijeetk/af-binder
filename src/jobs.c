@@ -49,13 +49,6 @@
 #include "fdev-epoll.h"
 #endif
 
-#if 0
-#define _alert_ "do you really want to remove signal monitoring?"
-#define sig_monitor_init_timeouts()  ((void)0)
-#define sig_monitor_clean_timeouts() ((void)0)
-#define sig_monitor(to,cb,arg)       (cb(0,arg))
-#endif
-
 #define EVENT_TIMEOUT_TOP  	((uint64_t)-1)
 #define EVENT_TIMEOUT_CHILD	((uint64_t)10000)
 
@@ -872,12 +865,6 @@ int jobs_start(int allowed_count, int start_count, int waiter_count, void (*star
 	if (current_thread || allowed) {
 		ERROR("thread already started");
 		errno = EINVAL;
-		goto error;
-	}
-
-	/* start */
-	if (sig_monitor_init() < 0) {
-		ERROR("failed to initialise signal handlers");
 		goto error;
 	}
 

@@ -17,9 +17,11 @@
 
 #pragma once
 
-extern int sig_monitor_init();
+extern int sig_monitor_init(int enable);
 extern void sig_monitor_clean_timeouts();
 extern int sig_monitor_init_timeouts();
+extern void sig_monitor_disable();
+extern int sig_monitor_enable();
 
 extern void sig_monitor(int timeout, void (*function)(int sig, void*), void *arg);
 

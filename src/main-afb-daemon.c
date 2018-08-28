@@ -50,7 +50,6 @@
 #include "afb-hsrv.h"
 #include "afb-hreq.h"
 #include "afb-xreq.h"
-#include "jobs.h"
 #include "afb-session.h"
 #include "verbose.h"
 #include "afb-common.h"
@@ -59,11 +58,14 @@
 #include "afb-hook.h"
 #include "afb-hook-flags.h"
 #include "afb-debug.h"
-#include "process-name.h"
-#include "wrap-json.h"
 #if defined(WITH_SUPERVISION)
 #   include "afb-supervision.h"
 #endif
+
+#include "process-name.h"
+#include "wrap-json.h"
+#include "jobs.h"
+#include "sig-monitor.h"
 
 /*
    if SELF_PGROUP == 0 the launched command is the group leader
@@ -823,15 +825,23 @@ error:
 
 int main(int argc, char *argv[])
 {
-	struct json_object *name;
+	struct json_object *obj;
 	afb_debug("main-entry");
 
 	// ------------- Build session handler & init config -------
 	main_config = afb_config_parse_arguments(argc, argv);
-	if (json_object_object_get_ex(main_config, "name", &name)) {
-		verbose_set_name(json_object_get_string(name), 0);
-		process_name_set_name(json_object_get_string(name));
-		process_name_replace_cmdline(argv, json_object_get_string(name));
+	if (sig_monitor_init(
+		!json_object_object_get_ex(main_config, "trap-faults", &obj)
+			|| json_object_get_boolean(obj)) < 0) {
+		ERROR("failed to initialise signal handlers");
+		return 1;
+	}
+
+
+	if (json_object_object_get_ex(main_config, "name", &obj)) {
+		verbose_set_name(json_object_get_string(obj), 0);
+		process_name_set_name(json_object_get_string(obj));
+		process_name_replace_cmdline(argv, json_object_get_string(obj));
 	}
 	afb_debug("main-args");
 

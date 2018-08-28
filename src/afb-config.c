@@ -108,11 +108,12 @@
 #define SET_TRACESVC        26
 #endif
 
+#define SET_TRAP_FAULTS      27
+
 #if defined(WITH_DBUS_TRANSPARENCY)
 #   define ADD_DBUS_CLIENT  30
 #   define ADD_DBUS_SERVICE 31
 #endif
-
 
 #define ADD_AUTO_API       'A'
 #define ADD_BINDING        'b'
@@ -219,6 +220,8 @@ static struct option_desc optdefs[] = {
 
 	{ADD_SET,             1, "set",         "Set parameters ([API]/[KEY]:JSON or {\"API\":{\"KEY\":JSON}}" },
 	{SET_OUTPUT,          1, "output",      "Redirect stdout and stderr to output file (when --daemon)"},
+
+	{SET_TRAP_FAULTS,     1, "trap-faults", "Trap faults: on, off, yes, no, true, false, 1, 0 (default: true)"},
 
 	{0, 0, NULL, NULL}
 /* *INDENT-ON* */
@@ -453,6 +456,29 @@ static struct json_object *to_jbool(int value)
 * arguments helpers
 ***********************************/
 
+static int string_to_bool(const char *value)
+{
+	static const char true_names[] = "1\0yes\0true\0on";
+	static const char false_names[] = "0\0no\0false\0off";
+	size_t pos;
+
+	pos = 0;
+	while (pos < sizeof true_names)
+		if (strcasecmp(value, &true_names[pos]))
+			pos += 1 + strlen(&true_names[pos]);
+		else
+			return 1;
+
+	pos = 0;
+	while (pos < sizeof false_names)
+		if (strcasecmp(value, &false_names[pos]))
+			pos += 1 + strlen(&false_names[pos]);
+		else
+			return 0;
+
+	return -1;
+}
+
 static void noarg(int optid)
 {
 	if (optarg) {
@@ -469,6 +495,17 @@ static const char *get_arg(int optid)
 		exit(1);
 	}
 	return optarg;
+}
+
+static int get_arg_bool(int optid)
+{
+	int value = string_to_bool(get_arg(optid));
+	if (value < 0) {
+		ERROR("option [--%s] needs a boolean value: yes/no, true/false, on/off, 1/0",
+				name_of_optid(optid));
+		exit(1);
+	}
+	return value;
 }
 
 static void config_del(struct json_object *config, int optid)
@@ -789,6 +826,11 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 			config_set_bool(config, SET_DAEMON, optid != SET_FOREGROUND);
 			break;
 
+		case SET_TRAP_FAULTS:
+			config_set_bool(config, optid, get_arg_bool(optid));
+			break;
+
+
 		case SET_TRACEREQ:
 			config_set_optenum(config, optid, afb_hook_flags_xreq_from_text);
 			break;
@@ -941,6 +983,20 @@ static void on_environment_enum(struct json_object *config, int optid, const cha
 	}
 }
 
+static void on_environment_bool(struct json_object *config, int optid, const char *name)
+{
+	char *value = getenv(name);
+	int asbool;
+
+	if (value) {
+		asbool = string_to_bool(value);
+		if (asbool < 0)
+			WARNING("Unknown value %s for environment variable %s, ignored", value, name);
+		else
+			config_set_bool(config, optid, asbool);
+	}
+}
+
 static void parse_environment(struct json_object *config)
 {
 	on_environment_enum(config, SET_TRACEREQ, "AFB_TRACEREQ", afb_hook_flags_xreq_from_text);
@@ -954,6 +1010,7 @@ static void parse_environment(struct json_object *config)
 	on_environment_enum(config, SET_TRACEDITF, "AFB_TRACEDITF", afb_hook_flags_legacy_ditf_from_text);
 	on_environment_enum(config, SET_TRACESVC, "AFB_TRACESVC", afb_hook_flags_legacy_svc_from_text);
 #endif
+	on_environment_bool(config, SET_TRAP_FAULTS, "AFB_TRAP_FAULTS");
 }
 
 struct json_object *afb_config_parse_arguments(int argc, char **argv)
