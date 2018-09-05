@@ -217,7 +217,7 @@ static int open_systemd(const char *spec)
 {
 #if defined(NO_SYSTEMD_ACTIVATION)
 	errno = EAFNOSUPPORT;
-	fd = -1;
+	return -1;
 #else
 	return afb_systemd_fds_for(spec);
 #endif
