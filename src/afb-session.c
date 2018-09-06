@@ -26,6 +26,7 @@
 #include <string.h>
 #include <uuid/uuid.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "afb-session.h"
 #include "afb-hook.h"
@@ -106,7 +107,56 @@ static inline time_t time_now()
 static void new_uuid(char uuid[SIZEUUID])
 {
 	uuid_t newuuid;
+
+#if defined(USE_UUID_GENERATE)
 	uuid_generate(newuuid);
+#else
+	struct timespec ts;
+	static uint16_t pid;
+	static uint16_t counter;
+	static char state[32];
+	static struct random_data rdata;
+
+	int32_t x;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	if (pid == 0) {
+		pid = (uint16_t)getpid();
+		counter = (uint16_t)(ts.tv_nsec >> 8);
+		rdata.state = NULL;
+		initstate_r((((unsigned)pid) << 16) + ((unsigned)counter),
+					state, sizeof state, &rdata);
+	}
+	ts.tv_nsec ^= (long)ts.tv_sec;
+	if (++counter == 0)
+		counter = 1;
+
+	newuuid[0] = (char)(ts.tv_nsec >> 24);
+	newuuid[1] = (char)(ts.tv_nsec >> 16);
+	newuuid[2] = (char)(ts.tv_nsec >> 8);
+	newuuid[3] = (char)(ts.tv_nsec);
+
+	newuuid[4] = (char)(pid >> 8);
+	newuuid[5] = (char)(pid);
+
+	random_r(&rdata, &x);
+	newuuid[6] = (char)(((x >> 16) & 0x0f) | 0x40); /* pseudo-random version */
+	newuuid[7] = (char)(x >> 8);
+
+	random_r(&rdata, &x);
+	newuuid[8] = (char)(((x >> 16) & 0x3f) | 0x80); /* variant RFC4122 */
+	newuuid[9] = (char)(x >> 8);
+
+	random_r(&rdata, &x);
+	newuuid[10] = (char)(x >> 16);
+	newuuid[11] = (char)(x >> 8);
+
+	random_r(&rdata, &x);
+	newuuid[12] = (char)(x >> 16);
+	newuuid[13] = (char)(x >> 8);
+
+	newuuid[14] = (char)(counter >> 8);
+	newuuid[15] = (char)(counter);
+#endif
 	uuid_unparse_lower(newuuid, uuid);
 }
 
