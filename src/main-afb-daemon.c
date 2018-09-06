@@ -761,15 +761,13 @@ static void start(int signum, void *arg)
 	if (traceglob)
 		afb_hook_create_global(afb_hook_flags_global_from_text(traceglob), NULL, NULL);
 
-	/* load bindings */
+	/* load bindings and apis */
 	afb_debug("start-load");
 	apiset_start_list("binding", afb_api_so_add_binding, "the binding");
 	apiset_start_list("ldpaths", afb_api_so_add_pathset_fails, "the binding path set");
 	apiset_start_list("weak-ldpaths", afb_api_so_add_pathset_nofails, "the weak binding path set");
 	apiset_start_list("auto-api", afb_autoset_add_any, "the automatic api path set");
-	apiset_start_list("ws-server", afb_api_ws_add_server, "the afb-websocket service");
 #if defined(WITH_DBUS_TRANSPARENCY)
-	apiset_start_list("dbus-server", afb_api_dbus_add_server, "the afb-dbus service");
 	apiset_start_list("dbus-client", afb_api_dbus_add_client, "the afb-dbus client");
 #endif
 	apiset_start_list("ws-client", afb_api_ws_add_client_weak, "the afb-websocket client");
@@ -783,6 +781,12 @@ static void start(int signum, void *arg)
 #endif
 	if (afb_apiset_start_all_services(main_apiset) < 0)
 		goto error;
+
+	/* export started apis */
+	apiset_start_list("ws-server", afb_api_ws_add_server, "the afb-websocket service");
+#if defined(WITH_DBUS_TRANSPARENCY)
+	apiset_start_list("dbus-server", afb_api_dbus_add_server, "the afb-dbus service");
+#endif
 
 	/* start the HTTP server */
 	afb_debug("start-http");

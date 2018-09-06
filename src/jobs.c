@@ -160,7 +160,7 @@ static struct job *job_create(
 		job = malloc(sizeof *job);
 		pthread_mutex_lock(&mutex);
 		if (!job) {
-			errno = -ENOMEM;
+			errno = ENOMEM;
 			goto end;
 		}
 	}
