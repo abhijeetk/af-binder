@@ -788,11 +788,11 @@ static int start_api(struct api_desc *api)
 	api->status = EBUSY;
 	rc = start_array_classes(&api->require.classes);
 	if (rc < 0)
-		ERROR("Can start classes needed by api %s", api->name);
+		ERROR("Cannot start classes needed by api %s", api->name);
 	else {
 		rc = start_array_depends(&api->require.apis);
 		if (rc < 0)
-			ERROR("Can start apis needed by api %s", api->name);
+			ERROR("Cannot start apis needed by api %s", api->name);
 		else if (api->api.itf->service_start) {
 			rc = api->api.itf->service_start(api->api.closure);
 			if (rc < 0)
