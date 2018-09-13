@@ -366,9 +366,11 @@ const char *afb_socket_api(const char *uri)
 {
 	int offset;
 	const char *api;
+	struct entry *entry;
 
-	get_entry(uri, &offset);
+	entry = get_entry(uri, &offset);
 	uri += offset;
+	uri += (entry->type == Type_Unix && *uri == '@');
 	api = strstr(uri, as_api);
 	if (api)
 		api += sizeof as_api - 1;
