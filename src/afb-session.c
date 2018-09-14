@@ -574,7 +574,7 @@ int afb_session_check_token (struct afb_session *session, const char *token)
 {
 	int r;
 
-	session_unlock(session);
+	session_lock(session);
 	r = !session->closed
 	  && session->expiration >= NOW
 	  && !(session->token[0] && strcmp (token, session->token));
@@ -585,7 +585,7 @@ int afb_session_check_token (struct afb_session *session, const char *token)
 /* generate a new token and update client context */
 void afb_session_new_token (struct afb_session *session)
 {
-	session_unlock(session);
+	session_lock(session);
 	new_uuid(session->token);
 	session_update_expiration(session, NOW);
 	afb_hook_session_renew(session);
