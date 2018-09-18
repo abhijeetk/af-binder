@@ -352,6 +352,11 @@ static int require_api_cb(struct afb_api_x3 *closure, const char *name, int init
 	int rc, rc2;
 	char *iter, *end, save;
 
+	/* emit a warning about unexpected require in preinit */
+	if (export->state == Api_State_Pre_Init)
+		WARNING("[API %s] requiring apis in pre-init may lead to unexpected result (requires%s: %s)",
+			export->api.apiname, initialized ? " initialized" : "", name);
+
 	/* scan the names in a local copy */
 	rc = 0;
 	iter = strdupa(name);
