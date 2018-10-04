@@ -109,9 +109,7 @@ EOF
 %{_libdir}/libafbwsc.so
 %dir %{_includedir}
 %dir %{_includedir}/afb
-%{_includedir}/afb/*.h
-%{_includedir}/afb/*.hpp
-%{_includedir}/afb/afb-binding
+%{_includedir}/afb/*
 %dir %{_libdir}/pkgconfig
 %{_libdir}/pkgconfig/*.pc
 
