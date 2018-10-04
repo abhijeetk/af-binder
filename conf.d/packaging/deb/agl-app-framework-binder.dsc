@@ -8,7 +8,7 @@ Standards-Version: 3.8.2
 Homepage: https://gerrit.automotivelinux.org/gerrit/src/app-framework-binder
 Build-Depends: debhelper (>= 5), pkg-config,	
  dpkg-dev,
- libmicrohttpd-dev (>= 0.9.54),
+ libmicrohttpd-dev (>= 0.9.55),
  cmake,
  libsystemd-dev (>= 222),
  libssl-dev,
