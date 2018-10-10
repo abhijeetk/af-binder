@@ -48,6 +48,7 @@
 
 #include <json-c/json.h>
 
+#define T(x)   ((x) && *(x))
 #define oom(x) do{if(!(x)){fprintf(stderr,"out of memory\n");exit(1);}}while(0)
 
 /**
@@ -73,6 +74,9 @@ const char *api = NULL;
 const char *scope = NULL;
 const char *prefix = NULL;
 const char *postfix = NULL;
+const char *provideclass = NULL;
+const char *requireclass = NULL;
+const char *requireapi = NULL;
 char *capi = NULL;
 int priv = -1;
 int noconc = -1;
@@ -535,9 +539,11 @@ void print_verb(const char *name)
 
 void print_declare_verb(const char *name, struct json_object *obj)
 {
-	printf("%s void ", scope);
+	if (T(scope))
+		printf("%s ", scope);
+	printf("void ");
 	print_verb(name);
-	printf("(afb_req req);\n");
+	printf("(afb_req_t req);\n");
 }
 
 void print_struct_verb(const char *name, struct json_object *obj)
@@ -561,15 +567,20 @@ void print_struct_verb(const char *name, struct json_object *obj)
 		",\n"
 		"        .auth = %s,\n"
 		"        .info = %s,\n"
-		"        .session = "
 		, p && decl_perm(p) ? json_object_get_string(decl_perm(p)) : "NULL"
 		, info ? make_info(info, 0) : "NULL"
+	);
+	if (version == 3)
+		printf(
+			"        .vcbdata = NULL,\n"
+		);
+	printf(
+		"        .session = "
 	);
 	print_session(p);
 	if (version == 3)
 		printf(
 			",\n"
-			"        .vcbdata = NULL,\n"
 			"        .glob = 0"
 		);
 	printf(
@@ -666,6 +677,9 @@ void process(char *filename)
 	getvar(&scope, "#/info/x-binding-c-generator/scope", "static");
 	getvar(&prefix, "#/info/x-binding-c-generator/prefix", "afb_verb_");
 	getvar(&postfix, "#/info/x-binding-c-generator/postfix", "_cb");
+	getvar(&provideclass, "#/info/x-binding-c-generator/provide-class", NULL);
+	getvar(&requireclass, "#/info/x-binding-c-generator/require-class", NULL);
+	getvar(&requireapi, "#/info/x-binding-c-generator/require-api", NULL);
 	getvarbool(&priv, "#/info/x-binding-c-generator/private", 0);
 	getvarbool(&noconc, "#/info/x-binding-c-generator/noconcurrency", 0);
 	getvar(&api, "#/info/title", "?");
@@ -697,12 +711,17 @@ void process(char *filename)
 		"        .callback = NULL,\n"
 		"        .auth = NULL,\n"
 		"        .info = NULL,\n"
+	);
+	if (version == 3)
+		printf(
+			"        .vcbdata = NULL,\n"
+		);
+	printf(
 		"        .session = 0"
 	);
 	if (version == 3)
 		printf(
 			",\n"
-			"        .vcbdata = NULL,\n"
 			"        .glob = 0"
 		);
 	printf(
@@ -710,6 +729,24 @@ void process(char *filename)
 		"	}\n"
 		"};\n"
 	);
+
+	if (T(preinit) || T(init) || T(onevent)) {
+		printf("\n");
+		if (T(preinit)) {
+			if (T(scope)) printf("%s ", scope);
+			printf("int %s(%s);\n", preinit, version==3 ? "afb_api_t api" : "");
+		}
+		if (T(init)) {
+			if (T(scope)) printf("%s ", scope);
+			printf("int %s(%s);\n", init, version==3 ? "afb_api_t api" : "");
+		}
+		if (T(onevent)) {
+			if (T(scope)) printf("%s ", scope);
+			printf("void %s(%sconst char *event, struct json_object *object);\n",
+					onevent, version==3 ? "afb_api_t api, " : "");
+		}
+	}
+
 	printf(
 		"\n"
 		"%sconst struct afb_binding_v%d %s%s = {\n"
@@ -720,10 +757,6 @@ void process(char *filename)
 		"    .preinit = %s,\n"
 		"    .init = %s,\n"
 		"    .onevent = %s,\n"
-		"%s"
-		"    .noconcurrency = %d\n"
-		"};\n"
-		"\n"
 		, priv ? "static " : ""
 		, version
 		, priv ? "_afb_binding_" : version==3 ? "afbBindingV3" : "afbBindingV2"
@@ -732,10 +765,28 @@ void process(char *filename)
 		, capi
 		, info ? make_info(info, 0) : "NULL"
 		, capi
-		, preinit ?: "NULL"
-		, init ?: "NULL"
-		, onevent ?: "NULL"
-		, version==3 ? "    .userdata = NULL,\n" : ""
+		, T(preinit) ? preinit : "NULL"
+		, T(init) ? init : "NULL"
+		, T(onevent) ? onevent : "NULL"
+	);
+
+
+	if (version == 3)
+		printf(
+			"    .userdata = NULL,\n"
+			"    .provide_class = %s%s%s,\n"
+			"    .require_class = %s%s%s,\n"
+			"    .require_api = %s%s%s,\n"
+			, T(provideclass) ? "\"" : "", T(provideclass) ? provideclass : "NULL", T(provideclass) ? "\"" : ""
+			, T(requireclass) ? "\"" : "", T(requireclass) ? requireclass : "NULL", T(requireclass) ? "\"" : ""
+			, T(requireapi) ? "\"" : "", T(requireapi) ? requireapi : "NULL", T(requireapi) ? "\"" : ""
+		);
+
+
+	printf(
+		"    .noconcurrency = %d\n"
+		"};\n"
+		"\n"
 		, !!noconc
 	);
 
