@@ -215,13 +215,14 @@ static void setup_daemon()
  +--------------------------------------------------------- */
 static void daemonize()
 {
-	int fd = 0, daemon;
+	int fd = 0, daemon, nostdin;
 	const char *output;
 	pid_t pid;
 
 	daemon = 0;
 	output = NULL;
 	wrap_json_unpack(main_config, "{s?b s?s}", "daemon", &daemon, "output", &output);
+	nostdin = 0;
 
 	if (output) {
 		fd = open(output, O_WRONLY | O_APPEND | O_CREAT, 0640);
@@ -241,6 +242,8 @@ static void daemonize()
 		}
 		if (pid != 0)
 			_exit(0);
+
+		nostdin = 1;
 	}
 
 	/* closes the input */
@@ -253,8 +256,8 @@ static void daemonize()
 		close(fd);
 	}
 
-	/* after that ctrl+C still works */
-	close(0);
+	if (nostdin)
+		close(0); /* except if 'daemon', ctrl+C still works after that */
 }
 
 /*---------------------------------------------------------

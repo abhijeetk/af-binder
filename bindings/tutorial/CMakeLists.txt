@@ -32,3 +32,5 @@ ENDMACRO(tuto)
 tuto(1 c)
 tuto(2 c)
 tuto(3 cpp)
+
+tuto(app1 c)
