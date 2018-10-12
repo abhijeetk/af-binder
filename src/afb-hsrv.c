@@ -237,7 +237,7 @@ static int access_handler(
 	}
 
 	/* no handler */
-	WARNING("Unhandled request to %s", hreq->url);
+	NOTICE("Unhandled request to %s", hreq->url);
 	afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
 	return MHD_YES;
 }
