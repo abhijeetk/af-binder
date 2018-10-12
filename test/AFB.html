@@ -27,10 +27,16 @@
 	function gotevent(obj) {
 		document.getElementById("outevt").innerHTML = JSON.stringify(obj);
 	}
-	function send(message) {
+	function sendform() {
 		var api = document.getElementById("api").value;
 		var verb = document.getElementById("verb").value;
-		ws.call(api+"/"+verb, {data:message}).then(replyok, replyerr);
+		var message = document.getElementById("message").value;
+		try {
+			var data = JSON.parse(message);
+			ws.call(api+"/"+verb, data).then(replyok, replyerr);
+		} catch(e) {
+			document.getElementById("output").innerHTML = "INVALID JSON ("+e+"): "+message;
+		}
 	}
     </script>
 
@@ -38,10 +44,14 @@
     <h1>WebSocket Echo</h1>
     <div id="connected">Not Connected</div>
     <div id="main" style="visibility:hidden">
-    API: <input type="text" id="api" value="hello" size="80"/><br/>
-    VERB: <input type="text" id="verb" value="ping" size="80"/><br/>
-    Enter Message: <input type="text" name="message" value="" size="80" onchange="send(this.value)"/><br/>
-    Server says... <div id="output"></div>
-    Events: <div id="outevt"></div>
+    <a href="monitoring/monitor.html" target="_blank">Monitoring</a><br/>
+    <form>
+      API: <input type="text" id="api" value="hello" size="80"/><br/>
+      VERB: <input type="text" id="verb" value="ping" size="80"/><br/>
+      DATA: <input type="text" id="message" value="" size="80" /><br/>
+      <input type="button" value="send" onclick="sendform()"/><br/>
+      Server says... <div id="output"></div>
+      Events: <div id="outevt"></div>
+    </form>
     </div>
 
