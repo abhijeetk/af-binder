@@ -117,7 +117,14 @@ int afb_api_so_v3_add(const char *path, void *handle, struct afb_apiset *declare
 
 		export = afb_export_create_none_for_path(declare_set, call_set, path, init, &a);
 		if (export) {
-			afb_export_unref(export);
+			/*
+			 *  No call is done to afb_export_unref(export) because:
+			 *   - legacy applications may use the root API emitting messages
+			 *   - it allows writting applications like bindings without API
+			 *  But this has the sad effect to introduce a kind of leak.
+			 *  To avoid this, if necessary further developement should list bindings
+			 *  and their data.
+			 */
 			return 1;
 		}
 	}
