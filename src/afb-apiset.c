@@ -784,7 +784,7 @@ static int start_api(struct api_desc *api)
 		return -1;
 	}
 
-	INFO("API %s starting...", api->name);
+	NOTICE("API %s starting...", api->name);
 	api->status = EBUSY;
 	rc = start_array_classes(&api->require.classes);
 	if (rc < 0)
@@ -803,7 +803,7 @@ static int start_api(struct api_desc *api)
 		api->status = errno ?: ECANCELED;
 		return -1;
 	}
-	NOTICE("API %s started", api->name);
+	INFO("API %s started", api->name);
 	api->status = 0;
 	return 0;
 }
