@@ -291,7 +291,7 @@ function on_got_apis(obj) {
 				name: api_name
 			};
 			api.node.API = api;
-			api.node.dataset.api = api_name;
+			api.node.dataset.apiname = api_name;
 			api.vnode = get(".verbs", api.node);
 			get(".name", api.node).textContent = api_name;
 			var s = get(".verbosity select", api.node);
@@ -355,9 +355,9 @@ function update_trace_box(node) {
 
 function set_trace_box(node, clear) {
 	var api = node;
-	while (api && !api.dataset.api)
+	while (api && !api.dataset.apiname)
 		api = api.parentElement;
-	var tag = api.dataset.api + "/" + node.dataset.trace;
+	var tag = api.dataset.apiname + "/" + node.dataset.trace;
 	var value = false;
 	for_all_nodes(node, "input", function(n){ if (n.checked) value = n.value; });
 	if (clear)
@@ -365,8 +365,8 @@ function set_trace_box(node, clear) {
 	if (value != "no") {
 		var spec = {tag: tag, name: "trace"};
 		spec[node.dataset.trace] = value;
-		if (api.dataset.api != "*")
-			spec.api = api.dataset.api;
+		if (api.dataset.apiname != "*")
+			spec.apiname = api.dataset.apiname;
 		do_call("monitor/trace", {add: spec});
 	}
 }
