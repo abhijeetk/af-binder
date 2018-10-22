@@ -274,7 +274,7 @@ static void vverbose_cb(struct afb_api_x3 *closure, int level, const char *file,
 	if (!fmt || vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, function, fmt, args);
 	else {
-		verbose(level, file, line, function, "[API %s] %s", export->api.apiname, p);
+		verbose(level, file, line, function, (verbose_is_colorized() == 0 ? "[API %s] %s" : COLOR_API "[API %s]" COLOR_DEFAULT " %s"), export->api.apiname, p);
 		free(p);
 	}
 }

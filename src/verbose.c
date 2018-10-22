@@ -132,6 +132,19 @@ static const char *prefixes[] = {
 	"<7> DEBUG"
 };
 
+static const char *prefixes_colorized[] = {
+	"<0> " COLOR_EMERGENCY	"EMERGENCY"	COLOR_DEFAULT,
+	"<1> " COLOR_ALERT	"ALERT"		COLOR_DEFAULT,
+	"<2> " COLOR_CRITICAL	"CRITICAL"	COLOR_DEFAULT,
+	"<3> " COLOR_ERROR	"ERROR"		COLOR_DEFAULT,
+	"<4> " COLOR_WARNING	"WARNING"	COLOR_DEFAULT,
+	"<5> " COLOR_NOTICE	"NOTICE"	COLOR_DEFAULT,
+	"<6> " COLOR_INFO	"INFO"		COLOR_DEFAULT,
+	"<7> " COLOR_DEBUG	"DEBUG"		COLOR_DEFAULT
+};
+
+static int colorize = 0;
+
 static int tty;
 
 static const char chars[] = { '\n', '?', ':', ' ', '[', ',', ']' };
@@ -153,7 +166,10 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 		tty = 1 + isatty(STDERR_FILENO);
 
 	/* prefix */
-	iov[0].iov_base = (void*)prefixes[CROP_LOGLEVEL(loglevel)] + (tty - 1 ? 4 : 0);
+	if (colorize)
+		iov[0].iov_base = (void*)prefixes_colorized[CROP_LOGLEVEL(loglevel)] + (tty - 1 ? 4 : 0);
+	else
+		iov[0].iov_base = (void*)prefixes[CROP_LOGLEVEL(loglevel)] + (tty - 1 ? 4 : 0);
 	iov[0].iov_len = strlen(iov[0].iov_base);
 
 	/* " " */
@@ -175,6 +191,13 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 		iov[n++].iov_len = (size_t)rc;
 	}
 	if (file && (!fmt || tty == 1 || loglevel <= Log_Level_Warning)) {
+
+		if (colorize)
+		{
+			iov[n].iov_base = (void*)COLOR_FILE;
+			iov[n++].iov_len = strlen(COLOR_FILE);
+		}
+
 		/* "[" (!fmt) or " [" (fmt) */
 		iov[n].iov_base = (void*)&chars[3 + !fmt];
 		iov[n++].iov_len = 2 - !fmt;
@@ -207,6 +230,12 @@ static void _vverbose_(int loglevel, const char *file, int line, const char *fun
 		}
 		iov[n].iov_base = (void*)&chars[6];
 		iov[n++].iov_len = 1;
+
+		if (colorize)
+		{
+			iov[n].iov_base = (void*)COLOR_DEFAULT;
+			iov[n++].iov_len = strlen(COLOR_DEFAULT);
+		}
 	}
 	if (n == 2) {
 		/* "?" */
@@ -335,3 +364,12 @@ const char *verbose_name_of_level(int level)
 	return level == CROP_LOGLEVEL(level) ? names[level] : NULL;
 }
 
+void verbose_colorize()
+{
+	colorize = 1;
+}
+
+int verbose_is_colorized()
+{
+	return colorize;
+}

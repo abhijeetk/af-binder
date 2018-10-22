@@ -4,6 +4,7 @@ The launch options for binder **afb-daemon** are:
 
 ```
  -v, --verbose           Verbose Mode, repeat to increase verbosity
+ -c, --color             Colorize the ouput
  -q, --quiet             Quiet Mode, repeat to decrease verbosity
  -l, --log=xxxx          Tune log level
      --foreground        Get all in foreground mode
@@ -40,7 +41,7 @@ The launch options for binder **afb-daemon** are:
      --traceglob=xxxx    Log the globals: none, all
      --traceditf=xxxx    Log the daemons: no, common, all
      --tracesvc=xxxx     Log the services: no, all
- -c, --call=xxxx         call at start format of val: API/VERB:json-args
+     --call=xxxx         call at start format of val: API/VERB:json-args
      --no-httpd          Forbid HTTP service
  -e, --exec              Execute the remaining arguments
  -M, --monitoring        Enable HTTP monitoring at <ROOT>/monitoring/
@@ -61,6 +62,10 @@ Display version and copyright
 ## verbose
 
 Increases the verbosity, can be repeated
+
+## color
+
+Add basic colorization to the ouput.
 
 ## quiet
 

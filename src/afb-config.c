@@ -107,9 +107,8 @@
 #define SET_TRACEDITF       25
 #define SET_TRACESVC        26
 #endif
-
-#define SET_TRAP_FAULTS      27
-
+#define SET_TRAP_FAULTS     27
+#define ADD_CALL            28
 #if defined(WITH_DBUS_TRANSPARENCY)
 #   define ADD_DBUS_CLIENT  30
 #   define ADD_DBUS_SERVICE 31
@@ -118,7 +117,7 @@
 #define ADD_AUTO_API       'A'
 #define ADD_BINDING        'b'
 #define SET_CONFIG         'C'
-#define ADD_CALL           'c'
+#define SET_COLOR          'c'
 #define SET_DAEMON         'D'
 #define SET_EXEC           'e'
 #define GET_HELP           'h'
@@ -151,6 +150,7 @@ struct option_desc {
 static struct option_desc optdefs[] = {
 /* *INDENT-OFF* */
 	{SET_VERBOSE,         0, "verbose",     "Verbose Mode, repeat to increase verbosity"},
+	{SET_COLOR,           0, "color",       "Colorize the ouput"},
 	{SET_QUIET,           0, "quiet",       "Quiet Mode, repeat to decrease verbosity"},
 	{SET_LOG,             1, "log",         "Tune log level"},
 
@@ -754,6 +754,10 @@ static void parse_arguments_inner(int argc, char **argv, struct json_object *con
 		switch (optid) {
 		case SET_VERBOSE:
 			verbose_inc();
+			break;
+
+		case SET_COLOR:
+			verbose_colorize();
 			break;
 
 		case SET_QUIET:
