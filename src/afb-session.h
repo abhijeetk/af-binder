@@ -50,3 +50,5 @@ extern void *afb_session_get_cookie(struct afb_session *session, const void *key
 extern void *afb_session_cookie(struct afb_session *session, const void *key, void *(*makecb)(void *closure), void (*freecb)(void *item), void *closure, int replace);
 extern int afb_session_set_cookie(struct afb_session *session, const void *key, void *value, void (*freecb)(void*));
 
+extern int afb_session_set_language(struct afb_session *session, const char *lang);
+extern const char *afb_session_get_language(struct afb_session *session, const char *lang);
