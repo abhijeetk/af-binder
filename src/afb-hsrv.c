@@ -29,6 +29,9 @@
 
 #include <json-c/json.h>
 #include <microhttpd.h>
+#if MHD_VERSION < 0x00095206
+# define MHD_ALLOW_SUSPEND_RESUME MHD_USE_SUSPEND_RESUME
+#endif
 
 #include "afb-method.h"
 #include "afb-context.h"
@@ -417,7 +420,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 	const union MHD_DaemonInfo *info;
 
 	httpd = MHD_start_daemon(
-		MHD_USE_EPOLL | MHD_ALLOW_UPGRADE | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
+		MHD_USE_EPOLL | MHD_ALLOW_UPGRADE | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_ALLOW_SUSPEND_RESUME,
 		port,				/* port */
 		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
 		access_handler, hsrv,	/* Http Request Call back + extra attribute */
