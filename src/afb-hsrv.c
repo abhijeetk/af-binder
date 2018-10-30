@@ -71,6 +71,7 @@ struct afb_hsrv {
 
 static void reply_error(struct MHD_Connection *connection, unsigned int status)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct MHD_Response *response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 	MHD_queue_response(connection, status, response);
 	MHD_destroy_response(response);
@@ -86,6 +87,7 @@ static int postproc(void *cls,
 		    uint64_t off,
 		    size_t size)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct afb_hreq *hreq = cls;
 	if (filename != NULL)
 		return afb_hreq_post_add_file(hreq, key, filename, data, size);
@@ -110,7 +112,7 @@ static int access_handler(
 	struct hsrv_handler *iter;
 	const char *type;
 	enum json_tokener_error jerr;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d \nurl %s \nmethodstr %s \nversion %s \nupload_data %s\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__, url, methodstr, version, upload_data);
 	hsrv = cls;
 	hreq = *recordreq;
 	if (hreq == NULL) {
@@ -246,6 +248,7 @@ static int access_handler(
 static void end_handler(void *cls, struct MHD_Connection *connection, void **recordreq,
 			enum MHD_RequestTerminationCode toe)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct afb_hreq *hreq;
 
 	hreq = *recordreq;
@@ -256,6 +259,7 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 
 static void do_run(int signum, void *arg)
 {
+	    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	MHD_UNSIGNED_LONG_LONG to;
 	struct afb_hsrv *hsrv = arg;
 
@@ -267,6 +271,7 @@ static void do_run(int signum, void *arg)
 
 void afb_hsrv_run(struct afb_hsrv *hsrv)
 {
+	    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	fdev_set_events(hsrv->fdev, 0);
 	if (jobs_queue(hsrv, 0, do_run, hsrv) < 0)
 		do_run(0, hsrv);
@@ -274,6 +279,7 @@ void afb_hsrv_run(struct afb_hsrv *hsrv)
 
 static void listen_callback(void *hsrv, uint32_t revents, struct fdev *fdev)
 {
+	    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	afb_hsrv_run(hsrv);
 }
 
@@ -291,7 +297,7 @@ static struct hsrv_handler *new_handler(
 {
 	struct hsrv_handler *link, *iter, *previous;
 	size_t length;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	/* get the length of the prefix without its leading / */
 	length = strlen(prefix);
 	while (length && prefix[length - 1] == '/')
@@ -328,7 +334,7 @@ static int handle_alias(struct afb_hreq *hreq, void *data)
 	int rc;
 	struct hsrv_alias *da = data;
 	struct locale_search *search;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hreq->method != afb_method_get) {
 		if (da->relax)
 			return 0;
@@ -355,7 +361,7 @@ int afb_hsrv_add_handler(
 		int priority)
 {
 	struct hsrv_handler *head;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	head = new_handler(hsrv->handlers, prefix, handler, data, priority);
 	if (head == NULL)
 		return 0;
@@ -366,7 +372,7 @@ int afb_hsrv_add_handler(
 int afb_hsrv_add_alias_root(struct afb_hsrv *hsrv, const char *prefix, struct locale_root *root, int priority, int relax)
 {
 	struct hsrv_alias *da;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	da = malloc(sizeof *da);
 	if (da != NULL) {
 		da->root = root;
@@ -384,7 +390,7 @@ int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, int dirfd, con
 {
 	struct locale_root *root;
 	int rc;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	root = locale_root_create_at(dirfd, alias);
 	if (root == NULL) {
 		ERROR("can't connect to directory %s: %m", alias);
@@ -400,7 +406,7 @@ int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration)
 {
 	int rc;
 	char *dur;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	rc = asprintf(&dur, "%d", duration);
 	if (rc < 0)
 		return 0;
@@ -415,7 +421,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 	struct fdev *fdev;
 	struct MHD_Daemon *httpd;
 	const union MHD_DaemonInfo *info;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	httpd = MHD_start_daemon(
 		MHD_USE_EPOLL | MHD_ALLOW_UPGRADE | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
 		port,				/* port */
@@ -454,6 +460,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 
 void afb_hsrv_stop(struct afb_hsrv *hsrv)
 {
+	    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hsrv->fdev != NULL) {
 		fdev_unref(hsrv->fdev);
 		hsrv->fdev = NULL;
@@ -465,6 +472,7 @@ void afb_hsrv_stop(struct afb_hsrv *hsrv)
 
 struct afb_hsrv *afb_hsrv_create()
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct afb_hsrv *result = calloc(1, sizeof(struct afb_hsrv));
 	if (result != NULL)
 		result->refcount = 1;
@@ -473,6 +481,7 @@ struct afb_hsrv *afb_hsrv_create()
 
 void afb_hsrv_put(struct afb_hsrv *hsrv)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	assert(hsrv->refcount != 0);
 	if (!--hsrv->refcount) {
 		afb_hsrv_stop(hsrv);

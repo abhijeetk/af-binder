@@ -45,6 +45,8 @@
 #include "verbose.h"
 #include "locale-root.h"
 
+
+
 #define SIZE_RESPONSE_BUFFER   8192
 
 static int global_reqids = 0;
@@ -89,6 +91,7 @@ const struct afb_xreq_query_itf afb_hreq_xreq_query_itf = {
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct hreq_data *data = hreq->data;
 	while (data != NULL) {
 		if (!strcasecmp(data->key, key))
@@ -114,6 +117,7 @@ static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int cr
 /* a valid subpath is a relative path not looking deeper than root using .. */
 static int validsubpath(const char *subpath)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	int l = 0, i = 0;
 
 	while (subpath[i]) {
@@ -150,6 +154,7 @@ static int validsubpath(const char *subpath)
 
 static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, va_list args)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	char *cookie;
 	const char *k, *v;
 
@@ -176,10 +181,13 @@ static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_
 		hreq->suspended = 0;
 		afb_hsrv_run(hreq->hsrv);
 	}
+
+    fprintf(stderr, "NETWORK : [%d] %s %s %d URL : %s\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__, hreq->url);
 }
 
 void afb_hreq_reply(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, ...)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	va_list args;
 	va_start(args, response);
 	afb_hreq_reply_v(hreq, status, response, args);
@@ -188,6 +196,7 @@ void afb_hreq_reply(struct afb_hreq *hreq, unsigned status, struct MHD_Response 
 
 void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	va_list args;
 	va_start(args, status);
 	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT), args);
@@ -196,6 +205,7 @@ void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...)
 
 void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	va_list args;
 	va_start(args, buffer);
 	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, (char*)buffer, MHD_RESPMEM_PERSISTENT), args);
@@ -204,6 +214,7 @@ void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, 
 
 void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	va_list args;
 	va_start(args, buffer);
 	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, (char*)buffer, MHD_RESPMEM_MUST_COPY), args);
@@ -212,6 +223,7 @@ void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, co
 
 void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	va_list args;
 	va_start(args, buffer);
 	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_FREE), args);
@@ -226,6 +238,7 @@ void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t size, ch
 
 static magic_t lazy_libmagic()
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	static int done = 0;
 	static magic_t result = NULL;
 
@@ -252,6 +265,7 @@ static magic_t lazy_libmagic()
 
 static const char *magic_mimetype_fd(int fd)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	magic_t lib = lazy_libmagic();
 	return lib ? magic_descriptor(lib, fd) : NULL;
 }
@@ -261,7 +275,7 @@ static const char *magic_mimetype_fd(int fd)
 static const char *mimetype_fd_name(int fd, const char *filename)
 {
 	const char *result = NULL;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 #if defined(INFER_EXTENSION)
 	/*
 	 * Set some well-known extensions
@@ -318,7 +332,7 @@ static void req_destroy(struct afb_xreq *xreq)
 {
 	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	struct hreq_data *data;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hreq->postform != NULL)
 		MHD_destroy_post_processor(hreq->postform);
 	if (hreq->tokener != NULL)
@@ -344,11 +358,13 @@ static void req_destroy(struct afb_xreq *xreq)
 
 void afb_hreq_addref(struct afb_hreq *hreq)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	afb_xreq_unhooked_addref(&hreq->xreq);
 }
 
 void afb_hreq_unref(struct afb_hreq *hreq)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hreq->replied)
 		hreq->xreq.replied = 1;
 	afb_xreq_unhooked_unref(&hreq->xreq);
@@ -361,6 +377,7 @@ void afb_hreq_unref(struct afb_hreq *hreq)
  */
 int afb_hreq_unprefix(struct afb_hreq *hreq, const char *prefix, size_t length)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	/* check the prefix ? */
 	if (length > hreq->lentail || (hreq->tail[length] && hreq->tail[length] != '/')
 	    || strncasecmp(prefix, hreq->tail, length))
@@ -378,18 +395,20 @@ int afb_hreq_unprefix(struct afb_hreq *hreq, const char *prefix, size_t length)
 
 int afb_hreq_valid_tail(struct afb_hreq *hreq)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	return validsubpath(hreq->tail);
 }
 
 void afb_hreq_reply_error(struct afb_hreq *hreq, unsigned int status)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	afb_hreq_reply_empty(hreq, status, NULL);
 }
 
 int afb_hreq_redirect_to_ending_slash_if_needed(struct afb_hreq *hreq)
 {
 	char *tourl;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hreq->url[hreq->lenurl - 1] == '/')
 		return 0;
 
@@ -412,7 +431,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	const char *inm;
 	struct MHD_Response *response;
 	const char *mimetype;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	/* Opens the file or directory */
 	if (filename[0]) {
 		fd = openat(dirfd, filename, O_RDONLY);
@@ -508,6 +527,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 
 int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	int rc = afb_hreq_reply_file_if_exist(hreq, dirfd, filename);
 	if (rc == 0)
 		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
@@ -516,6 +536,7 @@ int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 
 int afb_hreq_reply_locale_file_if_exist(struct afb_hreq *hreq, struct locale_search *search, const char *filename)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	int rc;
 	int fd;
 	unsigned int status;
@@ -614,6 +635,7 @@ int afb_hreq_reply_locale_file_if_exist(struct afb_hreq *hreq, struct locale_sea
 
 int afb_hreq_reply_locale_file(struct afb_hreq *hreq, struct locale_search *search, const char *filename)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	int rc = afb_hreq_reply_locale_file_if_exist(hreq, search, filename);
 	if (rc == 0)
 		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
@@ -647,11 +669,14 @@ static void _mkq_add_(struct _mkq_ *mkq, char value)
 
 static void _mkq_add_hex_(struct _mkq_ *mkq, char value)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	_mkq_add_(mkq, (char)(value < 10 ? value + '0' : value + 'A' - 10));
 }
 
 static void _mkq_add_esc_(struct _mkq_ *mkq, char value)
 {
+
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	_mkq_add_(mkq, '%');
 	_mkq_add_hex_(mkq, (char)((value >> 4) & 15));
 	_mkq_add_hex_(mkq, (char)(value & 15));
@@ -659,6 +684,7 @@ static void _mkq_add_esc_(struct _mkq_ *mkq, char value)
 
 static void _mkq_add_char_(struct _mkq_ *mkq, char value)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (value <= ' ' || value >= 127)
 		_mkq_add_esc_(mkq, value);
 	else
@@ -675,12 +701,14 @@ static void _mkq_add_char_(struct _mkq_ *mkq, char value)
 
 static void _mkq_append_(struct _mkq_ *mkq, const char *value)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	while(*value)
 		_mkq_add_char_(mkq, *value++);
 }
 
 static int _mkquery_(struct _mkq_ *mkq, enum MHD_ValueKind kind, const char *key, const char *value)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	_mkq_add_(mkq, mkq->count++ ? '&' : '?');
 	_mkq_append_(mkq, key);
 	if (value != NULL) {
@@ -693,7 +721,7 @@ static int _mkquery_(struct _mkq_ *mkq, enum MHD_ValueKind kind, const char *key
 static char *url_with_query(struct afb_hreq *hreq, const char *url)
 {
 	struct _mkq_ mkq;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	mkq.count = 0;
 	mkq.length = strlen(url);
 	mkq.alloc = mkq.length + 1000;
@@ -710,7 +738,7 @@ void afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_
 {
 	const char *to;
 	char *wqp;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	wqp = add_query_part ? url_with_query(hreq, url) : NULL;
 	to = wqp ? : url;
 	afb_hreq_reply_static(hreq, MHD_HTTP_MOVED_PERMANENTLY, 0, NULL,
@@ -721,22 +749,26 @@ void afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_
 
 const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	return MHD_lookup_connection_value(hreq->connection, MHD_COOKIE_KIND, name);
 }
 
 const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct hreq_data *data = get_data(hreq, name, 0);
 	return data ? data->value : MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
 }
 
 const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	return MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, name);
 }
 
 int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, size_t size)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	void *p;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
 	if (hdat->path != NULL) {
@@ -755,6 +787,7 @@ int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, 
 
 int afb_hreq_init_download_path(const char *directory)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct stat st;
 	size_t n;
 	char *p;
@@ -796,6 +829,7 @@ int afb_hreq_init_download_path(const char *directory)
 
 static int opentempfile(char **path)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	int fd;
 	char *fname;
 
@@ -816,7 +850,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 	int fd;
 	ssize_t sz;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hdat->value == NULL) {
 		hdat->value = strdup(file);
 		if (hdat->value == NULL)
@@ -844,6 +878,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 
 static struct afb_arg req_get(struct afb_xreq *xreq, const char *name)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	const char *value;
 	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	struct hreq_data *hdat = get_data(hreq, name, 0);
@@ -864,12 +899,14 @@ static struct afb_arg req_get(struct afb_xreq *xreq, const char *name)
 
 static int _iterargs_(struct json_object *obj, enum MHD_ValueKind kind, const char *key, const char *value)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	json_object_object_add(obj, key, value ? json_object_new_string(value) : NULL);
 	return 1;
 }
 
 static struct json_object *req_json(struct afb_xreq *xreq)
 {
+	fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct hreq_data *hdat;
 	struct json_object *obj, *val;
 	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
@@ -900,12 +937,14 @@ static struct json_object *req_json(struct afb_xreq *xreq)
 
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	ssize_t len = stpncpy(buf, json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE)+pos, max) - buf;
 	return len ? : (ssize_t)MHD_CONTENT_READER_END_OF_STREAM;
 }
 
 static void req_reply(struct afb_xreq *xreq, struct json_object *object, const char *error, const char *info)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct afb_hreq *hreq = CONTAINER_OF_XREQ(struct afb_hreq, xreq);
 	struct json_object *sub, *reply;
 	const char *reqid;
@@ -921,12 +960,17 @@ static void req_reply(struct afb_xreq *xreq, struct json_object *object, const c
 	if (reqid != NULL && json_object_object_get_ex(reply, "request", &sub))
 		json_object_object_add(sub, "reqid", json_object_new_string(reqid));
 
-	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string_ext(reply, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
+	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string_ext(reply, JSON_C_TO_STRING_PLAIN|JSON_C_TO_STRING_NOSLASHESCAPE)),
+	 SIZE_RESPONSE_BUFFER,
+	  (void*)send_json_cb,
+	  reply,
+	  (void*)json_object_put);
 	afb_hreq_reply(hreq, MHD_HTTP_OK, response, NULL);
 }
 
 void afb_hreq_call(struct afb_hreq *hreq, struct afb_apiset *apiset, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	hreq->xreq.request.called_api = strndup(api, lenapi);
 	hreq->xreq.request.called_verb = strndup(verb, lenverb);
 	if (hreq->xreq.request.called_api == NULL || hreq->xreq.request.called_verb == NULL) {
@@ -944,7 +988,7 @@ int afb_hreq_init_context(struct afb_hreq *hreq)
 {
 	const char *uuid;
 	const char *token;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	if (hreq->xreq.context.session != NULL)
 		return 0;
 
@@ -968,7 +1012,7 @@ int afb_hreq_init_context(struct afb_hreq *hreq)
 int afb_hreq_init_cookie(int port, const char *path, int maxage)
 {
 	int rc;
-
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	free(cookie_name);
 	free(cookie_setter);
 	cookie_name = NULL;
@@ -987,11 +1031,13 @@ int afb_hreq_init_cookie(int port, const char *path, int maxage)
 
 struct afb_xreq *afb_hreq_to_xreq(struct afb_hreq *hreq)
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	return &hreq->xreq;
 }
 
 struct afb_hreq *afb_hreq_create()
 {
+    fprintf(stderr, "NETWORK : [%d] %s %s %d\r\n", (int)getpid(), __FILE__, __FUNCTION__, __LINE__);
 	struct afb_hreq *hreq = calloc(1, sizeof *hreq);
 	if (hreq) {
 		/* init the request */
